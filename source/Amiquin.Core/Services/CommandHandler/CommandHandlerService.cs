@@ -87,6 +87,12 @@ public class CommandHandlerService : ICommandHandlerService
                     case InteractionCommandError.Exception:
                         embed.WithTitle("Command exception");
                         embed.WithDescription(result.ErrorReason);
+
+                        if (result is ExecuteResult execResult)
+                        {
+                            _logger.LogError(execResult.Exception, "Command [{name}] failed to execute in [{serverName}]", slashCommandInfo.Name, interactionContext.Guild.Name);
+                        }
+
                         break;
 
                     case InteractionCommandError.Unsuccessful:
