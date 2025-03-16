@@ -4,7 +4,7 @@ public class Constants
 {
     // Environment Variables
     public const string BotToken = "BOT_TOKEN";
-    public const string OpenApiKey = "OPEN_API_KEY";
+    public const string OpenAiKey = "OPEN_AI_KEY";
     public const string LogsPath = "LOGS_PATH";
     public const string PrintLogo = "PRINT_LOGO";
 

@@ -72,7 +72,7 @@ public class InjectionConfigurator
         _services.AddTransient<ChatClient>((services) =>
         {
             var configManager = services.GetRequiredService<IConfiguration>();
-            string openApiKey = configManager.GetValue<string>(Constants.OpenApiKey)
+            string openApiKey = configManager.GetValue<string>(Constants.OpenAiKey)
                 ?? services.GetRequiredService<IOptions<BotOptions>>().Value.OpenAIKey;
 
             return new ChatClient(Constants.Gpt4oMiniModel, openApiKey);
