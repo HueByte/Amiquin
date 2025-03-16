@@ -82,7 +82,7 @@ public class AmiquinHost : IHostedService
         _logger.LogInformation("Creating bot");
         _logger.LogInformation("Logging in with token: {Token}", StringModifier.Anomify(token));
 
-        await _client.LoginAsync(TokenType.Bot, _botOptions.Token);
+        await _client.LoginAsync(TokenType.Bot, token);
         await _client.StartAsync();
     }
 
