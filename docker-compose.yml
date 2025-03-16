@@ -1,0 +1,15 @@
+services:
+  amiquinbot:
+    container_name: amiquinbot
+    build:
+      context: .
+      dockerfile: dockerfile
+    env_file:
+      - .env
+    ports:
+      - "10001:10000" # Adjust ports as needed
+    volumes:
+      - amiquinbotdata:/Amiquin/Data
+
+volumes:
+  amiquinbotdata:
