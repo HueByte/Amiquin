@@ -98,6 +98,6 @@ public class AmiquinHost : IHostedService
         var commands = _commandHandlerService.Commands;
 
         Console.Writer.WriteList("Ephemeral Commands", ephemeralCommands);
-        Console.Writer.WriteDictionaryData("Commands", commands.ToDictionary(x => $"/{x.Module.SlashGroupName} {x.Name}", x => x.Description));
+        Console.Writer.WriteDictionaryData("Commands", commands.ToDictionary(x => $"/{(string.IsNullOrEmpty(x.Module.SlashGroupName) ? "" : x.Module.SlashGroupName + " ")}{x.Name}", x => x.Description));
     }
 }
