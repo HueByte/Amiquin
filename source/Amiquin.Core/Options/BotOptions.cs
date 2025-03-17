@@ -4,7 +4,7 @@ namespace Amiquin.Core.Options;
 
 public class BotOptions : IOption
 {
-    public const string BOT = "Bot";
+    public const string Bot = "Bot";
 
     [Anomify]
     public string Token { get; set; } = default!;

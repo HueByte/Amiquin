@@ -6,7 +6,7 @@ namespace Amiquin.Core.Services.MessageCache;
 public class MessageCacheService : IMessageCacheService
 {
     private readonly IMemoryCache _memoryCache;
-    private readonly string MESSAGES_BASE_PATH = Path.Join(AppContext.BaseDirectory, "Messages");
+    private const int MEMORY_CACHE_EXPIRATION = 5;
 
     public MessageCacheService(IMemoryCache memoryCache)
     {
@@ -15,12 +15,14 @@ public class MessageCacheService : IMessageCacheService
 
     public void ClearCache()
     {
-        _memoryCache.Remove(Constants.PersonaMessageKey);
+        _memoryCache.Remove(Constants.ComputedPersonaMessageKey);
+        _memoryCache.Remove(Constants.CorePersonaMessageKey);
+        _memoryCache.Remove(Constants.JoinMessageKey);
     }
 
-    public async Task<string?> GetPersonaMessage()
+    public async Task<string?> GetPersonaCoreMessage()
     {
-        return await GetMessageAsync(Constants.PersonaMessageKey);
+        return await GetMessageAsync(Constants.CorePersonaMessageKey);
     }
 
     public async Task<string?> GetServerJoinMessage()
@@ -38,36 +40,19 @@ public class MessageCacheService : IMessageCacheService
         return 0;
     }
 
-    public async Task<List<ChatMessage>> GetChatMessages(ulong channelId)
+    public List<ChatMessage>? GetChatMessages(ulong channelId)
     {
         if (_memoryCache.TryGetValue(channelId, out List<ChatMessage>? channelMessages))
         {
-            return channelMessages ?? await CreateFreshMessageSession(channelId);
+            return channelMessages;
         }
 
-        return await CreateFreshMessageSession(channelId);
+        return null;
     }
 
-    public async Task AddOrUpdateChatMessage(ulong channelId, ChatMessage message)
+    public void SetChatMessages(ulong channelId, List<ChatMessage> messages)
     {
-        if (_memoryCache.TryGetValue(channelId, out List<ChatMessage>? channelMessages))
-        {
-            if (channelMessages is null || channelMessages.Count == 0)
-            {
-                channelMessages = await CreateFreshMessageSession(channelId, message);
-            }
-            else
-            {
-                channelMessages.Add(message);
-            }
-
-            _memoryCache.Set(channelId, channelMessages, TimeSpan.FromDays(4));
-        }
-        else
-        {
-            var messages = await CreateFreshMessageSession(channelId, message);
-            _memoryCache.Set(channelId, messages, TimeSpan.FromDays(4));
-        }
+        _memoryCache.Set(channelId, messages, TimeSpan.FromDays(MEMORY_CACHE_EXPIRATION));
     }
 
     public void ClearOldMessages(ulong channelId, int range)
@@ -78,29 +63,14 @@ public class MessageCacheService : IMessageCacheService
             {
                 // Starting from 1 to not remove the developer message
                 channelMessages.RemoveRange(1, channelMessages.Count - range);
-                _memoryCache.Set(channelId, channelMessages, TimeSpan.FromDays(4));
+                _memoryCache.Set(channelId, channelMessages, TimeSpan.FromDays(MEMORY_CACHE_EXPIRATION));
             }
         }
     }
 
-    private async Task<List<ChatMessage>> CreateFreshMessageSession(ulong channelId)
+    public void ModifyMessage(string key, string message, int minutes = 30)
     {
-        var devMessage = await GetMessageAsync(Constants.PersonaMessageKey);
-        var messages = new List<ChatMessage> { ChatMessage.CreateDeveloperMessage(devMessage) };
-
-        _memoryCache.Set(channelId, messages, TimeSpan.FromDays(4));
-
-        return messages;
-    }
-
-    private async Task<List<ChatMessage>> CreateFreshMessageSession(ulong channelId, ChatMessage userMessage)
-    {
-        var devMessage = await GetMessageAsync(Constants.PersonaMessageKey);
-        var messages = new List<ChatMessage> { ChatMessage.CreateDeveloperMessage(devMessage), userMessage };
-
-        _memoryCache.Set(channelId, messages, TimeSpan.FromDays(4));
-
-        return messages;
+        _memoryCache.Set(key, message, TimeSpan.FromMinutes(minutes));
     }
 
     private async Task<string?> GetMessageAsync(string key)
@@ -109,9 +79,9 @@ public class MessageCacheService : IMessageCacheService
         {
             return message;
         }
-        else if (File.Exists(Path.Join(MESSAGES_BASE_PATH, $"{key}.md")))
+        else if (File.Exists(Path.Join(Constants.MessageBasePath, $"{key}.md")))
         {
-            message = await File.ReadAllTextAsync(Path.Join(MESSAGES_BASE_PATH, $"{key}.md"));
+            message = await File.ReadAllTextAsync(Path.Join(Constants.MessageBasePath, $"{key}.md"));
             _memoryCache.Set(key, message, TimeSpan.FromMinutes(5));
             return message;
         }

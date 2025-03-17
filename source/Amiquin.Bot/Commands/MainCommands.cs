@@ -8,10 +8,10 @@ namespace Amiquin.Bot.Commands;
 
 public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionContext>
 {
-    private readonly IChatService _chatService;
+    private readonly IPersonaChatService _chatService;
     private readonly IMessageCacheService _messageCacheService;
 
-    public MainCommands(IChatService chatService, IMessageCacheService messageCacheService)
+    public MainCommands(IPersonaChatService chatService, IMessageCacheService messageCacheService)
     {
         _chatService = chatService;
         _messageCacheService = messageCacheService;
@@ -29,14 +29,22 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
         sb.AppendLine($"{Context.Client.CurrentUser.Mention}: {response}");
 
         int messageCount = _messageCacheService.GetChatMessageCount(Context.Channel.Id);
-        Embed embed = new EmbedBuilder()
-            .WithDescription(sb.ToString())
+
+        // User Embed
+        Embed userEmbed = new EmbedBuilder()
+            .WithDescription(message)
             .WithAuthor(Context.User)
-            .WithThumbnailUrl(Context.Client.CurrentUser.GetAvatarUrl())
-            .WithColor(Color.Magenta)
+            .WithColor(Color.Teal)
+            .Build();
+
+        // Bot Embed
+        Embed botEmbed = new EmbedBuilder()
+            .WithDescription(response)
+            .WithAuthor(Context.Client.CurrentUser)
+            .WithColor(Color.Purple)
             .WithFooter($"Remembering last {messageCount} messages")
             .Build();
 
-        await ModifyOriginalResponseAsync((msg) => msg.Embed = embed);
+        await ModifyOriginalResponseAsync((msg) => { msg.Embeds = new[] { userEmbed, botEmbed }; });
     }
 }

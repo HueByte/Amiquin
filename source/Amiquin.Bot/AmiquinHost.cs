@@ -3,9 +3,11 @@ using Amiquin.Core.Options;
 using Amiquin.Core.Services.CommandHandler;
 using Amiquin.Core.Services.EventHandler;
 using Amiquin.Core.Utilities;
+using Amiquin.Infrastructure;
 using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -40,6 +42,7 @@ public class AmiquinHost : IHostedService
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
+        await CreateDatabaseAsync();
         await _commandHandlerService.InitializeAsync();
 
         AttachEvents();
@@ -86,6 +89,13 @@ public class AmiquinHost : IHostedService
         await _client.StartAsync();
     }
 
+    private async Task CreateDatabaseAsync()
+    {
+        using var scope = _serviceScopeFactory.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AmiquinContext>();
+        await dbContext.Database.MigrateAsync();
+    }
+
     private void DisplayData()
     {
         var shouldPrintLogo = _configuration.GetValue<bool>(Constants.PrintLogo);
@@ -99,5 +109,29 @@ public class AmiquinHost : IHostedService
 
         Console.Writer.WriteList("Ephemeral Commands", ephemeralCommands);
         Console.Writer.WriteDictionaryData("Commands", commands.ToDictionary(x => $"/{(string.IsNullOrEmpty(x.Module.SlashGroupName) ? "" : x.Module.SlashGroupName + " ")}{x.Name}", x => x.Description));
+
+        Dictionary<string, string> data = new()
+        {
+            { "ID", _client.CurrentUser.Id.ToString() },
+            { "Name Const", Constants.BotName },
+            { "Name", _client.CurrentUser.Username},
+            { "Discriminator", _client.CurrentUser.Discriminator},
+            { "Global Name", _client.CurrentUser.GlobalName},
+            { "Email", _client.CurrentUser.Email},
+            { "Created Date", _client.CurrentUser.CreatedAt.ToString("dd-MM-yyyy")},
+            { "Version", Constants.BotVersion },
+            { "Shards", _client.Shards.Count.ToString() },
+            { "Guilds", _client.Guilds.Count.ToString() },
+            { "Users", _client.Guilds.Sum(x => x.MemberCount).ToString() },
+            { "Commands", commands.Count.ToString() },
+            { "Ephemeral Commands", ephemeralCommands.Count.ToString() },
+            { "IsInitialized", _isInitialized.ToString() },
+            { "Avatar Url", _client.CurrentUser.GetDisplayAvatarUrl()},
+            { "IsBot", _client.CurrentUser.IsBot ? "Yes" : "No"},
+            { "IsWebhook", _client.CurrentUser.IsWebhook ? "Yes" : "No"},
+            { "Login state", _client.LoginState.ToString() },
+        };
+
+        Console.Writer.WriteDictionaryData("Bot Data", data);
     }
 }

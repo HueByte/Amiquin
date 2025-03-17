@@ -1,10 +1,13 @@
 using Amiquin.Core;
 using Amiquin.Core.Options;
+using Amiquin.Core.Services.ApiClients;
 using Amiquin.Core.Services.Chat;
 using Amiquin.Core.Services.CommandHandler;
 using Amiquin.Core.Services.EventHandler;
 using Amiquin.Core.Services.MessageCache;
+using Amiquin.Core.Services.Persona;
 using Amiquin.Core.Services.ServerInteraction;
+using Amiquin.Infrastructure;
 using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
@@ -58,6 +61,8 @@ public class InjectionConfigurator
                  .AddSingleton(interactionService)
                  .AddSingleton<ICommandHandlerService, CommandHandlerService>()
                  .AddSingleton<IEventHandlerService, EventHandlerService>()
+                 .AddSingleton<IChatSemaphoreManager, ChatSemaphoreManager>()
+                 .AddAmiquinContext(_configuration)
                  .AddMemoryCache();
 
         return this;
@@ -67,7 +72,10 @@ public class InjectionConfigurator
     {
         _services.AddScoped<IMessageCacheService, MessageCacheService>()
                  .AddScoped<IServerInteractionService, ServerInteractionService>()
-                 .AddScoped<IChatService, ChatService>();
+                 .AddScoped<IChatCoreService, ChatCoreService>()
+                 .AddScoped<IPersonaService, PersonaService>()
+                 .AddScoped<IPersonaChatService, PersonaChatService>()
+                 .AddScoped<INewsApiClient, NewsApiClient>();
 
         _services.AddTransient<ChatClient>((services) =>
         {
@@ -78,12 +86,19 @@ public class InjectionConfigurator
             return new ChatClient(Constants.Gpt4oMiniModel, openApiKey);
         });
 
+        _services.AddHttpClient(typeof(INewsApiClient).Name, (services, client) =>
+        {
+            var externalUrls = services.GetRequiredService<IOptions<ExternalUrlsOptions>>().Value;
+            client.BaseAddress = new Uri(externalUrls.NewsApiUrl);
+        });
+
         return this;
     }
 
     public InjectionConfigurator AddOptions()
     {
-        _services.AddOptions<BotOptions>().Bind(_configuration.GetSection(BotOptions.BOT));
+        _services.AddOptions<BotOptions>().Bind(_configuration.GetSection(BotOptions.Bot));
+        _services.AddOptions<ExternalUrlsOptions>().Bind(_configuration.GetSection(ExternalUrlsOptions.ExternalUrls));
 
         return this;
     }

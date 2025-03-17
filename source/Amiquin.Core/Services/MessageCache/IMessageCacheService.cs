@@ -5,10 +5,10 @@ namespace Amiquin.Core.Services.MessageCache;
 public interface IMessageCacheService
 {
     void ClearCache();
-    Task<string?> GetPersonaMessage();
+    Task<string?> GetPersonaCoreMessage();
     Task<string?> GetServerJoinMessage();
-    Task<List<ChatMessage>> GetChatMessages(ulong key);
-    Task AddOrUpdateChatMessage(ulong channelId, ChatMessage message);
+    List<ChatMessage>? GetChatMessages(ulong key);
+    void SetChatMessages(ulong channelId, List<ChatMessage> messages);
     void ClearOldMessages(ulong channelId, int range);
     int GetChatMessageCount(ulong channelId);
 }
