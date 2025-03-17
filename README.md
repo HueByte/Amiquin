@@ -1,16 +1,20 @@
-# Amiquin
+# ☁️ Amiquin ☁️
+
+<p align="center">
+    <img src="./Assets/bannah.gif" alt="Amiquin" width="100%"/>
+</p>
 
 Amiquin is a modular and extensible application designed to streamline development with a focus on configurability, logging, and dependency injection. This project leverages modern .NET technologies to provide a solid foundation for building applications.
 The goal is to create a robust, fun and scalable bot.
 
-## Prerequisites
+## ⚗️ Prerequisites
 
 - [.NET SDK](https://dotnet.microsoft.com/download) (version 9.0 or later)
 - [Docker](https://www.docker.com/) (optional)
 
-## Installation
+## ✨ Installation
 
-### Docker
+### 🚢 Docker
 
 Docker is recommended for running the application in a containerized environment. (Docker required)
 
@@ -31,7 +35,7 @@ cd amiquin
 docker-compose up
 ```
 
-### Local
+### 👨‍💻 Local
 
 If you want to run the application locally, follow the steps below. (You have to install the prerequisites)
 
@@ -65,7 +69,7 @@ or if you want to create a self-contained executable:\
 dotnet publish -c Release -r linux-x64 --self-contained
 ```
 
-### Configuration
+### ⚙️ Configuration
 
 The application uses `appsettings.json` and `.env` files for configuration. Ensure those files exist.
 The templates are provided via `appsettings.example.json` and `.env.example`.
@@ -79,17 +83,17 @@ Required parameters:
 
 > **Note:** the `.env` file is used only for docker-compose configuration.
 
-## Logging
+## 📜 Logging
 
 Logs are written to the console and a rolling log file located in the directory specified by `SQLITE_PATH` environment variable or in the application root `/Logs` directory.
 
-## Project Structure
+## ☁️ Project Structure
 
 - **source/Amiquin.Bot**: Entry point and application layer.
 - **source/Amiquin.Core**: (BL) Core functionalities and shared logic.
 - **source/Amiquin.Infrastructure**: (DAL) External services logic.
 
-### Detailed
+### 🕵️ Detailed
 
 > `Amiquin.Bot`
 
@@ -114,15 +118,15 @@ Logs are written to the console and a rolling log file located in the directory 
 - **source/Amiquin.Infrastructure.Repositories**: Repositories.
 - **source/Amiquin.Infrastructure.Migrations**: EFC migrations.
 
-## Contributing
+## 🫂 Contributing
 
 Contributions are welcome! Please fork the repository and submit a pull request with your changes.
 
-## License
+## 🪪 License
 
 This project is licensed under the [MIT License](LICENSE).
 
-## Acknowledgments
+## 💖 Acknowledgments
 
 - [Serilog](https://serilog.net/) for robust logging capabilities.
 - [SpectreConsole](https://spectreconsole.net/quick-start) for beautiful console output.
