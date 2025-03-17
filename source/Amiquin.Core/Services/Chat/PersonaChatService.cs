@@ -14,14 +14,14 @@ public class PersonaChatService : IPersonaChatService
         _personaService = personaService;
     }
 
-    public async Task<string> ChatAsync(ulong channelId, ulong userId, string message)
+    public async Task<string> ChatAsync(ulong channelId, ulong userId, ulong botId, string message)
     {
         var persona = await _personaService.GetPersonaAsync(channelId);
         string result = string.Empty;
         await _semaphore.WaitAsync();
         try
         {
-            result = await _chatCoreService.ChatAsync(channelId, userId, message, persona);
+            result = await _chatCoreService.ChatAsync(channelId, userId, botId, message, persona);
         }
         finally
         {

@@ -1,3 +1,6 @@
+using Amiquin.Core.IRepositories;
+using Amiquin.Core.Models;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using OpenAI.Chat;
 
@@ -6,11 +9,13 @@ namespace Amiquin.Core.Services.MessageCache;
 public class MessageCacheService : IMessageCacheService
 {
     private readonly IMemoryCache _memoryCache;
+    private readonly IMessageRepository _messageRepository;
     private const int MEMORY_CACHE_EXPIRATION = 5;
 
-    public MessageCacheService(IMemoryCache memoryCache)
+    public MessageCacheService(IMemoryCache memoryCache, IMessageRepository messageRepository)
     {
         _memoryCache = memoryCache;
+        _messageRepository = messageRepository;
     }
 
     public void ClearCache()
@@ -40,19 +45,48 @@ public class MessageCacheService : IMessageCacheService
         return 0;
     }
 
-    public List<ChatMessage>? GetChatMessages(ulong channelId)
+    public async Task<List<ChatMessage>?> GetOrCreateChatMessagesAsync(ulong channelId)
     {
-        if (_memoryCache.TryGetValue(channelId, out List<ChatMessage>? channelMessages))
+        return await _memoryCache.GetOrCreateAsync<List<ChatMessage>?>(channelId, async entry =>
         {
-            return channelMessages;
-        }
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromDays(MEMORY_CACHE_EXPIRATION);
+            var messages = await _messageRepository.AsQueryable()
+                .Where(x => x.ChannelId == channelId)
+                .OrderBy(x => x.CreatedAt)
+                .Take(40)
+                .ToListAsync();
 
-        return null;
+            return messages.Select(x =>
+                    x.IsUser
+                        ? (ChatMessage)ChatMessage.CreateUserMessage(x.Content)
+                        : ChatMessage.CreateAssistantMessage(x.Content)
+                ).ToList();
+        });
     }
 
-    public void SetChatMessages(ulong channelId, List<ChatMessage> messages)
+    public async Task AddChatExchange(ulong channelId, List<ChatMessage> messages, List<Message> modelMessages)
     {
-        _memoryCache.Set(channelId, messages, TimeSpan.FromDays(MEMORY_CACHE_EXPIRATION));
+        List<ChatMessage>? chatMessages;
+        if (_memoryCache.TryGetValue(channelId, out chatMessages))
+        {
+            if (chatMessages?.Count > 0)
+            {
+                chatMessages.Clear();
+            }
+
+            chatMessages = chatMessages ?? messages;
+            chatMessages.AddRange(messages);
+
+            _memoryCache.Set(channelId, chatMessages, TimeSpan.FromDays(MEMORY_CACHE_EXPIRATION));
+        }
+        else
+        {
+            chatMessages = [.. messages];
+            _memoryCache.Set(channelId, messages, TimeSpan.FromDays(MEMORY_CACHE_EXPIRATION));
+        }
+
+        await _messageRepository.AddRangeAsync(modelMessages);
+        await _messageRepository.SaveChangesAsync();
     }
 
     public void ClearOldMessages(ulong channelId, int range)
@@ -62,7 +96,7 @@ public class MessageCacheService : IMessageCacheService
             if (channelMessages is not null && channelMessages.Count > range)
             {
                 // Starting from 1 to not remove the developer message
-                channelMessages.RemoveRange(1, channelMessages.Count - range);
+                channelMessages.RemoveRange(0, channelMessages.Count - range);
                 _memoryCache.Set(channelId, channelMessages, TimeSpan.FromDays(MEMORY_CACHE_EXPIRATION));
             }
         }

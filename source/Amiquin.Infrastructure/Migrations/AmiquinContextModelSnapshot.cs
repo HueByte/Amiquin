@@ -19,8 +19,7 @@ namespace Amiquin.Infrastructure.Migrations
 
             modelBuilder.Entity("Amiquin.Core.Models.Message", b =>
                 {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
+                    b.Property<string>("Id")
                         .HasColumnType("TEXT");
 
                     b.Property<ulong>("AuthorId")
@@ -37,6 +36,9 @@ namespace Amiquin.Infrastructure.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<ulong>("GuildId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsUser")
                         .HasColumnType("INTEGER");
 
                     b.HasKey("Id");

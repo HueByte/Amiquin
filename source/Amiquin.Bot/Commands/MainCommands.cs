@@ -21,7 +21,7 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
     public async Task ChatAsync(string message)
     {
         var originalMessage = message;
-        var response = await _chatService.ChatAsync(Context.Channel.Id, Context.User.Id, $"{Context.User.GlobalName}: {message}");
+        var response = await _chatService.ChatAsync(Context.Channel.Id, Context.User.Id, Context.Client.CurrentUser.Id, $"{Context.User.GlobalName}: {message}");
 
         StringBuilder sb = new();
         sb.AppendLine($"{Context.User.Mention}: {originalMessage}");

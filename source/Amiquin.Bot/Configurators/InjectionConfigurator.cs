@@ -1,4 +1,5 @@
 using Amiquin.Core;
+using Amiquin.Core.IRepositories;
 using Amiquin.Core.Options;
 using Amiquin.Core.Services.ApiClients;
 using Amiquin.Core.Services.Chat;
@@ -8,6 +9,7 @@ using Amiquin.Core.Services.MessageCache;
 using Amiquin.Core.Services.Persona;
 using Amiquin.Core.Services.ServerInteraction;
 using Amiquin.Infrastructure;
+using Amiquin.Infrastructure.Repositories;
 using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
@@ -95,18 +97,17 @@ public class InjectionConfigurator
         return this;
     }
 
-    public InjectionConfigurator AddOptions()
+    public InjectionConfigurator AddRepositories()
     {
-        _services.AddOptions<BotOptions>().Bind(_configuration.GetSection(BotOptions.Bot));
-        _services.AddOptions<ExternalUrlsOptions>().Bind(_configuration.GetSection(ExternalUrlsOptions.ExternalUrls));
+        _services.AddScoped<IMessageRepository, MessageRepository>();
 
         return this;
     }
 
-    public InjectionConfigurator AddDatabaseServices()
+    public InjectionConfigurator AddOptions()
     {
-        var databaseConnString = _configuration.GetConnectionString("AmiquinContext");
-        // _services.AddAmiquinDatabase(databaseConnString ?? "");
+        _services.AddOptions<BotOptions>().Bind(_configuration.GetSection(BotOptions.Bot));
+        _services.AddOptions<ExternalUrlsOptions>().Bind(_configuration.GetSection(ExternalUrlsOptions.ExternalUrls));
 
         return this;
     }

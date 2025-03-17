@@ -1,3 +1,5 @@
+using Amiquin.Core.IRepositories;
+using Amiquin.Core.Models;
 using Amiquin.Core.Services.MessageCache;
 using Amiquin.Core.Utilities;
 using Microsoft.Extensions.Logging;
@@ -12,72 +14,114 @@ public class ChatCoreService : IChatCoreService
     private readonly ChatClient _openAIClient;
     private const int MAX_TOKENS_TOTAL = 10_000; // to configuration later
     private readonly IChatSemaphoreManager _chatSemaphoreManager;
-
-    public ChatCoreService(ILogger<ChatCoreService> logger, IMessageCacheService messageCacheService, ChatClient openAIClient, IChatSemaphoreManager chatSemaphoreManager)
+    private readonly IMessageRepository _messageRepository;
+    public ChatCoreService(ILogger<ChatCoreService> logger, IMessageCacheService messageCacheService, ChatClient openAIClient, IChatSemaphoreManager chatSemaphoreManager, IMessageRepository messageRepository)
     {
         _logger = logger;
         _messageCacheService = messageCacheService;
         _openAIClient = openAIClient;
         _chatSemaphoreManager = chatSemaphoreManager;
+        _messageRepository = messageRepository;
     }
 
-    public async Task<string> ChatAsync(ulong channelId, ulong userId, string message, ChatMessage? personaChatMessage = null)
+    public async Task<string> ChatAsync(ulong channelId, ulong userId, ulong botId, string message, ChatMessage? personaChatMessage = null)
     {
+        // Use a semaphore to prevent concurrent updates for the same channel.
         var channelSemaphore = _chatSemaphoreManager.GetOrCreateSemaphore(channelId);
         await channelSemaphore.WaitAsync();
 
-        string result = string.Empty;
         try
         {
-            List<OpenAI.Chat.ChatMessage> messages = _messageCacheService.GetChatMessages(channelId)!;
-            if (messages is null || messages.Count == 0)
-            {
-                // Developer message
-                messages ??= new List<ChatMessage>();
-                if (personaChatMessage is null)
-                {
-                    string? personaMessage = await _messageCacheService.GetPersonaCoreMessage();
-                    personaChatMessage = ChatMessage.CreateDeveloperMessage(personaMessage);
-                }
+            // Retrieve the conversation history from cache (clone if needed).
+            var cachedMessages = await _messageCacheService.GetOrCreateChatMessagesAsync(channelId)
+                                 ?? new List<OpenAI.Chat.ChatMessage>();
 
-                messages.Add(personaChatMessage);
+            var conversationHistory = new List<OpenAI.Chat.ChatMessage>(cachedMessages);
+
+            // Ensure a valid persona message.
+            if (personaChatMessage is null)
+            {
+                string? personaCoreMessage = await _messageCacheService.GetPersonaCoreMessage();
+                personaChatMessage = ChatMessage.CreateDeveloperMessage(personaCoreMessage);
             }
 
-            // User message
-            var userChatMessage = ChatMessage.CreateUserMessage(message);
-            messages.Add(userChatMessage);
+            // Build the conversation for the API call without mutating the saved history.
+            var conversationForChat = new List<OpenAI.Chat.ChatMessage> { personaChatMessage };
+            conversationForChat.AddRange(conversationHistory);
 
-            ChatCompletionOptions options = new()
+            // Create the user message.
+            var userChatMessage = ChatMessage.CreateUserMessage(message);
+            conversationForChat.Add(userChatMessage);
+
+            // Also add the user message to the conversation history for persistence.
+            conversationHistory.Add(userChatMessage);
+
+            // Set up chat options.
+            var options = new ChatCompletionOptions
             {
                 MaxOutputTokenCount = 1200,
                 Temperature = 0.6f,
             };
 
-            var response = await _openAIClient.CompleteChatAsync(messages, options);
-            var responseMessage = response.Value.Content;
+            // Call the chat API.
+            var response = await _openAIClient.CompleteChatAsync(conversationForChat, options);
+            var assistantMessages = response.Value.Content;
+            var assistantResponse = assistantMessages.FirstOrDefault()?.Text;
 
-            var usage = response.Value.Usage;
-            _logger.LogInformation("Chat used: {totalTokens} Total ~ {input} Input ~ {output} Output", usage.TotalTokenCount, usage.InputTokenCount, usage.OutputTokenCount);
-
-            if (usage.TotalTokenCount > MAX_TOKENS_TOTAL)
+            if (string.IsNullOrEmpty(assistantResponse))
             {
-                _logger.LogWarning("Chat used {totalTokens} tokens while the limit is {limit}, performing optimization", usage.TotalTokenCount, MAX_TOKENS_TOTAL);
-                var messagesToRemoveCount = await OptimizeMessagesAsync(usage.TotalTokenCount, messages);
-                _messageCacheService.ClearOldMessages(channelId, messagesToRemoveCount);
+                throw new Exception("No assistant response received.");
             }
 
-            // AI message
-            var assistantChatMessage = ChatMessage.CreateAssistantMessage(responseMessage);
-            messages.Add(assistantChatMessage);
-            _messageCacheService.SetChatMessages(channelId, messages);
-            result = responseMessage.First().Text;
+            // Log token usage.
+            var usage = response.Value.Usage;
+            _logger.LogInformation("Chat used [{totalTokens}] Total ~ [{input}] Input ~ [{output}] Output Tokens",
+                usage.TotalTokenCount, usage.InputTokenCount, usage.OutputTokenCount);
+
+            // Append the assistant response to the conversation history.
+            conversationHistory.Add(ChatMessage.CreateAssistantMessage(assistantResponse));
+
+            // Prepare persistent chat exchange messages.
+            var modelMessages = new List<Message>
+            {
+                new Message
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    ChannelId = channelId,
+                    Content = message,
+                    IsUser = true,
+                    AuthorId = userId,
+                    CreatedAt = DateTime.UtcNow,
+                },
+                new Message
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    ChannelId = channelId,
+                    Content = assistantResponse,
+                    IsUser = false,
+                    AuthorId = botId,
+                    CreatedAt = DateTime.UtcNow,
+                }
+            };
+
+            // Update the cache/persistent storage with the new exchange.
+            await _messageCacheService.AddChatExchange(channelId, conversationHistory, modelMessages);
+
+            // Optimize message history if token limits are exceeded.
+            if (usage.TotalTokenCount > MAX_TOKENS_TOTAL)
+            {
+                _logger.LogWarning("Chat used {totalTokens} tokens while the limit is {limit}, performing optimization",
+                    usage.TotalTokenCount, MAX_TOKENS_TOTAL);
+
+                int messagesToRemoveCount = await OptimizeMessagesAsync(usage.TotalTokenCount, conversationForChat);
+                _messageCacheService.ClearOldMessages(channelId, messagesToRemoveCount);
+            }
+            return assistantResponse;
         }
         finally
         {
             channelSemaphore.Release();
         }
-
-        return result;
     }
 
     public async Task<string> ExchangeMessageAsync(string message, ChatMessage? developerPersonaChatMessage = null, int tokenLimit = 1200)

@@ -32,7 +32,7 @@ var host = hostBuilder.ConfigureHostConfiguration(host =>
         ioc.AddAmiquinCore()
            .AddOptions()
            .AddServices()
-           .AddDatabaseServices();
+           .AddRepositories();
     })
     .UseSerilog((context, services, config) =>
     {
@@ -43,6 +43,8 @@ var host = hostBuilder.ConfigureHostConfiguration(host =>
         config.WriteTo.Console(restrictedToMinimumLevel: LogEventLevel.Information, theme: AnsiConsoleTheme.Code)
             .WriteTo.File(Path.Combine(logsPath, "logs/log.log"), rollingInterval: RollingInterval.Day)
             .Enrich.FromLogContext()
+            .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+            .MinimumLevel.Override("Microsoft.EntityFrameworkCore", LogEventLevel.Warning)
             .ReadFrom.Configuration(context.Configuration)
             .ReadFrom.Services(services);
     })
