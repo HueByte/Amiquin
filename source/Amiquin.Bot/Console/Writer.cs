@@ -77,6 +77,7 @@ public static class Writer
 
         var combinedData = new Panel(dataGrid)
             .RoundedBorder()
+            .Expand()
             .BorderColor(Color.Orange1)
             .Header($"[mediumspringgreen]{header}[/]", Justify.Center);
 

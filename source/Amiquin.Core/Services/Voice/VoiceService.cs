@@ -49,27 +49,39 @@ public class VoiceService : IVoiceService
         string? modelName = _configuration.GetValue<string>(Constants.TTSModelName) ?? _externalOptions.ModelName;
         string? piperCommand = _configuration.GetValue<string>(Constants.PiperCommand) ?? _externalOptions.PiperCommand;
 
-        var modelPath = Path.Join(Constants.TTSBasePath, string.IsNullOrEmpty(modelName) ? "en_GB-northern_english_male-medium.onnx" : $"{modelName}.onnx");
+        var modelPath = Path.Join(Constants.TTSBasePath,
+            string.IsNullOrEmpty(modelName) ? "en_GB-northern_english_male-medium.onnx" : $"{modelName}.onnx");
         var ttsOutputPath = Path.Join(Constants.TTSBasePath, "output", $"o_{guid}.wav");
 
         CreateRequiredDirectories();
-        string command = $"/C echo \"{text}\" | {piperCommand} --model \"{modelPath}\" --output_file \"{ttsOutputPath}\"";
-        _logger.LogDebug("Executing command: {Command}", command);
 
-        using Process process = new();
-        ProcessStartInfo startInfo = new ProcessStartInfo
+        string args = $"--model \"{modelPath}\" --output_file \"{ttsOutputPath}\"";
+        _logger.LogInformation("Piper command: [{PiperCommand}] Args: [{args}] ", piperCommand, args);
+
+        // Prepare the process start info to execute the TTS command directly.
+        var startInfo = new ProcessStartInfo
         {
-            WindowStyle = ProcessWindowStyle.Hidden,
-            FileName = "cmd.exe",
-            Arguments = command
+            FileName = piperCommand,
+            Arguments = args,
+            RedirectStandardInput = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true,
         };
 
-        process.StartInfo = startInfo;
+        _logger.LogDebug("Starting process: {FileName} {Arguments}", piperCommand, startInfo.Arguments);
+
+        using Process process = new Process { StartInfo = startInfo };
+
         process.Start();
+
+        // Write the text to the process’s standard input.
+        await process.StandardInput.WriteLineAsync(text);
+        process.StandardInput.Close();
 
         await process.WaitForExitAsync();
 
-        // File.Delete(inputFilePath);
         return ttsOutputPath;
     }
 

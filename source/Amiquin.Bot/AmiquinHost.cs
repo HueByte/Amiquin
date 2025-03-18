@@ -26,9 +26,10 @@ public class AmiquinHost : IHostedService
     private readonly IServiceScopeFactory _serviceScopeFactory;
     private readonly IConfiguration _configuration;
     private readonly BotOptions _botOptions;
+    private readonly ExternalOptions _externalOptions;
     private bool _isInitialized = false;
 
-    public AmiquinHost(IEventHandlerService eventHandlerService, DiscordShardedClient discordClient, InteractionService interactionService, ILogger<AmiquinHost> logger, IOptions<BotOptions> botOptions, ICommandHandlerService commandHandlerService, IServiceScopeFactory serviceScopeFactory, IConfiguration configuration)
+    public AmiquinHost(IEventHandlerService eventHandlerService, DiscordShardedClient discordClient, InteractionService interactionService, ILogger<AmiquinHost> logger, IOptions<BotOptions> botOptions, ICommandHandlerService commandHandlerService, IServiceScopeFactory serviceScopeFactory, IConfiguration configuration, IOptions<ExternalOptions> externalOptions)
     {
         _eventHandlerService = eventHandlerService;
         _client = discordClient;
@@ -38,6 +39,7 @@ public class AmiquinHost : IHostedService
         _botOptions = botOptions.Value;
         _serviceScopeFactory = serviceScopeFactory;
         _configuration = configuration;
+        _externalOptions = externalOptions.Value;
     }
 
     public async Task StartAsync(CancellationToken cancellationToken)
@@ -103,6 +105,26 @@ public class AmiquinHost : IHostedService
             Console.Writer.WriteLogo();
 
         Console.Writer.WriteJsonData("Bot Options", _botOptions);
+        Console.Writer.WriteJsonData("External Options", _externalOptions);
+        Dictionary<string, string> envVariables = new()
+        {
+            { Constants.BotToken, StringModifier.Anomify(_configuration.GetValue<string>(Constants.BotToken) ?? string.Empty) ?? "null" },
+            { Constants.OpenAiKey, StringModifier.Anomify(_configuration.GetValue<string>(Constants.OpenAiKey) ?? string.Empty) ?? "null" },
+            { Constants.LogsPath, _configuration.GetValue<string>(Constants.LogsPath) ?? "null" },
+            { Constants.PrintLogo, _configuration.GetValue<string>(Constants.PrintLogo) ?? "null" },
+            { Constants.SQLitePath, _configuration.GetValue<string>(Constants.SQLitePath) ?? "null" },
+            { Constants.TTSModelName, _configuration.GetValue<string>(Constants.TTSModelName) ?? "null" },
+            { Constants.PiperCommand, _configuration.GetValue<string>(Constants.PiperCommand) ?? "null" },
+        };
+        Console.Writer.WriteDictionaryData("Environment Variables", envVariables);
+
+        Dictionary<string, string> calculatedPaths = new()
+        {
+            { "TTSBasePath", Constants.TTSBasePath },
+            { "TTSBaseOutputPath", Constants.TTSBaseOutputPath },
+            { "MessageBasePath", Constants.MessageBasePath },
+        };
+        Console.Writer.WriteDictionaryData("Calculated Paths", calculatedPaths);
 
         var ephemeralCommands = _commandHandlerService.EphemeralCommands;
         var commands = _commandHandlerService.Commands;
