@@ -7,47 +7,105 @@ using Serilog.Events;
 using Serilog.Extensions.Logging;
 using Serilog.Sinks.SystemConsole.Themes;
 
-Serilog.Log.Logger = new LoggerConfiguration()
-    .WriteTo.Console()
-    .Enrich.FromLogContext()
-    .CreateBootstrapLogger();
+var tcs = new TaskCompletionSource();
+var sigintReceived = false;
+Console.CancelKeyPress += (_, ea) =>
+{
+    // Tell .NET to not terminate the process
+    ea.Cancel = true;
 
-var configurationManager = new ConfigurationManager()
-    .AddEnvironmentVariables()
-    .AddJsonFile("appsettings.json", optional: false)
-    .AddCommandLine(args);
+    Console.WriteLine("Received SIGINT (Ctrl+C)");
+    tcs.SetResult();
+    sigintReceived = true;
+};
 
-var logger = new SerilogLoggerProvider(Serilog.Log.Logger)
-     .CreateLogger(nameof(Program));
-
-var hostBuilder = Host.CreateDefaultBuilder(args);
-var host = hostBuilder.ConfigureHostConfiguration(host =>
+AppDomain.CurrentDomain.ProcessExit += (_, _) =>
+{
+    if (!sigintReceived)
     {
-        host.AddConfiguration(configurationManager.Build());
-    })
-    .ConfigureServices((hostContext, services) =>
+        Console.WriteLine("Received SIGTERM");
+        tcs.SetResult();
+    }
+    else
     {
-        InjectionConfigurator ioc = new(hostContext.Configuration, services);
+        Console.WriteLine("Received SIGTERM, ignoring it because already processed SIGINT");
+    }
+};
 
-        ioc.AddAmiquinCore()
-           .AddOptions()
-           .AddServices()
-           .AddRepositories();
-    })
-    .UseSerilog((context, services, config) =>
+do
+{
+    try
     {
-        var logsPath = context.Configuration.GetValue<string>(Constants.LogsPath);
-        if (string.IsNullOrEmpty(logsPath))
-            logsPath = AppContext.BaseDirectory;
+        await RunAsync(args);
+    }
+    catch (Exception ex)
+    {
+        Serilog.Log.Logger.Error(ex, "Error appeared during bot execution");
+    }
+} while (sigintReceived || !_shutdownTokenSource.IsCancellationRequested);
 
-        config.WriteTo.Console(restrictedToMinimumLevel: LogEventLevel.Information, theme: AnsiConsoleTheme.Code)
-            .WriteTo.File(Path.Combine(logsPath, "logs/log.log"), rollingInterval: RollingInterval.Day)
+await tcs.Task;
+
+async Task RunAsync(string[] args)
+{
+    Serilog.Log.Logger = new LoggerConfiguration()
+            .WriteTo.Console()
             .Enrich.FromLogContext()
-            .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
-            .MinimumLevel.Override("Microsoft.EntityFrameworkCore", LogEventLevel.Warning)
-            .ReadFrom.Configuration(context.Configuration)
-            .ReadFrom.Services(services);
-    })
-    .Build();
+            .CreateBootstrapLogger();
 
-await host.RunAsync();
+    var configurationManager = new ConfigurationManager()
+        .AddEnvironmentVariables()
+        .AddJsonFile("appsettings.json", optional: false)
+        .AddCommandLine(args);
+
+    var logger = new SerilogLoggerProvider(Serilog.Log.Logger)
+         .CreateLogger(nameof(Program));
+
+    var hostBuilder = Host.CreateDefaultBuilder(args);
+    var host = hostBuilder.ConfigureHostConfiguration(host =>
+        {
+            host.AddConfiguration(configurationManager.Build());
+        })
+        .ConfigureServices((hostContext, services) =>
+        {
+            InjectionConfigurator ioc = new(hostContext.Configuration, services);
+
+            ioc.AddAmiquinCore()
+               .AddOptions()
+               .AddServices()
+               .AddRepositories();
+        })
+        .UseSerilog((context, services, config) =>
+        {
+            var logsPath = context.Configuration.GetValue<string>(Constants.LogsPath);
+            if (string.IsNullOrEmpty(logsPath))
+                logsPath = AppContext.BaseDirectory;
+
+            config.WriteTo.Console(restrictedToMinimumLevel: LogEventLevel.Information, theme: AnsiConsoleTheme.Code)
+                .WriteTo.File(Path.Combine(logsPath, "logs/log.log"), rollingInterval: RollingInterval.Day)
+                .Enrich.FromLogContext()
+                .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+                .MinimumLevel.Override("Microsoft.EntityFrameworkCore", LogEventLevel.Warning)
+                .ReadFrom.Configuration(context.Configuration)
+                .ReadFrom.Services(services);
+        })
+        .Build();
+
+    await host.RunAsync(_restartBotTokenSource.Token);
+}
+
+public partial class Program
+{
+    private static CancellationTokenSource _shutdownTokenSource = new();
+    private static CancellationTokenSource _restartBotTokenSource = CancellationTokenSource.CreateLinkedTokenSource(_shutdownTokenSource.Token);
+    public static void Restart()
+    {
+        _restartBotTokenSource.Cancel();
+        _restartBotTokenSource = new();
+    }
+
+    public static void Shutdown()
+    {
+        _shutdownTokenSource.Cancel();
+    }
+}

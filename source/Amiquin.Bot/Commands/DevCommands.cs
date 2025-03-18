@@ -166,6 +166,15 @@ Streams: {voiceState.AudioClient?.GetStreams().ToDictionary(x => x.Key, x => x.V
         await ModifyOriginalResponseAsync((msg) => msg.Content = $"NachoSquad created with ID: {role.Id}");
     }
 
+    [SlashCommand("restart", "Restart the bot")]
+    [RequireTeam]
+    [Ephemeral]
+    public async Task RestartAsync()
+    {
+        await ModifyOriginalResponseAsync((msg) => msg.Content = "Restarting...");
+        Program.Restart();
+    }
+
     [SlashCommand("say", "Amiquin will say something in the voice chat")]
     [RequireRole("NachoSquad")]
     [Ephemeral]
