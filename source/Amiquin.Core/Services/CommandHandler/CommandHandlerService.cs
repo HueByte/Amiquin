@@ -1,5 +1,5 @@
 using System.Reflection;
-using Amiquin.Core.Discord;
+using Amiquin.Core.DiscordExtensions;
 using Amiquin.Core.Utilities;
 using Discord;
 using Discord.Interactions;

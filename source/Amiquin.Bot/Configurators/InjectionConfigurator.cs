@@ -8,6 +8,7 @@ using Amiquin.Core.Services.EventHandler;
 using Amiquin.Core.Services.MessageCache;
 using Amiquin.Core.Services.Persona;
 using Amiquin.Core.Services.ServerInteraction;
+using Amiquin.Core.Services.Voice;
 using Amiquin.Infrastructure;
 using Amiquin.Infrastructure.Repositories;
 using Discord;
@@ -48,6 +49,7 @@ public class InjectionConfigurator
                 | GatewayIntents.DirectMessageReactions
                 | GatewayIntents.GuildScheduledEvents
                 | GatewayIntents.GuildMembers
+                | GatewayIntents.GuildVoiceStates
         });
 
         InteractionServiceConfig interactionServiceConfig = new()
@@ -64,6 +66,7 @@ public class InjectionConfigurator
                  .AddSingleton<ICommandHandlerService, CommandHandlerService>()
                  .AddSingleton<IEventHandlerService, EventHandlerService>()
                  .AddSingleton<IChatSemaphoreManager, ChatSemaphoreManager>()
+                 .AddSingleton<IVoiceStateManager, VoiceStateManager>()
                  .AddAmiquinContext(_configuration)
                  .AddMemoryCache();
 
@@ -77,6 +80,7 @@ public class InjectionConfigurator
                  .AddScoped<IChatCoreService, ChatCoreService>()
                  .AddScoped<IPersonaService, PersonaService>()
                  .AddScoped<IPersonaChatService, PersonaChatService>()
+                 .AddScoped<IVoiceService, VoiceService>()
                  .AddScoped<INewsApiClient, NewsApiClient>();
 
         _services.AddTransient<ChatClient>((services) =>
@@ -90,7 +94,7 @@ public class InjectionConfigurator
 
         _services.AddHttpClient(typeof(INewsApiClient).Name, (services, client) =>
         {
-            var externalUrls = services.GetRequiredService<IOptions<ExternalUrlsOptions>>().Value;
+            var externalUrls = services.GetRequiredService<IOptions<ExternalOptions>>().Value;
             client.BaseAddress = new Uri(externalUrls.NewsApiUrl);
         });
 
@@ -107,7 +111,7 @@ public class InjectionConfigurator
     public InjectionConfigurator AddOptions()
     {
         _services.AddOptions<BotOptions>().Bind(_configuration.GetSection(BotOptions.Bot));
-        _services.AddOptions<ExternalUrlsOptions>().Bind(_configuration.GetSection(ExternalUrlsOptions.ExternalUrls));
+        _services.AddOptions<ExternalOptions>().Bind(_configuration.GetSection(ExternalOptions.External));
 
         return this;
     }

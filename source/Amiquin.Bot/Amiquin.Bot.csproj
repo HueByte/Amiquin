@@ -37,6 +37,12 @@
   </ItemGroup>
   
   <ItemGroup>
+      <Content Include="*.dll">
+          <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </Content>
+  </ItemGroup>
+
+  <ItemGroup>
       <Content Include="Messages\**">
           <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </Content>
@@ -44,6 +50,12 @@
 
   <ItemGroup>
       <Content Include="Assets\**">
+          <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </Content>
+  </ItemGroup>
+
+    <ItemGroup>
+      <Content Include="TTS\**">
           <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </Content>
   </ItemGroup>

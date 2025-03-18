@@ -1,6 +1,12 @@
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /Amiquin
 
+RUN apt-get -y update
+RUN apt-get -y upgrade
+RUN apt-get install -y ffmpeg
+RUN apt-get install -y python3
+RUN pip install piper-tts
+
 # Copy the solution and project files to set up caching for dependencies
 COPY source/source.sln ./
 COPY source/Amiquin.Bot/Amiquin.Bot.csproj ./Amiquin.Bot/

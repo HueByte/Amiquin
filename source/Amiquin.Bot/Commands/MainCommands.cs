@@ -1,5 +1,5 @@
 using System.Text;
-using Amiquin.Core.Discord;
+using Amiquin.Core.DiscordExtensions;
 using Amiquin.Core.Services.Chat;
 using Amiquin.Core.Services.MessageCache;
 using Discord;

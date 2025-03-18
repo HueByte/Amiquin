@@ -27,7 +27,7 @@ public class ChatCoreService : IChatCoreService
     public async Task<string> ChatAsync(ulong channelId, ulong userId, ulong botId, string message, ChatMessage? personaChatMessage = null)
     {
         // Use a semaphore to prevent concurrent updates for the same channel.
-        var channelSemaphore = _chatSemaphoreManager.GetOrCreateSemaphore(channelId);
+        var channelSemaphore = _chatSemaphoreManager.GetOrCreateTextSemaphore(channelId);
         await channelSemaphore.WaitAsync();
 
         try

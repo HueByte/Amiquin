@@ -33,7 +33,7 @@ public class PersonaService : IPersonaService
             return await GetPersonaInternalAsync();
         }
 
-        var channelSemaphore = _chatSemaphoreManager.GetOrCreateSemaphore(channelId);
+        var channelSemaphore = _chatSemaphoreManager.GetOrCreateTextSemaphore(channelId);
         await channelSemaphore.WaitAsync();
 
         string personaMessage = string.Empty;

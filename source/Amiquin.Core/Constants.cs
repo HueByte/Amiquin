@@ -8,6 +8,8 @@ public class Constants
     public const string LogsPath = "LOGS_PATH";
     public const string PrintLogo = "PRINT_LOGO";
     public const string SQLitePath = "SQLITE_PATH";
+    public const string TTSModelName = "TTS_MODEL_NAME";
+    public const string PiperCommand = "PIPER_COMMAND";
 
     // Message Cache Keys
     public const string JoinMessageKey = "ServerJoinMessage";
@@ -16,6 +18,8 @@ public class Constants
 
     // AI
     public const string Gpt4oMiniModel = "gpt-4o-mini";
+    public static string TTSBasePath = Path.Join(AppContext.BaseDirectory, "TTS");
+    public static string TTSBaseOutputPath = Path.Join(TTSBasePath, "output");
 
     // General
     public const string Mood = "[$Mood$]";
