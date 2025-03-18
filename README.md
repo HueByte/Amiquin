@@ -11,6 +11,8 @@ The goal is to create a robust, fun and scalable bot.
 
 - [.NET SDK](https://dotnet.microsoft.com/download) (version 9.0 or later)
 - [Docker](https://www.docker.com/) (optional)
+- [ffmpeg](https://ffmpeg.org/download.html)
+- [Piper](https://github.com/rhasspy/piper)
 
 ## ✨ Installation
 
@@ -38,6 +40,10 @@ docker-compose up
 ### 👨‍💻 Local
 
 If you want to run the application locally, follow the steps below. (You have to install the prerequisites)
+
+> Install the prerequisites before running the application.
+> Piper for the Text to Speech (TTS) feature.
+> ffmpeg for the audio streaming to voicechat feature.
 
 1. Clone the repository:
 
