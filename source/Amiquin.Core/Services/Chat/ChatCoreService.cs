@@ -12,9 +12,15 @@ public class ChatCoreService : IChatCoreService
     private readonly ILogger<ChatCoreService> _logger;
     private readonly IMessageCacheService _messageCacheService;
     private readonly ChatClient _openAIClient;
-    private const int MAX_TOKENS_TOTAL = 20_000; // to configuration later
     private readonly IChatSemaphoreManager _chatSemaphoreManager;
     private readonly IMessageRepository _messageRepository;
+
+    private const int MAX_TOKENS_TOTAL = 20_000; // to configuration later
+    private const float TEMPERATURE = 0.6f;
+    private const float PRICING_OUTPUT = 0.600f;
+    private const float PRICING_INPUT = 0.150f;
+    private const float PRICING_INPUT_CACHED = 0.075f;
+
     public ChatCoreService(ILogger<ChatCoreService> logger, IMessageCacheService messageCacheService, ChatClient openAIClient, IChatSemaphoreManager chatSemaphoreManager, IMessageRepository messageRepository)
     {
         _logger = logger;
@@ -77,6 +83,12 @@ public class ChatCoreService : IChatCoreService
             _logger.LogInformation("Chat used [Total: {totalTokens}] ~ [Input: {inputTokens}] ~ [CachedInput: {cachedInputTokens}] ~ [Output: {outputTokens}] tokens",
                 usage.TotalTokenCount, usage.InputTokenCount, usage.InputTokenDetails.CachedTokenCount, usage.OutputTokenCount);
 
+            var messagePrice =
+                (usage.InputTokenCount - usage.InputTokenDetails.CachedTokenCount) * PRICING_INPUT
+                + usage.InputTokenDetails.CachedTokenCount * PRICING_INPUT_CACHED
+                + usage.OutputTokenCount * PRICING_OUTPUT;
+
+            _logger.LogInformation("Estimated message price: {messagePrice}$", messagePrice);
             // Append the assistant response to the conversation history.
             conversationHistory.Add(ChatMessage.CreateAssistantMessage(assistantResponse));
 
