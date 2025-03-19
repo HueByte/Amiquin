@@ -28,7 +28,7 @@ public class VoiceService : IVoiceService
 
     public async Task SpeakAsync(IVoiceChannel voiceChannel, string text)
     {
-        var semaphore = _chatSemaphoreManager.GetOrCreateVoiceSemaphore(voiceChannel.GuildId);
+        var semaphore = _chatSemaphoreManager.GetOrCreateInstanceSemaphore(voiceChannel.GuildId);
         await semaphore.WaitAsync();
         try
         {

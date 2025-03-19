@@ -142,7 +142,7 @@ Streams: {voiceState.AudioClient?.GetStreams().ToDictionary(x => x.Key, x => x.V
 
         try
         {
-            var response = await _personaChatService.ChatAsync(Context.Channel.Id, Context.User.Id, Context.Client.CurrentUser.Id, $"{Context.User.GlobalName}: {input}");
+            var response = await _personaChatService.ChatAsync(Context.Guild.Id, Context.User.Id, Context.Client.CurrentUser.Id, $"{Context.User.GlobalName}: {input}");
             await _voiceService.SpeakAsync(voiceChannel, $"Chat listen. {response}");
         }
         catch (Exception ex)
@@ -167,7 +167,7 @@ Streams: {voiceState.AudioClient?.GetStreams().ToDictionary(x => x.Key, x => x.V
     }
 
     [SlashCommand("restart", "Restart the bot")]
-    [RequireTeam]
+    [RequireRole("NachoSquad")]
     [Ephemeral]
     public async Task RestartAsync()
     {

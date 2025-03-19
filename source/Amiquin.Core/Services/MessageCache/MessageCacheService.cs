@@ -45,13 +45,13 @@ public class MessageCacheService : IMessageCacheService
         return 0;
     }
 
-    public async Task<List<ChatMessage>?> GetOrCreateChatMessagesAsync(ulong channelId)
+    public async Task<List<ChatMessage>?> GetOrCreateChatMessagesAsync(ulong instanceId)
     {
-        return await _memoryCache.GetOrCreateAsync<List<ChatMessage>?>(channelId, async entry =>
+        return await _memoryCache.GetOrCreateAsync<List<ChatMessage>?>(instanceId, async entry =>
         {
             entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromDays(MEMORY_CACHE_EXPIRATION);
             var messages = await _messageRepository.AsQueryable()
-                .Where(x => x.ChannelId == channelId)
+                .Where(x => x.InstanceId == instanceId)
                 .OrderBy(x => x.CreatedAt)
                 .Take(40)
                 .ToListAsync();
@@ -64,10 +64,10 @@ public class MessageCacheService : IMessageCacheService
         });
     }
 
-    public async Task AddChatExchange(ulong channelId, List<ChatMessage> messages, List<Message> modelMessages)
+    public async Task AddChatExchangeAsync(ulong instanceId, List<ChatMessage> messages, List<Message> modelMessages)
     {
         List<ChatMessage>? chatMessages;
-        if (_memoryCache.TryGetValue(channelId, out chatMessages))
+        if (_memoryCache.TryGetValue(instanceId, out chatMessages))
         {
             if (chatMessages?.Count > 0)
             {
@@ -77,27 +77,26 @@ public class MessageCacheService : IMessageCacheService
             chatMessages = chatMessages ?? messages;
             chatMessages.AddRange(messages);
 
-            _memoryCache.Set(channelId, chatMessages, TimeSpan.FromDays(MEMORY_CACHE_EXPIRATION));
+            _memoryCache.Set(instanceId, chatMessages, TimeSpan.FromDays(MEMORY_CACHE_EXPIRATION));
         }
         else
         {
             chatMessages = [.. messages];
-            _memoryCache.Set(channelId, messages, TimeSpan.FromDays(MEMORY_CACHE_EXPIRATION));
+            _memoryCache.Set(instanceId, messages, TimeSpan.FromDays(MEMORY_CACHE_EXPIRATION));
         }
 
         await _messageRepository.AddRangeAsync(modelMessages);
         await _messageRepository.SaveChangesAsync();
     }
 
-    public void ClearOldMessages(ulong channelId, int range)
+    public void ClearOldMessages(ulong instanceId, int range)
     {
-        if (_memoryCache.TryGetValue(channelId, out List<ChatMessage>? channelMessages))
+        if (_memoryCache.TryGetValue(instanceId, out List<ChatMessage>? channelMessages))
         {
             if (channelMessages is not null && channelMessages.Count > range)
             {
-                // Starting from 1 to not remove the developer message
                 channelMessages.RemoveRange(0, channelMessages.Count - range);
-                _memoryCache.Set(channelId, channelMessages, TimeSpan.FromDays(MEMORY_CACHE_EXPIRATION));
+                _memoryCache.Set(instanceId, channelMessages, TimeSpan.FromDays(MEMORY_CACHE_EXPIRATION));
             }
         }
     }

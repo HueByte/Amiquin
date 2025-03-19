@@ -24,16 +24,15 @@ public class ChatCoreService : IChatCoreService
         _messageRepository = messageRepository;
     }
 
-    public async Task<string> ChatAsync(ulong channelId, ulong userId, ulong botId, string message, ChatMessage? personaChatMessage = null)
+    public async Task<string> ChatAsync(ulong instanceId, ulong userId, ulong botId, string message, ChatMessage? personaChatMessage = null)
     {
         // Use a semaphore to prevent concurrent updates for the same channel.
-        var channelSemaphore = _chatSemaphoreManager.GetOrCreateTextSemaphore(channelId);
-        await channelSemaphore.WaitAsync();
-
+        var instanceSemaphore = _chatSemaphoreManager.GetOrCreateInstanceSemaphore(instanceId);
+        await instanceSemaphore.WaitAsync();
         try
         {
             // Retrieve the conversation history from cache (clone if needed).
-            var cachedMessages = await _messageCacheService.GetOrCreateChatMessagesAsync(channelId)
+            var cachedMessages = await _messageCacheService.GetOrCreateChatMessagesAsync(instanceId)
                                  ?? new List<OpenAI.Chat.ChatMessage>();
 
             var conversationHistory = new List<OpenAI.Chat.ChatMessage>(cachedMessages);
@@ -87,7 +86,7 @@ public class ChatCoreService : IChatCoreService
                 new Message
                 {
                     Id = Guid.NewGuid().ToString(),
-                    ChannelId = channelId,
+                    InstanceId = instanceId,
                     Content = message,
                     IsUser = true,
                     AuthorId = userId,
@@ -96,7 +95,7 @@ public class ChatCoreService : IChatCoreService
                 new Message
                 {
                     Id = Guid.NewGuid().ToString(),
-                    ChannelId = channelId,
+                    InstanceId = instanceId,
                     Content = assistantResponse,
                     IsUser = false,
                     AuthorId = botId,
@@ -105,7 +104,7 @@ public class ChatCoreService : IChatCoreService
             };
 
             // Update the cache/persistent storage with the new exchange.
-            await _messageCacheService.AddChatExchange(channelId, conversationHistory, modelMessages);
+            await _messageCacheService.AddChatExchangeAsync(instanceId, conversationHistory, modelMessages);
 
             // Optimize message history if token limits are exceeded.
             if (usage.TotalTokenCount > MAX_TOKENS_TOTAL)
@@ -114,13 +113,13 @@ public class ChatCoreService : IChatCoreService
                     usage.TotalTokenCount, MAX_TOKENS_TOTAL);
 
                 int messagesToRemoveCount = await OptimizeMessagesAsync(usage.TotalTokenCount, conversationForChat);
-                _messageCacheService.ClearOldMessages(channelId, messagesToRemoveCount);
+                _messageCacheService.ClearOldMessages(instanceId, messagesToRemoveCount);
             }
             return assistantResponse;
         }
         finally
         {
-            channelSemaphore.Release();
+            instanceSemaphore.Release();
         }
     }
 

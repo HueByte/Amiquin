@@ -6,7 +6,6 @@ public class PersonaChatService : IPersonaChatService
 {
     private readonly IChatCoreService _chatCoreService;
     private readonly IPersonaService _personaService;
-    private readonly SemaphoreSlim _semaphore = new(1, 1);
 
     public PersonaChatService(IChatCoreService chatCoreService, IPersonaService personaService)
     {
@@ -14,21 +13,10 @@ public class PersonaChatService : IPersonaChatService
         _personaService = personaService;
     }
 
-    public async Task<string> ChatAsync(ulong channelId, ulong userId, ulong botId, string message)
+    public async Task<string> ChatAsync(ulong instanceId, ulong userId, ulong botId, string message)
     {
-        var persona = await _personaService.GetPersonaAsync(channelId);
-        string result = string.Empty;
-        await _semaphore.WaitAsync();
-        try
-        {
-            result = await _chatCoreService.ChatAsync(channelId, userId, botId, message, persona);
-        }
-        finally
-        {
-            _semaphore.Release();
-        }
-
-        return result;
+        var persona = await _personaService.GetPersonaAsync(instanceId);
+        return await _chatCoreService.ChatAsync(instanceId, userId, botId, message, persona);
     }
 
     public async Task<string> ExchangeMessageAsync(string message)

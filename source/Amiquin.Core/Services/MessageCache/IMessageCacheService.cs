@@ -8,8 +8,8 @@ public interface IMessageCacheService
     void ClearCache();
     Task<string?> GetPersonaCoreMessage();
     Task<string?> GetServerJoinMessage();
-    Task<List<ChatMessage>?> GetOrCreateChatMessagesAsync(ulong channelId);
-    Task AddChatExchange(ulong channelId, List<ChatMessage> messages, List<Message> modelMessages);
-    void ClearOldMessages(ulong channelId, int range);
+    Task<List<ChatMessage>?> GetOrCreateChatMessagesAsync(ulong instanceId);
+    Task AddChatExchangeAsync(ulong instanceId, List<ChatMessage> messages, List<Message> modelMessages);
+    void ClearOldMessages(ulong instanceId, int range);
     int GetChatMessageCount(ulong channelId);
 }
