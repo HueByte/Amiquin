@@ -54,7 +54,7 @@ async Task RunAsync(string[] args)
             .CreateBootstrapLogger();
 
     var configurationManager = new ConfigurationManager()
-        .AddEnvironmentVariables()
+        .AddEnvironmentVariables(prefix: "AMQ_")
         .AddJsonFile("appsettings.json", optional: false)
         .AddCommandLine(args);
 

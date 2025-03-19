@@ -3,13 +3,13 @@ namespace Amiquin.Core;
 public class Constants
 {
     // Environment Variables
-    public const string BotToken = "BOT_TOKEN";
-    public const string OpenAiKey = "OPEN_AI_KEY";
-    public const string LogsPath = "LOGS_PATH";
-    public const string PrintLogo = "PRINT_LOGO";
-    public const string SQLitePath = "SQLITE_PATH";
-    public const string TTSModelName = "TTS_MODEL_NAME";
-    public const string PiperCommand = "PIPER_COMMAND";
+    public const string BotToken = "AMQ_BOT_TOKEN";
+    public const string OpenAiKey = "AMQ_OPEN_AI_KEY";
+    public const string LogsPath = "AMQ_LOGS_PATH";
+    public const string PrintLogo = "AMQ_PRINT_LOGO";
+    public const string SQLitePath = "AMQ_SQLITE_PATH";
+    public const string TTSModelName = "AMQ_TTS_MODEL_NAME";
+    public const string PiperCommand = "AMQ_PIPER_COMMAND";
 
     // Message Cache Keys
     public const string JoinMessageKey = "ServerJoinMessage";
