@@ -1,5 +1,4 @@
 using Discord;
-using Discord.Audio;
 
 namespace Amiquin.Core.Services.Voice;
 

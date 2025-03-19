@@ -33,6 +33,7 @@ public class CommandHandlerService : ICommandHandlerService
     {
         _logger.LogInformation("Initializing Command Handler Service");
         _logger.LogInformation("Adding Modules");
+
         await _interactionService.AddModulesAsync(Assembly.GetEntryAssembly(), _serviceProvider);
         _ephemeralCommands = Reflection.GetAllEphemeralCommands();
     }
@@ -50,6 +51,9 @@ public class CommandHandlerService : ICommandHandlerService
         }
         catch (Exception ex)
         {
+            if (interaction.Type is InteractionType.ApplicationCommand)
+                await interaction.GetOriginalResponseAsync().ContinueWith(async (msg) => await msg.Result.DeleteAsync());
+
             _logger.LogError(ex, "Failed to execute command");
             if (extendedContext is not null)
                 await extendedContext.DisposeAsync();

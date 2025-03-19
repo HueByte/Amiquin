@@ -143,6 +143,8 @@ Streams: {voiceState.AudioClient?.GetStreams().ToDictionary(x => x.Key, x => x.V
         try
         {
             var response = await _personaChatService.ChatAsync(Context.Guild.Id, Context.User.Id, Context.Client.CurrentUser.Id, $"{Context.User.GlobalName}: {input}");
+
+            await ModifyOriginalResponseAsync((msg) => msg.Content = response);
             await _voiceService.SpeakAsync(voiceChannel, $"Chat listen. {response}");
         }
         catch (Exception ex)
@@ -151,7 +153,7 @@ Streams: {voiceState.AudioClient?.GetStreams().ToDictionary(x => x.Key, x => x.V
             return;
         }
 
-        await ModifyOriginalResponseAsync((msg) => msg.Content = $"Oki");
+        await ModifyOriginalResponseAsync((msg) => msg.Content = $"Hm weird, this shouldn't happen...");
     }
 
     [SlashCommand("create-nacho-squad", "Create the NachoSquad role")]
