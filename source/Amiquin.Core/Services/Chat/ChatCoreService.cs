@@ -12,7 +12,7 @@ public class ChatCoreService : IChatCoreService
     private readonly ILogger<ChatCoreService> _logger;
     private readonly IMessageCacheService _messageCacheService;
     private readonly ChatClient _openAIClient;
-    private const int MAX_TOKENS_TOTAL = 10_000; // to configuration later
+    private const int MAX_TOKENS_TOTAL = 20_000; // to configuration later
     private readonly IChatSemaphoreManager _chatSemaphoreManager;
     private readonly IMessageRepository _messageRepository;
     public ChatCoreService(ILogger<ChatCoreService> logger, IMessageCacheService messageCacheService, ChatClient openAIClient, IChatSemaphoreManager chatSemaphoreManager, IMessageRepository messageRepository)
@@ -74,8 +74,8 @@ public class ChatCoreService : IChatCoreService
 
             // Log token usage.
             var usage = response.Value.Usage;
-            _logger.LogInformation("Chat used [{totalTokens}] Total ~ [{input}] Input ~ [{output}] Output Tokens",
-                usage.TotalTokenCount, usage.InputTokenCount, usage.OutputTokenCount);
+            _logger.LogInformation("Chat used [Total: {totalTokens}] ~ [Input: {inputTokens}] ~ [CachedInput: {cachedInputTokens}] ~ [Output: {outputTokens}] tokens",
+                usage.TotalTokenCount, usage.InputTokenCount, usage.InputTokenDetails.CachedTokenCount, usage.OutputTokenCount);
 
             // Append the assistant response to the conversation history.
             conversationHistory.Add(ChatMessage.CreateAssistantMessage(assistantResponse));
@@ -107,7 +107,7 @@ public class ChatCoreService : IChatCoreService
             await _messageCacheService.AddChatExchangeAsync(instanceId, conversationHistory, modelMessages);
 
             // Optimize message history if token limits are exceeded.
-            if (usage.TotalTokenCount > MAX_TOKENS_TOTAL)
+            if (usage.TotalTokenCount - (usage.InputTokenDetails.CachedTokenCount / 2) > MAX_TOKENS_TOTAL)
             {
                 _logger.LogWarning("Chat used {totalTokens} tokens while the limit is {limit}, performing optimization",
                     usage.TotalTokenCount, MAX_TOKENS_TOTAL);
