@@ -1,7 +1,6 @@
 using System.Text;
 using Amiquin.Core.Services.Chat.Model;
 using Amiquin.Core.Utilities;
-using Microsoft.Build.Framework;
 using Microsoft.Extensions.Logging;
 using OpenAI.Chat;
 
@@ -11,7 +10,7 @@ public class HistoryOptimizerService : IHistoryOptimizerService
 {
     private readonly ILogger<HistoryOptimizerService> _logger;
     private readonly IChatCoreService _chatCoreService;
-    private const int MAX_TOKENS_TOTAL = 2000; // to configuration later
+    private const int MAX_TOKENS_TOTAL = 20_000; // to configuration later
 
     public HistoryOptimizerService(ILogger<HistoryOptimizerService> logger, IChatCoreService chatCoreService)
     {
