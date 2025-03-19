@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Amiquin.Core.Services.Voice.Models;
 using Discord;
 

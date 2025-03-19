@@ -38,10 +38,16 @@ do
     {
         await RunAsync(args);
     }
+    catch (OperationCanceledException)
+    {
+        Serilog.Log.Logger.Information("Bot is restarting");
+    }
     catch (Exception ex)
     {
         Serilog.Log.Logger.Error(ex, "Error appeared during bot execution");
     }
+
+    await Task.Delay(2000);
 } while (sigintReceived || !_shutdownTokenSource.IsCancellationRequested);
 
 await tcs.Task;

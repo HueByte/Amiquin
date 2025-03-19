@@ -22,13 +22,7 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
     {
         var originalMessage = message;
         var response = await _chatService.ChatAsync(Context.Guild.Id, Context.User.Id, Context.Client.CurrentUser.Id, $"{Context.User.GlobalName}: {message}");
-
-        StringBuilder sb = new();
-        sb.AppendLine($"{Context.User.Mention}: {originalMessage}");
-        sb.AppendLine();
-        sb.AppendLine($"{Context.Client.CurrentUser.Mention}: {response}");
-
-        int messageCount = _messageCacheService.GetChatMessageCount(Context.Channel.Id);
+        int messageCount = _messageCacheService.GetChatMessageCount(Context.Guild.Id);
 
         // User Embed
         Embed userEmbed = new EmbedBuilder()

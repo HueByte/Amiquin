@@ -26,14 +26,14 @@ public class PersonaService : IPersonaService
         _chatSemaphoreManager = chatSemaphoreManager;
     }
 
-    public async Task<string> GetPersonaAsync(ulong channelId = 0)
+    public async Task<string> GetPersonaAsync(ulong instanceId = 0)
     {
-        if (channelId == 0)
+        if (instanceId == 0)
         {
             return await GetPersonaInternalAsync();
         }
 
-        var channelSemaphore = _chatSemaphoreManager.GetOrCreateTextSemaphore(channelId);
+        var channelSemaphore = _chatSemaphoreManager.GetOrCreateInstanceSemaphore(instanceId);
         await channelSemaphore.WaitAsync();
 
         string personaMessage = string.Empty;
@@ -49,6 +49,18 @@ public class PersonaService : IPersonaService
         return personaMessage;
     }
 
+    public async Task AddSummaryAsync(string updateMessage)
+    {
+        string? personaMessage = _memoryCache.Get<string>(Constants.ComputedPersonaMessageKey);
+        if (string.IsNullOrEmpty(personaMessage))
+        {
+            personaMessage = await GetPersonaInternalAsync();
+        }
+
+        personaMessage += $"This is your summary of recent conversations: {updateMessage}";
+        _memoryCache.Set(Constants.ComputedPersonaMessageKey, personaMessage, TimeSpan.FromDays(1));
+    }
+
     private async Task<string> GetPersonaInternalAsync()
     {
 
@@ -60,7 +72,7 @@ public class PersonaService : IPersonaService
             }
         }
 
-        personaMessage = await _messageCacheService.GetPersonaCoreMessage();
+        personaMessage = await _messageCacheService.GetPersonaCoreMessageAsync();
 
         if (string.IsNullOrEmpty(personaMessage))
             personaMessage = $"I'm {Constants.BotName}. Your AI assistant. {Constants.Mood}";

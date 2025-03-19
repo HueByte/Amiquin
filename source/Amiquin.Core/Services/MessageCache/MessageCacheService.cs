@@ -25,7 +25,7 @@ public class MessageCacheService : IMessageCacheService
         _memoryCache.Remove(Constants.JoinMessageKey);
     }
 
-    public async Task<string?> GetPersonaCoreMessage()
+    public async Task<string?> GetPersonaCoreMessageAsync()
     {
         return await GetMessageAsync(Constants.CorePersonaMessageKey);
     }
@@ -35,9 +35,9 @@ public class MessageCacheService : IMessageCacheService
         return await GetMessageAsync(Constants.JoinMessageKey);
     }
 
-    public int GetChatMessageCount(ulong channelId)
+    public int GetChatMessageCount(ulong instanceId)
     {
-        if (_memoryCache.TryGetValue(channelId, out List<ChatMessage>? channelMessages))
+        if (_memoryCache.TryGetValue(instanceId, out List<ChatMessage>? channelMessages))
         {
             return channelMessages?.Count ?? 0;
         }

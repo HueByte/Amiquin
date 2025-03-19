@@ -82,7 +82,8 @@ public class InjectionConfigurator
                  .AddScoped<IPersonaService, PersonaService>()
                  .AddScoped<IPersonaChatService, PersonaChatService>()
                  .AddScoped<IVoiceService, VoiceService>()
-                 .AddScoped<INewsApiClient, NewsApiClient>();
+                 .AddScoped<INewsApiClient, NewsApiClient>()
+                 .AddScoped<IHistoryOptimizerService, HistoryOptimizerService>();
 
         _services.AddTransient<IExternalProcessRunnerService, ExternalProcessRunnerService>();
 

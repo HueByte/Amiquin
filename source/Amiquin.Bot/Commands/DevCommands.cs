@@ -5,6 +5,7 @@ using Amiquin.Core.Services.Chat;
 using Amiquin.Core.Services.MessageCache;
 using Amiquin.Core.Services.Persona;
 using Amiquin.Core.Services.Voice;
+using Amiquin.Core.Utilities;
 using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
@@ -75,23 +76,47 @@ Streams: {voiceState.AudioClient?.GetStreams().ToDictionary(x => x.Key, x => x.V
     [RequireTeam]
     public async Task PersonaAsync()
     {
-        var personaCoreMessage = await _messageCacheService.GetPersonaCoreMessage();
+        var personaCoreMessage = await _messageCacheService.GetPersonaCoreMessageAsync();
         var fullPersonaMessage = await _personaService.GetPersonaAsync();
 
-        var corePersonaEmbed = new EmbedBuilder()
-            .WithTitle("Core Persona")
-            .WithThumbnailUrl(Context.Client.CurrentUser.GetAvatarUrl())
-            .WithColor(Color.DarkTeal)
-            .WithDescription(personaCoreMessage);
+        List<Embed> chunks = new();
 
-        var computedPersonaEmbed = new EmbedBuilder()
-            .WithTitle("Computed Persona")
-            .WithThumbnailUrl(Context.Client.CurrentUser.GetAvatarUrl())
-            .WithColor(Color.DarkPurple)
-            .WithDescription(fullPersonaMessage);
+        if (personaCoreMessage?.Length > 2048)
+        {
+            chunks.AddRange(ChunkMessage(personaCoreMessage, "Core Persona"));
+        }
+        else
+        {
+            chunks.Add(new EmbedBuilder()
+                .WithTitle("Core Persona")
+                .WithThumbnailUrl(Context.Client.CurrentUser.GetAvatarUrl())
+                .WithColor(Color.DarkTeal)
+                .WithDescription(personaCoreMessage)
+                .Build());
+        }
 
-        await ModifyOriginalResponseAsync((msg) => msg.Embeds = new[] { corePersonaEmbed.Build(), computedPersonaEmbed.Build() });
+        if (fullPersonaMessage?.Length > 2048)
+        {
+            chunks.AddRange(ChunkMessage(fullPersonaMessage, "Computed Persona"));
+        }
+        else
+        {
+            chunks.Add(new EmbedBuilder()
+                .WithTitle("Computed Persona")
+                .WithThumbnailUrl(Context.Client.CurrentUser.GetAvatarUrl())
+                .WithColor(Color.DarkPurple)
+                .WithDescription(fullPersonaMessage)
+                .Build());
+        }
+
+        foreach (var chunk in chunks)
+        {
+            await ModifyOriginalResponseAsync((msg) => msg.Embed = new EmbedBuilder().WithDescription("Sending my persona below").Build());
+            await Context.Channel.SendMessageAsync(embed: chunk);
+        }
     }
+
+
 
     [SlashCommand("join", "Join a voice channel")]
     [RequireTeam]
@@ -211,5 +236,19 @@ Streams: {voiceState.AudioClient?.GetStreams().ToDictionary(x => x.Key, x => x.V
     public async Task PingAsync()
     {
         await ModifyOriginalResponseAsync((msg) => msg.Content = "Pong!");
+    }
+
+    private Embed[] ChunkMessage(string message, string title)
+    {
+        var chunkSize = 2048;
+        var chunks = StringModifier.SplitStringByMaxLength(message, chunkSize);
+        return chunks.Select((msg, i) => new EmbedBuilder()
+                .WithTitle(title)
+                .WithThumbnailUrl(Context.Client.CurrentUser.GetAvatarUrl())
+                .WithColor(Color.DarkTeal)
+                .WithDescription(msg)
+                .WithFooter($"Part {i + 1}/{chunks.Count}")
+                .Build())
+            .ToArray();
     }
 }

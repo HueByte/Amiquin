@@ -51,10 +51,13 @@ public class CommandHandlerService : ICommandHandlerService
         }
         catch (Exception ex)
         {
-            if (interaction.Type is InteractionType.ApplicationCommand)
-                await interaction.GetOriginalResponseAsync().ContinueWith(async (msg) => await msg.Result.DeleteAsync());
-
             _logger.LogError(ex, "Failed to execute command");
+
+            if (interaction.Type is InteractionType.ApplicationCommand)
+            {
+                await interaction.GetOriginalResponseAsync().ContinueWith(async (msg) => await msg.Result.DeleteAsync());
+            }
+
             if (extendedContext is not null)
                 await extendedContext.DisposeAsync();
         }
