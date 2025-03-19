@@ -5,6 +5,7 @@ using Amiquin.Core.Services.ApiClients;
 using Amiquin.Core.Services.Chat;
 using Amiquin.Core.Services.CommandHandler;
 using Amiquin.Core.Services.EventHandler;
+using Amiquin.Core.Services.ExternalProcessRunner;
 using Amiquin.Core.Services.MessageCache;
 using Amiquin.Core.Services.Persona;
 using Amiquin.Core.Services.ServerInteraction;
@@ -83,7 +84,9 @@ public class InjectionConfigurator
                  .AddScoped<IVoiceService, VoiceService>()
                  .AddScoped<INewsApiClient, NewsApiClient>();
 
-        _services.AddTransient<ChatClient>((services) =>
+        _services.AddTransient<IExternalProcessRunnerService, ExternalProcessRunnerService>();
+
+        _services.AddScoped<ChatClient>((services) =>
         {
             var configManager = services.GetRequiredService<IConfiguration>();
             string openApiKey = configManager.GetValue<string>(Constants.OpenAiKey)

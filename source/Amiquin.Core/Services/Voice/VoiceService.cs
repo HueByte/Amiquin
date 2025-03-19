@@ -1,6 +1,6 @@
-using System.Diagnostics;
 using Amiquin.Core.Options;
 using Amiquin.Core.Services.Chat;
+using Amiquin.Core.Services.ExternalProcessRunner;
 using Discord;
 using Discord.Audio;
 using Microsoft.Extensions.Configuration;
@@ -16,23 +16,26 @@ public class VoiceService : IVoiceService
     private readonly IConfiguration _configuration;
     private readonly IChatSemaphoreManager _chatSemaphoreManager;
     private readonly ExternalOptions _externalOptions;
+    private readonly IExternalProcessRunnerService _externalProcessRunner;
 
-    public VoiceService(ILogger<VoiceService> logger, IVoiceStateManager voiceStateManager, IConfiguration configuration, IChatSemaphoreManager chatSemaphoreManager, IOptions<ExternalOptions> externalOptions)
+    public VoiceService(ILogger<VoiceService> logger, IVoiceStateManager voiceStateManager, IConfiguration configuration, IChatSemaphoreManager chatSemaphoreManager, IOptions<ExternalOptions> externalOptions, IExternalProcessRunnerService externalProcessRunner)
     {
         _logger = logger;
         _voiceStateManager = voiceStateManager;
         _configuration = configuration;
         _chatSemaphoreManager = chatSemaphoreManager;
         _externalOptions = externalOptions.Value;
+        _externalProcessRunner = externalProcessRunner;
     }
 
     public async Task SpeakAsync(IVoiceChannel voiceChannel, string text)
     {
-        var semaphore = _chatSemaphoreManager.GetOrCreateInstanceSemaphore(voiceChannel.GuildId);
+        var filePath = await CreateTextToSpeechAudioAsync(text);
+
+        var semaphore = _chatSemaphoreManager.GetOrCreateVoiceSemaphore(voiceChannel.GuildId);
         await semaphore.WaitAsync();
         try
         {
-            var filePath = await CreateTextToSpeechAudioAsync(text);
             await StreamAudioAsync(voiceChannel, filePath);
         }
         finally
@@ -46,33 +49,16 @@ public class VoiceService : IVoiceService
         _logger.LogInformation("Creating text to speech audio for text: {Text}", text);
 
         var guid = Guid.NewGuid().ToString();
+
         string? modelName = _configuration.GetValue<string>(Constants.TTSModelName) ?? _externalOptions.ModelName;
         string? piperCommand = _configuration.GetValue<string>(Constants.PiperCommand) ?? _externalOptions.PiperCommand;
 
-        var modelPath = Path.Join(Constants.TTSBasePath,
-            string.IsNullOrEmpty(modelName) ? "en_GB-northern_english_male-medium.onnx" : $"{modelName}.onnx");
+        var modelPath = Path.Join(Constants.TTSBasePath, string.IsNullOrEmpty(modelName) ? "en_GB-northern_english_male-medium.onnx" : $"{modelName}.onnx");
         var ttsOutputPath = Path.Join(Constants.TTSBasePath, "output", $"o_{guid}.wav");
 
         CreateRequiredDirectories();
 
-        string args = $"--model \"{modelPath}\" --output_file \"{ttsOutputPath}\"";
-        _logger.LogInformation("Piper command: [{PiperCommand}] Args: [{args}] ", piperCommand, args);
-
-        // Prepare the process start info to execute the TTS command directly.
-        var startInfo = new ProcessStartInfo
-        {
-            FileName = piperCommand,
-            Arguments = args,
-            RedirectStandardInput = true,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true,
-        };
-
-        _logger.LogDebug("Starting process: {FileName} {Arguments}", piperCommand, startInfo.Arguments);
-
-        using Process process = new Process { StartInfo = startInfo };
+        using var process = _externalProcessRunner.CreatePiperProcess(piperCommand, modelPath, ttsOutputPath);
 
         process.Start();
 
@@ -115,7 +101,7 @@ public class VoiceService : IVoiceService
         _logger.LogInformation("AudioClient state: {State}", audioClient.ConnectionState);
 
         // Create the ffmpeg process using your dedicated method.
-        using var ffmpeg = _voiceStateManager.CreateFfmpegProcess(filePath);
+        using var ffmpeg = _externalProcessRunner.CreateFfmpegProcess(filePath);
         if (ffmpeg is null)
         {
             _logger.LogError("Failed to create FFmpeg process for audio path {AudioPath}", filePath);
@@ -224,11 +210,6 @@ public class VoiceService : IVoiceService
         if (!Directory.Exists(Constants.TTSBasePath))
         {
             Directory.CreateDirectory(Constants.TTSBasePath);
-        }
-
-        if (!Directory.Exists(Path.Join(Constants.TTSBasePath, "input")))
-        {
-            Directory.CreateDirectory(Path.Join(Constants.TTSBasePath, "input"));
         }
 
         if (!Directory.Exists(Path.Join(Constants.TTSBasePath, "output")))

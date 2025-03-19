@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.Diagnostics;
 using Amiquin.Core.Services.Voice.Models;
 using Discord;
 using Microsoft.Extensions.Logging;
@@ -22,20 +21,6 @@ public class VoiceStateManager : IVoiceStateManager
         return _voiceChannels.TryGetValue(guildId, out var amiquinVoice) ? amiquinVoice : null;
     }
 
-    public Process? CreateFfmpegProcess(string audioPath)
-    {
-        _logger.LogInformation("Creating ffmpeg process for audio path {AudioPath}", audioPath);
-
-        return Process.Start(new ProcessStartInfo
-        {
-            FileName = "ffmpeg",
-            Arguments = $"-re -hide_banner -loglevel panic -i \"{audioPath}\" -ac 2 -f s16le -ar 48000 pipe:1",
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-        });
-    }
-
     public async Task ConnectVoiceChannelAsync(IVoiceChannel channel)
     {
         if (_voiceChannels.ContainsKey(channel.GuildId))
@@ -50,36 +35,10 @@ public class VoiceStateManager : IVoiceStateManager
             AudioClient = await channel.ConnectAsync()
         };
 
-        amiquinVoice.AudioClient.UdpLatencyUpdated += (oldLatency, newLatency) =>
-        {
-            _logger.LogInformation("UDP latency updated from {OldLatency} to {NewLatency} in voice channel {ChannelName} in guild {GuildName}", oldLatency, newLatency, channel.Name, channel.Guild.Name);
-
-            return Task.CompletedTask;
-        };
-
-        amiquinVoice.AudioClient.StreamCreated += (id, audioInStream) =>
-        {
-            _logger.LogInformation("Stream created in voice channel {ChannelName} ~ Length {lenght}", id, audioInStream.Length);
-
-            return Task.CompletedTask;
-        };
-
-        amiquinVoice.AudioClient.StreamDestroyed += (id) =>
-        {
-            _logger.LogInformation("Stream destroyed in voice channel {ChannelName}", id);
-
-            return Task.CompletedTask;
-        };
-
-        amiquinVoice.AudioClient.Disconnected += async (exception) =>
-        {
-            _logger.LogInformation("Disconnected from voice channel {ChannelName} in guild {GuildName} ~ Exception {exception}", channel.Name, channel.Guild.Name, exception);
-
-            await DisconnectVoiceChannelAsync(channel);
-        };
+        AttachVoiceEvents(amiquinVoice, channel);
 
         var connectionResult = _voiceChannels.TryAdd(channel.GuildId, amiquinVoice);
-        if (amiquinVoice.AudioClient == null || !connectionResult)
+        if (amiquinVoice.AudioClient is null || !connectionResult)
         {
             _logger.LogError("Failed to connect to voice channel {ChannelName} in guild {GuildName}", channel.Name, channel.Guild.Name);
             return;
@@ -112,5 +71,58 @@ public class VoiceStateManager : IVoiceStateManager
         {
             _logger.LogWarning("Tried to leave voice channel {ChannelName} in guild {GuildName} but not connected", channel?.Name, channel?.Guild.Name);
         }
+    }
+    private void AttachVoiceEvents(AmiquinVoice amiquinVoice, IVoiceChannel channel)
+    {
+        if (amiquinVoice.AudioClient is null)
+        {
+            _logger.LogError("Audio client is null");
+            return;
+        }
+
+        var channelName = channel.Name;
+        var guildName = channel.Guild.Name;
+
+        amiquinVoice.AudioClient.UdpLatencyUpdated += (oldLatency, newLatency) =>
+        {
+            _logger.LogInformation("UDP latency updated from {OldLatency} to {NewLatency} in voice channel {ChannelName} in guild {GuildName}", oldLatency, newLatency, channelName, guildName);
+
+            return Task.CompletedTask;
+        };
+
+        amiquinVoice.AudioClient.StreamCreated += (id, audioInStream) =>
+        {
+            _logger.LogInformation("Stream created in voice channel {ChannelName} ~ Length {Length}", channelName, audioInStream.Length);
+
+            return Task.CompletedTask;
+        };
+
+        amiquinVoice.AudioClient.StreamDestroyed += (id) =>
+        {
+            _logger.LogInformation("Stream destroyed in voice channel {ChannelName}", channelName);
+
+            return Task.CompletedTask;
+        };
+
+        amiquinVoice.AudioClient.Connected += () =>
+        {
+            _logger.LogInformation("Connected to voice channel {ChannelName} in guild {GuildName}", channelName, guildName);
+
+            return Task.CompletedTask;
+        };
+
+        amiquinVoice.AudioClient.Disconnected += async (exception) =>
+        {
+            _logger.LogInformation("Disconnected from voice channel {ChannelName} in guild {GuildName} ~ Exception {Exception}", channelName, guildName, exception);
+
+            await DisconnectVoiceChannelAsync(channel);
+        };
+
+        amiquinVoice.AudioClient.ClientDisconnected += (userId) =>
+        {
+            _logger.LogInformation("User disconnected from voice channel {ChannelName} in guild {GuildName} ~ User {UserId}", channelName, guildName, userId);
+
+            return Task.CompletedTask;
+        };
     }
 }
