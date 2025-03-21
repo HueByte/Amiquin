@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using Amiquin.Core.Services.Voice.Models;
 using Discord;
 using Microsoft.Extensions.Logging;
+using OpenAI;
 
 namespace Amiquin.Core.Services.Voice;
 
@@ -34,6 +35,37 @@ public class VoiceStateManager : IVoiceStateManager
             VoiceChannel = channel,
             AudioClient = await channel.ConnectAsync()
         };
+
+        var streams = amiquinVoice.AudioClient.GetStreams();
+        foreach (var (streamId, stream) in streams)
+        {
+            _logger.LogInformation("Stream {StreamId} ~ Length {Length}", streamId, stream.AvailableFrames);
+        }
+
+        _ = Task.Run(async () =>
+        {
+            var streamId = streams.Keys.FirstOrDefault(); // Replace with the desired stream ID if known
+            if (streamId == default || !streams.TryGetValue(streamId, out var stream))
+            {
+                _logger.LogWarning("No valid stream found to process");
+                return;
+            }
+
+            while (true)
+            {
+                if (stream.AvailableFrames > 0)
+                {
+                    var buffer = new byte[stream.AvailableFrames];
+                    var bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length);
+                    if (bytesRead > 0)
+                    {
+                        _logger.LogInformation("Received {BytesRead} bytes from Stream {StreamId}", bytesRead, streamId);
+                    }
+                }
+
+                await Task.Delay(10); // Add a small delay to prevent excessive CPU usage
+            }
+        });
 
         AttachVoiceEvents(amiquinVoice, channel);
 

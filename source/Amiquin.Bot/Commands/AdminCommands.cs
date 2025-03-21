@@ -1,9 +1,14 @@
 using System.Collections.Concurrent;
+using System.Text;
 using Amiquin.Core;
+using Amiquin.Core.Attributes;
 using Amiquin.Core.DiscordExtensions;
+using Amiquin.Core.Models;
+using Amiquin.Core.Services.Chat.Toggle;
 using Amiquin.Core.Utilities;
 using Discord;
 using Discord.Interactions;
+using Discord.Rest;
 using Microsoft.Extensions.Logging;
 
 namespace Amiquin.Bot.Commands;
@@ -13,14 +18,58 @@ namespace Amiquin.Bot.Commands;
 public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionContext>
 {
     private readonly ILogger<AdminCommands> _logger;
+    private readonly IToggleService _toggleService;
     private const int WORKER_COUNT = 1;
     private const int DELETE_THROTTLE_MS = 500;
     private const int UPDATE_THROTTLE_MS = 1500;
     private const int BAR_WIDTH = 40;
 
-    public AdminCommands(ILogger<AdminCommands> logger)
+    public AdminCommands(ILogger<AdminCommands> logger, IToggleService toggleService)
     {
         _logger = logger;
+        _toggleService = toggleService;
+    }
+
+    [SlashCommand("server-toggles", "List all server toggles")]
+    [Ephemeral]
+    public async Task ServerTogglesAsync()
+    {
+        await _toggleService.CreateServerTogglesIfNotExistsAsync(Context.Guild.Id);
+        var toggles = await _toggleService.GetTogglesByScopeAsync(ToggleScope.Server);
+        var sb = new StringBuilder();
+
+        sb.AppendLine("```ini");
+        foreach (var toggle in toggles)
+        {
+            string finalToggleName = string.Join("::", toggle.Name.Split("::").Skip(1));
+            sb.AppendLine($"{finalToggleName} = {toggle.IsEnabled}");
+        }
+        sb.AppendLine("```");
+
+        var embed = new EmbedBuilder()
+            .WithTitle("Server Toggles")
+            .WithThumbnailUrl(Context.Guild.IconUrl)
+            .WithDescription(sb.ToString())
+            .WithColor(Color.DarkTeal)
+            .Build();
+
+        await ModifyOriginalResponseAsync((msg) => msg.Embed = embed);
+    }
+
+    [SlashCommand("toggle", "Toggle a feature")]
+    [Ephemeral]
+    public async Task ToggleAsync(string toggleName, bool isEnabled, string? description = null)
+    {
+        await _toggleService.SetServerToggleAsync(toggleName, isEnabled, Context.Guild.Id, description);
+        await ModifyOriginalResponseAsync((msg) => msg.Content = $"Set {toggleName} to {isEnabled}");
+    }
+
+    [SlashCommand("remove-toggle", "Toggle a feature")]
+    [Ephemeral]
+    public async Task RemoveToggleAsync(string toggleName)
+    {
+        await _toggleService.RemoveServerToggleAsync(toggleName, Context.Guild.Id);
+        await ModifyOriginalResponseAsync((msg) => msg.Content = $"{toggleName} toggle removed");
     }
 
     [SlashCommand("nuke", "Nuke the channel")]

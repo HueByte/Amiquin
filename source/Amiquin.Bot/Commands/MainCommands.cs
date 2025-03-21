@@ -1,4 +1,6 @@
 using System.Text;
+using Amiquin.Bot.Preconditions;
+using Amiquin.Core;
 using Amiquin.Core.DiscordExtensions;
 using Amiquin.Core.Services.Chat;
 using Amiquin.Core.Services.MessageCache;
@@ -19,6 +21,7 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
     }
 
     [SlashCommand("chat", "Chat with the bot")]
+    [RequireToggle(Constants.ToggleNames.EnableChat)]
     public async Task ChatAsync(string message)
     {
         var originalMessage = message;

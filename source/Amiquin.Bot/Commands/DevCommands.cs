@@ -1,7 +1,12 @@
+using System.Text;
 using System.Text.Json;
+using Amiquin.Bot.Preconditions;
+using Amiquin.Core;
 using Amiquin.Core.Attributes;
 using Amiquin.Core.DiscordExtensions;
+using Amiquin.Core.Models;
 using Amiquin.Core.Services.Chat;
+using Amiquin.Core.Services.Chat.Toggle;
 using Amiquin.Core.Services.MessageCache;
 using Amiquin.Core.Services.Persona;
 using Amiquin.Core.Services.Voice;
@@ -23,8 +28,9 @@ public class DevCommands : InteractionModuleBase<ExtendedShardedInteractionConte
     private readonly IVoiceService _voiceService;
     private readonly IVoiceStateManager _voiceStateManager;
     private readonly IPersonaChatService _personaChatService;
+    private readonly IToggleService _toggleService;
 
-    public DevCommands(IChatCoreService chatService, IMessageCacheService messageCacheService, IPersonaService personaService, DiscordShardedClient client, IVoiceService voiceService, IVoiceStateManager voiceStateManager, IPersonaChatService personaChatService)
+    public DevCommands(IChatCoreService chatService, IMessageCacheService messageCacheService, IPersonaService personaService, DiscordShardedClient client, IVoiceService voiceService, IVoiceStateManager voiceStateManager, IPersonaChatService personaChatService, IToggleService toggleService)
     {
         _chatService = chatService;
         _messageCacheService = messageCacheService;
@@ -33,6 +39,41 @@ public class DevCommands : InteractionModuleBase<ExtendedShardedInteractionConte
         _voiceService = voiceService;
         _voiceStateManager = voiceStateManager;
         _personaChatService = personaChatService;
+        _toggleService = toggleService;
+    }
+
+    [SlashCommand("systemtoggles", "List system toggles")]
+    [Ephemeral]
+    [RequireTeam]
+    public async Task SystemTogglesAsync()
+    {
+        var toggles = await _toggleService.GetTogglesByScopeAsync(ToggleScope.Global);
+        var sb = new StringBuilder();
+
+        sb.AppendLine("```ini");
+        foreach (var toggle in toggles)
+        {
+            sb.AppendLine($"{toggle.Name} = {toggle.IsEnabled}");
+        }
+        sb.AppendLine("```");
+
+        var embed = new EmbedBuilder()
+            .WithTitle("Server Toggles")
+            .WithThumbnailUrl(Context.Client.CurrentUser.GetAvatarUrl())
+            .WithDescription(sb.ToString())
+            .WithColor(Color.DarkTeal)
+            .Build();
+
+        await ModifyOriginalResponseAsync((msg) => msg.Embed = embed);
+    }
+
+    [SlashCommand("toggle", "Toggle a feature")]
+    [Ephemeral]
+    [RequireTeam]
+    public async Task ToggleAsync(string toggleName, bool isEnabled, string? description = null)
+    {
+        await _toggleService.SetSystemToggleAsync(toggleName, isEnabled, description);
+        await ModifyOriginalResponseAsync((msg) => msg.Content = $"Set {toggleName} to {isEnabled}");
     }
 
     [SlashCommand("voicedebug", "debug")]
@@ -146,7 +187,9 @@ Streams: {voiceState.AudioClient?.GetStreams().ToDictionary(x => x.Key, x => x.V
         await ModifyOriginalResponseAsync((msg) => msg.Content = $"Left {voiceChannel.Name}");
     }
 
-    [SlashCommand("voicechat", "Amiquin will answer in a voice channel")]
+    [SlashCommand("voice-chat", "Amiquin will answer in a voice channel")]
+    [RequireToggle(Constants.ToggleNames.EnableTTS)]
+    [RequireToggle(Constants.ToggleNames.EnableChat)]
     [Ephemeral]
     public async Task VoiceChatAsync(string input)
     {
@@ -199,6 +242,7 @@ Streams: {voiceState.AudioClient?.GetStreams().ToDictionary(x => x.Key, x => x.V
     }
 
     [SlashCommand("say", "Amiquin will say something in the voice chat")]
+    [RequireToggle(Constants.ToggleNames.EnableTTS)]
     [Ephemeral]
     public async Task SaySomethingAsync(string input)
     {

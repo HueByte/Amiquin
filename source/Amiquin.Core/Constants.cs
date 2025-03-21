@@ -2,6 +2,31 @@ namespace Amiquin.Core;
 
 public class Constants
 {
+    public class ToggleNames
+    {
+        public class SystemExclusiveToggles
+        {
+            public const string EnableNews = "EnableNews";
+        }
+
+        public const string SystemTogglePrefix = "System::";
+        public const string EnableTTS = "EnableTTS";
+        public const string EnableJoinMessage = "EnableJoinMessage";
+        public const string EnableChat = "EnableChat";
+
+        public static List<string> SystemExlusiveToggles = new()
+        {
+            SystemExclusiveToggles.EnableNews
+        };
+
+        public static List<string> Toggles = new()
+        {
+            EnableTTS,
+            EnableJoinMessage,
+            EnableChat
+        };
+    }
+
     public class Environment
     {
         public const string BotToken = "AMQ_BOT_TOKEN";

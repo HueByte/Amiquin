@@ -3,6 +3,7 @@ using Amiquin.Core.IRepositories;
 using Amiquin.Core.Options;
 using Amiquin.Core.Services.ApiClients;
 using Amiquin.Core.Services.Chat;
+using Amiquin.Core.Services.Chat.Toggle;
 using Amiquin.Core.Services.CommandHandler;
 using Amiquin.Core.Services.EventHandler;
 using Amiquin.Core.Services.ExternalProcessRunner;
@@ -83,7 +84,8 @@ public class InjectionConfigurator
                  .AddScoped<IPersonaChatService, PersonaChatService>()
                  .AddScoped<IVoiceService, VoiceService>()
                  .AddScoped<INewsApiClient, NewsApiClient>()
-                 .AddScoped<IHistoryOptimizerService, HistoryOptimizerService>();
+                 .AddScoped<IHistoryOptimizerService, HistoryOptimizerService>()
+                 .AddScoped<IToggleService, ToggleService>();
 
         _services.AddTransient<IExternalProcessRunnerService, ExternalProcessRunnerService>();
 
@@ -107,7 +109,8 @@ public class InjectionConfigurator
 
     public InjectionConfigurator AddRepositories()
     {
-        _services.AddScoped<IMessageRepository, MessageRepository>();
+        _services.AddScoped<IMessageRepository, MessageRepository>()
+                 .AddScoped<IToggleRepository, ToggleRepository>();
 
         return this;
     }

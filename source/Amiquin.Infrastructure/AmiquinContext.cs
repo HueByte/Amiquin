@@ -26,4 +26,5 @@ public class AmiquinContext : DbContext
     }
 
     public DbSet<Message> Messages { get; set; } = default!;
+    public DbSet<Toggle> Toggles { get; set; } = default!;
 }
