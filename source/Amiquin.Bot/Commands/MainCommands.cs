@@ -24,6 +24,7 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
     [RequireToggle(Constants.ToggleNames.EnableChat)]
     public async Task ChatAsync(string message)
     {
+        message = message.Trim();
         var originalMessage = message;
         var response = await _chatService.ChatAsync(Context.Guild.Id, Context.User.Id, Context.Client.CurrentUser.Id, $"[{Context.User.GlobalName}]: {message}");
         int messageCount = _messageCacheService.GetChatMessageCount(Context.Guild.Id);

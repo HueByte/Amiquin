@@ -44,6 +44,7 @@ public class Constants
         public const string JoinMessageKey = "ServerJoinMessage";
         public const string CorePersonaMessageKey = "Persona";
         public const string ComputedPersonaMessageKey = "ComputedPersona";
+        public const string ServerTogglesCreated = "ServerTogglesCreated";
     }
 
     public class AI

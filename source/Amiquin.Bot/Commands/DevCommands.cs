@@ -42,7 +42,7 @@ public class DevCommands : InteractionModuleBase<ExtendedShardedInteractionConte
         _toggleService = toggleService;
     }
 
-    [SlashCommand("systemtoggles", "List system toggles")]
+    [SlashCommand("system-toggles", "List system toggles")]
     [Ephemeral]
     [RequireTeam]
     public async Task SystemTogglesAsync()
@@ -193,6 +193,7 @@ Streams: {voiceState.AudioClient?.GetStreams().ToDictionary(x => x.Key, x => x.V
     [Ephemeral]
     public async Task VoiceChatAsync(string input)
     {
+        input = input.Trim();
         var voiceChannel = (Context.User as IGuildUser)?.VoiceChannel;
         if (voiceChannel is null)
         {

@@ -18,6 +18,7 @@ public class RequireToggle : PreconditionAttribute
         var toggleService = services.GetRequiredService<IToggleService>();
         var serverId = context.Guild.Id;
 
+        await toggleService.CreateServerTogglesIfNotExistsAsync(serverId);
         return await toggleService.IsEnabledAsync(ToggleName, serverId)
             ? PreconditionResult.FromSuccess()
             : PreconditionResult.FromError("This command is disabled.");

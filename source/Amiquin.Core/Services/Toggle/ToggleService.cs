@@ -19,8 +19,16 @@ public class ToggleService : IToggleService
         _toggleRepository = toggleRepository;
     }
 
-    public async Task CreateServerTogglesIfNotExistsAsync(ulong serverId)
+    public async Task CreateServerTogglesIfNotExistsAsync(ulong serverId, bool useCache = true)
     {
+        if (useCache && _memoryCache.TryGetValue(Constants.CacheKeys.ServerTogglesCreated, out var created))
+        {
+            if (created is bool value && value)
+            {
+                return;
+            }
+        }
+
         var serverToggles = await GetTogglesByScopeAsync(ToggleScope.Server);
         var expectedToggles = Constants.ToggleNames.Toggles;
 
@@ -34,6 +42,8 @@ public class ToggleService : IToggleService
                 await SetServerToggleAsync(toggle, toggleValue, serverId);
             }
         }
+
+        _memoryCache.Set(Constants.CacheKeys.ServerTogglesCreated, true, TimeSpan.FromDays(1));
     }
 
     /// <summary>
@@ -49,6 +59,7 @@ public class ToggleService : IToggleService
         var systemToggleValue = await GetToggleValueAsync(systemToggleName);
         if (systemToggleValue is not null)
         {
+            _logger.LogInformation("System toggle override exists [{toggleName} = {value}]", toggleName, systemToggleValue.Value);
             return systemToggleValue.Value;
         }
 
