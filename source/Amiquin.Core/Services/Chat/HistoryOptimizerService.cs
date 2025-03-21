@@ -1,4 +1,5 @@
 using System.Text;
+using Amiquin.Core.Options;
 using Amiquin.Core.Services.Chat.Model;
 using Amiquin.Core.Utilities;
 using Microsoft.Extensions.Logging;
@@ -10,22 +11,23 @@ public class HistoryOptimizerService : IHistoryOptimizerService
 {
     private readonly ILogger<HistoryOptimizerService> _logger;
     private readonly IChatCoreService _chatCoreService;
-    private const int MAX_TOKENS_TOTAL = 20_000; // to configuration later
+    private readonly BotOptions _botOptions;
 
-    public HistoryOptimizerService(ILogger<HistoryOptimizerService> logger, IChatCoreService chatCoreService)
+    public HistoryOptimizerService(ILogger<HistoryOptimizerService> logger, IChatCoreService chatCoreService, BotOptions botOptions)
     {
         _logger = logger;
         _chatCoreService = chatCoreService;
+        _botOptions = botOptions;
     }
 
     public bool ShouldOptimizeMessageHistory(ChatTokenUsage tokenUsage)
     {
-        return tokenUsage.TotalTokenCount - (tokenUsage.InputTokenDetails.CachedTokenCount / 2) > MAX_TOKENS_TOTAL;
+        return tokenUsage.TotalTokenCount - (tokenUsage.InputTokenDetails.CachedTokenCount / 2) > _botOptions.MaxTokens;
     }
 
     public async Task<OptimizerResult> OptimizeMessageHistory(int currentTokenCount, List<ChatMessage> messages, ChatMessage? personaMessage = null)
     {
-        int targetTokenCount = MAX_TOKENS_TOTAL / 2;
+        int targetTokenCount = _botOptions.MaxTokens / 2;
         int messagesToRemoveCount = 0;
 
         _logger.LogInformation("Starting message history optimization | Current token count: {currentTokenCount} | Target token count: {targetTokenCount}", currentTokenCount, targetTokenCount);
@@ -66,13 +68,13 @@ public class HistoryOptimizerService : IHistoryOptimizerService
     {
         StringBuilder sb = new();
 
-        sb.AppendLine("I want you to summarize the following messages, as you're approaching your memory token limit:");
+        sb.AppendLine("I want you to summarize the following messages, as you're approaching your memory token limit. Think of it as a recap or notes of our conversations from your perspective:");
         foreach (var message in messages)
         {
             sb.AppendLine(message.Content.First().Text);
         }
 
-        var response = await _chatCoreService.ExchangeMessageAsync(sb.ToString(), personaMessage, MAX_TOKENS_TOTAL / 4);
+        var response = await _chatCoreService.ExchangeMessageAsync(sb.ToString(), personaMessage, _botOptions.MaxTokens / 4);
 
         return response;
     }

@@ -13,4 +13,5 @@ public class BotOptions : IOption
     public string OpenAIKey { get; set; } = default!;
 
     public int MessageFetchCount { get; set; } = default!;
+    public int MaxTokens { get; set; }
 }
