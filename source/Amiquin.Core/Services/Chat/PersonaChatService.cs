@@ -1,9 +1,11 @@
 using Amiquin.Core.Models;
+using Amiquin.Core.Options;
 using Amiquin.Core.Services.MessageCache;
 using Amiquin.Core.Services.Persona;
 using Microsoft.Build.Framework;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using OpenAI.Chat;
 
 namespace Amiquin.Core.Services.Chat;
@@ -15,18 +17,20 @@ public class PersonaChatService : IPersonaChatService
     private readonly IPersonaService _personaService;
     private readonly IMessageCacheService _messageCacheService;
     private readonly IHistoryOptimizerService _historyOptimizerService;
+    private readonly BotOptions _botOptions;
     private const float PRICING_OUTPUT = 0.600f;
     private const float PRICING_INPUT = 0.150f;
     private const float PRICING_INPUT_CACHED = 0.075f;
     private const float ONE_MILLION = 1_000_000;
 
-    public PersonaChatService(ILogger<PersonaChatService> logger, IChatCoreService chatCoreService, IPersonaService personaService, IMessageCacheService messageCacheService, IHistoryOptimizerService historyOptimizerService)
+    public PersonaChatService(ILogger<PersonaChatService> logger, IChatCoreService chatCoreService, IPersonaService personaService, IMessageCacheService messageCacheService, IHistoryOptimizerService historyOptimizerService, IOptions<BotOptions> botOptions)
     {
         _logger = logger;
         _chatCoreService = chatCoreService;
         _personaService = personaService;
         _messageCacheService = messageCacheService;
         _historyOptimizerService = historyOptimizerService;
+        _botOptions = botOptions.Value;
     }
 
     public async Task<string> ChatAsync(ulong instanceId, ulong userId, ulong botId, string message)
@@ -78,8 +82,8 @@ public class PersonaChatService : IPersonaChatService
 
     private void LogTokenUsage(ChatTokenUsage usage)
     {
-        _logger.LogInformation("Chat used [Total: {totalTokens}] ~ [Input: {inputTokens}] ~ [CachedInput: {cachedInputTokens}] ~ [Output: {outputTokens}] tokens",
-            usage.TotalTokenCount, usage.InputTokenCount, usage.InputTokenDetails.CachedTokenCount, usage.OutputTokenCount);
+        _logger.LogInformation("Chat used [Total: {totalTokens}] ~ [Input: {inputTokens}] ~ [CachedInput: {cachedInputTokens}] ~ [Output: {outputTokens}] ~ [AmiquinCounter: {amiquinTokens}] tokens",
+            usage.TotalTokenCount, usage.InputTokenCount, usage.InputTokenDetails.CachedTokenCount, usage.OutputTokenCount, usage.TotalTokenCount - (usage.InputTokenDetails.CachedTokenCount / 2));
 
         _logger.LogInformation("Estimated message price: {messagePrice}$", CalculateMessagePrice(usage));
     }

@@ -115,6 +115,7 @@ public class AmiquinHost : IHostedService
             { Constants.Environment.SQLitePath, _configuration.GetValue<string>(Constants.Environment.SQLitePath) ?? "null" },
             { Constants.Environment.TTSModelName, _configuration.GetValue<string>(Constants.Environment.TTSModelName) ?? "null" },
             { Constants.Environment.PiperCommand, _configuration.GetValue<string>(Constants.Environment.PiperCommand) ?? "null" },
+            { Constants.Environment.MessageFetchCount, _configuration.GetValue<string>(Constants.Environment.MessageFetchCount) ?? "null" },
         };
         Console.Writer.WriteDictionaryData("Environment Variables", envVariables);
 
