@@ -1,7 +1,10 @@
 using Amiquin.Core.IRepositories;
 using Amiquin.Core.Models;
+using Amiquin.Core.Options;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 using OpenAI.Chat;
 
 namespace Amiquin.Core.Services.MessageCache;
@@ -10,12 +13,15 @@ public class MessageCacheService : IMessageCacheService
 {
     private readonly IMemoryCache _memoryCache;
     private readonly IMessageRepository _messageRepository;
+    private readonly int _messageFetchCount = 40;
     private const int MEMORY_CACHE_EXPIRATION = 5;
 
-    public MessageCacheService(IMemoryCache memoryCache, IMessageRepository messageRepository)
+    public MessageCacheService(IMemoryCache memoryCache, IMessageRepository messageRepository, IOptions<BotOptions> botOptions, IConfiguration configuration)
     {
         _memoryCache = memoryCache;
         _messageRepository = messageRepository;
+        int messageFetchCount = configuration.GetValue<int>(Constants.Environment.MessageFetchCount);
+        _messageFetchCount = messageFetchCount is not 0 ? messageFetchCount : botOptions.Value.MessageFetchCount;
     }
 
     public void ClearCache()
@@ -53,7 +59,7 @@ public class MessageCacheService : IMessageCacheService
             var messages = await _messageRepository.AsQueryable()
                 .Where(x => x.InstanceId == instanceId)
                 .OrderBy(x => x.CreatedAt)
-                .Take(40)
+                .Take(_messageFetchCount)
                 .ToListAsync();
 
             return messages.Select(x =>

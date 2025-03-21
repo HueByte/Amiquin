@@ -11,4 +11,6 @@ public class BotOptions : IOption
 
     [Anomify]
     public string OpenAIKey { get; set; } = default!;
+
+    public int MessageFetchCount { get; set; } = default!;
 }

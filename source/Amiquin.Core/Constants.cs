@@ -11,6 +11,7 @@ public class Constants
         public const string SQLitePath = "AMQ_SQLITE_PATH";
         public const string TTSModelName = "AMQ_TTS_MODEL_NAME";
         public const string PiperCommand = "AMQ_PIPER_COMMAND";
+        public const string MessageFetchCount = "AMQ_MESSAGE_FETCH_COUNT";
     }
 
     public class CacheKeys
