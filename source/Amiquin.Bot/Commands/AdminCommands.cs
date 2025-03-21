@@ -1,14 +1,9 @@
 using System.Collections.Concurrent;
-using System.Text;
 using Amiquin.Core;
-using Amiquin.Core.Attributes;
 using Amiquin.Core.DiscordExtensions;
 using Amiquin.Core.Utilities;
 using Discord;
 using Discord.Interactions;
-using Discord.Rest;
-using Discord.WebSocket;
-using Microsoft.Build.Framework;
 using Microsoft.Extensions.Logging;
 
 namespace Amiquin.Bot.Commands;
@@ -20,13 +15,13 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
     private readonly ILogger<AdminCommands> _logger;
     private const int WORKER_COUNT = 1;
     private const int DELETE_THROTTLE_MS = 500;
-    private const int UPDATE_THROTTLE_MS = 1000;
+    private const int UPDATE_THROTTLE_MS = 1500;
     private const int BAR_WIDTH = 40;
+
     public AdminCommands(ILogger<AdminCommands> logger)
     {
         _logger = logger;
     }
-
 
     [SlashCommand("nuke", "Nuke the channel")]
     public async Task NukeAsync(int messageCount)
@@ -34,7 +29,7 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
         IUserMessage currentMessage = await ModifyOriginalResponseAsync((msg) => msg.Content = "Preparing to nuke...");
         if (messageCount < 1 || messageCount > 100)
         {
-            await ModifyOriginalResponseAsync((msg) => msg.Content = "Message count must be between 1 and 100");
+            await currentMessage.ModifyAsync((msg) => msg.Content = "Message count must be between 1 and 100");
             return;
         }
 
@@ -42,6 +37,8 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
         var messageBatches = await Context.Channel.GetMessagesAsync(messageCount + 1, CacheMode.AllowDownload, RequestOptions.Default).ToListAsync();
 
         var messages = messageBatches.SelectMany(x => x).ToList();
+
+        _logger.LogInformation("{iteractionId} | Deleting {MessageCount} messages in [{ChannelId}]", Context.Interaction.Id, messages.Count - 1, Context.Channel.Id);
         await ModifyOriginalResponseAsync((msg) => msg.Content = $"Deleting {messages.Count - 1} messages");
 
         ConcurrentBag<Discord.IMessage> messagesBag = [.. messages];
@@ -49,6 +46,9 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
         {
             while (messagesBag.TryTake(out var message))
             {
+                // Throttle the deletion to avoid rate limiting 
+                await Task.Delay(DELETE_THROTTLE_MS);
+
                 if (message.Id == currentMessage.Id)
                 {
                     _logger.LogInformation("{iteractionId} | Skipping self message {MessageId} in [{ChannelId}]", Context.Interaction.Id, message.Id, Context.Channel.Id);
@@ -56,9 +56,6 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
                 }
 
                 await DeleteMessageAsync(message);
-
-                // Throttle the deletion to avoid rate limiting 
-                await Task.Delay(DELETE_THROTTLE_MS);
             }
         }).ToList();
 
@@ -82,7 +79,7 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
 
                 _logger.LogInformation("Nuke progress: {ProgressPercent}% in [{channelId}]\n{bar}", (int)(progress * 100), Context.Channel.Id, consoleProgressBar);
 
-                var calculatedMessage = $"In progress... {messageCount - messagesBag.Count - 1}/{messageCount} {(int)progress}% {Constants.Emoji.SlugParty} \n{discordProgressBar}";
+                var calculatedMessage = $"In progress {(int)(progress * 100)}% {Constants.Emoji.SlugParty} *({messageCount - messagesBag.Count - 1}/{messageCount})* \n{discordProgressBar}";
                 await currentMessage.ModifyAsync((msg) => msg.Content = calculatedMessage);
 
                 await Task.Delay(UPDATE_THROTTLE_MS);
