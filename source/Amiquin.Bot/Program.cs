@@ -83,7 +83,7 @@ async Task RunAsync(string[] args)
         })
         .UseSerilog((context, services, config) =>
         {
-            var logsPath = context.Configuration.GetValue<string>(Constants.LogsPath);
+            var logsPath = context.Configuration.GetValue<string>(Constants.Environment.LogsPath);
             if (string.IsNullOrEmpty(logsPath))
                 logsPath = AppContext.BaseDirectory;
 

@@ -80,7 +80,7 @@ public class AmiquinHost : IHostedService
 
     private async Task CreateBotAsync()
     {
-        var token = _configuration.GetValue<string>(Constants.BotToken);
+        var token = _configuration.GetValue<string>(Constants.Environment.BotToken);
         if (string.IsNullOrEmpty(token))
             token = _botOptions.Token;
 
@@ -100,7 +100,7 @@ public class AmiquinHost : IHostedService
 
     private void DisplayData()
     {
-        var shouldPrintLogo = _configuration.GetValue<bool>(Constants.PrintLogo);
+        var shouldPrintLogo = _configuration.GetValue<bool>(Constants.Environment.PrintLogo);
         if (shouldPrintLogo)
             Console.Writer.WriteLogo();
 
@@ -108,21 +108,21 @@ public class AmiquinHost : IHostedService
         Console.Writer.WriteJsonData("External Options", _externalOptions);
         Dictionary<string, string> envVariables = new()
         {
-            { Constants.BotToken, StringModifier.Anomify(_configuration.GetValue<string>(Constants.BotToken) ?? string.Empty) ?? "null" },
-            { Constants.OpenAiKey, StringModifier.Anomify(_configuration.GetValue<string>(Constants.OpenAiKey) ?? string.Empty) ?? "null" },
-            { Constants.LogsPath, _configuration.GetValue<string>(Constants.LogsPath) ?? "null" },
-            { Constants.PrintLogo, _configuration.GetValue<string>(Constants.PrintLogo) ?? "null" },
-            { Constants.SQLitePath, _configuration.GetValue<string>(Constants.SQLitePath) ?? "null" },
-            { Constants.TTSModelName, _configuration.GetValue<string>(Constants.TTSModelName) ?? "null" },
-            { Constants.PiperCommand, _configuration.GetValue<string>(Constants.PiperCommand) ?? "null" },
+            { Constants.Environment.BotToken, StringModifier.Anomify(_configuration.GetValue<string>(Constants.Environment.BotToken) ?? string.Empty) ?? "null" },
+            { Constants.Environment.OpenAiKey, StringModifier.Anomify(_configuration.GetValue<string>(Constants.Environment.OpenAiKey) ?? string.Empty) ?? "null" },
+            { Constants.Environment.LogsPath, _configuration.GetValue<string>(Constants.Environment.LogsPath) ?? "null" },
+            { Constants.Environment.PrintLogo, _configuration.GetValue<string>(Constants.Environment.PrintLogo) ?? "null" },
+            { Constants.Environment.SQLitePath, _configuration.GetValue<string>(Constants.Environment.SQLitePath) ?? "null" },
+            { Constants.Environment.TTSModelName, _configuration.GetValue<string>(Constants.Environment.TTSModelName) ?? "null" },
+            { Constants.Environment.PiperCommand, _configuration.GetValue<string>(Constants.Environment.PiperCommand) ?? "null" },
         };
         Console.Writer.WriteDictionaryData("Environment Variables", envVariables);
 
         Dictionary<string, string> calculatedPaths = new()
         {
-            { "TTSBasePath", Constants.TTSBasePath },
-            { "TTSBaseOutputPath", Constants.TTSBaseOutputPath },
-            { "MessageBasePath", Constants.MessageBasePath },
+            { "TTSBasePath", Constants.Paths.TTSBasePath },
+            { "TTSBaseOutputPath", Constants.Paths.TTSBaseOutputPath },
+            { "MessageBasePath", Constants.Paths.MessageBasePath },
         };
         Console.Writer.WriteDictionaryData("Calculated Paths", calculatedPaths);
 
@@ -135,13 +135,13 @@ public class AmiquinHost : IHostedService
         Dictionary<string, string> data = new()
         {
             { "ID", _client.CurrentUser.Id.ToString() },
-            { "Name Const", Constants.BotName },
+            { "Name Const", Constants.BotMetadata.BotName },
             { "Name", _client.CurrentUser.Username},
             { "Discriminator", _client.CurrentUser.Discriminator},
             { "Global Name", _client.CurrentUser.GlobalName},
             { "Email", _client.CurrentUser.Email},
             { "Created Date", _client.CurrentUser.CreatedAt.ToString("dd-MM-yyyy")},
-            { "Version", Constants.BotVersion },
+            { "Version", Constants.BotMetadata.BotVersion },
             { "Shards", _client.Shards.Count.ToString() },
             { "Guilds", _client.Guilds.Count.ToString() },
             { "Users", _client.Guilds.Sum(x => x.MemberCount).ToString() },

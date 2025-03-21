@@ -15,7 +15,7 @@ public static class Setup
     /// <returns>The updated service collection.</returns>
     public static IServiceCollection AddAmiquinContext(this IServiceCollection services, IConfiguration configuration)
     {
-        var connectionString = configuration.GetValue<string>(Constants.SQLitePath) ?? $"Data Source={Path.Join(AppContext.BaseDirectory, "data.db")}";
+        var connectionString = configuration.GetValue<string>(Constants.Environment.SQLitePath) ?? $"Data Source={Path.Join(AppContext.BaseDirectory, "data.db")}";
         services.AddDbContext<AmiquinContext>(options =>
             options.UseSqlite(connectionString, x => x.MigrationsAssembly(typeof(AmiquinContext).Assembly.GetName().Name)));
 

@@ -90,10 +90,10 @@ public class InjectionConfigurator
         _services.AddScoped<ChatClient>((services) =>
         {
             var configManager = services.GetRequiredService<IConfiguration>();
-            string openApiKey = configManager.GetValue<string>(Constants.OpenAiKey)
+            string openApiKey = configManager.GetValue<string>(Constants.Environment.OpenAiKey)
                 ?? services.GetRequiredService<IOptions<BotOptions>>().Value.OpenAIKey;
 
-            return new ChatClient(Constants.Gpt4oMiniModel, openApiKey);
+            return new ChatClient(Constants.AI.Gpt4oMiniModel, openApiKey);
         });
 
         _services.AddHttpClient(typeof(INewsApiClient).Name, (services, client) =>
