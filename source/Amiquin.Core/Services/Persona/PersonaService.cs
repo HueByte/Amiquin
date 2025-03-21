@@ -114,7 +114,7 @@ public class PersonaService : IPersonaService
                 return "I couldn't find any news at the moment.";
             }
 
-            sb.AppendLine("I've got some news for you Amiquin, tell me how you feel about it, but instead of using \"I\", use \"Amiquin\". So basically write it in third person.");
+            sb.AppendLine("Amiquin just received some juicy news and is bursting with snarky curiosity. Express Amiquin’s thoughts in the third person—never say “I,” only “Amiquin.” Keep the playful, sarcastic edge, but don’t let it overshadow the message. Reflect how Amiquin feels about the latest updates and respond accordingly.");
             foreach (var newsObj in news.Data.NewsList)
             {
                 if (newsObj.NewsObj is null || string.IsNullOrEmpty(newsObj.NewsObj.Content))

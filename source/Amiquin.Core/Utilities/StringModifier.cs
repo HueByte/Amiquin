@@ -37,7 +37,7 @@ public class StringModifier
     /// <param name="input">The input string to split.</param>
     /// <param name="maxLength">The maximum allowed length of each chunk.</param>
     /// <returns>A list of string chunks.</returns>
-    public static List<string> SplitStringByMaxLength(string input, int maxLength)
+    public static List<string> Chunkify(string input, int maxLength)
     {
         if (maxLength < 1)
             throw new ArgumentException("maxLength must be at least 1", nameof(maxLength));

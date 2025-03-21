@@ -2,7 +2,7 @@
 *appsettings.json
 *.env
 *.vscode
-*Persona.md
+*Persona*.md
 
 *ExternalTools/
 

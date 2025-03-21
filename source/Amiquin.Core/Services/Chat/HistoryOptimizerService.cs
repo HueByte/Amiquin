@@ -69,7 +69,7 @@ public class HistoryOptimizerService : IHistoryOptimizerService
     {
         StringBuilder sb = new();
 
-        sb.AppendLine("I want you to summarize the following messages, as you're approaching your memory token limit. Think of it as a recap or notes of our conversations from your perspective:");
+        sb.AppendLine("Amiquin, you’re nearing your memory limit. Summarize the following messages from your perspective—focus on key points, user requests, and relevant context, so you can carry on the conversation seamlessly. Keep the recap concise and in your own notes-style format.");
         foreach (var message in messages)
         {
             sb.AppendLine(message.Content.First().Text);
