@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Text;
+using Amiquin.Core;
 using Amiquin.Core.Attributes;
 using Amiquin.Core.DiscordExtensions;
 using Amiquin.Core.Utilities;
@@ -17,9 +18,9 @@ namespace Amiquin.Bot.Commands;
 public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionContext>
 {
     private readonly ILogger<AdminCommands> _logger;
-    private const int WORKER_COUNT = 2;
-    private const int DELETE_THROTTLE_MS = 200;
-    private const int UPDATE_THROTTLE_MS = 500;
+    private const int WORKER_COUNT = 1;
+    private const int DELETE_THROTTLE_MS = 500;
+    private const int UPDATE_THROTTLE_MS = 1000;
     private const int BAR_WIDTH = 40;
     public AdminCommands(ILogger<AdminCommands> logger)
     {
@@ -81,7 +82,7 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
 
                 _logger.LogInformation("Nuke progress: {ProgressPercent}% in [{channelId}]\n{bar}", (int)(progress * 100), Context.Channel.Id, consoleProgressBar);
 
-                var calculatedMessage = $"In progress... {messageCount - messagesBag.Count - 1}/{messageCount}\n{discordProgressBar}";
+                var calculatedMessage = $"In progress... {messageCount - messagesBag.Count - 1}/{messageCount} {(int)progress}% {Constants.Emoji.SlugParty} \n{discordProgressBar}";
                 await currentMessage.ModifyAsync((msg) => msg.Content = calculatedMessage);
 
                 await Task.Delay(UPDATE_THROTTLE_MS);
