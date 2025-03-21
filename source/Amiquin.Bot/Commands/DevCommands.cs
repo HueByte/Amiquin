@@ -13,6 +13,7 @@ using Discord.WebSocket;
 namespace Amiquin.Bot.Commands;
 
 [Group("dev", "Developer commands")]
+[RequireRole("NachoSquad")]
 public class DevCommands : InteractionModuleBase<ExtendedShardedInteractionContext>
 {
     private readonly IChatCoreService _chatService;
@@ -35,7 +36,6 @@ public class DevCommands : InteractionModuleBase<ExtendedShardedInteractionConte
     }
 
     [SlashCommand("voicedebug", "debug")]
-    [RequireTeam]
     public async Task VoiceDebugAsync()
     {
         var voiceState = _voiceStateManager.GetAmiquinVoice(Context.Guild.Id);
@@ -73,7 +73,6 @@ Streams: {voiceState.AudioClient?.GetStreams().ToDictionary(x => x.Key, x => x.V
     }
 
     [SlashCommand("persona", "Get persona message")]
-    [RequireTeam]
     public async Task PersonaAsync()
     {
         var personaCoreMessage = await _messageCacheService.GetPersonaCoreMessageAsync();
@@ -116,10 +115,7 @@ Streams: {voiceState.AudioClient?.GetStreams().ToDictionary(x => x.Key, x => x.V
         }
     }
 
-
-
     [SlashCommand("join", "Join a voice channel")]
-    [RequireTeam]
     public async Task JoinAsync()
     {
         var voiceChannel = (Context.User as IGuildUser)?.VoiceChannel;
@@ -135,7 +131,6 @@ Streams: {voiceState.AudioClient?.GetStreams().ToDictionary(x => x.Key, x => x.V
     }
 
     [SlashCommand("leave", "Leave a voice channel")]
-    [RequireTeam]
     public async Task LeaveAsync()
     {
         var voiceChannel = (Context.User as IGuildUser)?.VoiceChannel;
@@ -194,7 +189,6 @@ Streams: {voiceState.AudioClient?.GetStreams().ToDictionary(x => x.Key, x => x.V
     }
 
     [SlashCommand("restart", "Restart the bot")]
-    [RequireRole("NachoSquad")]
     [Ephemeral]
     public async Task RestartAsync()
     {
@@ -203,7 +197,6 @@ Streams: {voiceState.AudioClient?.GetStreams().ToDictionary(x => x.Key, x => x.V
     }
 
     [SlashCommand("say", "Amiquin will say something in the voice chat")]
-    [RequireRole("NachoSquad")]
     [Ephemeral]
     public async Task SaySomethingAsync(string input)
     {
