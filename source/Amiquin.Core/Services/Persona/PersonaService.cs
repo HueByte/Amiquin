@@ -51,20 +51,20 @@ public class PersonaService : IPersonaService
 
     public async Task AddSummaryAsync(string updateMessage)
     {
-        string? personaMessage = _memoryCache.Get<string>(Constants.ComputedPersonaMessageKey);
+        string? personaMessage = _memoryCache.Get<string>(Constants.CacheKeys.ComputedPersonaMessageKey);
         if (string.IsNullOrEmpty(personaMessage))
         {
             personaMessage = await GetPersonaInternalAsync();
         }
 
         personaMessage += $"This is your summary of recent conversations: {updateMessage}";
-        _memoryCache.Set(Constants.ComputedPersonaMessageKey, personaMessage, TimeSpan.FromDays(1));
+        _memoryCache.Set(Constants.CacheKeys.ComputedPersonaMessageKey, personaMessage, TimeSpan.FromDays(1));
     }
 
     private async Task<string> GetPersonaInternalAsync()
     {
 
-        if (_memoryCache.TryGetValue(Constants.ComputedPersonaMessageKey, out string? personaMessage))
+        if (_memoryCache.TryGetValue(Constants.CacheKeys.ComputedPersonaMessageKey, out string? personaMessage))
         {
             if (!string.IsNullOrEmpty(personaMessage))
             {
@@ -75,12 +75,12 @@ public class PersonaService : IPersonaService
         personaMessage = await _messageCacheService.GetPersonaCoreMessageAsync();
 
         if (string.IsNullOrEmpty(personaMessage))
-            personaMessage = $"I'm {Constants.BotName}. Your AI assistant. {Constants.Mood}";
+            personaMessage = $"I'm {Constants.BotMetadata.BotName}. Your AI assistant. {Constants.BotMetadata.Mood}";
 
         var computedMood = await GetComputedMoodAsync();
-        personaMessage = personaMessage.Replace(Constants.Mood, computedMood);
+        personaMessage = personaMessage.Replace(Constants.BotMetadata.Mood, computedMood);
 
-        _memoryCache.Set(Constants.ComputedPersonaMessageKey, personaMessage, TimeSpan.FromDays(1));
+        _memoryCache.Set(Constants.CacheKeys.ComputedPersonaMessageKey, personaMessage, TimeSpan.FromDays(1));
         _logger.LogInformation("Computed persona message: {personaMessage}", personaMessage);
         return personaMessage;
     }

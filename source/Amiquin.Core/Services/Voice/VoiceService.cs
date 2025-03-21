@@ -50,11 +50,11 @@ public class VoiceService : IVoiceService
 
         var guid = Guid.NewGuid().ToString();
 
-        string? modelName = _configuration.GetValue<string>(Constants.TTSModelName) ?? _externalOptions.ModelName;
-        string? piperCommand = _configuration.GetValue<string>(Constants.PiperCommand) ?? _externalOptions.PiperCommand;
+        string? modelName = _configuration.GetValue<string>(Constants.Environment.TTSModelName) ?? _externalOptions.ModelName;
+        string? piperCommand = _configuration.GetValue<string>(Constants.Environment.PiperCommand) ?? _externalOptions.PiperCommand;
 
-        var modelPath = Path.Join(Constants.TTSBasePath, string.IsNullOrEmpty(modelName) ? "en_GB-northern_english_male-medium.onnx" : $"{modelName}.onnx");
-        var ttsOutputPath = Path.Join(Constants.TTSBasePath, "output", $"o_{guid}.wav");
+        var modelPath = Path.Join(Constants.Paths.TTSBasePath, string.IsNullOrEmpty(modelName) ? "en_GB-northern_english_male-medium.onnx" : $"{modelName}.onnx");
+        var ttsOutputPath = Path.Join(Constants.Paths.TTSBasePath, "output", $"o_{guid}.wav");
 
         CreateRequiredDirectories();
 
@@ -207,14 +207,14 @@ public class VoiceService : IVoiceService
 
     private void CreateRequiredDirectories()
     {
-        if (!Directory.Exists(Constants.TTSBasePath))
+        if (!Directory.Exists(Constants.Paths.TTSBasePath))
         {
-            Directory.CreateDirectory(Constants.TTSBasePath);
+            Directory.CreateDirectory(Constants.Paths.TTSBasePath);
         }
 
-        if (!Directory.Exists(Path.Join(Constants.TTSBasePath, "output")))
+        if (!Directory.Exists(Path.Join(Constants.Paths.TTSBasePath, "output")))
         {
-            Directory.CreateDirectory(Path.Join(Constants.TTSBasePath, "output"));
+            Directory.CreateDirectory(Path.Join(Constants.Paths.TTSBasePath, "output"));
         }
     }
 }

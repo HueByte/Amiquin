@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Text;
 using Amiquin.Core.Attributes;
 using Amiquin.Core.DiscordExtensions;
+using Amiquin.Core.Utilities;
 using Discord;
 using Discord.Interactions;
 using Discord.Rest;
@@ -62,34 +63,25 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
 
         var updater = Task.Run(async () =>
         {
-            int previousProgress = 0;
+            double previousProgress = 0;
             while (messagesBag.Count > 0)
             {
-                var progress = (double)(messageCount - messagesBag.Count) / messageCount;
-                var filledLength = (int)(progress * BAR_WIDTH);
-                var emptyLength = BAR_WIDTH - filledLength;
-
-                if (filledLength == previousProgress)
+                var progress = ProgressUtilities.GetCompletionPercentage(messageCount - messagesBag.Count, messageCount);
+                if (progress == previousProgress)
                 {
                     await Task.Delay(UPDATE_THROTTLE_MS);
                     continue;
                 }
 
-                previousProgress = filledLength;
+                previousProgress = progress;
 
-                var emptyEmoteAndAmiquin = string.Join(string.Empty, Enumerable.Repeat("<:blank:1352444144752001094>", filledLength - 1)) + "<:amiquinR:1352445227670962246>";
-                var nachoquinEmote = string.Join(string.Empty, Enumerable.Repeat("<:nachoquin:1352442298583089264>", emptyLength));
-                string progressBar = new StringBuilder()
-                    .Append("[")
-                    .Append(emptyEmoteAndAmiquin)
-                    .Append(nachoquinEmote)
-                    .Append("]")
-                    .ToString();
 
-                var consoleBar = $"[{new string('=', filledLength)}{new string(' ', emptyLength)}]";
-                _logger.LogInformation("Nuke progress: {ProgressPercent}% in [{channelId}] {bar}", (int)(progress * 100), Context.Channel.Id, consoleBar);
+                var consoleProgressBar = ProgressUtilities.GenerateConsoleProgressBar(progress, BAR_WIDTH);
+                var discordProgressBar = ProgressUtilities.GenerateNachoProgressBar(progress, BAR_WIDTH);
 
-                var calculatedMessage = $"In progress... {messageCount - messagesBag.Count - 1}/{messageCount}\n{progressBar}";
+                _logger.LogInformation("Nuke progress: {ProgressPercent}% in [{channelId}]\n{bar}", (int)(progress * 100), Context.Channel.Id, consoleProgressBar);
+
+                var calculatedMessage = $"In progress... {messageCount - messagesBag.Count - 1}/{messageCount}\n{discordProgressBar}";
                 await currentMessage.ModifyAsync((msg) => msg.Content = calculatedMessage);
 
                 await Task.Delay(UPDATE_THROTTLE_MS);

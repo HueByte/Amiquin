@@ -17,7 +17,7 @@ public class NewsApiClient : INewsApiClient
 
     public async Task<NewsApiResponse?> GetNewsAsync()
     {
-        var relativeUri = $"api/en/news?category={Constants.NewsApi.Category}&max_limit={Constants.NewsApi.MaxLimit}&include_card_data={Constants.NewsApi.IncludeCard.ToString().ToLower()}";
+        var relativeUri = $"api/en/news?category={Constants.APIs.NewsApi.Category}&max_limit={Constants.APIs.NewsApi.MaxLimit}&include_card_data={Constants.APIs.NewsApi.IncludeCard.ToString().ToLower()}";
 
         var response = await _httpClient.GetAsync(relativeUri);
         if (!response.IsSuccessStatusCode)
