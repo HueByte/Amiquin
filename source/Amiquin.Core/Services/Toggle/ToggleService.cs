@@ -92,7 +92,7 @@ public class ToggleService : IToggleService
             return toggleValue.IsEnabled;
         }
 
-        return false;
+        return null;
     }
 
     public async Task<bool?> GetToggleValueByIdAsync(string id)
@@ -109,7 +109,7 @@ public class ToggleService : IToggleService
             return toggleValue.IsEnabled;
         }
 
-        return false;
+        return null;
     }
 
     public async Task SetServerToggleAsync(string toggleName, bool isEnabled, ulong serverId, string? description = null)
