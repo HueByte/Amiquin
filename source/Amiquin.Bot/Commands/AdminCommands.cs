@@ -32,9 +32,9 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
 
     [SlashCommand("server-toggles", "List all server toggles")]
     [Ephemeral]
-    public async Task ServerTogglesAsync()
+    public async Task ServerTogglesAsync(bool useCache = true)
     {
-        await _toggleService.CreateServerTogglesIfNotExistsAsync(Context.Guild.Id);
+        await _toggleService.CreateServerTogglesIfNotExistsAsync(Context.Guild.Id, useCache);
         var toggles = await _toggleService.GetTogglesByScopeAsync(ToggleScope.Server);
         var sb = new StringBuilder();
 
