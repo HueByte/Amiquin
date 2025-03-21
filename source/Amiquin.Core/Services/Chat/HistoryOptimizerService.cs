@@ -3,6 +3,7 @@ using Amiquin.Core.Options;
 using Amiquin.Core.Services.Chat.Model;
 using Amiquin.Core.Utilities;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using OpenAI.Chat;
 
 namespace Amiquin.Core.Services.Chat;
@@ -13,11 +14,11 @@ public class HistoryOptimizerService : IHistoryOptimizerService
     private readonly IChatCoreService _chatCoreService;
     private readonly BotOptions _botOptions;
 
-    public HistoryOptimizerService(ILogger<HistoryOptimizerService> logger, IChatCoreService chatCoreService, BotOptions botOptions)
+    public HistoryOptimizerService(ILogger<HistoryOptimizerService> logger, IChatCoreService chatCoreService, IOptions<BotOptions> botOptions)
     {
         _logger = logger;
         _chatCoreService = chatCoreService;
-        _botOptions = botOptions;
+        _botOptions = botOptions.Value;
     }
 
     public bool ShouldOptimizeMessageHistory(ChatTokenUsage tokenUsage)
