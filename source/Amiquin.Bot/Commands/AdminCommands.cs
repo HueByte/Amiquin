@@ -35,7 +35,7 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
     public async Task ServerTogglesAsync(bool useCache = true)
     {
         await _toggleService.CreateServerTogglesIfNotExistsAsync(Context.Guild.Id, useCache);
-        var toggles = await _toggleService.GetTogglesByScopeAsync(ToggleScope.Server);
+        var toggles = await _toggleService.GetTogglesByServerId(Context.Guild.Id);
         var sb = new StringBuilder();
 
         sb.AppendLine("```ini");
