@@ -21,7 +21,8 @@ public class ToggleService : IToggleService
 
     public async Task CreateServerTogglesIfNotExistsAsync(ulong serverId, bool useCache = true)
     {
-        if (useCache && _memoryCache.TryGetValue(Constants.CacheKeys.ServerTogglesCreated, out var created))
+        var cacheKey = $"{serverId}::{Constants.CacheKeys.ServerTogglesCreated}";
+        if (useCache && _memoryCache.TryGetValue(cacheKey, out var created))
         {
             if (created is bool value && value)
             {
@@ -29,7 +30,7 @@ public class ToggleService : IToggleService
             }
         }
 
-        var serverToggles = await GetTogglesByScopeAsync(ToggleScope.Server);
+        var serverToggles = await GetTogglesByServerId(serverId);
         var expectedToggles = Constants.ToggleNames.Toggles;
 
         foreach (var toggle in expectedToggles)
@@ -43,7 +44,7 @@ public class ToggleService : IToggleService
             }
         }
 
-        _memoryCache.Set(Constants.CacheKeys.ServerTogglesCreated, true, TimeSpan.FromDays(1));
+        _memoryCache.Set(cacheKey, true, TimeSpan.FromDays(1));
     }
 
     /// <summary>
@@ -73,9 +74,18 @@ public class ToggleService : IToggleService
         return false;
     }
 
+    public async Task<List<Models.Toggle>> GetTogglesByServerId(ulong serverId)
+    {
+        return await _toggleRepository.AsQueryable()
+            .Where(x => x.Name.StartsWith($"{serverId}::") && x.Scope == ToggleScope.Server)
+            .ToListAsync();
+    }
+
     public async Task<List<Models.Toggle>> GetTogglesByScopeAsync(ToggleScope scope)
     {
-        return await _toggleRepository.AsQueryable().Where(x => x.Scope == scope).ToListAsync();
+        return await _toggleRepository.AsQueryable()
+            .Where(x => x.Scope == scope)
+            .ToListAsync();
     }
 
     public async Task<bool?> GetToggleValueAsync(string toggleName)
