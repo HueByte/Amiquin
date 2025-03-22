@@ -80,15 +80,15 @@ public class ToggleService : IToggleService
 
     public async Task<bool?> GetToggleValueAsync(string toggleName)
     {
-        if (_memoryCache.TryGetValue(toggleName, out bool isEnabled))
+        if (_memoryCache.TryGetValue(toggleName, out Models.Toggle? toggle) && toggle is not null)
         {
-            return isEnabled;
+            return toggle.IsEnabled;
         }
 
         var toggleValue = await _toggleRepository.AsQueryable().FirstOrDefaultAsync(x => x.Name == toggleName);
         if (toggleValue is not null)
         {
-            _memoryCache.Set(toggleName, toggleValue.IsEnabled, TimeSpan.FromDays(1));
+            _memoryCache.Set(toggleName, toggleValue, TimeSpan.FromDays(1));
             return toggleValue.IsEnabled;
         }
 
