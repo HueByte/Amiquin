@@ -5,7 +5,7 @@ namespace Amiquin.Core.Services.MessageCache;
 
 public interface IMessageCacheService
 {
-    void ClearCache();
+    void ClearMessageCachce();
     Task<string?> GetPersonaCoreMessageAsync();
     Task<string?> GetServerJoinMessage();
     Task<List<ChatMessage>?> GetOrCreateChatMessagesAsync(ulong instanceId);

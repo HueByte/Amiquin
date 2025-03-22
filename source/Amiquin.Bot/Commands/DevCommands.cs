@@ -156,8 +156,6 @@ Streams: {voiceState.AudioClient?.GetStreams().ToDictionary(x => x.Key, x => x.V
         }
     }
 
-
-
     [SlashCommand("join", "Join a voice channel")]
     public async Task JoinAsync()
     {

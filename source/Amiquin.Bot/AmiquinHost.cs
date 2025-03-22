@@ -1,4 +1,5 @@
 using Amiquin.Core;
+using Amiquin.Core.Job;
 using Amiquin.Core.Options;
 using Amiquin.Core.Services.CommandHandler;
 using Amiquin.Core.Services.EventHandler;
@@ -27,9 +28,10 @@ public class AmiquinHost : IHostedService
     private readonly IConfiguration _configuration;
     private readonly BotOptions _botOptions;
     private readonly ExternalOptions _externalOptions;
+    private readonly IJobService _jobService;
     private bool _isInitialized = false;
 
-    public AmiquinHost(IEventHandlerService eventHandlerService, DiscordShardedClient discordClient, InteractionService interactionService, ILogger<AmiquinHost> logger, IOptions<BotOptions> botOptions, ICommandHandlerService commandHandlerService, IServiceScopeFactory serviceScopeFactory, IConfiguration configuration, IOptions<ExternalOptions> externalOptions)
+    public AmiquinHost(IEventHandlerService eventHandlerService, DiscordShardedClient discordClient, InteractionService interactionService, ILogger<AmiquinHost> logger, IOptions<BotOptions> botOptions, ICommandHandlerService commandHandlerService, IServiceScopeFactory serviceScopeFactory, IConfiguration configuration, IOptions<ExternalOptions> externalOptions, IJobService jobService)
     {
         _eventHandlerService = eventHandlerService;
         _client = discordClient;
@@ -40,6 +42,7 @@ public class AmiquinHost : IHostedService
         _serviceScopeFactory = serviceScopeFactory;
         _configuration = configuration;
         _externalOptions = externalOptions.Value;
+        _jobService = jobService;
     }
 
     public async Task StartAsync(CancellationToken cancellationToken)
@@ -73,6 +76,7 @@ public class AmiquinHost : IHostedService
 
         _logger.LogInformation("Registering slash commands");
         await _interactionService.RegisterCommandsGloballyAsync();
+        _jobService.StartRunnableJobs();
 
         _isInitialized = true;
         DisplayData();

@@ -2,8 +2,6 @@ using Amiquin.Core.Models;
 using Amiquin.Core.Options;
 using Amiquin.Core.Services.MessageCache;
 using Amiquin.Core.Services.Persona;
-using Microsoft.Build.Framework;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using OpenAI.Chat;

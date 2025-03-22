@@ -2,7 +2,6 @@ using System.Collections.Concurrent;
 using Amiquin.Core.Services.Voice.Models;
 using Discord;
 using Microsoft.Extensions.Logging;
-using OpenAI;
 
 namespace Amiquin.Core.Services.Voice;
 

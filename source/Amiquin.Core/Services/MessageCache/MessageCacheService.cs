@@ -24,7 +24,7 @@ public class MessageCacheService : IMessageCacheService
         _messageFetchCount = messageFetchCount is not 0 ? messageFetchCount : botOptions.Value.MessageFetchCount;
     }
 
-    public void ClearCache()
+    public void ClearMessageCachce()
     {
         _memoryCache.Remove(Constants.CacheKeys.ComputedPersonaMessageKey);
         _memoryCache.Remove(Constants.CacheKeys.CorePersonaMessageKey);
@@ -87,7 +87,6 @@ public class MessageCacheService : IMessageCacheService
         }
         else
         {
-            chatMessages = [.. messages];
             _memoryCache.Set(instanceId, messages, TimeSpan.FromDays(MEMORY_CACHE_EXPIRATION));
         }
 
@@ -97,12 +96,12 @@ public class MessageCacheService : IMessageCacheService
 
     public void ClearOldMessages(ulong instanceId, int range)
     {
-        if (_memoryCache.TryGetValue(instanceId, out List<ChatMessage>? channelMessages))
+        if (_memoryCache.TryGetValue(instanceId, out List<ChatMessage>? serverMessages))
         {
-            if (channelMessages is not null && channelMessages.Count > range)
+            if (serverMessages is not null && serverMessages.Count > range)
             {
-                channelMessages.RemoveRange(0, channelMessages.Count - range);
-                _memoryCache.Set(instanceId, channelMessages, TimeSpan.FromDays(MEMORY_CACHE_EXPIRATION));
+                serverMessages.RemoveRange(0, serverMessages.Count - range);
+                _memoryCache.Set(instanceId, serverMessages, TimeSpan.FromDays(MEMORY_CACHE_EXPIRATION));
             }
         }
     }

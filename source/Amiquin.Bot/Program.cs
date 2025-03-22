@@ -79,7 +79,8 @@ async Task RunAsync(string[] args)
             ioc.AddAmiquinCore()
                .AddOptions()
                .AddServices()
-               .AddRepositories();
+               .AddRepositories()
+               .AddRunnableJobs();
         })
         .UseSerilog((context, services, config) =>
         {

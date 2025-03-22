@@ -1,5 +1,7 @@
 using Amiquin.Core;
+using Amiquin.Core.Abstraction;
 using Amiquin.Core.IRepositories;
+using Amiquin.Core.Job;
 using Amiquin.Core.Options;
 using Amiquin.Core.Services.ApiClients;
 using Amiquin.Core.Services.Chat;
@@ -18,6 +20,7 @@ using Discord.Interactions;
 using Discord.WebSocket;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using OpenAI.Chat;
 
@@ -69,6 +72,7 @@ public class InjectionConfigurator
                  .AddSingleton<IEventHandlerService, EventHandlerService>()
                  .AddSingleton<IChatSemaphoreManager, ChatSemaphoreManager>()
                  .AddSingleton<IVoiceStateManager, VoiceStateManager>()
+                 .AddSingleton<IJobService, JobService>()
                  .AddAmiquinContext(_configuration)
                  .AddMemoryCache();
 
@@ -103,6 +107,20 @@ public class InjectionConfigurator
             var externalUrls = services.GetRequiredService<IOptions<ExternalOptions>>().Value;
             client.BaseAddress = new Uri(externalUrls.NewsApiUrl);
         });
+
+        return this;
+    }
+
+    public InjectionConfigurator AddRunnableJobs()
+    {
+        var jobTypes = AppDomain.CurrentDomain.GetAssemblies()
+            .SelectMany(s => s.GetTypes())
+            .Where(p => typeof(IRunnableJob).IsAssignableFrom(p) && !p.IsInterface && !p.IsAbstract);
+
+        foreach (var jobType in jobTypes)
+        {
+            _services.AddScoped(typeof(IRunnableJob), jobType);
+        }
 
         return this;
     }
