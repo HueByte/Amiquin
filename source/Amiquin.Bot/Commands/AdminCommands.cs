@@ -10,6 +10,7 @@ using Discord;
 using Discord.Interactions;
 using Discord.Rest;
 using Microsoft.Extensions.Logging;
+using OpenAI.VectorStores;
 
 namespace Amiquin.Bot.Commands;
 
@@ -32,6 +33,7 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
 
     [SlashCommand("say", "Make the bot say something")]
     [RequireBotPermission(GuildPermission.ManageRoles)]
+    [Ephemeral]
     public async Task SayAsync([Summary("message", "The message to say")] string message)
     {
         if (string.IsNullOrWhiteSpace(message))
@@ -46,7 +48,8 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
 
     [SlashCommand("embed-say", "Make the bot say something")]
     [RequireBotPermission(GuildPermission.ManageRoles)]
-    public async Task EmbedSayAsync(string title, string thumbnail, [Summary("message", "The message to say")] string message)
+    [Ephemeral]
+    public async Task EmbedSayAsync(string title, string thumbnail, [Summary("message", "The message to say")] string message, bool withAuthor = false)
     {
         if (string.IsNullOrWhiteSpace(message))
         {
@@ -54,12 +57,16 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
             return;
         }
 
-        var embed = new EmbedBuilder()
+        var embedBuilder = new EmbedBuilder()
             .WithTitle(title)
             .WithThumbnailUrl(thumbnail)
             .WithDescription(message)
-            .WithColor(Color.Magenta)
-            .Build();
+            .WithColor(Color.Magenta);
+
+        if (withAuthor)
+            embedBuilder.WithAuthor(Context.User.Username, Context.User.GetAvatarUrl() ?? Context.User.GetDefaultAvatarUrl(), Context.User.GetAvatarUrl());
+
+        var embed = embedBuilder.Build();
 
         var response = await Context.Channel.SendMessageAsync(embed: embed);
         await ModifyOriginalResponseAsync((msg) => msg.Embed = embed);
