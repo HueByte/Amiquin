@@ -44,6 +44,27 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
         await ModifyOriginalResponseAsync((msg) => msg.Content = $"Said: {response.Content}");
     }
 
+    [SlashCommand("embed-say", "Make the bot say something")]
+    [RequireBotPermission(GuildPermission.ManageRoles)]
+    public async Task EmbedSayAsync(string title, string thumbnail, [Summary("message", "The message to say")] string message)
+    {
+        if (string.IsNullOrWhiteSpace(message))
+        {
+            await ModifyOriginalResponseAsync((msg) => msg.Content = "You must provide a message to say.");
+            return;
+        }
+
+        var embed = new EmbedBuilder()
+            .WithTitle(title)
+            .WithThumbnailUrl(thumbnail)
+            .WithDescription(message)
+            .WithColor(Color.Magenta)
+            .Build();
+
+        var response = await Context.Channel.SendMessageAsync(embed: embed);
+        await ModifyOriginalResponseAsync((msg) => msg.Embed = embed);
+    }
+
     [SlashCommand("server-toggles", "List all server toggles")]
     [Ephemeral]
     public async Task ServerTogglesAsync(bool useCache = true)
