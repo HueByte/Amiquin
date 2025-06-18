@@ -30,6 +30,20 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
         _toggleService = toggleService;
     }
 
+    [SlashCommand("say", "Make the bot say something")]
+    [RequireBotPermission(GuildPermission.ManageRoles)]
+    public async Task SayAsync([Summary("message", "The message to say")] string message)
+    {
+        if (string.IsNullOrWhiteSpace(message))
+        {
+            await ModifyOriginalResponseAsync((msg) => msg.Content = "You must provide a message to say.");
+            return;
+        }
+
+        var response = await Context.Channel.SendMessageAsync(message);
+        await ModifyOriginalResponseAsync((msg) => msg.Content = $"Said: {response.Content}");
+    }
+
     [SlashCommand("server-toggles", "List all server toggles")]
     [Ephemeral]
     public async Task ServerTogglesAsync(bool useCache = true)
