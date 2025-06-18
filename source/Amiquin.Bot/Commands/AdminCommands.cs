@@ -57,6 +57,8 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
             return;
         }
 
+        message = message.Replace("\\n", "\n").Trim(); // Add blockquote formatting for new lines
+
         var embedBuilder = new EmbedBuilder()
             .WithTitle(title)
             .WithThumbnailUrl(thumbnail)
