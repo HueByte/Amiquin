@@ -36,6 +36,7 @@ public class Constants
         public const string LogsPath = "AMQ_LOGS_PATH";
         public const string PrintLogo = "AMQ_PRINT_LOGO";
         public const string SQLitePath = "AMQ_SQLITE_PATH";
+        public const string MySqlConnectionString = "AMQ_MYSQL_CONNECTION_STRING";
         public const string TTSModelName = "AMQ_TTS_MODEL_NAME";
         public const string PiperCommand = "AMQ_PIPER_COMMAND";
         public const string MessageFetchCount = "AMQ_MESSAGE_FETCH_COUNT";

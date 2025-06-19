@@ -10,6 +10,8 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.6" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite.Design" Version="1.1.6" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="9.0.6" />
+    <PackageReference Include="MySql.Data" Version="9.3.0" />
+    <PackageReference Include="MySql.EntityFrameworkCore" Version="9.0.3+MySQL9.3.0" />
   </ItemGroup>
 
   <PropertyGroup>
