@@ -47,6 +47,37 @@ public class AmiquinContext : DbContext
             .HasForeignKey(n => n.ServerId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        #region ServerMeta Configuration
+
+        builder.Entity<ServerMeta>()
+            .HasMany(s => s.Toggles)
+            .WithOne(t => t.Server)
+            .HasForeignKey(t => t.ServerId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<ServerMeta>()
+            .HasMany(s => s.Messages)
+            .WithOne(m => m.Server)
+            .HasForeignKey(m => m.ServerId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<ServerMeta>()
+            .HasMany(s => s.CommandLogs)
+            .WithOne(c => c.Server)
+            .HasForeignKey(c => c.ServerId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.Entity<ServerMeta>()
+            .HasMany(s => s.NachoPacks)
+            .WithOne(n => n.Server)
+            .HasForeignKey(n => n.ServerId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.Entity<ServerMeta>()
+            .HasKey(s => s.Id);
+
+        #endregion
+
         base.OnModelCreating(builder);
     }
 

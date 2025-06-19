@@ -11,6 +11,8 @@ public enum ToggleScope
 
 public class Toggle : DbModel<string>
 {
+    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+    public override string Id { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
     public bool IsEnabled { get; set; }
     public string Description { get; set; } = string.Empty;

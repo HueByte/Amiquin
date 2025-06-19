@@ -5,6 +5,8 @@ namespace Amiquin.Core.Models;
 
 public class CommandLog : DbModel<int>
 {
+    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+    public override int Id { get; set; }
     public string Command { get; set; } = string.Empty;
     public string Username { get; set; } = string.Empty;
     public ulong UserId { get; set; }

@@ -35,7 +35,6 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
     }
 
     [SlashCommand("set-server-persona", "Set the server persona")]
-    // [RequireToggle(Constants.ToggleNames.)]
     public async Task SetServerPersonaAsync([Summary("persona", "The persona to set for the server")] string persona)
     {
         if (string.IsNullOrWhiteSpace(persona))

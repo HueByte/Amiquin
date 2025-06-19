@@ -91,13 +91,15 @@ public class ToggleService : IToggleService
         {
             toggle = new Models.Toggle
             {
+                ServerId = serverId,
                 Name = toggleName,
                 IsEnabled = isEnabled,
                 Description = description ?? string.Empty,
-                Scope = Models.ToggleScope.Server
+                Scope = Models.ToggleScope.Server,
+                CreatedAt = DateTime.UtcNow
             };
 
-            serverMeta.Toggles ??= new List<Models.Toggle>();
+            serverMeta.Toggles ??= [];
             serverMeta.Toggles.Add(toggle);
         }
 

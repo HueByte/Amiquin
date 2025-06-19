@@ -50,16 +50,15 @@ public class CommandHandlerService : ICommandHandlerService
         {
             var scope = _serviceScopeFactory.CreateAsyncScope();
 
-            botContext = scope.ServiceProvider.GetRequiredService<BotContextAccessor>();
-
             extendedContext = new ExtendedShardedInteractionContext(_discordClient, interaction, scope);
             await interaction.DeferAsync(IsEphemeralCommand(interaction));
 
+            botContext = scope.ServiceProvider.GetRequiredService<BotContextAccessor>();
             IServerMetaService? serverMetaService = scope.ServiceProvider.GetRequiredService<IServerMetaService>();
-            IConfiguration? configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>();
 
+            // Ensure no concurrency issues when retrieving or creating server meta
             var serverMeta = await serverMetaService.GetOrCreateServerMetaAsync(extendedContext);
-            botContext.Initialize(extendedContext, serverMeta, configuration);
+            botContext.Initialize(extendedContext, serverMeta, scope.ServiceProvider.GetRequiredService<IConfiguration>());
 
             await _interactionService.ExecuteCommandAsync(extendedContext, scope.ServiceProvider);
         }
@@ -67,11 +66,6 @@ public class CommandHandlerService : ICommandHandlerService
         {
             _logger.LogError(ex, "Failed to execute command");
             await interaction.ModifyOriginalResponseAsync((msg) => msg.Content = "An error occurred while processing your command. Please try again later.");
-
-            // if (interaction.Type is InteractionType.ApplicationCommand)
-            // {
-            //     await interaction.GetOriginalResponseAsync().ContinueWith(async (msg) => await msg.Result.DeleteAsync());
-            // }
 
             if (extendedContext is not null)
                 await extendedContext.DisposeAsync();
@@ -160,6 +154,12 @@ public class CommandHandlerService : ICommandHandlerService
 
     private async Task LogCommandAsync(ICommandLogRepository commandLogRepository, BotContextAccessor context, SlashCommandInfo slashCommandInfo, IResult result)
     {
+        if (context?.ServerMeta is null)
+        {
+            _logger.LogWarning("ServerMeta is null for command [{command}]", slashCommandInfo.Name);
+            return;
+        }
+
         var executionTime = (context.FinishedAt - context.CreatedAt).Milliseconds;
         var logEntry = new Models.CommandLog
         {
@@ -168,8 +168,7 @@ public class CommandHandlerService : ICommandHandlerService
             Duration = executionTime,
             ErrorMessage = result.ErrorReason,
             IsSuccess = result.IsSuccess,
-            Server = context.ServerMeta,
-            ServerId = context.ServerMeta?.Id ?? 0,
+            ServerId = context.ServerMeta.Id,
             Username = context?.Context?.User?.Username ?? string.Empty,
         };
 

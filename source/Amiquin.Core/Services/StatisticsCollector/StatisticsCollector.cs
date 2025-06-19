@@ -13,7 +13,7 @@ namespace Amiquin.Core.Services.StatisticsCollector;
 
 public class StatisticsCollector : IStatisticsCollector
 {
-    public int FrequencyInSeconds { get; set; } = 60;
+    public int FrequencyInSeconds { get; set; } = 300;
     public async Task RunAsync(IServiceScopeFactory serviceScopeFactory, CancellationToken cancellationToken)
     {
         using var scope = serviceScopeFactory.CreateScope();

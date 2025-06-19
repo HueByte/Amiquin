@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Amiquin.Core.DiscordExtensions;
 using Amiquin.Core.IRepositories;
 using Amiquin.Core.Utilities;
@@ -12,6 +13,9 @@ public class ServerMetaService : IServerMetaService
     private readonly ILogger<IServerMetaService> _logger;
     private readonly IMemoryCache _memoryCache;
     private readonly IServerMetaRepository _serverMetaRepository;
+
+    // Semaphore dictionary to manage access to ServerMeta objects
+    private readonly ConcurrentDictionary<ulong, SemaphoreSlim> _serverMetaSemaphores = new();
 
     public ServerMetaService(ILogger<IServerMetaService> logger, IMemoryCache memoryCache, IServerMetaRepository serverMetaRepository)
     {
@@ -45,6 +49,8 @@ public class ServerMetaService : IServerMetaService
             return serverMeta;
         }
 
+        _logger.LogInformation("Fetching ServerMeta for serverId {serverId} from repository", serverId);
+
         serverMeta = await _serverMetaRepository.AsQueryable()
             .FirstOrDefaultAsync(x => x.Id == serverId);
 
@@ -60,7 +66,7 @@ public class ServerMetaService : IServerMetaService
 
     private async Task EnsureTogglesLoadedAsync(Models.ServerMeta? serverMeta, ulong serverId)
     {
-        if (serverMeta is not null && serverMeta.Toggles is not null && !serverMeta.Toggles.Any())
+        if (serverMeta is not null && serverMeta.Toggles?.Count == 0)
         {
             serverMeta.Toggles = await _serverMetaRepository.AsQueryable()
                 .Where(x => x.Id == serverId)
@@ -109,41 +115,65 @@ public class ServerMetaService : IServerMetaService
 
     public async Task UpdateServerMetaAsync(Models.ServerMeta serverMeta)
     {
+        _logger.LogInformation("Updating ServerMeta for serverId {serverId}", serverMeta.Id);
+
         if (serverMeta.Id == 0)
         {
             throw new ArgumentException("ServerId must be set before updating ServerMeta.");
         }
 
-        var existingMeta = await GetServerMetaAsync(serverMeta.Id);
-        if (existingMeta is null)
-        {
-            await _serverMetaRepository.AddAsync(serverMeta);
-        }
-        else
-        {
-            existingMeta.ServerName = serverMeta.ServerName;
-            existingMeta.Persona = serverMeta.Persona;
-            existingMeta.LastUpdated = DateTime.UtcNow;
-            existingMeta.IsActive = serverMeta.IsActive;
+        var semaphore = _serverMetaSemaphores.GetOrAdd(serverMeta.Id, _ => new SemaphoreSlim(1, 1));
 
-            await _serverMetaRepository.UpdateAsync(existingMeta);
-        }
+        await semaphore.WaitAsync();
+        try
+        {
+            var existingMeta = await _serverMetaRepository.GetAsync(serverMeta.Id);
+            if (existingMeta is null)
+            {
+                await _serverMetaRepository.AddAsync(serverMeta);
+            }
+            else
+            {
+                existingMeta.ServerName = serverMeta.ServerName;
+                existingMeta.Persona = serverMeta.Persona;
+                existingMeta.LastUpdated = DateTime.UtcNow;
+                existingMeta.IsActive = serverMeta.IsActive;
+            }
 
-        await _serverMetaRepository.SaveChangesAsync();
-        _memoryCache.Set(GetCacheKey(serverMeta.Id), serverMeta, TimeSpan.FromMinutes(30)); // Update cache
+            await _serverMetaRepository.SaveChangesAsync();
+            _memoryCache.Set(GetCacheKey(serverMeta.Id), serverMeta, TimeSpan.FromMinutes(30)); // Update cache
+        }
+        finally
+        {
+            semaphore.Release();
+        }
     }
 
     public async Task DeleteServerMetaAsync(ulong serverId)
     {
-        var serverMeta = await GetServerMetaAsync(serverId) ?? throw new Exception($"ServerMeta not found for serverId {serverId}");
+        _logger.LogInformation("Deleting ServerMeta for serverId {serverId}", serverId);
 
-        await _serverMetaRepository.RemoveAsync(serverMeta);
-        await _serverMetaRepository.SaveChangesAsync();
-        _memoryCache.Remove(GetCacheKey(serverId)); // Remove from cache
+        var semaphore = _serverMetaSemaphores.GetOrAdd(serverId, _ => new SemaphoreSlim(1, 1));
+
+        await semaphore.WaitAsync();
+        try
+        {
+            var serverMeta = await GetServerMetaAsync(serverId) ?? throw new Exception($"ServerMeta not found for serverId {serverId}");
+
+            await _serverMetaRepository.RemoveAsync(serverMeta);
+            await _serverMetaRepository.SaveChangesAsync();
+            _memoryCache.Remove(GetCacheKey(serverId)); // Remove from cache
+        }
+        finally
+        {
+            semaphore.Release();
+            _serverMetaSemaphores.TryRemove(serverId, out _); // Clean up semaphore
+        }
     }
 
     public async Task<List<Models.ServerMeta>> GetAllServerMetasAsync()
     {
+        _logger.LogInformation("Fetching all ServerMetas from repository");
         return await _serverMetaRepository.AsQueryable().ToListAsync();
     }
 

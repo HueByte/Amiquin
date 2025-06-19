@@ -1,6 +1,6 @@
 services:
   amiquinbot:
-    container_name: yivobot
+    container_name: amiquin
     build:
       context: .
       dockerfile: dockerfile
@@ -9,7 +9,7 @@ services:
     ports:
       - "10001:10000" # Adjust ports as needed
     volumes:
-      - amiquinbotdata:/Amiquin/Data
+      - amiquin-data:/Amiquin/Data
 
 volumes:
-  amiquinbotdata:
+  amiquin-data:
