@@ -1,7 +1,10 @@
 using System.Text;
 using Amiquin.Core.Services.ApiClients;
+using Amiquin.Core.Services.BotContext;
 using Amiquin.Core.Services.Chat;
 using Amiquin.Core.Services.MessageCache;
+using Amiquin.Core.Services.ServerMeta;
+using Amiquin.Core.Utilities;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 
@@ -15,8 +18,10 @@ public class PersonaService : IPersonaService
     private readonly INewsApiClient _newsApiClient;
     private readonly IMemoryCache _memoryCache;
     private readonly IChatSemaphoreManager _chatSemaphoreManager;
+    private readonly IServerMetaService _serverMetaService;
+    private readonly BotContextAccessor _botContextAccessor;
 
-    public PersonaService(ILogger<PersonaService> logger, IMessageCacheService messageCacheService, IChatCoreService chatService, INewsApiClient newsApiClient, IMemoryCache memoryCache, IChatSemaphoreManager chatSemaphoreManager)
+    public PersonaService(ILogger<PersonaService> logger, IMessageCacheService messageCacheService, IChatCoreService chatService, INewsApiClient newsApiClient, IMemoryCache memoryCache, IChatSemaphoreManager chatSemaphoreManager, IServerMetaService serverMetaService, BotContextAccessor botContextAccessor)
     {
         _logger = logger;
         _messageCacheService = messageCacheService;
@@ -24,22 +29,19 @@ public class PersonaService : IPersonaService
         _newsApiClient = newsApiClient;
         _memoryCache = memoryCache;
         _chatSemaphoreManager = chatSemaphoreManager;
+        _serverMetaService = serverMetaService;
+        _botContextAccessor = botContextAccessor;
     }
 
-    public async Task<string> GetPersonaAsync(ulong instanceId = 0)
+    public async Task<string> GetPersonaAsync(ulong serverId)
     {
-        if (instanceId == 0)
-        {
-            return await GetPersonaInternalAsync();
-        }
-
-        var channelSemaphore = _chatSemaphoreManager.GetOrCreateInstanceSemaphore(instanceId);
+        var channelSemaphore = _chatSemaphoreManager.GetOrCreateInstanceSemaphore(serverId);
         await channelSemaphore.WaitAsync();
 
         string personaMessage = string.Empty;
         try
         {
-            personaMessage = await GetPersonaInternalAsync();
+            personaMessage = await GetPersonaInternalAsync(serverId);
         }
         finally
         {
@@ -49,22 +51,23 @@ public class PersonaService : IPersonaService
         return personaMessage;
     }
 
-    public async Task AddSummaryAsync(string updateMessage)
+    public async Task AddSummaryAsync(ulong serverId, string updateMessage)
     {
-        string? personaMessage = _memoryCache.Get<string>(Constants.CacheKeys.ComputedPersonaMessageKey);
+        var cacheKey = StringModifier.CreateCacheKey(Constants.CacheKeys.ComputedPersonaMessageKey, serverId.ToString());
+        string? personaMessage = _memoryCache.Get<string>(cacheKey);
         if (string.IsNullOrEmpty(personaMessage))
         {
-            personaMessage = await GetPersonaInternalAsync();
+            personaMessage = await GetPersonaInternalAsync(serverId);
         }
 
         personaMessage += $"This is your summary of recent conversations: {updateMessage}";
         _memoryCache.Set(Constants.CacheKeys.ComputedPersonaMessageKey, personaMessage, TimeSpan.FromDays(1));
     }
 
-    private async Task<string> GetPersonaInternalAsync()
+    private async Task<string> GetPersonaInternalAsync(ulong serverId)
     {
-
-        if (_memoryCache.TryGetValue(Constants.CacheKeys.ComputedPersonaMessageKey, out string? personaMessage))
+        var computedPersonaCacheKey = StringModifier.CreateCacheKey(Constants.CacheKeys.ComputedPersonaMessageKey, serverId.ToString());
+        if (_memoryCache.TryGetValue(computedPersonaCacheKey, out string? personaMessage))
         {
             if (!string.IsNullOrEmpty(personaMessage))
             {
@@ -72,16 +75,19 @@ public class PersonaService : IPersonaService
             }
         }
 
-        personaMessage = await _messageCacheService.GetPersonaCoreMessageAsync();
-
+        personaMessage = (await _serverMetaService.GetServerMetaAsync(serverId))?.Persona;
         if (string.IsNullOrEmpty(personaMessage))
-            personaMessage = $"I'm {Constants.BotMetadata.BotName}. Your AI assistant. {Constants.BotMetadata.Mood}";
+        {
+            var botName = _botContextAccessor.BotName;
+            personaMessage = $"I'm {botName}. Your AI assistant. {Constants.BotMetadata.Mood}";
+        }
 
         var computedMood = await GetComputedMoodAsync();
         personaMessage = personaMessage.Replace(Constants.BotMetadata.Mood, computedMood);
 
-        _memoryCache.Set(Constants.CacheKeys.ComputedPersonaMessageKey, personaMessage, TimeSpan.FromDays(1));
+        _memoryCache.Set(computedPersonaCacheKey, personaMessage, TimeSpan.FromDays(1));
         _logger.LogInformation("Computed persona message: {personaMessage}", personaMessage);
+
         return personaMessage;
     }
 

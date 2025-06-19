@@ -2,6 +2,6 @@ namespace Amiquin.Core.Services.Persona;
 
 public interface IPersonaService
 {
-    Task<string> GetPersonaAsync(ulong instanceId = 0);
-    Task AddSummaryAsync(string updateMessage);
+    Task AddSummaryAsync(ulong serverId, string updateMessage);
+    Task<string> GetPersonaAsync(ulong serverId);
 }

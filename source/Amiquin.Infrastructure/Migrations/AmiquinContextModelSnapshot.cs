@@ -15,7 +15,108 @@ namespace Amiquin.Infrastructure.Migrations
         protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder.HasAnnotation("ProductVersion", "9.0.3");
+            modelBuilder.HasAnnotation("ProductVersion", "9.0.6");
+
+            modelBuilder.Entity("Amiquin.Core.Models.BotStatistics", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("TEXT");
+
+                    b.Property<float>("AvailableMemoryMB")
+                        .HasColumnType("REAL");
+
+                    b.Property<double>("AverageCommandExecutionTimeInMs")
+                        .HasColumnType("REAL");
+
+                    b.Property<string>("BotName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("CacheItems")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<double>("CpuUsage")
+                        .HasColumnType("REAL");
+
+                    b.Property<DateTime>("CreatedDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Latency")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ShardCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("TotalChannelsCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("TotalCommandsCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("TotalErrorsCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("TotalServersCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("TotalUsersCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("UpTimeInSeconds")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<float>("UsedMemoryMB")
+                        .HasColumnType("REAL");
+
+                    b.Property<float>("UsedMemoryPercentage")
+                        .HasColumnType("REAL");
+
+                    b.Property<string>("Version")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("BotStatistics");
+                });
+
+            modelBuilder.Entity("Amiquin.Core.Models.CommandLog", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Command")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CommandDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Duration")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsSuccess")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<ulong>("ServerId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<ulong>("UserId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ServerId");
+
+                    b.ToTable("CommandLogs");
+                });
 
             modelBuilder.Entity("Amiquin.Core.Models.Message", b =>
                 {
@@ -35,15 +136,74 @@ namespace Amiquin.Infrastructure.Migrations
                     b.Property<ulong>("GuildId")
                         .HasColumnType("INTEGER");
 
-                    b.Property<ulong>("InstanceId")
+                    b.Property<bool>("IsUser")
                         .HasColumnType("INTEGER");
 
-                    b.Property<bool>("IsUser")
+                    b.Property<ulong>("ServerId")
                         .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 
+                    b.HasIndex("ServerId");
+
                     b.ToTable("Messages");
+                });
+
+            modelBuilder.Entity("Amiquin.Core.Models.NachoPack", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("NachoCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("NachoReceivedDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<ulong>("ServerId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<ulong>("UserId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ServerId");
+
+                    b.ToTable("NachoPacks");
+                });
+
+            modelBuilder.Entity("Amiquin.Core.Models.ServerMeta", b =>
+                {
+                    b.Property<ulong>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("LastUpdated")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Persona")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ServerName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ServerMetas");
                 });
 
             modelBuilder.Entity("Amiquin.Core.Models.Toggle", b =>
@@ -68,9 +228,69 @@ namespace Amiquin.Infrastructure.Migrations
                     b.Property<int>("Scope")
                         .HasColumnType("INTEGER");
 
+                    b.Property<ulong>("ServerId")
+                        .HasColumnType("INTEGER");
+
                     b.HasKey("Id");
 
+                    b.HasIndex("ServerId");
+
                     b.ToTable("Toggles");
+                });
+
+            modelBuilder.Entity("Amiquin.Core.Models.CommandLog", b =>
+                {
+                    b.HasOne("Amiquin.Core.Models.ServerMeta", "Server")
+                        .WithMany("CommandLogs")
+                        .HasForeignKey("ServerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Server");
+                });
+
+            modelBuilder.Entity("Amiquin.Core.Models.Message", b =>
+                {
+                    b.HasOne("Amiquin.Core.Models.ServerMeta", "Server")
+                        .WithMany("Messages")
+                        .HasForeignKey("ServerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Server");
+                });
+
+            modelBuilder.Entity("Amiquin.Core.Models.NachoPack", b =>
+                {
+                    b.HasOne("Amiquin.Core.Models.ServerMeta", "Server")
+                        .WithMany("NachoPacks")
+                        .HasForeignKey("ServerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Server");
+                });
+
+            modelBuilder.Entity("Amiquin.Core.Models.Toggle", b =>
+                {
+                    b.HasOne("Amiquin.Core.Models.ServerMeta", "Server")
+                        .WithMany("Toggles")
+                        .HasForeignKey("ServerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Server");
+                });
+
+            modelBuilder.Entity("Amiquin.Core.Models.ServerMeta", b =>
+                {
+                    b.Navigation("CommandLogs");
+
+                    b.Navigation("Messages");
+
+                    b.Navigation("NachoPacks");
+
+                    b.Navigation("Toggles");
                 });
 #pragma warning restore 612, 618
         }

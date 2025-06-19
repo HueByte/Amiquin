@@ -2,6 +2,7 @@ using Amiquin.Core;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Serilog;
 
 namespace Amiquin.Infrastructure;
 
@@ -16,8 +17,12 @@ public static class Setup
     public static IServiceCollection AddAmiquinContext(this IServiceCollection services, IConfiguration configuration)
     {
         var connectionString = configuration.GetValue<string>(Constants.Environment.SQLitePath) ?? $"Data Source={Path.Join(AppContext.BaseDirectory, "data.db")}";
+        var migrationAssembly = typeof(Setup).Assembly.GetName().Name;
+        Log.Information("Using SQLite database at {ConnectionString}", connectionString);
+        Log.Information("Using migration assembly {MigrationAssembly}", migrationAssembly);
+
         services.AddDbContext<AmiquinContext>(options =>
-            options.UseSqlite(connectionString, x => x.MigrationsAssembly(typeof(AmiquinContext).Assembly.GetName().Name)));
+            options.UseSqlite(connectionString, x => x.MigrationsAssembly(migrationAssembly)));
 
         return services;
     }

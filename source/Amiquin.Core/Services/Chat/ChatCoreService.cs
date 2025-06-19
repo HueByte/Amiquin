@@ -74,6 +74,6 @@ public class ChatCoreService : IChatCoreService
     private async Task<ChatMessage> GetCorePersonaAsync()
     {
         var personaMessage = await _messageCacheService.GetPersonaCoreMessageAsync();
-        return ChatMessage.CreateDeveloperMessage(personaMessage);
+        return ChatMessage.CreateSystemMessage(personaMessage);
     }
 }

@@ -8,6 +8,7 @@ namespace Amiquin.Bot.Preconditions;
 public class RequireToggle : PreconditionAttribute
 {
     public string ToggleName { get; init; }
+
     public RequireToggle(string toggleName)
     {
         ToggleName = toggleName;
@@ -15,12 +16,19 @@ public class RequireToggle : PreconditionAttribute
 
     public override async Task<PreconditionResult> CheckRequirementsAsync(IInteractionContext context, ICommandInfo commandInfo, IServiceProvider services)
     {
-        var toggleService = services.GetRequiredService<IToggleService>();
-        var serverId = context.Guild.Id;
+        try
+        {
+            var toggleService = services.GetRequiredService<IToggleService>();
+            var serverId = context.Guild.Id;
 
-        await toggleService.CreateServerTogglesIfNotExistsAsync(serverId);
-        return await toggleService.IsEnabledAsync(ToggleName, serverId)
-            ? PreconditionResult.FromSuccess()
-            : PreconditionResult.FromError("This command is disabled.");
+            return await toggleService.IsEnabledAsync(serverId, ToggleName)
+                ? PreconditionResult.FromSuccess()
+                : PreconditionResult.FromError("This command is disabled.");
+        }
+        catch (Exception ex)
+        {
+            // Log the exception if necessary
+            return PreconditionResult.FromError($"An error occurred while checking the toggle: {ex.Message}");
+        }
     }
 }

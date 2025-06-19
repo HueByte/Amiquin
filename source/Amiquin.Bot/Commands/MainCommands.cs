@@ -1,4 +1,3 @@
-using System.Text;
 using Amiquin.Bot.Preconditions;
 using Amiquin.Core;
 using Amiquin.Core.DiscordExtensions;

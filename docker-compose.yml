@@ -1,6 +1,6 @@
 services:
   amiquinbot:
-    container_name: amiquinbot
+    container_name: yivobot
     build:
       context: .
       dockerfile: dockerfile

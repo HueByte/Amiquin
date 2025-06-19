@@ -4,14 +4,18 @@ using Amiquin.Core.IRepositories;
 using Amiquin.Core.Job;
 using Amiquin.Core.Options;
 using Amiquin.Core.Services.ApiClients;
+using Amiquin.Core.Services.BotContext;
+using Amiquin.Core.Services.BotSession;
 using Amiquin.Core.Services.Chat;
 using Amiquin.Core.Services.Chat.Toggle;
 using Amiquin.Core.Services.CommandHandler;
 using Amiquin.Core.Services.EventHandler;
 using Amiquin.Core.Services.ExternalProcessRunner;
 using Amiquin.Core.Services.MessageCache;
+using Amiquin.Core.Services.Nacho;
 using Amiquin.Core.Services.Persona;
 using Amiquin.Core.Services.ServerInteraction;
+using Amiquin.Core.Services.ServerMeta;
 using Amiquin.Core.Services.Voice;
 using Amiquin.Infrastructure;
 using Amiquin.Infrastructure.Repositories;
@@ -20,7 +24,6 @@ using Discord.Interactions;
 using Discord.WebSocket;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using OpenAI.Chat;
 
@@ -64,10 +67,12 @@ public class InjectionConfigurator
         };
 
         InteractionService interactionService = new(client, interactionServiceConfig);
+        BotSessionService botSessionService = new(_configuration);
 
         _services.AddHostedService<AmiquinHost>()
                  .AddSingleton(client)
                  .AddSingleton(interactionService)
+                 .AddSingleton(botSessionService)
                  .AddSingleton<ICommandHandlerService, CommandHandlerService>()
                  .AddSingleton<IEventHandlerService, EventHandlerService>()
                  .AddSingleton<IChatSemaphoreManager, ChatSemaphoreManager>()
@@ -89,7 +94,10 @@ public class InjectionConfigurator
                  .AddScoped<IVoiceService, VoiceService>()
                  .AddScoped<INewsApiClient, NewsApiClient>()
                  .AddScoped<IHistoryOptimizerService, HistoryOptimizerService>()
-                 .AddScoped<IToggleService, ToggleService>();
+                 .AddScoped<IToggleService, ToggleService>()
+                 .AddScoped<BotContextAccessor>()
+                 .AddScoped<IServerMetaService, ServerMetaService>()
+                 .AddScoped<INachoService, NachoService>();
 
         _services.AddTransient<IExternalProcessRunnerService, ExternalProcessRunnerService>();
 
@@ -128,7 +136,11 @@ public class InjectionConfigurator
     public InjectionConfigurator AddRepositories()
     {
         _services.AddScoped<IMessageRepository, MessageRepository>()
-                 .AddScoped<IToggleRepository, ToggleRepository>();
+                 .AddScoped<IToggleRepository, ToggleRepository>()
+                 .AddScoped<IServerMetaRepository, ServerMetaRepository>()
+                 .AddScoped<INachoRepository, NachoRepository>()
+                 .AddScoped<ICommandLogRepository, CommandLogRepository>()
+                 .AddScoped<IBotStatisticsRepository, BotStatisticsRepository>();
 
         return this;
     }

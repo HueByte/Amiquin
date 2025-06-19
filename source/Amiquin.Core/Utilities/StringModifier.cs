@@ -4,6 +4,11 @@ namespace Amiquin.Core.Utilities;
 
 public class StringModifier
 {
+    public static string CreateCacheKey(string category, string key)
+    {
+        return $"{category}::{key}";
+    }
+
     public static string Anomify(string input, int anonimyPercentage = 50)
     {
         var output = new StringBuilder();

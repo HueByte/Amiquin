@@ -9,14 +9,17 @@ using Serilog.Sinks.SystemConsole.Themes;
 
 var tcs = new TaskCompletionSource();
 var sigintReceived = false;
+int failCount = 0;
+const int maxFailCount = 5; // Maximum number of retries
 Console.CancelKeyPress += (_, ea) =>
 {
     // Tell .NET to not terminate the process
     ea.Cancel = true;
 
     Console.WriteLine("Received SIGINT (Ctrl+C)");
-    tcs.SetResult();
     sigintReceived = true;
+    Shutdown(); // Cancel the shutdown token
+    tcs.SetResult();
 };
 
 AppDomain.CurrentDomain.ProcessExit += (_, _) =>
@@ -24,6 +27,7 @@ AppDomain.CurrentDomain.ProcessExit += (_, _) =>
     if (!sigintReceived)
     {
         Console.WriteLine("Received SIGTERM");
+        Shutdown(); // Cancel the shutdown token
         tcs.SetResult();
     }
     else
@@ -32,11 +36,12 @@ AppDomain.CurrentDomain.ProcessExit += (_, _) =>
     }
 };
 
-do
+while (!sigintReceived && !_shutdownTokenSource.IsCancellationRequested)
 {
     try
     {
         await RunAsync(args);
+        failCount = 0; // Reset fail count on successful execution
     }
     catch (OperationCanceledException)
     {
@@ -44,11 +49,19 @@ do
     }
     catch (Exception ex)
     {
+        failCount++;
         Serilog.Log.Logger.Error(ex, "Error appeared during bot execution");
+
+        if (failCount >= maxFailCount)
+        {
+            Serilog.Log.Logger.Error("Maximum fail count reached. Exiting...");
+            Shutdown(); // Cancel the shutdown token
+            break;
+        }
     }
 
     await Task.Delay(2000);
-} while (sigintReceived || !_shutdownTokenSource.IsCancellationRequested);
+}
 
 await tcs.Task;
 
@@ -91,8 +104,8 @@ async Task RunAsync(string[] args)
             config.WriteTo.Console(restrictedToMinimumLevel: LogEventLevel.Information, theme: AnsiConsoleTheme.Code)
                 .WriteTo.File(Path.Combine(logsPath, "logs/log.log"), rollingInterval: RollingInterval.Day)
                 .Enrich.FromLogContext()
-                .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
-                .MinimumLevel.Override("Microsoft.EntityFrameworkCore", LogEventLevel.Warning)
+                .MinimumLevel.Override("Microsoft", LogEventLevel.Verbose)
+                .MinimumLevel.Override("Microsoft.EntityFrameworkCore", LogEventLevel.Verbose)
                 .ReadFrom.Configuration(context.Configuration)
                 .ReadFrom.Services(services);
         })

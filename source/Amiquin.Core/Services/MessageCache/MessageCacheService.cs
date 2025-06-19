@@ -16,6 +16,7 @@ public class MessageCacheService : IMessageCacheService
     private readonly int _messageFetchCount = 40;
     private const int MEMORY_CACHE_EXPIRATION = 5;
 
+
     public MessageCacheService(IMemoryCache memoryCache, IMessageRepository messageRepository, IOptions<BotOptions> botOptions, IConfiguration configuration)
     {
         _memoryCache = memoryCache;
@@ -41,9 +42,9 @@ public class MessageCacheService : IMessageCacheService
         return await GetMessageAsync(Constants.CacheKeys.JoinMessageKey);
     }
 
-    public int GetChatMessageCount(ulong instanceId)
+    public int GetChatMessageCount(ulong serverId)
     {
-        if (_memoryCache.TryGetValue(instanceId, out List<ChatMessage>? channelMessages))
+        if (_memoryCache.TryGetValue(serverId, out List<ChatMessage>? channelMessages))
         {
             return channelMessages?.Count ?? 0;
         }
@@ -51,13 +52,13 @@ public class MessageCacheService : IMessageCacheService
         return 0;
     }
 
-    public async Task<List<ChatMessage>?> GetOrCreateChatMessagesAsync(ulong instanceId)
+    public async Task<List<ChatMessage>?> GetOrCreateChatMessagesAsync(ulong serverId)
     {
-        return await _memoryCache.GetOrCreateAsync<List<ChatMessage>?>(instanceId, async entry =>
+        return await _memoryCache.GetOrCreateAsync<List<ChatMessage>?>(serverId, async entry =>
         {
             entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromDays(MEMORY_CACHE_EXPIRATION);
             var messages = await _messageRepository.AsQueryable()
-                .Where(x => x.InstanceId == instanceId)
+                .Where(x => x.ServerId == serverId)
                 .OrderBy(x => x.CreatedAt)
                 .Take(_messageFetchCount)
                 .ToListAsync();

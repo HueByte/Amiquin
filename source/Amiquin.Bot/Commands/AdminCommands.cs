@@ -3,14 +3,13 @@ using System.Text;
 using Amiquin.Core;
 using Amiquin.Core.Attributes;
 using Amiquin.Core.DiscordExtensions;
-using Amiquin.Core.Models;
+using Amiquin.Core.Services.BotContext;
 using Amiquin.Core.Services.Chat.Toggle;
+using Amiquin.Core.Services.ServerMeta;
 using Amiquin.Core.Utilities;
 using Discord;
 using Discord.Interactions;
-using Discord.Rest;
 using Microsoft.Extensions.Logging;
-using OpenAI.VectorStores;
 
 namespace Amiquin.Bot.Commands;
 
@@ -19,16 +18,43 @@ namespace Amiquin.Bot.Commands;
 public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionContext>
 {
     private readonly ILogger<AdminCommands> _logger;
+    private readonly IServerMetaService _serverMetaService;
     private readonly IToggleService _toggleService;
+    private readonly BotContextAccessor _botContextAccessor;
     private const int WORKER_COUNT = 1;
     private const int DELETE_THROTTLE_MS = 500;
     private const int UPDATE_THROTTLE_MS = 1500;
     private const int BAR_WIDTH = 40;
 
-    public AdminCommands(ILogger<AdminCommands> logger, IToggleService toggleService)
+    public AdminCommands(ILogger<AdminCommands> logger, IServerMetaService serverMetaService, IToggleService toggleService, BotContextAccessor botContextAccessor)
     {
         _logger = logger;
+        _serverMetaService = serverMetaService;
         _toggleService = toggleService;
+        _botContextAccessor = botContextAccessor;
+    }
+
+    [SlashCommand("set-server-persona", "Set the server persona")]
+    // [RequireToggle(Constants.ToggleNames.)]
+    public async Task SetServerPersonaAsync([Summary("persona", "The persona to set for the server")] string persona)
+    {
+        if (string.IsNullOrWhiteSpace(persona))
+        {
+            await ModifyOriginalResponseAsync((msg) => msg.Content = "You must provide a persona to set.");
+            return;
+        }
+
+        var serverMeta = _botContextAccessor.ServerMeta;
+        if (serverMeta is null)
+        {
+            await ModifyOriginalResponseAsync((msg) => msg.Content = "Server meta not found. Please try again later.");
+            return;
+        }
+
+        serverMeta.Persona = persona;
+
+        await _serverMetaService.UpdateServerMetaAsync(serverMeta);
+        await ModifyOriginalResponseAsync((msg) => msg.Content = $"Set server persona to: {persona}");
     }
 
     [SlashCommand("say", "Make the bot say something")]
@@ -76,9 +102,8 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
 
     [SlashCommand("server-toggles", "List all server toggles")]
     [Ephemeral]
-    public async Task ServerTogglesAsync(bool useCache = true)
+    public async Task ServerTogglesAsync()
     {
-        await _toggleService.CreateServerTogglesIfNotExistsAsync(Context.Guild.Id, useCache);
         var toggles = await _toggleService.GetTogglesByServerId(Context.Guild.Id);
         var sb = new StringBuilder();
 
@@ -104,16 +129,8 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
     [Ephemeral]
     public async Task ToggleAsync(string toggleName, bool isEnabled, string? description = null)
     {
-        await _toggleService.SetServerToggleAsync(toggleName, isEnabled, Context.Guild.Id, description);
+        await _toggleService.SetServerToggleAsync(Context.Guild.Id, toggleName, isEnabled, description);
         await ModifyOriginalResponseAsync((msg) => msg.Content = $"Set {toggleName} to {isEnabled}");
-    }
-
-    [SlashCommand("remove-toggle", "Toggle a feature")]
-    [Ephemeral]
-    public async Task RemoveToggleAsync(string toggleName)
-    {
-        await _toggleService.RemoveServerToggleAsync(toggleName, Context.Guild.Id);
-        await ModifyOriginalResponseAsync((msg) => msg.Content = $"{toggleName} toggle removed");
     }
 
     [SlashCommand("nuke", "Nuke the channel")]

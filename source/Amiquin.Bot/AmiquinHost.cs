@@ -97,6 +97,7 @@ public class AmiquinHost : IHostedService
 
     private async Task CreateDatabaseAsync()
     {
+        _logger.LogInformation("Creating database if not exists");
         using var scope = _serviceScopeFactory.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<AmiquinContext>();
         await dbContext.Database.MigrateAsync();
@@ -140,13 +141,13 @@ public class AmiquinHost : IHostedService
         Dictionary<string, string> data = new()
         {
             { "ID", _client.CurrentUser.Id.ToString() },
-            { "Name Const", Constants.BotMetadata.BotName },
+            { "Name Const", _configuration.GetValue<string>(Constants.Environment.BotName) ?? "Amiquin" },
             { "Name", _client.CurrentUser.Username},
             { "Discriminator", _client.CurrentUser.Discriminator},
             { "Global Name", _client.CurrentUser.GlobalName},
             { "Email", _client.CurrentUser.Email},
             { "Created Date", _client.CurrentUser.CreatedAt.ToString("dd-MM-yyyy")},
-            { "Version", Constants.BotMetadata.BotVersion },
+            { "Version", _configuration.GetValue<string>(Constants.Environment.BotVersion) ?? "1.0.0" },
             { "Shards", _client.Shards.Count.ToString() },
             { "Guilds", _client.Guilds.Count.ToString() },
             { "Users", _client.Guilds.Sum(x => x.MemberCount).ToString() },

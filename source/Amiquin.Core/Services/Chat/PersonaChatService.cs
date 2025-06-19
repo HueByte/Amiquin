@@ -37,7 +37,7 @@ public class PersonaChatService : IPersonaChatService
         var persona = await _personaService.GetPersonaAsync(instanceId);
         var (conversationForChat, conversationHistory) = await PrepareMessageHistory(instanceId, message);
 
-        var response = await _chatCoreService.ChatAsync(instanceId, conversationForChat, ChatMessage.CreateDeveloperMessage(persona));
+        var response = await _chatCoreService.ChatAsync(instanceId, conversationForChat, ChatMessage.CreateSystemMessage(persona));
         var assistantMessages = response.Content;
         var assistantResponse = assistantMessages.FirstOrDefault()?.Text;
 
@@ -66,15 +66,15 @@ public class PersonaChatService : IPersonaChatService
             // Subtract one from the removed messages as optimization was performed with Persona messagee
             // We ensure with that, that user-assistant message pair is removed.
             _messageCacheService.ClearOldMessages(instanceId, optimizationResult.RemovedMessages - 1);
-            await _personaService.AddSummaryAsync(optimizationResult.MessagesSummary);
+            await _personaService.AddSummaryAsync(instanceId, optimizationResult.MessagesSummary);
         }
 
         return assistantResponse;
     }
 
-    public async Task<string> ExchangeMessageAsync(string message)
+    public async Task<string> ExchangeMessageAsync(ulong instanceId, string message)
     {
-        var persona = await _personaService.GetPersonaAsync();
+        var persona = await _personaService.GetPersonaAsync(instanceId);
         return await _chatCoreService.ExchangeMessageAsync(message, persona);
     }
 
@@ -123,7 +123,7 @@ public class PersonaChatService : IPersonaChatService
                 new Message
                 {
                     Id = Guid.NewGuid().ToString(),
-                    InstanceId = instanceId,
+                    ServerId = instanceId,
                     Content = userMessage.Content.FirstOrDefault()?.Text ?? string.Empty,
                     IsUser = true,
                     AuthorId = userId,
@@ -132,7 +132,7 @@ public class PersonaChatService : IPersonaChatService
                 new Message
                 {
                     Id = Guid.NewGuid().ToString(),
-                    InstanceId = instanceId,
+                    ServerId = instanceId,
                     Content = amiquinMessage.Content.FirstOrDefault()?.Text ?? string.Empty,
                     IsUser = false,
                     AuthorId = botId,

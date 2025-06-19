@@ -1,9 +1,13 @@
 using System.Reflection;
 using Amiquin.Core.DiscordExtensions;
+using Amiquin.Core.IRepositories;
+using Amiquin.Core.Services.BotContext;
+using Amiquin.Core.Services.ServerMeta;
 using Amiquin.Core.Utilities;
 using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -16,7 +20,7 @@ public class CommandHandlerService : ICommandHandlerService
     private readonly IServiceProvider _serviceProvider;
     private readonly DiscordShardedClient _discordClient;
     private readonly InteractionService _interactionService;
-    private HashSet<string> _ephemeralCommands = new();
+    private HashSet<string> _ephemeralCommands = [];
     public IReadOnlyCollection<string> EphemeralCommands => _ephemeralCommands.ToList().AsReadOnly();
     public IReadOnlyCollection<SlashCommandInfo> Commands => _interactionService.SlashCommands.ToList().AsReadOnly();
 
@@ -41,25 +45,38 @@ public class CommandHandlerService : ICommandHandlerService
     public async Task HandleCommandAsync(SocketInteraction interaction)
     {
         ExtendedShardedInteractionContext? extendedContext = null;
+        BotContextAccessor? botContext = null;
         try
         {
             var scope = _serviceScopeFactory.CreateAsyncScope();
-            extendedContext = new ExtendedShardedInteractionContext(_discordClient, interaction, scope);
 
+            botContext = scope.ServiceProvider.GetRequiredService<BotContextAccessor>();
+
+            extendedContext = new ExtendedShardedInteractionContext(_discordClient, interaction, scope);
             await interaction.DeferAsync(IsEphemeralCommand(interaction));
+
+            IServerMetaService? serverMetaService = scope.ServiceProvider.GetRequiredService<IServerMetaService>();
+            IConfiguration? configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>();
+
+            var serverMeta = await serverMetaService.GetOrCreateServerMetaAsync(extendedContext);
+            botContext.Initialize(extendedContext, serverMeta, configuration);
+
             await _interactionService.ExecuteCommandAsync(extendedContext, scope.ServiceProvider);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to execute command");
+            await interaction.ModifyOriginalResponseAsync((msg) => msg.Content = "An error occurred while processing your command. Please try again later.");
 
-            if (interaction.Type is InteractionType.ApplicationCommand)
-            {
-                await interaction.GetOriginalResponseAsync().ContinueWith(async (msg) => await msg.Result.DeleteAsync());
-            }
+            // if (interaction.Type is InteractionType.ApplicationCommand)
+            // {
+            //     await interaction.GetOriginalResponseAsync().ContinueWith(async (msg) => await msg.Result.DeleteAsync());
+            // }
 
             if (extendedContext is not null)
                 await extendedContext.DisposeAsync();
+
+            botContext?.Finish();
         }
     }
 
@@ -69,6 +86,11 @@ public class CommandHandlerService : ICommandHandlerService
         var scope = extendedContext is not null ? extendedContext.AsyncScope : _serviceScopeFactory.CreateAsyncScope();
         try
         {
+            var commandLogRepository = scope.ServiceProvider.GetRequiredService<ICommandLogRepository>();
+            var botContextAccessor = scope.ServiceProvider.GetRequiredService<BotContextAccessor>();
+            botContextAccessor.Finish();
+            await LogCommandAsync(commandLogRepository, botContextAccessor, slashCommandInfo, result);
+
             if (!result.IsSuccess)
             {
                 var embed = new EmbedBuilder().WithCurrentTimestamp()
@@ -128,12 +150,31 @@ public class CommandHandlerService : ICommandHandlerService
         if (interaction.Type != InteractionType.ApplicationCommand)
             return false;
 
-        var command = interaction as SocketSlashCommand;
-        if (command is null)
+        if (interaction is not SocketSlashCommand command)
             return false;
 
         // Amiquin supports one level of subcommands.
         string commandName = command.Data.Options.FirstOrDefault(op => op.Type == ApplicationCommandOptionType.SubCommand)?.Name ?? command.Data.Name;
         return _ephemeralCommands.Contains(commandName);
+    }
+
+    private async Task LogCommandAsync(ICommandLogRepository commandLogRepository, BotContextAccessor context, SlashCommandInfo slashCommandInfo, IResult result)
+    {
+        var executionTime = (context.FinishedAt - context.CreatedAt).Milliseconds;
+        var logEntry = new Models.CommandLog
+        {
+            Command = slashCommandInfo.Name,
+            CommandDate = context.CreatedAt,
+            Duration = executionTime,
+            ErrorMessage = result.ErrorReason,
+            IsSuccess = result.IsSuccess,
+            Server = context.ServerMeta,
+            ServerId = context.ServerMeta?.Id ?? 0,
+            Username = context?.Context?.User?.Username ?? string.Empty,
+        };
+
+        await commandLogRepository.AddAsync(logEntry);
+        await commandLogRepository.SaveChangesAsync();
+        _logger.LogInformation("Command [{command}] executed by [{username}] in server [{serverName}] and took {timeToExecute} ms to execute", logEntry.Command, logEntry.Username, context?.ServerMeta?.ServerName, executionTime);
     }
 }

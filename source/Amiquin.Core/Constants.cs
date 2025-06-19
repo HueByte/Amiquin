@@ -29,6 +29,8 @@ public class Constants
 
     public class Environment
     {
+        public const string BotName = "AMQ_BOT_NAME";
+        public const string BotVersion = "AMQ_BOT_VERSION";
         public const string BotToken = "AMQ_BOT_TOKEN";
         public const string OpenAiKey = "AMQ_OPEN_AI_KEY";
         public const string LogsPath = "AMQ_LOGS_PATH";
@@ -45,6 +47,8 @@ public class Constants
         public const string CorePersonaMessageKey = "Persona";
         public const string ComputedPersonaMessageKey = "ComputedPersona";
         public const string ServerTogglesCreated = "ServerTogglesCreated";
+        public const string ServerToggles = "ServerToggles";
+        public const string ServerMeta = "ServerMeta";
     }
 
     public class AI
@@ -58,8 +62,6 @@ public class Constants
     public class BotMetadata
     {
         public const string Mood = "[$Mood$]";
-        public const string BotName = "Amiquin";
-        public const string BotVersion = "1.0.0";
     }
 
     public class Paths

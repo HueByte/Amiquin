@@ -42,38 +42,13 @@ public class DevCommands : InteractionModuleBase<ExtendedShardedInteractionConte
         _toggleService = toggleService;
     }
 
-    [SlashCommand("system-toggles", "List system toggles")]
-    [Ephemeral]
-    [RequireTeam]
-    public async Task SystemTogglesAsync()
-    {
-        var toggles = await _toggleService.GetTogglesByScopeAsync(ToggleScope.Global);
-        var sb = new StringBuilder();
-
-        sb.AppendLine("```ini");
-        foreach (var toggle in toggles)
-        {
-            sb.AppendLine($"{toggle.Name} = {toggle.IsEnabled}");
-        }
-        sb.AppendLine("```");
-
-        var embed = new EmbedBuilder()
-            .WithTitle("Server Toggles")
-            .WithThumbnailUrl(Context.Client.CurrentUser.GetAvatarUrl())
-            .WithDescription(sb.ToString())
-            .WithColor(Color.DarkTeal)
-            .Build();
-
-        await ModifyOriginalResponseAsync((msg) => msg.Embed = embed);
-    }
-
-    [SlashCommand("toggle", "Toggle a feature")]
+    [SlashCommand("toggle-feature", "Toggle a feature")]
     [Ephemeral]
     [RequireTeam]
     public async Task ToggleAsync(string toggleName, bool isEnabled, string? description = null)
     {
-        await _toggleService.SetSystemToggleAsync(toggleName, isEnabled, description);
-        await ModifyOriginalResponseAsync((msg) => msg.Content = $"Set {toggleName} to {isEnabled}");
+        await _toggleService.UpdateAllTogglesAsync(toggleName, isEnabled, description);
+        await ModifyOriginalResponseAsync((msg) => msg.Content = $"Set {toggleName} to {isEnabled} globally.");
     }
 
     [SlashCommand("voicedebug", "debug")]
@@ -106,18 +81,11 @@ Streams: {voiceState.AudioClient?.GetStreams().ToDictionary(x => x.Key, x => x.V
         await ModifyOriginalResponseAsync((msg) => msg.Embeds = new[] { embed });
     }
 
-    [SlashCommand("ping-ephemeral", "Pong! (Ephemeral)")]
-    [Ephemeral]
-    public async Task PingEphemeralAsync()
-    {
-        await ModifyOriginalResponseAsync((msg) => msg.Content = "Pong!");
-    }
-
     [SlashCommand("persona", "Get persona message")]
     public async Task PersonaAsync()
     {
         var personaCoreMessage = await _messageCacheService.GetPersonaCoreMessageAsync();
-        var fullPersonaMessage = await _personaService.GetPersonaAsync();
+        var fullPersonaMessage = await _personaService.GetPersonaAsync(Context.Guild.Id);
 
         List<Embed> chunks = new();
 

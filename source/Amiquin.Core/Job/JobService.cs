@@ -34,12 +34,12 @@ public class JobService : IAsyncDisposable, IJobService
             {
                 Id = Guid.NewGuid().ToString(),
                 Name = runnableJob.GetType().Name,
-                Description = string.Empty, // Add attribute later
+                Description = string.Empty,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow,
                 GuildId = 0,
                 Task = runnableJob.RunAsync,
-                Interval = TimeSpan.FromHours(8) // Add attribute later
+                Interval = TimeSpan.FromSeconds(runnableJob.FrequencyInSeconds)
             });
         }
     }
@@ -97,11 +97,23 @@ public class JobService : IAsyncDisposable, IJobService
         {
             while (!scopedJobCancellationTokenRef.IsCancellationRequested || scopedJob.Interval != TimeSpan.Zero)
             {
-                scopedLoggerRef.LogInformation("Running job {JobName}", scopedJob.Name);
-                await job.Task(scopedServiceScopeFactoryRef, scopedJobCancellationTokenRef.Token);
-                scopedLoggerRef.LogInformation("Job {JobName} completed", scopedJob.Name);
+                try
+                {
+                    scopedLoggerRef.LogInformation("Running job {JobName}", scopedJob.Name);
+                    await job.Task(scopedServiceScopeFactoryRef, scopedJobCancellationTokenRef.Token);
+                    scopedLoggerRef.LogInformation("Job {JobName} completed", scopedJob.Name);
 
-                await Task.Delay(job.Interval, scopedJobCancellationTokenRef.Token);
+                    await Task.Delay(job.Interval, scopedJobCancellationTokenRef.Token);
+                }
+                catch (OperationCanceledException)
+                {
+                    scopedLoggerRef.LogInformation("Job {JobName} was cancelled", scopedJob.Name);
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    scopedLoggerRef.LogError(ex, "Error occurred while running job {JobName}", scopedJob.Name);
+                }
             }
         }));
 

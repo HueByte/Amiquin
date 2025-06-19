@@ -10,6 +10,7 @@ namespace Amiquin.Core.Cleaner;
 
 public class CleanerService : ICleanerService
 {
+    public int FrequencyInSeconds { get; set; } = 3600; // Default to 1 hour
     public Task RunAsync(IServiceScopeFactory serviceScopeFactory, CancellationToken cancellationToken)
     {
         using var scope = serviceScopeFactory.CreateScope();

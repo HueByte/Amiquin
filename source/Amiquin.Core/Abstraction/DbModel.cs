@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations.Schema;
+
 namespace Amiquin.Core.Abstraction;
 
 public abstract class DbModel<TKey> where TKey : IConvertible
