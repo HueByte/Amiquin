@@ -11,5 +11,20 @@ services:
     volumes:
       - amiquin-data:/Amiquin/Data
 
+  mysql:
+    container_name: mysql
+    image: mysql:latest
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: amiquin_db
+      MYSQL_USER: amiquin_user
+      MYSQL_PASSWORD: amiquin_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+
 volumes:
   amiquin-data:
+  mysql-data:
