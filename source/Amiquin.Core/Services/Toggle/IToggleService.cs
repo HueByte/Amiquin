@@ -2,6 +2,8 @@ namespace Amiquin.Core.Services.Chat.Toggle;
 
 public interface IToggleService
 {
+    Task<List<Models.Toggle>> GetOrCreateGlobalTogglesAsync();
+    Task SetGlobalToggleAsync(string toggleName, bool isEnabled, string? description = null);
     Task CreateServerTogglesIfNotExistsAsync(ulong serverId);
     Task<List<Models.Toggle>> GetTogglesByServerId(ulong serverId);
     Task<bool> IsEnabledAsync(ulong serverId, string toggleName);

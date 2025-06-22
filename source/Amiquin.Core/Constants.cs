@@ -50,6 +50,7 @@ public class Constants
         public const string ServerTogglesCreated = "ServerTogglesCreated";
         public const string ServerToggles = "ServerToggles";
         public const string ServerMeta = "ServerMeta";
+        public const string GlobalToggles = "GlobalToggles";
     }
 
     public class AI

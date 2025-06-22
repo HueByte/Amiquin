@@ -1,4 +1,7 @@
+using Amiquin.Core.IRepositories;
 using Amiquin.Core.Services.ServerMeta;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 
 namespace Amiquin.Core.Services.Chat.Toggle;
@@ -7,11 +10,87 @@ public class ToggleService : IToggleService
 {
     private readonly ILogger<ToggleService> _logger;
     private readonly IServerMetaService _serverMetaService;
+    private readonly IToggleRepository _toggleRepository;
+    private readonly IMemoryCache _memoryCache;
 
-    public ToggleService(ILogger<ToggleService> logger, IServerMetaService serverMetaService)
+    public ToggleService(ILogger<ToggleService> logger, IServerMetaService serverMetaService, IToggleRepository toggleRepository, IMemoryCache memoryCache)
     {
         _logger = logger;
         _serverMetaService = serverMetaService;
+        _toggleRepository = toggleRepository;
+        _memoryCache = memoryCache;
+    }
+
+    public async Task<List<Models.Toggle>> GetOrCreateGlobalTogglesAsync()
+    {
+        var expectedToggles = Constants.ToggleNames.Toggles;
+        if (_memoryCache.TryGetValue(Constants.CacheKeys.GlobalToggles, out List<Models.Toggle>? cachedToggles)
+            && cachedToggles is not null)
+        {
+            _logger.LogInformation("Returning cached global toggles");
+            return cachedToggles;
+        }
+
+        var globalToggles = await _toggleRepository.AsQueryable()
+            .Where(x => x.Scope == Models.ToggleScope.Global)
+            .ToListAsync();
+
+        if (globalToggles is not null && globalToggles.Any())
+        {
+            var missingToggles = expectedToggles.Except(globalToggles.Select(t => t.Name)).ToList();
+            if (missingToggles.Any())
+            {
+                var missingTogglesModels = missingToggles.Select(toggleName => new Models.Toggle
+                {
+                    Name = toggleName,
+                    IsEnabled = true,
+                    Description = string.Empty,
+                    Scope = Models.ToggleScope.Global,
+                    CreatedAt = DateTime.UtcNow
+                }).ToList();
+
+                await _toggleRepository.AddRangeAsync(missingTogglesModels);
+
+                _logger.LogInformation("Added missing global toggles: {toggles}", string.Join(", ", missingToggles));
+
+                await _toggleRepository.SaveChangesAsync();
+
+                globalToggles.AddRange(missingTogglesModels);
+            }
+        }
+
+        _memoryCache.Set(Constants.CacheKeys.GlobalToggles, globalToggles);
+        return globalToggles ?? [];
+    }
+
+    public async Task SetGlobalToggleAsync(string toggleName, bool isEnabled, string? description = null)
+    {
+        var globalToggles = await GetOrCreateGlobalTogglesAsync();
+        var toggle = globalToggles.FirstOrDefault(x => x.Name == toggleName);
+
+        if (toggle is not null)
+        {
+            toggle.IsEnabled = isEnabled;
+            toggle.Description = description ?? toggle.Description;
+        }
+        else
+        {
+            toggle = new Models.Toggle
+            {
+                Name = toggleName,
+                IsEnabled = isEnabled,
+                Description = description ?? string.Empty,
+                Scope = Models.ToggleScope.Global,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            globalToggles.Add(toggle);
+        }
+
+        await _toggleRepository.UpdateAsync(toggle);
+        await _toggleRepository.SaveChangesAsync();
+        _memoryCache.Set(Constants.CacheKeys.GlobalToggles, globalToggles);
+        _logger.LogInformation("Set global toggle {toggleName} to {isEnabled}", toggleName, isEnabled);
     }
 
     public async Task CreateServerTogglesIfNotExistsAsync(ulong serverId)
