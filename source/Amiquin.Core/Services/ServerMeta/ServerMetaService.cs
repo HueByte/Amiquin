@@ -70,7 +70,8 @@ public class ServerMetaService : IServerMetaService
         {
             serverMeta.Toggles = await _serverMetaRepository.AsQueryable()
                 .Where(x => x.Id == serverId)
-                .SelectMany(x => x.Toggles ?? Enumerable.Empty<Models.Toggle>())
+                .Where(x => x.Toggles != null)
+                .SelectMany(x => x.Toggles!)
                 .ToListAsync();
         }
     }
@@ -143,6 +144,7 @@ public class ServerMetaService : IServerMetaService
                 existingMeta.Persona = serverMeta.Persona;
                 existingMeta.LastUpdated = DateTime.UtcNow;
                 existingMeta.IsActive = serverMeta.IsActive;
+                await _serverMetaRepository.UpdateAsync(existingMeta);
             }
 
             await _serverMetaRepository.SaveChangesAsync();
