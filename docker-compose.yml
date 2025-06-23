@@ -1,6 +1,6 @@
 services:
   mysql:
-    container_name: mysql
+    container_name: mysql-${AMQ_BOT_NAME}
     image: mysql:latest
     restart: always
     env_file:
@@ -21,7 +21,7 @@ services:
       retries: 5
 
   amiquinbot:
-    container_name: amiquin
+    container_name: ${AMQ_BOT_NAME}
     build:
       context: .
       dockerfile: dockerfile
@@ -30,7 +30,7 @@ services:
     ports:
       - "10001:10000" # Adjust ports as needed
     volumes:
-      - amq-data:/Amiquin/Data
+      - amq-data:/${AMQ_BOT_NAME}/Data
     depends_on:
       mysql:
         condition: service_healthy
