@@ -3,6 +3,7 @@ using System;
 using Amiquin.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
@@ -11,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Amiquin.MySql.Migrations
 {
     [DbContext(typeof(AmiquinContext))]
-    [Migration("20250623010947_Init_MySql")]
+    [Migration("20250623030309_Init_MySql")]
     partial class Init_MySql
     {
         /// <inheritdoc />
@@ -21,6 +22,8 @@ namespace Amiquin.MySql.Migrations
             modelBuilder
                 .HasAnnotation("ProductVersion", "9.0.6")
                 .HasAnnotation("Relational:MaxIdentifierLength", 64);
+
+            MySqlModelBuilderExtensions.AutoIncrementColumns(modelBuilder);
 
             modelBuilder.Entity("Amiquin.Core.Models.BotStatistics", b =>
                 {
@@ -89,6 +92,8 @@ namespace Amiquin.MySql.Migrations
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("Command")
                         .IsRequired()
@@ -160,6 +165,8 @@ namespace Amiquin.MySql.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
                     b.Property<int>("NachoCount")
                         .HasColumnType("int");
 
@@ -188,6 +195,8 @@ namespace Amiquin.MySql.Migrations
                     b.Property<ulong>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint unsigned");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<ulong>("Id"));
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime(6)");

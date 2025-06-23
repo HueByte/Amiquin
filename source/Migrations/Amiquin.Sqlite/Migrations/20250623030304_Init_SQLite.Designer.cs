@@ -11,7 +11,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Amiquin.Sqlite.Migrations
 {
     [DbContext(typeof(AmiquinContext))]
-    [Migration("20250623010942_Init_SQLite")]
+    [Migration("20250623030304_Init_SQLite")]
     partial class Init_SQLite
     {
         /// <inheritdoc />

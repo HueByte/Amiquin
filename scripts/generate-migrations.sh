@@ -26,6 +26,9 @@ MIGRATION_DIR="$ROOT_DIR/source/Migrations"
 echo "Root directory: $ROOT_DIR"
 echo "Migration name: $MIGRATION_NAME"
 
+# Set environment variable to skip database connection during migrations
+export DOTNET_RUNNING_IN_CONTAINER=true
+
 # Iterate through AMQ_DATABASE_MODE values
 for MODE in 0 1 2 3; do
     export AMQ_DATABASE_MODE=$MODE
@@ -48,9 +51,7 @@ for MODE in 0 1 2 3; do
                 --startup-project "$ROOT_DIR/$STARTUP_PROJECT" \
                 --output-dir "$MIGRATION_DIR/Amiquin.MySql/Migrations" \
                 --context $CONTEXT_NAME \
-                --project ../Migrations/Amiquin.MySql \
-                -- \
-                --provider MySql)
+                --project ../Migrations/Amiquin.MySql)
             ;;
         2)
             # MSSQL
@@ -75,6 +76,7 @@ for MODE in 0 1 2 3; do
     esac
 done
 
-# Clean up the environment variable
+# Clean up environment variables
 unset AMQ_DATABASE_MODE
-echo "Environment variable AMQ_DATABASE_MODE has been removed."
+unset DOTNET_RUNNING_IN_CONTAINER
+echo "Environment variables have been removed."

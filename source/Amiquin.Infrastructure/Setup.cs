@@ -1,3 +1,5 @@
+
+
 using Amiquin.Core;
 using Amiquin.Core.Options;
 using Amiquin.Core.Utilities;
@@ -44,12 +46,7 @@ public static class Setup
         Log.Information("Using migration assembly {MigrationAssembly}", migrationAssembly);
 
         services.AddDbContext<AmiquinContext>(options =>
-            options.UseMySQL(connectionString,
-            new Action<MySql.EntityFrameworkCore.Infrastructure.MySQLDbContextOptionsBuilder>(x =>
-            {
-                x.MigrationsAssembly(migrationAssembly);
-                x.EnableRetryOnFailure();
-            })), ServiceLifetime.Transient, ServiceLifetime.Transient);
+            options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString), mysql => mysql.MigrationsAssembly(migrationAssembly)));
 
         return services;
     }

@@ -17,7 +17,15 @@ public class AmiquinContext : DbContext
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
-
+        if (!optionsBuilder.IsConfigured)
+        {
+            var environment = Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER");
+            if (environment == "true")
+            {
+                // Use a default SQLite configuration for design-time
+                optionsBuilder.UseSqlite("Data Source=:memory:");
+            }
+        }
     }
 
     protected override void OnModelCreating(ModelBuilder builder)

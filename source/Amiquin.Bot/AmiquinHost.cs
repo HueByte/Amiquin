@@ -100,6 +100,9 @@ public class AmiquinHost : IHostedService
         _logger.LogInformation("Creating database if not exists");
         using var scope = _serviceScopeFactory.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<AmiquinContext>();
+
+        _logger.LogInformation("Applying migrations to database");
+        _logger.LogInformation("Using provider: {Provider}", dbContext.Database.ProviderName);
         await dbContext.Database.MigrateAsync();
     }
 

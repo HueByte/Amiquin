@@ -21,6 +21,8 @@ COPY source/source.sln ./
 COPY source/Amiquin.Bot/Amiquin.Bot.csproj ./Amiquin.Bot/
 COPY source/Amiquin.Core/Amiquin.Core.csproj ./Amiquin.Core/
 COPY source/Amiquin.Infrastructure/Amiquin.Infrastructure.csproj ./Amiquin.Infrastructure/
+COPY source/Migrations/Amiquin.Sqlite/Amiquin.Sqlite.csproj ./Migrations/Amiquin.Sqlite/
+COPY source/Migrations/Amiquin.MySql/Amiquin.MySql.csproj ./Migrations/Amiquin.MySql/
 
 # Restore dependencies
 RUN dotnet restore source.sln
