@@ -1,10 +1,10 @@
-using System.Collections.Concurrent;
 using Amiquin.Core.DiscordExtensions;
 using Amiquin.Core.IRepositories;
 using Amiquin.Core.Utilities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
+using System.Collections.Concurrent;
 
 namespace Amiquin.Core.Services.ServerMeta;
 
@@ -78,6 +78,11 @@ public class ServerMetaService : IServerMetaService
     public async Task<Models.ServerMeta> GetOrCreateServerMetaAsync(ExtendedShardedInteractionContext context)
     {
         var serverId = context.Guild?.Id ?? 0;
+        if (serverId == 0)
+        {
+            throw new ArgumentException("ServerId cannot be zero.");
+        }
+
         var cacheKey = GetCacheKey(serverId);
         if (_memoryCache.TryGetValue(cacheKey, out Models.ServerMeta? serverMeta) && serverMeta is not null)
         {

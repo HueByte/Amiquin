@@ -1,5 +1,3 @@
-using System.Collections.Concurrent;
-using System.Text;
 using Amiquin.Core;
 using Amiquin.Core.Attributes;
 using Amiquin.Core.DiscordExtensions;
@@ -10,6 +8,8 @@ using Amiquin.Core.Utilities;
 using Discord;
 using Discord.Interactions;
 using Microsoft.Extensions.Logging;
+using System.Collections.Concurrent;
+using System.Text;
 
 namespace Amiquin.Bot.Commands;
 
@@ -57,7 +57,6 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
     }
 
     [SlashCommand("say", "Make the bot say something")]
-    [RequireBotPermission(GuildPermission.ManageRoles)]
     [Ephemeral]
     public async Task SayAsync([Summary("message", "The message to say")] string message)
     {
@@ -72,7 +71,6 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
     }
 
     [SlashCommand("embed-say", "Make the bot say something")]
-    [RequireBotPermission(GuildPermission.ManageRoles)]
     [Ephemeral]
     public async Task EmbedSayAsync(string title, string thumbnail, [Summary("message", "The message to say")] string message, bool withAuthor = false)
     {

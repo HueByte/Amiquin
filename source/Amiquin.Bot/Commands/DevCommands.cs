@@ -1,5 +1,3 @@
-using System.Text;
-using System.Text.Json;
 using Amiquin.Bot.Preconditions;
 using Amiquin.Core;
 using Amiquin.Core.Attributes;
@@ -14,11 +12,13 @@ using Amiquin.Core.Utilities;
 using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
+using System.Text;
+using System.Text.Json;
 
 namespace Amiquin.Bot.Commands;
 
 [Group("dev", "Developer commands")]
-[RequireRole("NachoSquad")]
+[RequireTeam]
 public class DevCommands : InteractionModuleBase<ExtendedShardedInteractionContext>
 {
     private readonly IChatCoreService _chatService;
@@ -42,9 +42,32 @@ public class DevCommands : InteractionModuleBase<ExtendedShardedInteractionConte
         _toggleService = toggleService;
     }
 
+    [SlashCommand("global-toggles", "List all global toggles")]
+    [Ephemeral]
+    public async Task GlobalTogglesAsync()
+    {
+        var toggles = await _toggleService.GetOrCreateGlobalTogglesAsync();
+        if (toggles.Count == 0)
+        {
+            await ModifyOriginalResponseAsync((msg) => msg.Content = "No global toggles found.");
+            return;
+        }
+
+        var sb = new StringBuilder();
+        foreach (var toggle in toggles)
+        {
+            sb.AppendLine($"**{toggle.Name}**: {(toggle.IsEnabled ? "Enabled" : "Disabled")}");
+            if (!string.IsNullOrEmpty(toggle.Description))
+            {
+                sb.AppendLine($"*{toggle.Description}*");
+            }
+        }
+
+        await ModifyOriginalResponseAsync((msg) => msg.Content = sb.ToString());
+    }
+
     [SlashCommand("toggle-feature", "Toggle a feature")]
     [Ephemeral]
-    [RequireTeam]
     public async Task ToggleAsync(string toggleName, bool isEnabled, string? description = null)
     {
         await _toggleService.UpdateAllTogglesAsync(toggleName, isEnabled, description);
@@ -200,7 +223,6 @@ Streams: {voiceState.AudioClient?.GetStreams().ToDictionary(x => x.Key, x => x.V
     }
 
     [SlashCommand("restart", "Restart the bot")]
-    [RequireTeam]
     [Ephemeral]
     public async Task RestartAsync()
     {

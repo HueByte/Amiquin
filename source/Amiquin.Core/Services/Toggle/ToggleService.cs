@@ -131,9 +131,27 @@ public class ToggleService : IToggleService
         await SetServerTogglesBulkAsync(serverId, expectedToggles.ToDictionary(x => x, x => (true, (string?)string.Empty)));
     }
 
+    public async Task<bool> IsEnabledAsync(string toggleName)
+    {
+        var globalToggles = await GetOrCreateGlobalTogglesAsync();
+        if (globalToggles is null || !globalToggles.Any())
+        {
+            _logger.LogWarning("No global toggles found");
+            return true; // Default to enabled if no toggles are found
+        }
+
+        var toggle = globalToggles.FirstOrDefault(x => x.Name == toggleName);
+        if (toggle is not null)
+        {
+            return toggle.IsEnabled;
+        }
+
+        _logger.LogWarning("Toggle {toggleName} not found in global toggles", toggleName);
+        return true; // Default to enabled if toggle is not found
+    }
+
     /// <summary>
-    /// Checks if toggle is enabled based on the hierarchy<br>
-    /// System -> Server
+    /// Checks if toggle is enabled<br>
     /// </summary>
     /// <param name="toggleName"></param>
     /// <param name="serverId"></param>
