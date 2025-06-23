@@ -21,7 +21,7 @@ services:
       retries: 5
 
   amiquinbot:
-    container_name: ${AMQ_BOT_NAME}
+    container_name: bot-${AMQ_BOT_NAME}
     build:
       context: .
       dockerfile: dockerfile
