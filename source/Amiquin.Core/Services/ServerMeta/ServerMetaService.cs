@@ -133,22 +133,22 @@ public class ServerMetaService : IServerMetaService
         await semaphore.WaitAsync();
         try
         {
-            var existingMeta = await _serverMetaRepository.AsQueryable()
+            var meta = await _serverMetaRepository.AsQueryable()
                 .Include(x => x.Toggles)
                 .FirstOrDefaultAsync(x => x.Id == serverMeta.Id)
                 ?? throw new Exception($"ServerMeta not found for serverId {serverMeta.Id}");
 
-            existingMeta.ServerName = serverMeta.ServerName;
-            existingMeta.Persona = serverMeta.Persona;
-            existingMeta.LastUpdated = DateTime.UtcNow;
-            existingMeta.IsActive = serverMeta.IsActive;
+            meta.ServerName = serverMeta.ServerName;
+            meta.Persona = serverMeta.Persona;
+            meta.LastUpdated = DateTime.UtcNow;
+            meta.IsActive = serverMeta.IsActive;
 
             // Merge Toggles manually
             if (serverMeta.Toggles is not null)
             {
                 foreach (var incomingToggle in serverMeta.Toggles)
                 {
-                    var existingToggle = existingMeta.Toggles?
+                    var existingToggle = meta.Toggles?
                         .FirstOrDefault(x => x.Name == incomingToggle.Name);
 
                     if (existingToggle is not null)
@@ -158,7 +158,7 @@ public class ServerMetaService : IServerMetaService
                     }
                     else
                     {
-                        existingMeta.Toggles?.Add(new Models.Toggle
+                        meta.Toggles?.Add(new Models.Toggle
                         {
                             Id = Guid.NewGuid().ToString(),
                             ServerId = serverMeta.Id,
@@ -172,7 +172,8 @@ public class ServerMetaService : IServerMetaService
             }
 
             await _serverMetaRepository.SaveChangesAsync();
-            _memoryCache.Set(GetCacheKey(serverMeta.Id), existingMeta, TimeSpan.FromMinutes(30));
+            _memoryCache.Set(GetCacheKey(serverMeta.Id), meta, TimeSpan.FromMinutes(30));
+            _memoryCache.Remove(StringModifier.CreateCacheKey(Constants.CacheKeys.ComputedPersonaMessageKey, serverMeta.Id.ToString()));
         }
         finally
         {

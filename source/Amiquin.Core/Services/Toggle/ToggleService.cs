@@ -55,7 +55,7 @@ public class ToggleService : IToggleService
     /// <returns></returns>
     public async Task<bool> IsEnabledAsync(ulong serverId, string toggleName)
     {
-        var serverMeta = await _serverMetaService.GetServerMetaAsync(serverId);
+        var serverMeta = await _serverMetaService.GetServerMetaAsync(serverId, true);
         if (serverMeta is null)
         {
             _logger.LogWarning("Server meta not found for serverId {serverId}", serverId);
