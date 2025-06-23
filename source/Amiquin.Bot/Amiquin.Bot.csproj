@@ -3,10 +3,13 @@
   <ItemGroup>
     <ProjectReference Include="..\Amiquin.Core\Amiquin.Core.csproj" />
     <ProjectReference Include="..\Amiquin.Infrastructure\Amiquin.Infrastructure.csproj" />
+    <ProjectReference Include="..\Migrations\Amiquin.MySql\Amiquin.MySql.csproj" />
+    <ProjectReference Include="..\Migrations\Amiquin.Sqlite\Amiquin.Sqlite.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Discord.Net" Version="3.17.4" />
+    <PackageReference Include="DotNetEnv" Version="3.1.1" />
     <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="9.0.6" />
     <PackageReference Include="Microsoft.Extensions.Configuration" Version="9.0.6" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.6" />

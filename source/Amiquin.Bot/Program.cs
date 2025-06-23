@@ -1,11 +1,14 @@
 ﻿using Amiquin.Bot.Configurators;
 using Amiquin.Core;
+using Amiquin.Core.Exceptions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Serilog;
 using Serilog.Events;
 using Serilog.Extensions.Logging;
 using Serilog.Sinks.SystemConsole.Themes;
+
+DotNetEnv.Env.Load(); // Load environment variables from .env file
 
 var tcs = new TaskCompletionSource();
 var sigintReceived = false;
@@ -45,22 +48,38 @@ while (!sigintReceived && !_shutdownTokenSource.IsCancellationRequested)
     }
     catch (OperationCanceledException)
     {
-        Serilog.Log.Logger.Information("Bot is restarting");
+        Log.Logger.Information("Bot is restarting");
+    }
+    catch (HostAbortedException)
+    {
+        Log.Logger.Information("Host aborted, shutting down gracefully");
+        Shutdown(); // Cancel the shutdown token
+        break; // Exit the loop if the host is aborted
+    }
+    catch (DatabaseNotImplementedException)
+    {
+        Log.Logger.Error("Database not implemented for the current database mode. Please check your configuration.");
+        Shutdown();
+        break; // Exit the loop if the database is not implemented
     }
     catch (Exception ex)
     {
         failCount++;
-        Serilog.Log.Logger.Error(ex, "Error appeared during bot execution");
+        Log.Logger.Error(ex, "Error appeared during bot execution");
 
         if (failCount >= maxFailCount)
         {
-            Serilog.Log.Logger.Error("Maximum fail count reached. Exiting...");
+            Log.Logger.Error("Maximum fail count reached. Exiting...");
             Shutdown(); // Cancel the shutdown token
             break;
         }
     }
 
-    await Task.Delay(2000);
+    if (failCount != 0)
+    {
+        Log.Logger.Information("Restarting bot in 2 seconds...");
+        await Task.Delay(2000);
+    }
 }
 
 await tcs.Task;

@@ -1,10 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <ProjectReference Include="..\Amiquin.Core\Amiquin.Core.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.6" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Abstractions" Version="9.0.6" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="9.0.6" />
@@ -12,6 +8,10 @@
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="9.0.6" />
     <PackageReference Include="MySql.Data" Version="9.3.0" />
     <PackageReference Include="MySql.EntityFrameworkCore" Version="9.0.3+MySQL9.3.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Amiquin.Core\Amiquin.Core.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

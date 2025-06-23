@@ -3,10 +3,10 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
-namespace Amiquin.Infrastructure.Migrations
+namespace Amiquin.Infrastructure.Migrations.SQLite
 {
     /// <inheritdoc />
-    public partial class BotInit : Migration
+    public partial class Init_SQLite : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)

@@ -14,4 +14,6 @@ public class BotOptions : IOption
 
     public int MessageFetchCount { get; set; } = default!;
     public int MaxTokens { get; set; }
+    public string BotName { get; set; } = default!;
+    public string Version { get; set; } = default!;
 }

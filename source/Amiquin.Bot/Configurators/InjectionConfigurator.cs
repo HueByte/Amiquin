@@ -1,5 +1,6 @@
 using Amiquin.Core;
 using Amiquin.Core.Abstraction;
+using Amiquin.Core.Exceptions;
 using Amiquin.Core.IRepositories;
 using Amiquin.Core.Job;
 using Amiquin.Core.Options;
@@ -26,6 +27,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using OpenAI.Chat;
+using Serilog;
 
 namespace Amiquin.Bot.Configurators;
 
@@ -78,11 +80,55 @@ public class InjectionConfigurator
                  .AddSingleton<IChatSemaphoreManager, ChatSemaphoreManager>()
                  .AddSingleton<IVoiceStateManager, VoiceStateManager>()
                  .AddSingleton<IJobService, JobService>()
-                 .AddAmiquinContext(_configuration)
                  .AddMemoryCache();
+
+        var dbOptions = _configuration.GetSection(DatabaseOptions.Database).Get<DatabaseOptions>();
+        var databaseMode = _configuration.GetValue<string>(Constants.Environment.DatabaseMode)
+            ?? dbOptions?.Mode.ToString() ?? "0";
+
+        var parsedDatabaseMode = GetDatabaseModeValue(databaseMode);
+        if (parsedDatabaseMode.Equals("sqlite", StringComparison.OrdinalIgnoreCase))
+        {
+            _services.AddAmiquinContext(_configuration);
+        }
+        else if (parsedDatabaseMode.Equals("mysql", StringComparison.OrdinalIgnoreCase))
+        {
+            _services.AddAmiquinMySqlContext(_configuration);
+        }
+        else if (parsedDatabaseMode.Equals("postgres", StringComparison.OrdinalIgnoreCase))
+        {
+            Log.Warning("Postgres database mode is selected, but implementation is not yet available.");
+            throw new DatabaseNotImplementedException("Postgres database mode is not yet implemented.");
+
+            // TODO: Implement Postgres context setup
+            // _services.AddAmiquinPostgresContext(_configuration);
+        }
+        else if (parsedDatabaseMode.Equals("mssql", StringComparison.OrdinalIgnoreCase))
+        {
+            Log.Warning("MSSQL database mode is selected, but implementation is not yet available.");
+            throw new DatabaseNotImplementedException("MSSQL database mode is not yet implemented.");
+
+            // TODO: Implement MSSQL context setup
+            // _services.AddAmiquinMssqlContext(_configuration);
+        }
+        else
+        {
+            throw new InvalidOperationException($"Unsupported database mode: {databaseMode}");
+        }
 
         return this;
     }
+
+    private string GetDatabaseModeValue(string? value) => value switch
+    {
+        null or "" => "sqlite",
+        "0" => "sqlite",
+        "1" => "mysql",
+        "2" => "postgres",
+        "3" => "mssql",
+        _ => throw new InvalidOperationException($"Unsupported database mode: {value}")
+    };
+
 
     public InjectionConfigurator AddServices()
     {
@@ -149,6 +195,7 @@ public class InjectionConfigurator
     {
         _services.AddOptions<BotOptions>().Bind(_configuration.GetSection(BotOptions.Bot));
         _services.AddOptions<ExternalOptions>().Bind(_configuration.GetSection(ExternalOptions.External));
+        _services.Configure<DatabaseOptions>(_configuration.GetSection(DatabaseOptions.Database));
 
         return this;
     }

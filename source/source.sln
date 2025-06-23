@@ -9,13 +9,16 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Amiquin.Core", "Amiquin.Cor
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Amiquin.Infrastructure", "Amiquin.Infrastructure\Amiquin.Infrastructure.csproj", "{C0D1075C-3D12-4C1A-BB82-799F6FD3EA4A}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Migrations", "Migrations", "{D4C4D1C2-DE9C-AF20-17FD-0A3EB2BFD436}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Amiquin.Sqlite", "Migrations\Amiquin.Sqlite\Amiquin.Sqlite.csproj", "{4B618BF7-B59A-4FBA-946A-132121DA213C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Amiquin.MySql", "Migrations\Amiquin.MySql\Amiquin.MySql.csproj", "{9797B52C-C7CD-4576-A421-28D120C4A19E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Release|Any CPU = Release|Any CPU
-	EndGlobalSection
-	GlobalSection(SolutionProperties) = preSolution
-		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{29D3CD73-85B5-43AE-BA5E-2C2A4EEA1799}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
@@ -30,5 +33,20 @@ Global
 		{C0D1075C-3D12-4C1A-BB82-799F6FD3EA4A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C0D1075C-3D12-4C1A-BB82-799F6FD3EA4A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C0D1075C-3D12-4C1A-BB82-799F6FD3EA4A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4B618BF7-B59A-4FBA-946A-132121DA213C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4B618BF7-B59A-4FBA-946A-132121DA213C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4B618BF7-B59A-4FBA-946A-132121DA213C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4B618BF7-B59A-4FBA-946A-132121DA213C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9797B52C-C7CD-4576-A421-28D120C4A19E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9797B52C-C7CD-4576-A421-28D120C4A19E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9797B52C-C7CD-4576-A421-28D120C4A19E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9797B52C-C7CD-4576-A421-28D120C4A19E}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{4B618BF7-B59A-4FBA-946A-132121DA213C} = {D4C4D1C2-DE9C-AF20-17FD-0A3EB2BFD436}
+		{9797B52C-C7CD-4576-A421-28D120C4A19E} = {D4C4D1C2-DE9C-AF20-17FD-0A3EB2BFD436}
 	EndGlobalSection
 EndGlobal

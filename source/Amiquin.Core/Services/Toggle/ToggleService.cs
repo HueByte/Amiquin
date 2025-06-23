@@ -59,7 +59,12 @@ public class ToggleService : IToggleService
             }
         }
 
-        _memoryCache.Set(Constants.CacheKeys.GlobalToggles, globalToggles);
+        _memoryCache.Set(Constants.CacheKeys.GlobalToggles, globalToggles,
+            new MemoryCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(1) // Cache for 1 hour
+            });
+
         return globalToggles ?? [];
     }
 
@@ -89,7 +94,13 @@ public class ToggleService : IToggleService
 
         await _toggleRepository.UpdateAsync(toggle);
         await _toggleRepository.SaveChangesAsync();
-        _memoryCache.Set(Constants.CacheKeys.GlobalToggles, globalToggles);
+
+        _memoryCache.Set(Constants.CacheKeys.GlobalToggles, globalToggles,
+            new MemoryCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(1) // Cache for 1 hour
+            });
+
         _logger.LogInformation("Set global toggle {toggleName} to {isEnabled}", toggleName, isEnabled);
     }
 

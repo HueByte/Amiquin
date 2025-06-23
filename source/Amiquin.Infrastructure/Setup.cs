@@ -1,4 +1,6 @@
 using Amiquin.Core;
+using Amiquin.Core.Options;
+using Amiquin.Core.Utilities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,7 +19,7 @@ public static class Setup
     public static IServiceCollection AddAmiquinContext(this IServiceCollection services, IConfiguration configuration)
     {
         var connectionString = configuration.GetValue<string>(Constants.Environment.SQLitePath) ?? $"Data Source={Path.Join(AppContext.BaseDirectory, "data.db")}";
-        var migrationAssembly = typeof(Setup).Assembly.GetName().Name;
+        var migrationAssembly = "Amiquin.Sqlite";
         Log.Information("Using SQLite database at {ConnectionString}", connectionString);
         Log.Information("Using migration assembly {MigrationAssembly}", migrationAssembly);
 
@@ -35,9 +37,10 @@ public static class Setup
     /// <returns>The updated service collection.</returns>
     public static IServiceCollection AddAmiquinMySqlContext(this IServiceCollection services, IConfiguration configuration)
     {
-        var connectionString = configuration.GetValue<string>(Constants.Environment.MySqlConnectionString) ?? "Server=localhost;Database=Amiquin;User=root;Password=;";
-        var migrationAssembly = typeof(Setup).Assembly.GetName().Name;
-        Log.Information("Using MySQL database at {ConnectionString}", connectionString);
+        var dbConfig = configuration.GetSection(DatabaseOptions.Database).Get<DatabaseOptions>();
+        var connectionString = configuration.GetValue<string>(Constants.Environment.DbConnectionString) ?? dbConfig?.ConnectionString ?? "Server=localhost;Database=Amiquin;User=root;Password=;";
+        var migrationAssembly = "Amiquin.MySql";
+        Log.Information("Using MySQL database at {ConnectionString}", StringModifier.Anomify(connectionString));
         Log.Information("Using migration assembly {MigrationAssembly}", migrationAssembly);
 
         services.AddDbContext<AmiquinContext>(options =>

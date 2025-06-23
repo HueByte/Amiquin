@@ -1,4 +1,25 @@
 services:
+  mysql:
+    container_name: mysql
+    image: mysql:latest
+    restart: always
+    env_file:
+      - .env
+    environment:
+      MYSQL_ROOT_PASSWORD: ${AMQ_DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${AMQ_DB_NAME}
+      MYSQL_USER: ${AMQ_DB_USER}
+      MYSQL_PASSWORD: ${AMQ_DB_USER_PASSWORD}
+    ports:
+      - "0.0.0.0:3306:3306"
+    volumes:
+      - amq-db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   amiquinbot:
     container_name: amiquin
     build:
@@ -9,22 +30,11 @@ services:
     ports:
       - "10001:10000" # Adjust ports as needed
     volumes:
-      - amiquin-data:/Amiquin/Data
-
-  mysql:
-    container_name: mysql
-    image: mysql:latest
-    restart: always
-    environment:
-      MYSQL_ROOT_PASSWORD: rootpassword
-      MYSQL_DATABASE: amiquin_db
-      MYSQL_USER: amiquin_user
-      MYSQL_PASSWORD: amiquin_password
-    ports:
-      - "3306:3306"
-    volumes:
-      - mysql-data:/var/lib/mysql
+      - amq-data:/Amiquin/Data
+    depends_on:
+      mysql:
+        condition: service_healthy
 
 volumes:
-  amiquin-data:
-  mysql-data:
+  amq-data:
+  amq-db-data:

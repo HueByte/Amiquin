@@ -17,4 +17,10 @@ public class GeneralUtilities
         int p = (int)Environment.OSVersion.Platform;
         return (p == 4) || (p == 6) || (p == 128);
     }
+
+    public static bool IsDebugMode()
+    {
+        return Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development" ||
+               Environment.GetEnvironmentVariable("AMQ_DEBUG_MODE") == "true";
+    }
 }
