@@ -66,7 +66,7 @@ public class ServerMetaService : IServerMetaService
 
     private async Task EnsureTogglesLoadedAsync(Models.ServerMeta? serverMeta, ulong serverId)
     {
-        if (serverMeta is not null && serverMeta.Toggles?.Count == 0)
+        if (serverMeta is not null && (serverMeta.Toggles?.Count == 0 || serverMeta.Toggles is null))
         {
             serverMeta.Toggles = await _serverMetaRepository.AsQueryable()
                 .Where(x => x.Id == serverId)
@@ -133,22 +133,46 @@ public class ServerMetaService : IServerMetaService
         await semaphore.WaitAsync();
         try
         {
-            var existingMeta = await _serverMetaRepository.GetAsync(serverMeta.Id);
-            if (existingMeta is null)
+            var existingMeta = await _serverMetaRepository.AsQueryable()
+                .Include(x => x.Toggles)
+                .FirstOrDefaultAsync(x => x.Id == serverMeta.Id)
+                ?? throw new Exception($"ServerMeta not found for serverId {serverMeta.Id}");
+
+            existingMeta.ServerName = serverMeta.ServerName;
+            existingMeta.Persona = serverMeta.Persona;
+            existingMeta.LastUpdated = DateTime.UtcNow;
+            existingMeta.IsActive = serverMeta.IsActive;
+
+            // Merge Toggles manually
+            if (serverMeta.Toggles is not null)
             {
-                await _serverMetaRepository.AddAsync(serverMeta);
-            }
-            else
-            {
-                existingMeta.ServerName = serverMeta.ServerName;
-                existingMeta.Persona = serverMeta.Persona;
-                existingMeta.LastUpdated = DateTime.UtcNow;
-                existingMeta.IsActive = serverMeta.IsActive;
-                await _serverMetaRepository.UpdateAsync(existingMeta);
+                foreach (var incomingToggle in serverMeta.Toggles)
+                {
+                    var existingToggle = existingMeta.Toggles?
+                        .FirstOrDefault(x => x.Name == incomingToggle.Name);
+
+                    if (existingToggle is not null)
+                    {
+                        existingToggle.IsEnabled = incomingToggle.IsEnabled;
+                        existingToggle.Description = incomingToggle.Description;
+                    }
+                    else
+                    {
+                        existingMeta.Toggles?.Add(new Models.Toggle
+                        {
+                            Id = Guid.NewGuid().ToString(),
+                            ServerId = serverMeta.Id,
+                            Name = incomingToggle.Name,
+                            IsEnabled = incomingToggle.IsEnabled,
+                            Description = incomingToggle.Description,
+                            CreatedAt = DateTime.UtcNow
+                        });
+                    }
+                }
             }
 
             await _serverMetaRepository.SaveChangesAsync();
-            _memoryCache.Set(GetCacheKey(serverMeta.Id), serverMeta, TimeSpan.FromMinutes(30)); // Update cache
+            _memoryCache.Set(GetCacheKey(serverMeta.Id), existingMeta, TimeSpan.FromMinutes(30));
         }
         finally
         {

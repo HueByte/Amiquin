@@ -21,12 +21,6 @@ public class RequireToggle : PreconditionAttribute
             var toggleService = services.GetRequiredService<IToggleService>();
             var serverId = context.Guild.Id;
 
-            var isGlobalToggleEnabled = await toggleService.IsEnabledAsync(ToggleName);
-            if (!isGlobalToggleEnabled)
-            {
-                return PreconditionResult.FromError("This command is disabled globally.");
-            }
-
             return await toggleService.IsEnabledAsync(serverId, ToggleName)
                 ? PreconditionResult.FromSuccess()
                 : PreconditionResult.FromError("This command is disabled.");

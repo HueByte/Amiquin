@@ -42,30 +42,6 @@ public class DevCommands : InteractionModuleBase<ExtendedShardedInteractionConte
         _toggleService = toggleService;
     }
 
-    [SlashCommand("global-toggles", "List all global toggles")]
-    [Ephemeral]
-    public async Task GlobalTogglesAsync()
-    {
-        var toggles = await _toggleService.GetOrCreateGlobalTogglesAsync();
-        if (toggles.Count == 0)
-        {
-            await ModifyOriginalResponseAsync((msg) => msg.Content = "No global toggles found.");
-            return;
-        }
-
-        var sb = new StringBuilder();
-        foreach (var toggle in toggles)
-        {
-            sb.AppendLine($"**{toggle.Name}**: {(toggle.IsEnabled ? "Enabled" : "Disabled")}");
-            if (!string.IsNullOrEmpty(toggle.Description))
-            {
-                sb.AppendLine($"*{toggle.Description}*");
-            }
-        }
-
-        await ModifyOriginalResponseAsync((msg) => msg.Content = sb.ToString());
-    }
-
     [SlashCommand("toggle-feature", "Toggle a feature")]
     [Ephemeral]
     public async Task ToggleAsync(string toggleName, bool isEnabled, string? description = null)

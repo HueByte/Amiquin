@@ -1,5 +1,5 @@
-using System.ComponentModel.DataAnnotations.Schema;
 using Amiquin.Core.Abstraction;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Amiquin.Core.Models;
 
@@ -11,13 +11,11 @@ public enum ToggleScope
 
 public class Toggle : DbModel<string>
 {
-    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public override string Id { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
     public bool IsEnabled { get; set; }
     public string Description { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
-    public ToggleScope Scope { get; set; }
 
     [ForeignKey("ServerId")]
     public ulong ServerId { get; set; }

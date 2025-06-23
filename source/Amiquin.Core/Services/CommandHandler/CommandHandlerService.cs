@@ -1,4 +1,3 @@
-using System.Reflection;
 using Amiquin.Core.DiscordExtensions;
 using Amiquin.Core.IRepositories;
 using Amiquin.Core.Services.BotContext;
@@ -10,6 +9,7 @@ using Discord.WebSocket;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using System.Reflection;
 
 namespace Amiquin.Core.Services.CommandHandler;
 

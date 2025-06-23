@@ -1,4 +1,3 @@
-using System.Text;
 using Amiquin.Core.IRepositories;
 using Amiquin.Core.Models;
 using Amiquin.Core.Services.BotSession;
@@ -8,6 +7,7 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using System.Text;
 
 namespace Amiquin.Core.Services.StatisticsCollector;
 

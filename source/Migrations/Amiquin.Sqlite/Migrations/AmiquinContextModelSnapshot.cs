@@ -209,7 +209,6 @@ namespace Amiquin.Sqlite.Migrations
             modelBuilder.Entity("Amiquin.Core.Models.Toggle", b =>
                 {
                     b.Property<string>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime>("CreatedAt")
@@ -225,9 +224,6 @@ namespace Amiquin.Sqlite.Migrations
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("TEXT");
-
-                    b.Property<int>("Scope")
-                        .HasColumnType("INTEGER");
 
                     b.Property<ulong>("ServerId")
                         .HasColumnType("INTEGER");

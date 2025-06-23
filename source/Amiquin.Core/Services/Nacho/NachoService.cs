@@ -92,7 +92,7 @@ public class NachoService : INachoService
             .Where(x => x.ServerId == serverId)
             .ToListAsync();
 
-        if (nachos.Any())
+        if (nachos.Count != 0)
         {
             await _nachoRepository.RemoveRangeAsync(nachos);
             await _nachoRepository.SaveChangesAsync();

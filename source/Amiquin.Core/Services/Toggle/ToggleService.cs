@@ -1,6 +1,5 @@
 using Amiquin.Core.IRepositories;
 using Amiquin.Core.Services.ServerMeta;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 
@@ -19,89 +18,6 @@ public class ToggleService : IToggleService
         _serverMetaService = serverMetaService;
         _toggleRepository = toggleRepository;
         _memoryCache = memoryCache;
-    }
-
-    public async Task<List<Models.Toggle>> GetOrCreateGlobalTogglesAsync()
-    {
-        var expectedToggles = Constants.ToggleNames.Toggles;
-        if (_memoryCache.TryGetValue(Constants.CacheKeys.GlobalToggles, out List<Models.Toggle>? cachedToggles)
-            && cachedToggles is not null)
-        {
-            _logger.LogInformation("Returning cached global toggles");
-            return cachedToggles;
-        }
-
-        var globalToggles = await _toggleRepository.AsQueryable()
-            .Where(x => x.Scope == Models.ToggleScope.Global)
-            .ToListAsync();
-
-        if (globalToggles is not null && globalToggles.Any())
-        {
-            var missingToggles = expectedToggles.Except(globalToggles.Select(t => t.Name)).ToList();
-            if (missingToggles.Any())
-            {
-                var missingTogglesModels = missingToggles.Select(toggleName => new Models.Toggle
-                {
-                    Name = toggleName,
-                    IsEnabled = true,
-                    Description = string.Empty,
-                    Scope = Models.ToggleScope.Global,
-                    CreatedAt = DateTime.UtcNow
-                }).ToList();
-
-                await _toggleRepository.AddRangeAsync(missingTogglesModels);
-
-                _logger.LogInformation("Added missing global toggles: {toggles}", string.Join(", ", missingToggles));
-
-                await _toggleRepository.SaveChangesAsync();
-
-                globalToggles.AddRange(missingTogglesModels);
-            }
-        }
-
-        _memoryCache.Set(Constants.CacheKeys.GlobalToggles, globalToggles,
-            new MemoryCacheEntryOptions
-            {
-                AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(1) // Cache for 1 hour
-            });
-
-        return globalToggles ?? [];
-    }
-
-    public async Task SetGlobalToggleAsync(string toggleName, bool isEnabled, string? description = null)
-    {
-        var globalToggles = await GetOrCreateGlobalTogglesAsync();
-        var toggle = globalToggles.FirstOrDefault(x => x.Name == toggleName);
-
-        if (toggle is not null)
-        {
-            toggle.IsEnabled = isEnabled;
-            toggle.Description = description ?? toggle.Description;
-        }
-        else
-        {
-            toggle = new Models.Toggle
-            {
-                Name = toggleName,
-                IsEnabled = isEnabled,
-                Description = description ?? string.Empty,
-                Scope = Models.ToggleScope.Global,
-                CreatedAt = DateTime.UtcNow
-            };
-
-            globalToggles.Add(toggle);
-        }
-
-        await _toggleRepository.UpdateAsync(toggle);
-        await _toggleRepository.SaveChangesAsync();
-
-        _memoryCache.Set(Constants.CacheKeys.GlobalToggles, globalToggles,
-            new MemoryCacheEntryOptions
-            {
-                AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(1) // Cache for 1 hour
-            });
-
-        _logger.LogInformation("Set global toggle {toggleName} to {isEnabled}", toggleName, isEnabled);
     }
 
     public async Task CreateServerTogglesIfNotExistsAsync(ulong serverId)
@@ -129,25 +45,6 @@ public class ToggleService : IToggleService
 
         var serverToggles = serverMeta.Toggles ?? [];
         await SetServerTogglesBulkAsync(serverId, expectedToggles.ToDictionary(x => x, x => (true, (string?)string.Empty)));
-    }
-
-    public async Task<bool> IsEnabledAsync(string toggleName)
-    {
-        var globalToggles = await GetOrCreateGlobalTogglesAsync();
-        if (globalToggles is null || !globalToggles.Any())
-        {
-            _logger.LogWarning("No global toggles found");
-            return true; // Default to enabled if no toggles are found
-        }
-
-        var toggle = globalToggles.FirstOrDefault(x => x.Name == toggleName);
-        if (toggle is not null)
-        {
-            return toggle.IsEnabled;
-        }
-
-        _logger.LogWarning("Toggle {toggleName} not found in global toggles", toggleName);
-        return true; // Default to enabled if toggle is not found
     }
 
     /// <summary>
@@ -182,7 +79,7 @@ public class ToggleService : IToggleService
 
     public async Task SetServerToggleAsync(ulong serverId, string toggleName, bool isEnabled, string? description = null)
     {
-        var serverMeta = await _serverMetaService.GetServerMetaAsync(serverId);
+        var serverMeta = await _serverMetaService.GetServerMetaAsync(serverId, true);
         if (serverMeta is null || !serverMeta.IsActive)
         {
             _logger.LogWarning("Server meta not found or inactive for serverId {serverId}", serverId);
@@ -192,6 +89,7 @@ public class ToggleService : IToggleService
         var toggle = serverMeta.Toggles?.FirstOrDefault(x => x.Name == toggleName);
         if (toggle is not null)
         {
+            toggle.ServerId = serverId;
             toggle.IsEnabled = isEnabled;
             toggle.Description = description ?? toggle.Description;
         }
@@ -199,11 +97,11 @@ public class ToggleService : IToggleService
         {
             toggle = new Models.Toggle
             {
+                Id = Guid.NewGuid().ToString(),
                 ServerId = serverId,
                 Name = toggleName,
                 IsEnabled = isEnabled,
                 Description = description ?? string.Empty,
-                Scope = Models.ToggleScope.Server,
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -237,10 +135,10 @@ public class ToggleService : IToggleService
             {
                 toggle = new Models.Toggle
                 {
+                    Id = Guid.NewGuid().ToString(),
                     Name = toggleName,
                     IsEnabled = isEnabled,
                     Description = description ?? string.Empty,
-                    Scope = Models.ToggleScope.Server
                 };
 
                 serverMeta.Toggles.Add(toggle);
@@ -277,6 +175,7 @@ public class ToggleService : IToggleService
             var toggle = serverMeta.Toggles?.FirstOrDefault(x => x.Name == toggleName);
             if (toggle is not null)
             {
+                toggle.ServerId = serverMeta.Id;
                 toggle.IsEnabled = isEnabled;
                 toggle.Description = description ?? toggle.Description;
             }
@@ -284,13 +183,14 @@ public class ToggleService : IToggleService
             {
                 toggle = new Models.Toggle
                 {
+                    Id = Guid.NewGuid().ToString(),
+                    ServerId = serverMeta.Id,
                     Name = toggleName,
                     IsEnabled = isEnabled,
                     Description = description ?? string.Empty,
-                    Scope = Models.ToggleScope.Global // Assuming global scope for all servers
                 };
 
-                serverMeta.Toggles ??= new List<Models.Toggle>();
+                serverMeta.Toggles ??= [];
                 serverMeta.Toggles.Add(toggle);
             }
 
