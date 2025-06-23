@@ -107,8 +107,7 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
         sb.AppendLine("```ini");
         foreach (var toggle in toggles)
         {
-            string finalToggleName = string.Join("::", toggle.Name.Split("::").Skip(1));
-            sb.AppendLine($"{finalToggleName} = {toggle.IsEnabled}");
+            sb.AppendLine($"{toggle.Name} = {toggle.IsEnabled}");
         }
         sb.AppendLine("```");
 
