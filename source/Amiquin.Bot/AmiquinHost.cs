@@ -1,3 +1,4 @@
+using System.Reflection;
 using Amiquin.Core;
 using Amiquin.Core.Job;
 using Amiquin.Core.Options;
@@ -141,6 +142,11 @@ public class AmiquinHost : IHostedService
         Console.Writer.WriteList("Ephemeral Commands", ephemeralCommands);
         Console.Writer.WriteDictionaryData("Commands", commands.ToDictionary(x => $"/{(string.IsNullOrEmpty(x.Module.SlashGroupName) ? "" : x.Module.SlashGroupName + " ")}{x.Name}", x => x.Description));
 
+        // Get version from assembly
+        var assemblyVersion = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "Unknown";
+        var configVersion = _configuration.GetValue<string>(Constants.Environment.BotVersion);
+        var displayVersion = !string.IsNullOrEmpty(configVersion) ? configVersion : assemblyVersion;
+
         Dictionary<string, string> data = new()
         {
             { "ID", _client.CurrentUser.Id.ToString() },
@@ -150,7 +156,7 @@ public class AmiquinHost : IHostedService
             { "Global Name", _client.CurrentUser.GlobalName},
             { "Email", _client.CurrentUser.Email},
             { "Created Date", _client.CurrentUser.CreatedAt.ToString("dd-MM-yyyy")},
-            { "Version", _configuration.GetValue<string>(Constants.Environment.BotVersion) ?? "1.0.0" },
+            { "Version", displayVersion },
             { "Shards", _client.Shards.Count.ToString() },
             { "Guilds", _client.Guilds.Count.ToString() },
             { "Users", _client.Guilds.Sum(x => x.MemberCount).ToString() },

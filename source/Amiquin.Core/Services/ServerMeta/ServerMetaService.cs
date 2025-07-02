@@ -1,6 +1,5 @@
 using Amiquin.Core.DiscordExtensions;
 using Amiquin.Core.IRepositories;
-using Amiquin.Core.Services.Chat.Toggle;
 using Amiquin.Core.Utilities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
@@ -14,17 +13,15 @@ public class ServerMetaService : IServerMetaService
     private readonly ILogger<IServerMetaService> _logger;
     private readonly IMemoryCache _memoryCache;
     private readonly IServerMetaRepository _serverMetaRepository;
-    private readonly IToggleService _toggleService;
 
     // Semaphore dictionary to manage access to ServerMeta objects
     private readonly ConcurrentDictionary<ulong, SemaphoreSlim> _serverMetaSemaphores = new();
 
-    public ServerMetaService(ILogger<IServerMetaService> logger, IMemoryCache memoryCache, IServerMetaRepository serverMetaRepository, IToggleService toggleService)
+    public ServerMetaService(ILogger<IServerMetaService> logger, IMemoryCache memoryCache, IServerMetaRepository serverMetaRepository)
     {
         _logger = logger;
         _memoryCache = memoryCache;
         _serverMetaRepository = serverMetaRepository;
-        _toggleService = toggleService;
     }
 
     public async Task<Models.ServerMeta?> GetServerMetaAsync(ulong serverId)
@@ -87,7 +84,7 @@ public class ServerMetaService : IServerMetaService
         if (serverMeta.Toggles is null)
         {
             _logger.LogInformation("Toggles are null for serverId {serverId}, seeding toggles", serverId);
-            await _toggleService.CreateServerTogglesIfNotExistsAsync(serverMeta.Id);
+            await CreateDefaultTogglesForServerAsync(serverMeta.Id);
 
             serverMeta.Toggles = await _serverMetaRepository.AsQueryable()
                 .Where(x => x.Id == serverId)
@@ -284,5 +281,46 @@ public class ServerMetaService : IServerMetaService
     private string GetServerMetaCacheKey(ulong serverId)
     {
         return StringModifier.CreateCacheKey(Constants.CacheKeys.ServerMeta, serverId.ToString());
+    }
+
+    private async Task CreateDefaultTogglesForServerAsync(ulong serverId)
+    {
+        var existingServerMeta = await _serverMetaRepository.AsQueryable()
+            .Include(x => x.Toggles)
+            .FirstOrDefaultAsync(x => x.Id == serverId);
+
+        if (existingServerMeta is null)
+        {
+            _logger.LogWarning("ServerMeta not found for serverId {serverId} when creating default toggles", serverId);
+            return;
+        }
+
+        var expectedToggles = Constants.ToggleNames.Toggles;
+        existingServerMeta.Toggles ??= new List<Models.Toggle>();
+
+        var existingToggleNames = existingServerMeta.Toggles.Select(t => t.Name).ToHashSet();
+        var missingToggles = expectedToggles.Where(toggleName => !existingToggleNames.Contains(toggleName)).ToList();
+
+        foreach (var toggleName in missingToggles)
+        {
+            var toggle = new Models.Toggle
+            {
+                Id = Guid.NewGuid().ToString(),
+                ServerId = serverId,
+                Name = toggleName,
+                IsEnabled = true,
+                Description = string.Empty,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            existingServerMeta.Toggles.Add(toggle);
+        }
+
+        if (missingToggles.Any())
+        {
+            existingServerMeta.LastUpdated = DateTime.UtcNow;
+            await _serverMetaRepository.SaveChangesAsync();
+            _logger.LogInformation("Created {count} default toggles for serverId {serverId}", missingToggles.Count, serverId);
+        }
     }
 }

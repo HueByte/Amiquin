@@ -15,16 +15,12 @@ public class EventHandlerService : IEventHandlerService
     private readonly ILogger _logger;
     private readonly ICommandHandlerService _commandHandlerService;
     private readonly IServiceScopeFactory _serviceScopeFactory;
-    private readonly IToggleService _toggleService;
-    private readonly IServerMetaService _serverMetaService;
 
-    public EventHandlerService(ILogger<EventHandlerService> logger, ICommandHandlerService commandHandlerService, IServiceScopeFactory serviceScopeFactory, IToggleService toggleService, IServerMetaService serverMetaService)
+    public EventHandlerService(ILogger<EventHandlerService> logger, ICommandHandlerService commandHandlerService, IServiceScopeFactory serviceScopeFactory)
     {
         _logger = logger;
         _commandHandlerService = commandHandlerService;
         _serviceScopeFactory = serviceScopeFactory;
-        _toggleService = toggleService;
-        _serverMetaService = serverMetaService;
     }
 
     public Task OnShardReadyAsync(DiscordSocketClient shard)
@@ -79,11 +75,12 @@ public class EventHandlerService : IEventHandlerService
 
         await using var scope = _serviceScopeFactory.CreateAsyncScope();
         var serverInteractionService = scope.ServiceProvider.GetRequiredService<IServerInteractionService>();
+        var toggleService = scope.ServiceProvider.GetRequiredService<IToggleService>();
         var serverMeta = scope.ServiceProvider.GetRequiredService<IServerMetaService>();
 
         await serverMeta.CreateServerMetaAsync(guild.Id, guild.Name);
 
-        if (await _toggleService.IsEnabledAsync(guild.Id, Constants.ToggleNames.EnableJoinMessage))
+        if (await toggleService.IsEnabledAsync(guild.Id, Constants.ToggleNames.EnableJoinMessage))
         {
             await serverInteractionService.SendJoinMessageAsync(guild);
         }

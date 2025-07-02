@@ -1,3 +1,4 @@
+using System.Reflection;
 using Amiquin.Bot.Preconditions;
 using Amiquin.Core;
 using Amiquin.Core.DiscordExtensions;
@@ -59,5 +60,31 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
                 await Context.Channel.SendMessageAsync(embed: botEmbed);
             }
         }
+    }
+
+    [SlashCommand("info", "Display bot information including version")]
+    public async Task InfoAsync()
+    {
+        await DeferAsync();
+
+        // Get version from assembly
+        var assemblyVersion = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "Unknown";
+
+        var embed = new EmbedBuilder()
+            .WithTitle("☁️ Amiquin Bot Information")
+            .WithDescription("A modular and extensible Discord bot")
+            .WithColor(Color.Blue)
+            .WithThumbnailUrl(Context.Client.CurrentUser.GetDisplayAvatarUrl())
+            .AddField("Version", assemblyVersion, true)
+            .AddField("Bot ID", Context.Client.CurrentUser.Id.ToString(), true)
+            .AddField("Created", Context.Client.CurrentUser.CreatedAt.ToString("MMM dd, yyyy"), true)
+            .AddField("Servers", Context.Client.Guilds.Count.ToString(), true)
+            .AddField("Users", Context.Client.Guilds.Sum(g => g.MemberCount).ToString(), true)
+            .AddField("Shards", Context.Client.Shards.Count.ToString(), true)
+            .WithFooter($"Requested by {Context.User.GlobalName ?? Context.User.Username}")
+            .WithTimestamp(DateTimeOffset.Now)
+            .Build();
+
+        await ModifyOriginalResponseAsync(msg => msg.Embed = embed);
     }
 }
