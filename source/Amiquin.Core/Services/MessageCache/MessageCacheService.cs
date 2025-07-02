@@ -118,9 +118,9 @@ public class MessageCacheService : IMessageCacheService
         {
             return message;
         }
-        else if (File.Exists(Path.Join(Constants.Paths.MessageBasePath, $"{key}.md")))
+        else if (File.Exists(Path.Join(Constants.Paths.Assets, $"{key}.md")))
         {
-            message = await File.ReadAllTextAsync(Path.Join(Constants.Paths.MessageBasePath, $"{key}.md"));
+            message = await File.ReadAllTextAsync(Path.Join(Constants.Paths.Assets, $"{key}.md"));
             _memoryCache.Set(key, message, TimeSpan.FromMinutes(5));
             return message;
         }

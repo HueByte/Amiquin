@@ -2,7 +2,6 @@ using Amiquin.Bot.Preconditions;
 using Amiquin.Core;
 using Amiquin.Core.Attributes;
 using Amiquin.Core.DiscordExtensions;
-using Amiquin.Core.Models;
 using Amiquin.Core.Services.Chat;
 using Amiquin.Core.Services.Chat.Toggle;
 using Amiquin.Core.Services.MessageCache;
@@ -12,7 +11,6 @@ using Amiquin.Core.Utilities;
 using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
-using System.Text;
 using System.Text.Json;
 
 namespace Amiquin.Bot.Commands;
@@ -83,25 +81,9 @@ Streams: {voiceState.AudioClient?.GetStreams().ToDictionary(x => x.Key, x => x.V
     [SlashCommand("persona", "Get persona message")]
     public async Task PersonaAsync()
     {
-        var personaCoreMessage = await _messageCacheService.GetPersonaCoreMessageAsync();
         var fullPersonaMessage = await _personaService.GetPersonaAsync(Context.Guild.Id);
 
         List<Embed> chunks = new();
-
-        if (personaCoreMessage?.Length > 2048)
-        {
-            chunks.AddRange(ChunkMessage(personaCoreMessage, "Core Persona"));
-        }
-        else
-        {
-            chunks.Add(new EmbedBuilder()
-                .WithTitle("Core Persona")
-                .WithThumbnailUrl(Context.Client.CurrentUser.GetAvatarUrl())
-                .WithColor(Color.DarkTeal)
-                .WithDescription(personaCoreMessage)
-                .Build());
-        }
-
         if (fullPersonaMessage?.Length > 2048)
         {
             chunks.AddRange(ChunkMessage(fullPersonaMessage, "Computed Persona"));

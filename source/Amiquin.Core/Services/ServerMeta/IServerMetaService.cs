@@ -10,4 +10,5 @@ public interface IServerMetaService
     Task DeleteServerMetaAsync(ulong serverId);
     Task<List<Models.ServerMeta>> GetAllServerMetasAsync();
     Task UpdateServerMetaAsync(Models.ServerMeta serverMeta);
+    Task<Models.ServerMeta> CreateServerMetaAsync(ulong serverId, string serverName);
 }

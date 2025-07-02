@@ -39,7 +39,6 @@ public class ToggleService : IToggleService
                 _logger.LogInformation("Added missing toggles for serverId {serverId}", serverId);
             }
 
-            _logger.LogInformation("Server toggles already exist for serverId {serverId}", serverId);
             return;
         }
 

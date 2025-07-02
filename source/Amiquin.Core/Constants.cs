@@ -10,7 +10,6 @@ public class Constants
             public const string EnableNews = "EnableNews";
         }
 
-        public const string SystemTogglePrefix = "System::";
         public const string EnableTTS = "EnableTTS";
         public const string EnableJoinMessage = "EnableJoinMessage";
         public const string EnableChat = "EnableChat";
@@ -40,8 +39,10 @@ public class Constants
         public const string MessageFetchCount = "AMQ_MESSAGE_FETCH_COUNT";
         #endregion
 
+        #region Bot Metadata 
         public const string BotName = "AMQ_BOT_NAME";
         public const string BotVersion = "AMQ_BOT_VERSION";
+        #endregion
 
         #region Database Environment Variables
         public const string DatabaseMode = "AMQ_DATABASE_MODE";
@@ -78,14 +79,16 @@ public class Constants
         #endregion
     }
 
-    public class BotMetadata
+    public class PersonaKeywordsCache
     {
         public const string Mood = "[$Mood$]";
+        public const string Name = "[$Name$]";
+        public const string Version = "[$Version$]";
     }
 
     public class Paths
     {
-        public static string MessageBasePath = Path.Join(AppContext.BaseDirectory, "Messages");
+        public static string Assets = Path.Join(AppContext.BaseDirectory, "Messages");
         public static string TTSBasePath = Path.Join(AppContext.BaseDirectory, "TTS");
         public static string TTSBaseOutputPath = Path.Join(TTSBasePath, "output");
     }

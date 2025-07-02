@@ -131,7 +131,7 @@ public class AmiquinHost : IHostedService
         {
             { "TTSBasePath", Constants.Paths.TTSBasePath },
             { "TTSBaseOutputPath", Constants.Paths.TTSBaseOutputPath },
-            { "MessageBasePath", Constants.Paths.MessageBasePath },
+            { "MessageBasePath", Constants.Paths.Assets },
         };
         Console.Writer.WriteDictionaryData("Calculated Paths", calculatedPaths);
 

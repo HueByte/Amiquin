@@ -1,4 +1,3 @@
-using System.Text;
 using Amiquin.Core.Services.ApiClients;
 using Amiquin.Core.Services.BotContext;
 using Amiquin.Core.Services.Chat;
@@ -6,7 +5,9 @@ using Amiquin.Core.Services.MessageCache;
 using Amiquin.Core.Services.ServerMeta;
 using Amiquin.Core.Utilities;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using System.Text;
 
 namespace Amiquin.Core.Services.Persona;
 
@@ -20,8 +21,9 @@ public class PersonaService : IPersonaService
     private readonly IChatSemaphoreManager _chatSemaphoreManager;
     private readonly IServerMetaService _serverMetaService;
     private readonly BotContextAccessor _botContextAccessor;
+    private readonly IConfiguration _configuration;
 
-    public PersonaService(ILogger<PersonaService> logger, IMessageCacheService messageCacheService, IChatCoreService chatService, INewsApiClient newsApiClient, IMemoryCache memoryCache, IChatSemaphoreManager chatSemaphoreManager, IServerMetaService serverMetaService, BotContextAccessor botContextAccessor)
+    public PersonaService(ILogger<PersonaService> logger, IMessageCacheService messageCacheService, IChatCoreService chatService, INewsApiClient newsApiClient, IMemoryCache memoryCache, IChatSemaphoreManager chatSemaphoreManager, IServerMetaService serverMetaService, BotContextAccessor botContextAccessor, IConfiguration configuration)
     {
         _logger = logger;
         _messageCacheService = messageCacheService;
@@ -31,6 +33,7 @@ public class PersonaService : IPersonaService
         _chatSemaphoreManager = chatSemaphoreManager;
         _serverMetaService = serverMetaService;
         _botContextAccessor = botContextAccessor;
+        _configuration = configuration;
     }
 
     public async Task<string> GetPersonaAsync(ulong serverId)
@@ -78,12 +81,11 @@ public class PersonaService : IPersonaService
         personaMessage = (await _serverMetaService.GetServerMetaAsync(serverId))?.Persona;
         if (string.IsNullOrEmpty(personaMessage))
         {
-            var botName = _botContextAccessor.BotName;
-            personaMessage = $"I'm {botName}. Your AI assistant. {Constants.BotMetadata.Mood}";
+            personaMessage = $"You are {Constants.PersonaKeywordsCache.Name}. The AI assistant for discord.\n{Constants.PersonaKeywordsCache.Mood}";
         }
 
         var computedMood = await GetComputedMoodAsync();
-        personaMessage = personaMessage.Replace(Constants.BotMetadata.Mood, computedMood);
+        personaMessage = personaMessage.Replace(Constants.PersonaKeywordsCache.Mood, computedMood);
 
         _memoryCache.Set(computedPersonaCacheKey, personaMessage, TimeSpan.FromDays(1));
         _logger.LogInformation("Computed persona message: {personaMessage}", personaMessage);
@@ -94,7 +96,6 @@ public class PersonaService : IPersonaService
     private async Task<string> GetComputedMoodAsync()
     {
         StringBuilder sb = new();
-
         try
         {
             sb.AppendLine(await GetInfoFromNewsAsync());
@@ -110,7 +111,6 @@ public class PersonaService : IPersonaService
     private async Task<string> GetInfoFromNewsAsync()
     {
         StringBuilder sb = new();
-
         try
         {
             var news = await _newsApiClient.GetNewsAsync();
@@ -120,7 +120,7 @@ public class PersonaService : IPersonaService
                 return "I couldn't find any news at the moment.";
             }
 
-            sb.AppendLine("Amiquin just received some juicy news and is bursting with snarky curiosity. Express Amiquin’s thoughts in the third person—never say “I,” only “Amiquin.” Keep the playful, sarcastic edge, but don’t let it overshadow the message. Reflect how Amiquin feels about the latest updates and respond accordingly.");
+            sb.AppendLine($"{_botContextAccessor.BotName} just received some juicy news and is bursting with snarky curiosity. Express {_botContextAccessor.BotName}’s thoughts in the third person—never say “I,” only “Amiquin.” Keep the playful, sarcastic edge, but don’t let it overshadow the message. Reflect how {_botContextAccessor.BotName} feels about the latest updates and respond accordingly.");
             foreach (var newsObj in news.Data.NewsList)
             {
                 if (newsObj.NewsObj is null || string.IsNullOrEmpty(newsObj.NewsObj.Content))
@@ -143,5 +143,16 @@ public class PersonaService : IPersonaService
             _logger.LogError(ex, "Error while computing mood in GetInfoFromNewsAsync.");
             return "I'm having trouble processing the news right now.";
         }
+    }
+
+    private string ReplacePersonaKeywords(string message, string mood)
+    {
+        string name = _configuration.GetValue<string>(Constants.Environment.BotName) ?? "Amiquin";
+        string version = _configuration.GetValue<string>(Constants.Environment.BotVersion) ?? "1.0.0";
+
+        return message
+            .Replace(Constants.PersonaKeywordsCache.Mood, mood)
+            .Replace(Constants.PersonaKeywordsCache.Name, name)
+            .Replace(Constants.PersonaKeywordsCache.Version, version);
     }
 }

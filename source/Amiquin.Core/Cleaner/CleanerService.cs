@@ -1,10 +1,9 @@
-using System.Text;
-using Amiquin.Core.Abstraction;
 using Amiquin.Core.Services.Chat.Toggle;
 using Amiquin.Core.Services.MessageCache;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using System.Text;
 
 namespace Amiquin.Core.Cleaner;
 

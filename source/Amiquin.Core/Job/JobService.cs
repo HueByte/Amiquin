@@ -1,9 +1,8 @@
-using System.Collections.Concurrent;
-using System.Threading.Tasks;
 using Amiquin.Core.Abstraction;
 using Amiquin.Core.Job.Models;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using System.Collections.Concurrent;
 
 namespace Amiquin.Core.Job;
 

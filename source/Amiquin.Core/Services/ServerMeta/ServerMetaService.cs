@@ -1,5 +1,6 @@
 using Amiquin.Core.DiscordExtensions;
 using Amiquin.Core.IRepositories;
+using Amiquin.Core.Services.Chat.Toggle;
 using Amiquin.Core.Utilities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
@@ -13,15 +14,17 @@ public class ServerMetaService : IServerMetaService
     private readonly ILogger<IServerMetaService> _logger;
     private readonly IMemoryCache _memoryCache;
     private readonly IServerMetaRepository _serverMetaRepository;
+    private readonly IToggleService _toggleService;
 
     // Semaphore dictionary to manage access to ServerMeta objects
     private readonly ConcurrentDictionary<ulong, SemaphoreSlim> _serverMetaSemaphores = new();
 
-    public ServerMetaService(ILogger<IServerMetaService> logger, IMemoryCache memoryCache, IServerMetaRepository serverMetaRepository)
+    public ServerMetaService(ILogger<IServerMetaService> logger, IMemoryCache memoryCache, IServerMetaRepository serverMetaRepository, IToggleService toggleService)
     {
         _logger = logger;
         _memoryCache = memoryCache;
         _serverMetaRepository = serverMetaRepository;
+        _toggleService = toggleService;
     }
 
     public async Task<Models.ServerMeta?> GetServerMetaAsync(ulong serverId)
@@ -43,7 +46,7 @@ public class ServerMetaService : IServerMetaService
 
     private async Task<Models.ServerMeta?> GetServerMetaInternalAsync(ulong serverId)
     {
-        var cacheKey = GetCacheKey(serverId);
+        var cacheKey = GetServerMetaCacheKey(serverId);
         if (_memoryCache.TryGetValue(cacheKey, out Models.ServerMeta? serverMeta) && serverMeta is not null)
         {
             return serverMeta;
@@ -66,11 +69,28 @@ public class ServerMetaService : IServerMetaService
 
     private async Task EnsureTogglesLoadedAsync(Models.ServerMeta? serverMeta, ulong serverId)
     {
-        if (serverMeta is not null && (serverMeta.Toggles?.Count == 0 || serverMeta.Toggles is null))
+        if (serverMeta is null)
         {
+            _logger.LogWarning("ServerMeta is null for serverId {serverId}", serverId);
+            return;
+        }
+
+        if (serverMeta.Toggles is null || serverMeta.Toggles.Count == 0)
+        {
+            _logger.LogInformation("Toggles not loaded for serverId {serverId}, loading from repository", serverId);
             serverMeta.Toggles = await _serverMetaRepository.AsQueryable()
                 .Where(x => x.Id == serverId)
-                .Where(x => x.Toggles != null)
+                .SelectMany(x => x.Toggles!)
+                .ToListAsync();
+        }
+
+        if (serverMeta.Toggles is null)
+        {
+            _logger.LogInformation("Toggles are null for serverId {serverId}, seeding toggles", serverId);
+            await _toggleService.CreateServerTogglesIfNotExistsAsync(serverMeta.Id);
+
+            serverMeta.Toggles = await _serverMetaRepository.AsQueryable()
+                .Where(x => x.Id == serverId)
                 .SelectMany(x => x.Toggles!)
                 .ToListAsync();
         }
@@ -84,7 +104,7 @@ public class ServerMetaService : IServerMetaService
             throw new ArgumentException("ServerId cannot be zero.");
         }
 
-        var cacheKey = GetCacheKey(serverId);
+        var cacheKey = GetServerMetaCacheKey(serverId);
         if (_memoryCache.TryGetValue(cacheKey, out Models.ServerMeta? serverMeta) && serverMeta is not null)
         {
             return serverMeta;
@@ -114,6 +134,58 @@ public class ServerMetaService : IServerMetaService
             await _serverMetaRepository.AddAsync(serverMeta);
             await _serverMetaRepository.SaveChangesAsync();
         }
+
+        _memoryCache.Set(cacheKey, serverMeta, TimeSpan.FromMinutes(30)); // Cache for 30 minutes
+        return serverMeta;
+    }
+
+    public async Task<Models.ServerMeta> CreateServerMetaAsync(ulong serverId, string serverName)
+    {
+        if (serverId == 0)
+        {
+            throw new ArgumentException("ServerId cannot be zero.");
+        }
+
+        var cacheKey = GetServerMetaCacheKey(serverId);
+        if (_memoryCache.TryGetValue(cacheKey, out Models.ServerMeta? existingMeta) && existingMeta is not null)
+        {
+            return existingMeta;
+        }
+
+        var existingServerMeta = await _serverMetaRepository.AsQueryable()
+            .FirstOrDefaultAsync(x => x.Id == serverId);
+
+        if (existingServerMeta is not null)
+        {
+            _logger.LogWarning("ServerMeta already exists for serverId {serverId} - {serverName}", serverId, serverName);
+            existingServerMeta.ServerName = serverName;
+            existingServerMeta.LastUpdated = DateTime.UtcNow;
+            existingServerMeta.IsActive = true;
+
+            await UpdateServerMetaAsync(existingServerMeta);
+            _memoryCache.Set(cacheKey, existingServerMeta, TimeSpan.FromMinutes(30));
+
+            return existingServerMeta;
+        }
+
+        var serverMeta = new Models.ServerMeta
+        {
+            Id = serverId,
+            CreatedAt = DateTime.UtcNow,
+            LastUpdated = DateTime.UtcNow,
+            IsActive = true,
+            ServerName = serverName,
+            Persona = string.Empty,
+            Toggles = [],
+            Messages = [],
+            CommandLogs = [],
+            NachoPacks = []
+        };
+
+        _logger.LogInformation("Creating new ServerMeta for serverId {serverId}", serverId);
+
+        await _serverMetaRepository.AddAsync(serverMeta);
+        await _serverMetaRepository.SaveChangesAsync();
 
         _memoryCache.Set(cacheKey, serverMeta, TimeSpan.FromMinutes(30)); // Cache for 30 minutes
         return serverMeta;
@@ -172,7 +244,7 @@ public class ServerMetaService : IServerMetaService
             }
 
             await _serverMetaRepository.SaveChangesAsync();
-            _memoryCache.Set(GetCacheKey(serverMeta.Id), meta, TimeSpan.FromMinutes(30));
+            _memoryCache.Set(GetServerMetaCacheKey(serverMeta.Id), meta, TimeSpan.FromMinutes(30));
             _memoryCache.Remove(StringModifier.CreateCacheKey(Constants.CacheKeys.ComputedPersonaMessageKey, serverMeta.Id.ToString()));
         }
         finally
@@ -194,7 +266,7 @@ public class ServerMetaService : IServerMetaService
 
             await _serverMetaRepository.RemoveAsync(serverMeta);
             await _serverMetaRepository.SaveChangesAsync();
-            _memoryCache.Remove(GetCacheKey(serverId)); // Remove from cache
+            _memoryCache.Remove(GetServerMetaCacheKey(serverId)); // Remove from cache
         }
         finally
         {
@@ -209,7 +281,7 @@ public class ServerMetaService : IServerMetaService
         return await _serverMetaRepository.AsQueryable().ToListAsync();
     }
 
-    private string GetCacheKey(ulong serverId)
+    private string GetServerMetaCacheKey(ulong serverId)
     {
         return StringModifier.CreateCacheKey(Constants.CacheKeys.ServerMeta, serverId.ToString());
     }
