@@ -1,0 +1,175 @@
+name: Release Management
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  pull_request:
+    branches: [main]
+    paths:
+      - "source/**"
+
+jobs:
+  validate-pr:
+    name: Validate Pull Request
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.0.x"
+
+      - name: Restore dependencies
+        run: dotnet restore source/source.sln
+
+      - name: Build
+        run: dotnet build source/source.sln --no-restore --configuration Release
+
+      - name: Run tests
+        run: |
+          # Check if there are any test projects
+          if find ./source -name "*Test*.csproj" -o -name "*.Test.csproj" -o -name "*Tests*.csproj" | grep -q .; then
+            echo "Running tests..."
+            dotnet test source/source.sln --no-build --configuration Release --verbosity normal
+          else
+            echo "No test projects found, skipping tests"
+          fi
+
+      - name: Check code formatting
+        run: dotnet format source/source.sln --verify-no-changes --verbosity diagnostic
+
+      - name: Security scan with CodeQL
+        uses: github/codeql-action/analyze@v3
+        continue-on-error: true
+
+  build-and-release:
+    name: Build Release Artifacts
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.0.x"
+
+      - name: Extract version from tag
+        id: get_version
+        run: |
+          version=${GITHUB_REF#refs/tags/v}
+          echo "version=$version" >> $GITHUB_OUTPUT
+          echo "Release version: $version"
+
+      - name: Restore dependencies
+        run: dotnet restore source/source.sln
+
+      - name: Build Release
+        run: |
+          dotnet build source/source.sln --no-restore --configuration Release
+          # Check if there are any test projects
+          if find ./source -name "*Test*.csproj" -o -name "*.Test.csproj" -o -name "*Tests*.csproj" | grep -q .; then
+            echo "Running tests..."
+            dotnet test source/source.sln --no-build --configuration Release --verbosity normal
+          else
+            echo "No test projects found, skipping tests"
+          fi
+
+      - name: Publish Release Artifacts
+        run: |
+          # Publish for multiple platforms
+          dotnet publish source/Amiquin.Bot/Amiquin.Bot.csproj \
+            --configuration Release \
+            --no-build \
+            --output ./publish/linux-x64 \
+            --runtime linux-x64 \
+            --self-contained true \
+            -p:PublishSingleFile=true \
+            -p:IncludeNativeLibrariesForSelfExtract=true
+            
+          dotnet publish source/Amiquin.Bot/Amiquin.Bot.csproj \
+            --configuration Release \
+            --no-build \
+            --output ./publish/win-x64 \
+            --runtime win-x64 \
+            --self-contained true \
+            -p:PublishSingleFile=true \
+            -p:IncludeNativeLibrariesForSelfExtract=true
+            
+          dotnet publish source/Amiquin.Bot/Amiquin.Bot.csproj \
+            --configuration Release \
+            --no-build \
+            --output ./publish/osx-x64 \
+            --runtime osx-x64 \
+            --self-contained true \
+            -p:PublishSingleFile=true \
+            -p:IncludeNativeLibrariesForSelfExtract=true
+
+      - name: Create release archives
+        run: |
+          cd publish
+
+          # Create archives for each platform
+          tar -czf amiquin-v${{ steps.get_version.outputs.version }}-linux-x64.tar.gz -C linux-x64 .
+          zip -r amiquin-v${{ steps.get_version.outputs.version }}-win-x64.zip win-x64/*
+          tar -czf amiquin-v${{ steps.get_version.outputs.version }}-osx-x64.tar.gz -C osx-x64 .
+
+      - name: Generate release notes
+        id: release_notes
+        run: |
+          # Get the previous tag for changelog
+          previous_tag=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+
+          if [ -n "$previous_tag" ]; then
+              changelog=$(git log --pretty=format:"- %s" $previous_tag..HEAD)
+          else
+              changelog=$(git log --pretty=format:"- %s")
+          fi
+
+          # Create release notes
+          {
+              echo "## 🚀 What's Changed"
+              echo ""
+              echo "$changelog"
+              echo ""
+              echo "## 📦 Release Artifacts"
+              echo ""
+              echo "- **Linux x64**: \`amiquin-v${{ steps.get_version.outputs.version }}-linux-x64.tar.gz\`"
+              echo "- **Windows x64**: \`amiquin-v${{ steps.get_version.outputs.version }}-win-x64.zip\`"
+              echo "- **macOS x64**: \`amiquin-v${{ steps.get_version.outputs.version }}-osx-x64.tar.gz\`"
+              echo ""
+              echo "## ℹ️ Version Information"
+              echo "- **Version**: ${{ steps.get_version.outputs.version }}"
+              echo "- **Build Date**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
+              echo "- **Commit**: ${{ github.sha }}"
+              echo "- **Runtime**: .NET 9.0"
+          } > release_notes.md
+
+          # Set output for release body
+          {
+              echo "RELEASE_NOTES<<EOF"
+              cat release_notes.md
+              echo "EOF"
+          } >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: "v${{ steps.get_version.outputs.version }}"
+          name: "🤖 Amiquin v${{ steps.get_version.outputs.version }}"
+          body: ${{ steps.release_notes.outputs.RELEASE_NOTES }}
+          draft: false
+          prerelease: false
+          files: |
+            publish/amiquin-v${{ steps.get_version.outputs.version }}-linux-x64.tar.gz
+            publish/amiquin-v${{ steps.get_version.outputs.version }}-win-x64.zip
+            publish/amiquin-v${{ steps.get_version.outputs.version }}-osx-x64.tar.gz

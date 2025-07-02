@@ -1,0 +1,22 @@
+- name: Home
+  href: index.md
+- name: Documentation
+  href: ../docs/
+  items:
+    - name: Getting Started
+      href: ../docs/getting-started.md
+    - name: Installation
+      href: ../docs/installation.md
+    - name: Configuration
+      href: ../docs/configuration.md
+    - name: Commands
+      href: ../docs/commands.md
+    - name: Development
+      href: ../docs/development.md
+    - name: Architecture
+      href: ../docs/architecture.md
+    - name: Contributing
+      href: ../docs/contributing.md
+- name: API Reference
+  href: api/
+  homepage: api/index.md

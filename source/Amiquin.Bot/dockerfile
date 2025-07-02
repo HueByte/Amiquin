@@ -17,18 +17,18 @@ RUN curl -L https://download.libsodium.org/libsodium/releases/LATEST.tar.gz | ta
 WORKDIR ${MAIN_WORK_DIR}
 
 # Copy solution and project files for dependency caching
-COPY source/source.sln ./ 
-COPY source/Amiquin.Bot/Amiquin.Bot.csproj ./Amiquin.Bot/
-COPY source/Amiquin.Core/Amiquin.Core.csproj ./Amiquin.Core/
-COPY source/Amiquin.Infrastructure/Amiquin.Infrastructure.csproj ./Amiquin.Infrastructure/
-COPY source/Migrations/Amiquin.Sqlite/Amiquin.Sqlite.csproj ./Migrations/Amiquin.Sqlite/
-COPY source/Migrations/Amiquin.MySql/Amiquin.MySql.csproj ./Migrations/Amiquin.MySql/
+COPY source.sln ./ 
+COPY Amiquin.Bot/Amiquin.Bot.csproj ./Amiquin.Bot/
+COPY Amiquin.Core/Amiquin.Core.csproj ./Amiquin.Core/
+COPY Amiquin.Infrastructure/Amiquin.Infrastructure.csproj ./Amiquin.Infrastructure/
+COPY Migrations/Amiquin.Sqlite/Amiquin.Sqlite.csproj ./Migrations/Amiquin.Sqlite/
+COPY Migrations/Amiquin.MySql/Amiquin.MySql.csproj ./Migrations/Amiquin.MySql/
 
 # Restore dependencies
 RUN dotnet restore source.sln
 
 # Copy the rest of the source code and build the application
-COPY source/ ./
+COPY . ./
 RUN dotnet publish Amiquin.Bot/Amiquin.Bot.csproj -c Release -o build
 
 # Stage 2: Runtime image

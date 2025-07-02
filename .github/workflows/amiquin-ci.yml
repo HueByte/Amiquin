@@ -1,0 +1,129 @@
+name: .NET CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main", "dev"]
+    paths:
+      - "source/**"
+      - ".github/workflows/amiquin-ci.yml"
+      - "*.sln"
+      - "**/*.csproj"
+
+env:
+  DOTNET_VERSION: "9.0.x"
+  SOLUTION_PATH: "./source/source.sln"
+
+jobs:
+  # Build and Test Job
+  build-and-test:
+    runs-on: ubuntu-latest
+    name: Build, Test & Format Check
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Prepare configuration files
+        run: |
+          if [ ! -f ./source/Amiquin.Bot/appsettings.json ]; then
+            cp ./source/Amiquin.Bot/appsettings.example.json ./source/Amiquin.Bot/appsettings.json
+          fi
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/packages.lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Restore dependencies
+        run: dotnet restore ${{ env.SOLUTION_PATH }}
+
+      - name: Build solution
+        run: dotnet build ${{ env.SOLUTION_PATH }} --no-restore --configuration Release
+
+      - name: Check code formatting
+        run: dotnet format ${{ env.SOLUTION_PATH }} --no-restore --verify-no-changes --verbosity diagnostic
+
+      - name: Run tests
+        run: |
+          # Check if there are any test projects
+          if find ./source -name "*Test*.csproj" -o -name "*.Test.csproj" -o -name "*Tests*.csproj" | grep -q .; then
+            echo "Running tests..."
+            dotnet test ${{ env.SOLUTION_PATH }} --no-build --configuration Release --logger trx --collect:"XPlat Code Coverage" --results-directory ./TestResults
+          else
+            echo "No test projects found, skipping tests"
+            mkdir -p ./TestResults
+            echo "No tests to run" > ./TestResults/no-tests.txt
+          fi
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: ./TestResults
+
+      - name: Upload code coverage to Codecov
+        uses: codecov/codecov-action@v4
+        if: always()
+        with:
+          directory: ./TestResults
+          flags: amiquin
+          fail_ci_if_error: false
+
+      - name: .NET build and test completed
+        run: |
+          echo "✅ .NET build, test, and formatting checks completed successfully"
+          echo "🧪 Test results uploaded to artifacts"
+          echo "📊 Code coverage uploaded to Codecov"
+
+  # Quality Gate Summary
+  quality-gate:
+    runs-on: ubuntu-latest
+    name: .NET Quality Gate
+    needs: [build-and-test]
+    if: always()
+
+    steps:
+      - name: Check .NET CI results
+        run: |
+          echo "🔍 .NET CI Quality Gate Summary"
+          echo "================================"
+          echo "Build and Test: ${{ needs.build-and-test.result }}"
+          echo ""
+
+          if [[ "${{ needs.build-and-test.result }}" == "success" ]]; then
+            echo "✅ .NET CI Quality Gate PASSED"
+            echo "🏗️ Build: SUCCESS"
+            echo "🧪 Tests: SUCCESS" 
+            echo "🎨 Format: SUCCESS"
+            echo "📊 Coverage: UPLOADED"
+          elif [[ "${{ needs.build-and-test.result }}" == "failure" ]]; then
+            echo "❌ .NET CI Quality Gate FAILED"
+            echo "🚨 Build and test pipeline failed"
+            echo "📋 Check the build-and-test job logs for details"
+            exit 1
+          elif [[ "${{ needs.build-and-test.result }}" == "cancelled" ]]; then
+            echo "⚠️ .NET CI Quality Gate CANCELLED"
+            echo "🛑 Build and test pipeline was cancelled"
+            exit 1
+          else
+            echo "❓ .NET CI Quality Gate UNKNOWN"
+            echo "🔍 Build and test result: ${{ needs.build-and-test.result }}"
+            exit 1
+          fi
+
+          echo ""
+          echo "🎯 .NET CI pipeline completed successfully"
+          echo "📈 Ready for integration with other workflows"

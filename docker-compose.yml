@@ -23,8 +23,8 @@ services:
   amiquinbot:
     container_name: bot-${AMQ_BOT_NAME}
     build:
-      context: .
-      dockerfile: dockerfile
+      context: ./source
+      dockerfile: Amiquin.Bot/dockerfile
     env_file:
       - .env
     ports:

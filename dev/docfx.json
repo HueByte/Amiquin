@@ -1,0 +1,61 @@
+{
+	"$schema": "https://raw.githubusercontent.com/dotnet/docfx/main/schemas/docfx.schema.json",
+	"metadata": [
+		{
+			"src": [
+				{
+					"src": "../source",
+					"files": ["**/*.csproj"]
+				}
+			],
+			"dest": "api",
+			"properties": {
+				"TargetFramework": "net9.0"
+			}
+		}
+	],
+	"build": {
+		"content": [
+			{
+				"files": ["toc.yml", "index.md"]
+			},
+			{
+				"files": ["docs/**/*.{md,yml}"],
+				"src": "..",
+				"dest": "docs"
+			},
+			{
+				"files": ["*.yml", "*.md"],
+				"src": "api",
+				"dest": "api"
+			}
+		],
+		"resource": [
+			{
+				"files": ["images/**", "assets/**"],
+				"src": ".."
+			}
+		],
+		"output": "../generated",
+		"template": ["default", "modern"],
+		"globalMetadata": {
+			"_appName": "Amiquin",
+			"_appTitle": "Amiquin Documentation",
+			"_enableSearch": true,
+			"_enableNewTab": true,
+			"_appLogoPath": "../assets/Amiquin-40px.png",
+			"_appFaviconPath": "../assets/Amiquin-40px.png",
+			"pdf": false,
+			"_gitContribute": {
+				"repo": "https://github.com/huebyte/Amiquin",
+				"branch": "main"
+			}
+		},
+		"fileMetadata": {
+			"_tocTitle": {
+				"docs/**/*.md": "Documentation",
+				"api/**/*.yml": "API Reference"
+			}
+		}
+	}
+}
