@@ -1,10 +1,14 @@
 using Amiquin.Core.IRepositories;
-using Amiquin.Core.Services.ServerMeta;
+using Amiquin.Core.Services.Meta;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 
 namespace Amiquin.Core.Services.Chat.Toggle;
 
+/// <summary>
+/// Service implementation for managing server toggle operations.
+/// Handles toggle state management, default toggle creation, and server-specific toggle configurations.
+/// </summary>
 public class ToggleService : IToggleService
 {
     private readonly ILogger<ToggleService> _logger;
@@ -12,6 +16,13 @@ public class ToggleService : IToggleService
     private readonly IToggleRepository _toggleRepository;
     private readonly IMemoryCache _memoryCache;
 
+    /// <summary>
+    /// Initializes a new instance of the ToggleService.
+    /// </summary>
+    /// <param name="logger">Logger instance for recording service operations.</param>
+    /// <param name="serverMetaService">Service for managing server metadata operations.</param>
+    /// <param name="toggleRepository">Repository for database operations on toggles.</param>
+    /// <param name="memoryCache">Memory cache for storing frequently accessed data.</param>
     public ToggleService(ILogger<ToggleService> logger, IServerMetaService serverMetaService, IToggleRepository toggleRepository, IMemoryCache memoryCache)
     {
         _logger = logger;
@@ -20,6 +31,7 @@ public class ToggleService : IToggleService
         _memoryCache = memoryCache;
     }
 
+    /// <inheritdoc/>
     public async Task CreateServerTogglesIfNotExistsAsync(ulong serverId)
     {
         var serverMeta = await _serverMetaService.GetServerMetaAsync(serverId);
@@ -46,12 +58,7 @@ public class ToggleService : IToggleService
         await SetServerTogglesBulkAsync(serverId, expectedToggles.ToDictionary(x => x, x => (true, (string?)string.Empty)));
     }
 
-    /// <summary>
-    /// Checks if toggle is enabled<br>
-    /// </summary>
-    /// <param name="toggleName"></param>
-    /// <param name="serverId"></param>
-    /// <returns></returns>
+    /// <inheritdoc/>
     public async Task<bool> IsEnabledAsync(ulong serverId, string toggleName)
     {
         var serverMeta = await _serverMetaService.GetServerMetaAsync(serverId, true);
@@ -76,6 +83,7 @@ public class ToggleService : IToggleService
         return false;
     }
 
+    /// <inheritdoc/>
     public async Task SetServerToggleAsync(ulong serverId, string toggleName, bool isEnabled, string? description = null)
     {
         var serverMeta = await _serverMetaService.GetServerMetaAsync(serverId, true);
@@ -112,6 +120,7 @@ public class ToggleService : IToggleService
         await _serverMetaService.UpdateServerMetaAsync(serverMeta);
     }
 
+    /// <inheritdoc/>
     public async Task SetServerTogglesBulkAsync(ulong serverId, Dictionary<string, (bool IsEnabled, string? Description)> toggles)
     {
         var serverMeta = await _serverMetaService.GetServerMetaAsync(serverId);
@@ -148,6 +157,7 @@ public class ToggleService : IToggleService
         await _serverMetaService.UpdateServerMetaAsync(serverMeta);
     }
 
+    /// <inheritdoc/>
     public async Task<List<Models.Toggle>> GetTogglesByServerId(ulong serverId)
     {
         var serverMeta = await _serverMetaService.GetServerMetaAsync(serverId, includeToggles: true);
@@ -160,6 +170,7 @@ public class ToggleService : IToggleService
         return serverMeta.Toggles ?? [];
     }
 
+    /// <inheritdoc/>
     public async Task<bool> UpdateAllTogglesAsync(string toggleName, bool isEnabled, string? description = null)
     {
         var allServerMetas = await _serverMetaService.GetAllServerMetasAsync();

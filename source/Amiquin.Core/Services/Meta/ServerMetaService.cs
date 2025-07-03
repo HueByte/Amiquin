@@ -6,8 +6,13 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
 
-namespace Amiquin.Core.Services.ServerMeta;
+namespace Amiquin.Core.Services.Meta;
 
+/// <summary>
+/// Service implementation for managing server metadata operations.
+/// Handles caching, database operations, and server-specific configuration management.
+/// Implements thread-safe operations using semaphores for concurrent access control.
+/// </summary>
 public class ServerMetaService : IServerMetaService
 {
     private readonly ILogger<IServerMetaService> _logger;
@@ -17,6 +22,12 @@ public class ServerMetaService : IServerMetaService
     // Semaphore dictionary to manage access to ServerMeta objects
     private readonly ConcurrentDictionary<ulong, SemaphoreSlim> _serverMetaSemaphores = new();
 
+    /// <summary>
+    /// Initializes a new instance of the ServerMetaService.
+    /// </summary>
+    /// <param name="logger">Logger instance for recording service operations.</param>
+    /// <param name="memoryCache">Memory cache for storing frequently accessed server metadata.</param>
+    /// <param name="serverMetaRepository">Repository for database operations on server metadata.</param>
     public ServerMetaService(ILogger<IServerMetaService> logger, IMemoryCache memoryCache, IServerMetaRepository serverMetaRepository)
     {
         _logger = logger;
@@ -24,11 +35,13 @@ public class ServerMetaService : IServerMetaService
         _serverMetaRepository = serverMetaRepository;
     }
 
+    /// <inheritdoc/>
     public async Task<Models.ServerMeta?> GetServerMetaAsync(ulong serverId)
     {
         return await GetServerMetaInternalAsync(serverId);
     }
 
+    /// <inheritdoc/>
     public async Task<Models.ServerMeta?> GetServerMetaAsync(ulong serverId, bool includeToggles)
     {
         var serverMeta = await GetServerMetaInternalAsync(serverId);
@@ -41,58 +54,7 @@ public class ServerMetaService : IServerMetaService
         return serverMeta;
     }
 
-    private async Task<Models.ServerMeta?> GetServerMetaInternalAsync(ulong serverId)
-    {
-        var cacheKey = GetServerMetaCacheKey(serverId);
-        if (_memoryCache.TryGetValue(cacheKey, out Models.ServerMeta? serverMeta) && serverMeta is not null)
-        {
-            return serverMeta;
-        }
-
-        _logger.LogInformation("Fetching ServerMeta for serverId {serverId} from repository", serverId);
-
-        serverMeta = await _serverMetaRepository.AsQueryable()
-            .FirstOrDefaultAsync(x => x.Id == serverId);
-
-        if (serverMeta is null)
-        {
-            _logger.LogWarning("Server meta not found for serverId {serverId}", serverId);
-            return null;
-        }
-
-        _memoryCache.Set(cacheKey, serverMeta, TimeSpan.FromMinutes(30)); // Cache for 30 minutes
-        return serverMeta;
-    }
-
-    private async Task EnsureTogglesLoadedAsync(Models.ServerMeta? serverMeta, ulong serverId)
-    {
-        if (serverMeta is null)
-        {
-            _logger.LogWarning("ServerMeta is null for serverId {serverId}", serverId);
-            return;
-        }
-
-        if (serverMeta.Toggles is null || serverMeta.Toggles.Count == 0)
-        {
-            _logger.LogInformation("Toggles not loaded for serverId {serverId}, loading from repository", serverId);
-            serverMeta.Toggles = await _serverMetaRepository.AsQueryable()
-                .Where(x => x.Id == serverId)
-                .SelectMany(x => x.Toggles!)
-                .ToListAsync();
-        }
-
-        if (serverMeta.Toggles is null)
-        {
-            _logger.LogInformation("Toggles are null for serverId {serverId}, seeding toggles", serverId);
-            await CreateDefaultTogglesForServerAsync(serverMeta.Id);
-
-            serverMeta.Toggles = await _serverMetaRepository.AsQueryable()
-                .Where(x => x.Id == serverId)
-                .SelectMany(x => x.Toggles!)
-                .ToListAsync();
-        }
-    }
-
+    /// <inheritdoc/>
     public async Task<Models.ServerMeta> GetOrCreateServerMetaAsync(ExtendedShardedInteractionContext context)
     {
         var serverId = context.Guild?.Id ?? 0;
@@ -136,6 +98,7 @@ public class ServerMetaService : IServerMetaService
         return serverMeta;
     }
 
+    /// <inheritdoc/>
     public async Task<Models.ServerMeta> CreateServerMetaAsync(ulong serverId, string serverName)
     {
         if (serverId == 0)
@@ -188,6 +151,7 @@ public class ServerMetaService : IServerMetaService
         return serverMeta;
     }
 
+    /// <inheritdoc/>
     public async Task UpdateServerMetaAsync(Models.ServerMeta serverMeta)
     {
         _logger.LogInformation("Updating ServerMeta for serverId {serverId}", serverMeta.Id);
@@ -250,6 +214,7 @@ public class ServerMetaService : IServerMetaService
         }
     }
 
+    /// <inheritdoc/>
     public async Task DeleteServerMetaAsync(ulong serverId)
     {
         _logger.LogInformation("Deleting ServerMeta for serverId {serverId}", serverId);
@@ -272,17 +237,84 @@ public class ServerMetaService : IServerMetaService
         }
     }
 
+    /// <inheritdoc/>
     public async Task<List<Models.ServerMeta>> GetAllServerMetasAsync()
     {
         _logger.LogInformation("Fetching all ServerMetas from repository");
         return await _serverMetaRepository.AsQueryable().ToListAsync();
     }
 
-    private string GetServerMetaCacheKey(ulong serverId)
+    // Private methods
+
+    /// <summary>
+    /// Internal method for retrieving server metadata with caching support.
+    /// Fetches from cache first, then from database if not cached.
+    /// </summary>
+    /// <param name="serverId">The Discord server ID to retrieve metadata for.</param>
+    /// <returns>The server metadata if found; otherwise, null.</returns>
+    private async Task<Models.ServerMeta?> GetServerMetaInternalAsync(ulong serverId)
     {
-        return StringModifier.CreateCacheKey(Constants.CacheKeys.ServerMeta, serverId.ToString());
+        var cacheKey = GetServerMetaCacheKey(serverId);
+        if (_memoryCache.TryGetValue(cacheKey, out Models.ServerMeta? serverMeta) && serverMeta is not null)
+        {
+            return serverMeta;
+        }
+
+        _logger.LogInformation("Fetching ServerMeta for serverId {serverId} from repository", serverId);
+
+        serverMeta = await _serverMetaRepository.AsQueryable()
+            .FirstOrDefaultAsync(x => x.Id == serverId);
+
+        if (serverMeta is null)
+        {
+            _logger.LogWarning("Server meta not found for serverId {serverId}", serverId);
+            return null;
+        }
+
+        _memoryCache.Set(cacheKey, serverMeta, TimeSpan.FromMinutes(30)); // Cache for 30 minutes
+        return serverMeta;
     }
 
+    /// <summary>
+    /// Ensures that toggles are loaded for the specified server metadata.
+    /// Creates default toggles if none exist.
+    /// </summary>
+    /// <param name="serverMeta">The server metadata to ensure toggles are loaded for.</param>
+    /// <param name="serverId">The Discord server ID for logging and operations.</param>
+    private async Task EnsureTogglesLoadedAsync(Models.ServerMeta? serverMeta, ulong serverId)
+    {
+        if (serverMeta is null)
+        {
+            _logger.LogWarning("ServerMeta is null for serverId {serverId}", serverId);
+            return;
+        }
+
+        if (serverMeta.Toggles is null || serverMeta.Toggles.Count == 0)
+        {
+            _logger.LogInformation("Toggles not loaded for serverId {serverId}, loading from repository", serverId);
+            serverMeta.Toggles = await _serverMetaRepository.AsQueryable()
+                .Where(x => x.Id == serverId)
+                .SelectMany(x => x.Toggles!)
+                .ToListAsync();
+        }
+
+        if (serverMeta.Toggles is null)
+        {
+            _logger.LogInformation("Toggles are null for serverId {serverId}, seeding toggles", serverId);
+            await CreateDefaultTogglesForServerAsync(serverMeta.Id);
+
+            serverMeta.Toggles = await _serverMetaRepository.AsQueryable()
+                .Where(x => x.Id == serverId)
+                .SelectMany(x => x.Toggles!)
+                .ToListAsync();
+        }
+    }
+
+    /// <summary>
+    /// Creates default toggles for a server if they don't exist.
+    /// Uses the predefined toggle names from Constants.ToggleNames.Toggles.
+    /// </summary>
+    /// <param name="serverId">The Discord server ID to create toggles for.</param>
     private async Task CreateDefaultTogglesForServerAsync(ulong serverId)
     {
         var existingServerMeta = await _serverMetaRepository.AsQueryable()
@@ -322,5 +354,15 @@ public class ServerMetaService : IServerMetaService
             await _serverMetaRepository.SaveChangesAsync();
             _logger.LogInformation("Created {count} default toggles for serverId {serverId}", missingToggles.Count, serverId);
         }
+    }
+
+    /// <summary>
+    /// Generates a cache key for server metadata.
+    /// </summary>
+    /// <param name="serverId">The Discord server ID to generate a cache key for.</param>
+    /// <returns>A formatted cache key string.</returns>
+    private string GetServerMetaCacheKey(ulong serverId)
+    {
+        return StringModifier.CreateCacheKey(Constants.CacheKeys.ServerMeta, serverId.ToString());
     }
 }

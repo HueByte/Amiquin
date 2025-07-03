@@ -1,26 +1,35 @@
-using System.Collections.Concurrent;
 using Amiquin.Core.Services.Voice.Models;
 using Discord;
 using Microsoft.Extensions.Logging;
+using System.Collections.Concurrent;
 
 namespace Amiquin.Core.Services.Voice;
 
-
+/// <summary>
+/// Implementation of the <see cref="IVoiceStateManager"/> interface.
+/// Manages Discord voice channel connections and state.
+/// </summary>
 public class VoiceStateManager : IVoiceStateManager
 {
     private readonly ILogger<VoiceStateManager> _logger;
     private readonly ConcurrentDictionary<ulong, AmiquinVoice> _voiceChannels = new();
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="VoiceStateManager"/> class.
+    /// </summary>
+    /// <param name="logger">The logger for this manager.</param>
     public VoiceStateManager(ILogger<VoiceStateManager> logger)
     {
         _logger = logger;
     }
 
+    /// <inheritdoc/>
     public AmiquinVoice? GetAmiquinVoice(ulong guildId)
     {
         return _voiceChannels.TryGetValue(guildId, out var amiquinVoice) ? amiquinVoice : null;
     }
 
+    /// <inheritdoc/>
     public async Task ConnectVoiceChannelAsync(IVoiceChannel channel)
     {
         if (_voiceChannels.ContainsKey(channel.GuildId))
@@ -76,6 +85,7 @@ public class VoiceStateManager : IVoiceStateManager
         }
     }
 
+    /// <inheritdoc/>
     public async Task DisconnectVoiceChannelAsync(IVoiceChannel? channel)
     {
         if (channel == null)
@@ -103,6 +113,11 @@ public class VoiceStateManager : IVoiceStateManager
             _logger.LogWarning("Tried to leave voice channel {ChannelName} in guild {GuildName} but not connected", channel?.Name, channel?.Guild.Name);
         }
     }
+    /// <summary>
+    /// Attaches event handlers to the voice client events.
+    /// </summary>
+    /// <param name="amiquinVoice">The voice client wrapper.</param>
+    /// <param name="channel">The Discord voice channel.</param>
     private void AttachVoiceEvents(AmiquinVoice amiquinVoice, IVoiceChannel channel)
     {
         if (amiquinVoice.AudioClient is null)

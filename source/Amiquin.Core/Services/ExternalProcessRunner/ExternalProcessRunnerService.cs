@@ -1,17 +1,26 @@
-using System.Diagnostics;
 using Microsoft.Extensions.Logging;
+using System.Diagnostics;
 
 namespace Amiquin.Core.Services.ExternalProcessRunner;
 
+/// <summary>
+/// Implementation of the <see cref="IExternalProcessRunnerService"/> interface.
+/// Manages creation and execution of external processes for audio processing.
+/// </summary>
 public class ExternalProcessRunnerService : IExternalProcessRunnerService
 {
     private readonly ILogger _logger;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ExternalProcessRunnerService"/> class.
+    /// </summary>
+    /// <param name="logger">The logger for this service.</param>
     public ExternalProcessRunnerService(ILogger<ExternalProcessRunnerService> logger)
     {
         _logger = logger;
     }
 
+    /// <inheritdoc/>
     public Process CreatePiperProcess(string piperCommand, string modelPath, string ttsOutputPath)
     {
         string args = $"--model \"{modelPath}\" --output_file \"{ttsOutputPath}\"";
@@ -32,6 +41,7 @@ public class ExternalProcessRunnerService : IExternalProcessRunnerService
         return new Process { StartInfo = startInfo };
     }
 
+    /// <inheritdoc/>
     public Process CreateFfmpegProcess(string audioPath)
     {
         _logger.LogInformation("Creating ffmpeg process for audio path {AudioPath}", audioPath);

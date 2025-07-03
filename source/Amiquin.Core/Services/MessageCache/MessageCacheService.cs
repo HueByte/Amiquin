@@ -9,6 +9,10 @@ using OpenAI.Chat;
 
 namespace Amiquin.Core.Services.MessageCache;
 
+/// <summary>
+/// Service implementation for managing message caching operations.
+/// Handles in-memory caching of chat messages, persona messages, and database operations for message persistence.
+/// </summary>
 public class MessageCacheService : IMessageCacheService
 {
     private readonly IMemoryCache _memoryCache;
@@ -16,7 +20,13 @@ public class MessageCacheService : IMessageCacheService
     private readonly int _messageFetchCount = 40;
     private const int MEMORY_CACHE_EXPIRATION = 5;
 
-
+    /// <summary>
+    /// Initializes a new instance of the MessageCacheService.
+    /// </summary>
+    /// <param name="memoryCache">Memory cache for storing messages temporarily.</param>
+    /// <param name="messageRepository">Repository for database operations on messages.</param>
+    /// <param name="botOptions">Bot configuration options.</param>
+    /// <param name="configuration">Application configuration.</param>
     public MessageCacheService(IMemoryCache memoryCache, IMessageRepository messageRepository, IOptions<BotOptions> botOptions, IConfiguration configuration)
     {
         _memoryCache = memoryCache;
@@ -25,6 +35,7 @@ public class MessageCacheService : IMessageCacheService
         _messageFetchCount = messageFetchCount is not 0 ? messageFetchCount : botOptions.Value.MessageFetchCount;
     }
 
+    /// <inheritdoc/>
     public void ClearMessageCachce()
     {
         _memoryCache.Remove(Constants.CacheKeys.ComputedPersonaMessageKey);
@@ -32,16 +43,19 @@ public class MessageCacheService : IMessageCacheService
         _memoryCache.Remove(Constants.CacheKeys.JoinMessageKey);
     }
 
+    /// <inheritdoc/>
     public async Task<string?> GetPersonaCoreMessageAsync()
     {
         return await GetMessageAsync(Constants.CacheKeys.CorePersonaMessageKey);
     }
 
+    /// <inheritdoc/>
     public async Task<string?> GetServerJoinMessage()
     {
         return await GetMessageAsync(Constants.CacheKeys.JoinMessageKey);
     }
 
+    /// <inheritdoc/>
     public int GetChatMessageCount(ulong serverId)
     {
         if (_memoryCache.TryGetValue(serverId, out List<ChatMessage>? channelMessages))
@@ -52,6 +66,7 @@ public class MessageCacheService : IMessageCacheService
         return 0;
     }
 
+    /// <inheritdoc/>
     public async Task<List<ChatMessage>?> GetOrCreateChatMessagesAsync(ulong serverId)
     {
         return await _memoryCache.GetOrCreateAsync<List<ChatMessage>?>(serverId, async entry =>
@@ -71,6 +86,7 @@ public class MessageCacheService : IMessageCacheService
         });
     }
 
+    /// <inheritdoc/>
     public async Task AddChatExchangeAsync(ulong instanceId, List<ChatMessage> messages, List<Message> modelMessages)
     {
         List<ChatMessage>? chatMessages;
@@ -95,6 +111,7 @@ public class MessageCacheService : IMessageCacheService
         await _messageRepository.SaveChangesAsync();
     }
 
+    /// <inheritdoc/>
     public void ClearOldMessages(ulong instanceId, int range)
     {
         if (_memoryCache.TryGetValue(instanceId, out List<ChatMessage>? serverMessages))

@@ -6,11 +6,22 @@ using Microsoft.Extensions.Logging;
 
 namespace Amiquin.Core.Services.ServerInteraction;
 
+/// <summary>
+/// Implementation of the <see cref="IServerInteractionService"/> interface.
+/// Handles interactions with Discord servers.
+/// </summary>
 public class ServerInteractionService : IServerInteractionService
 {
     private readonly IMessageCacheService _messageCacheService;
     private readonly ILogger<ServerInteractionService> _logger;
     private readonly IConfiguration _configuration;
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="ServerInteractionService"/> class.
+    /// </summary>
+    /// <param name="messageCacheService">The service used to retrieve cached messages.</param>
+    /// <param name="logger">The logger for this service.</param>
+    /// <param name="configuration">The application configuration.</param>
     public ServerInteractionService(IMessageCacheService messageCacheService, ILogger<ServerInteractionService> logger, IConfiguration configuration)
     {
         _messageCacheService = messageCacheService;
@@ -18,6 +29,7 @@ public class ServerInteractionService : IServerInteractionService
         _configuration = configuration;
     }
 
+    /// <inheritdoc/>
     public async Task SendJoinMessageAsync(SocketGuild guild)
     {
         var botName = _configuration.GetValue<string>(Constants.Environment.BotName);

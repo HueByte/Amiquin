@@ -1,7 +1,7 @@
 using Amiquin.Core.Services.Chat.Toggle;
 using Amiquin.Core.Services.CommandHandler;
+using Amiquin.Core.Services.Meta;
 using Amiquin.Core.Services.ServerInteraction;
-using Amiquin.Core.Services.ServerMeta;
 using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
@@ -10,12 +10,22 @@ using Microsoft.Extensions.Logging;
 
 namespace Amiquin.Core.Services.EventHandler;
 
+/// <summary>
+/// Implementation of the <see cref="IEventHandlerService"/> interface.
+/// Handles Discord bot events and interactions.
+/// </summary>
 public class EventHandlerService : IEventHandlerService
 {
     private readonly ILogger _logger;
     private readonly ICommandHandlerService _commandHandlerService;
     private readonly IServiceScopeFactory _serviceScopeFactory;
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="EventHandlerService"/> class.
+    /// </summary>
+    /// <param name="logger">The logger for this service.</param>
+    /// <param name="commandHandlerService">The service for handling commands.</param>
+    /// <param name="serviceScopeFactory">The factory for creating service scopes.</param>
     public EventHandlerService(ILogger<EventHandlerService> logger, ICommandHandlerService commandHandlerService, IServiceScopeFactory serviceScopeFactory)
     {
         _logger = logger;
@@ -23,23 +33,27 @@ public class EventHandlerService : IEventHandlerService
         _serviceScopeFactory = serviceScopeFactory;
     }
 
+    /// <inheritdoc/>
     public Task OnShardReadyAsync(DiscordSocketClient shard)
     {
         _logger.LogInformation($"Shard {shard.ShardId} is ready");
         return Task.CompletedTask;
     }
 
+    /// <inheritdoc/>
     public async Task OnCommandCreatedAsync(SocketInteraction interaction)
     {
         await _commandHandlerService.HandleCommandAsync(interaction);
     }
 
+    /// <inheritdoc/>
     public async Task OnShashCommandExecutedAsync(SlashCommandInfo slashCommandInfo, IInteractionContext interactionContext, IResult result)
     {
         _logger.LogInformation("Command [{name}] created by [{user}] in [{server_name}]", slashCommandInfo.Name, interactionContext.User.Username, interactionContext.Guild.Name);
         await _commandHandlerService.HandleSlashCommandExecutedAsync(slashCommandInfo, interactionContext, result);
     }
 
+    /// <inheritdoc/>
     public async Task OnClientLogAsync(LogMessage logMessage)
     {
         // Due to the nature of Discord.Net's event system, all log event handlers will be executed synchronously on the gateway thread.
@@ -69,6 +83,7 @@ public class EventHandlerService : IEventHandlerService
         await Task.CompletedTask;
     }
 
+    /// <inheritdoc/>
     public async Task OnBotJoinedAsync(SocketGuild guild)
     {
         _logger.LogInformation("Bot joined guild [{guild_name}]", guild.Name);

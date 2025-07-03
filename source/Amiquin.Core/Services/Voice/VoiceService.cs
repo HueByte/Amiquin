@@ -9,6 +9,10 @@ using Microsoft.Extensions.Options;
 
 namespace Amiquin.Core.Services.Voice;
 
+/// <summary>
+/// Service implementation for managing voice operations in Discord channels.
+/// Handles text-to-speech conversion, audio streaming, and voice channel management using external tools like Piper and FFmpeg.
+/// </summary>
 public class VoiceService : IVoiceService
 {
     private readonly ILogger<VoiceService> _logger;
@@ -18,6 +22,15 @@ public class VoiceService : IVoiceService
     private readonly ExternalOptions _externalOptions;
     private readonly IExternalProcessRunnerService _externalProcessRunner;
 
+    /// <summary>
+    /// Initializes a new instance of the VoiceService.
+    /// </summary>
+    /// <param name="logger">Logger instance for recording service operations.</param>
+    /// <param name="voiceStateManager">Manager for handling voice channel state.</param>
+    /// <param name="configuration">Configuration for accessing application settings.</param>
+    /// <param name="chatSemaphoreManager">Manager for handling voice operation synchronization.</param>
+    /// <param name="externalOptions">Options for external tool configurations.</param>
+    /// <param name="externalProcessRunner">Service for running external processes like Piper and FFmpeg.</param>
     public VoiceService(ILogger<VoiceService> logger, IVoiceStateManager voiceStateManager, IConfiguration configuration, IChatSemaphoreManager chatSemaphoreManager, IOptions<ExternalOptions> externalOptions, IExternalProcessRunnerService externalProcessRunner)
     {
         _logger = logger;
@@ -28,6 +41,7 @@ public class VoiceService : IVoiceService
         _externalProcessRunner = externalProcessRunner;
     }
 
+    /// <inheritdoc/>
     public async Task SpeakAsync(IVoiceChannel voiceChannel, string text)
     {
         var filePath = await CreateTextToSpeechAudioAsync(text);
@@ -44,6 +58,7 @@ public class VoiceService : IVoiceService
         }
     }
 
+    /// <inheritdoc/>
     public async Task<string> CreateTextToSpeechAudioAsync(string text)
     {
         _logger.LogInformation("Creating text to speech audio for text: {Text}", text);
@@ -71,6 +86,7 @@ public class VoiceService : IVoiceService
         return ttsOutputPath;
     }
 
+    /// <inheritdoc/>
     public async Task StreamAudioAsync(IVoiceChannel voiceChannel, string filePath)
     {
         // Retrieve the audio client and log initial information.
@@ -193,18 +209,23 @@ public class VoiceService : IVoiceService
         }
     }
 
+    /// <inheritdoc/>
     public async Task JoinAsync(IVoiceChannel channel)
     {
         await _voiceStateManager.ConnectVoiceChannelAsync(channel);
         _logger.LogInformation("Joined voice channel {ChannelName} in guild {GuildName}", channel.Name, channel.Guild.Name);
     }
 
+    /// <inheritdoc/>
     public async Task LeaveAsync(IVoiceChannel channel)
     {
         await _voiceStateManager.DisconnectVoiceChannelAsync(channel);
         _logger.LogInformation("Left voice channel {ChannelName} in guild {GuildName}", channel.Name, channel.Guild.Name);
     }
 
+    /// <summary>
+    /// Creates the required directories for TTS operations if they don't exist.
+    /// </summary>
     private void CreateRequiredDirectories()
     {
         if (!Directory.Exists(Constants.Paths.TTSBasePath))

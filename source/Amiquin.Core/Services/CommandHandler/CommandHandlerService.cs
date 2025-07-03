@@ -1,7 +1,7 @@
 using Amiquin.Core.DiscordExtensions;
 using Amiquin.Core.IRepositories;
 using Amiquin.Core.Services.BotContext;
-using Amiquin.Core.Services.ServerMeta;
+using Amiquin.Core.Services.Meta;
 using Amiquin.Core.Utilities;
 using Discord;
 using Discord.Interactions;
@@ -13,6 +13,10 @@ using System.Reflection;
 
 namespace Amiquin.Core.Services.CommandHandler;
 
+/// <summary>
+/// Implementation of the <see cref="ICommandHandlerService"/> interface.
+/// Handles Discord bot commands and interactions.
+/// </summary>
 public class CommandHandlerService : ICommandHandlerService
 {
     private readonly ILogger _logger;
@@ -21,9 +25,21 @@ public class CommandHandlerService : ICommandHandlerService
     private readonly DiscordShardedClient _discordClient;
     private readonly InteractionService _interactionService;
     private HashSet<string> _ephemeralCommands = [];
+
+    /// <inheritdoc/>
     public IReadOnlyCollection<string> EphemeralCommands => _ephemeralCommands.ToList().AsReadOnly();
+
+    /// <inheritdoc/>
     public IReadOnlyCollection<SlashCommandInfo> Commands => _interactionService.SlashCommands.ToList().AsReadOnly();
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="CommandHandlerService"/> class.
+    /// </summary>
+    /// <param name="logger">The logger for this service.</param>
+    /// <param name="scopeFactory">The factory for creating service scopes.</param>
+    /// <param name="serviceProvider">The service provider.</param>
+    /// <param name="discordClient">The Discord sharded client.</param>
+    /// <param name="interactionService">The interaction service for handling Discord interactions.</param>
     public CommandHandlerService(ILogger<ICommandHandlerService> logger, IServiceScopeFactory scopeFactory, IServiceProvider serviceProvider, DiscordShardedClient discordClient, InteractionService interactionService)
     {
         _logger = logger;
@@ -33,6 +49,7 @@ public class CommandHandlerService : ICommandHandlerService
         _interactionService = interactionService;
     }
 
+    /// <inheritdoc/>
     public async Task InitializeAsync()
     {
         _logger.LogInformation("Initializing Command Handler Service");
@@ -42,6 +59,7 @@ public class CommandHandlerService : ICommandHandlerService
         _ephemeralCommands = Reflection.GetAllEphemeralCommands();
     }
 
+    /// <inheritdoc/>
     public async Task HandleCommandAsync(SocketInteraction interaction)
     {
         ExtendedShardedInteractionContext? extendedContext = null;
@@ -74,6 +92,7 @@ public class CommandHandlerService : ICommandHandlerService
         }
     }
 
+    /// <inheritdoc/>
     public async Task HandleSlashCommandExecutedAsync(SlashCommandInfo slashCommandInfo, IInteractionContext interactionContext, IResult result)
     {
         var extendedContext = interactionContext as ExtendedShardedInteractionContext;
@@ -139,6 +158,11 @@ public class CommandHandlerService : ICommandHandlerService
         }
     }
 
+    /// <summary>
+    /// Determines if the command should be executed in ephemeral mode (visible only to the command issuer).
+    /// </summary>
+    /// <param name="interaction">The socket interaction to check.</param>
+    /// <returns>True if the command should be ephemeral; otherwise, false.</returns>
     private bool IsEphemeralCommand(SocketInteraction interaction)
     {
         if (interaction.Type != InteractionType.ApplicationCommand)
@@ -152,6 +176,14 @@ public class CommandHandlerService : ICommandHandlerService
         return _ephemeralCommands.Contains(commandName);
     }
 
+    /// <summary>
+    /// Logs command execution information to the database.
+    /// </summary>
+    /// <param name="commandLogRepository">The repository for command logs.</param>
+    /// <param name="context">The bot context accessor containing context information.</param>
+    /// <param name="slashCommandInfo">Information about the executed slash command.</param>
+    /// <param name="result">The result of the command execution.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
     private async Task LogCommandAsync(ICommandLogRepository commandLogRepository, BotContextAccessor context, SlashCommandInfo slashCommandInfo, IResult result)
     {
         if (context?.ServerMeta is null)

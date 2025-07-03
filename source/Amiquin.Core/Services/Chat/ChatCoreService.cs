@@ -4,6 +4,10 @@ using OpenAI.Chat;
 
 namespace Amiquin.Core.Services.Chat;
 
+/// <summary>
+/// Service implementation for core chat operations using OpenAI models.
+/// Handles chat completions, message exchange, and semaphore-based concurrency control for chat instances.
+/// </summary>
 public class ChatCoreService : IChatCoreService
 {
     private readonly ILogger<ChatCoreService> _logger;
@@ -12,6 +16,13 @@ public class ChatCoreService : IChatCoreService
     private readonly IChatSemaphoreManager _chatSemaphoreManager;
     private const float TEMPERATURE = 0.6f;
 
+    /// <summary>
+    /// Initializes a new instance of the ChatCoreService.
+    /// </summary>
+    /// <param name="logger">Logger instance for recording service operations.</param>
+    /// <param name="messageCacheService">Service for caching and managing messages.</param>
+    /// <param name="openAIClient">OpenAI chat client for AI model interactions.</param>
+    /// <param name="chatSemaphoreManager">Manager for handling chat operation synchronization.</param>
     public ChatCoreService(ILogger<ChatCoreService> logger, IMessageCacheService messageCacheService, ChatClient openAIClient, IChatSemaphoreManager chatSemaphoreManager)
     {
         _logger = logger;
@@ -20,6 +31,7 @@ public class ChatCoreService : IChatCoreService
         _chatSemaphoreManager = chatSemaphoreManager;
     }
 
+    /// <inheritdoc/>
     public async Task<ChatCompletion> ChatAsync(ulong instanceId, List<ChatMessage> messageHistory, ChatMessage? personaMessage = null)
     {
         // Use a semaphore to prevent concurrent updates for the same channel.
@@ -50,6 +62,7 @@ public class ChatCoreService : IChatCoreService
         }
     }
 
+    /// <inheritdoc/>
     public async Task<string> ExchangeMessageAsync(string message, ChatMessage? developerPersonaChatMessage = null, int tokenLimit = 1200)
     {
         if (developerPersonaChatMessage is null)

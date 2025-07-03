@@ -7,9 +7,23 @@ using System.Text;
 
 namespace Amiquin.Core.Cleaner;
 
+/// <summary>
+/// Service implementation for cleaning and maintenance operations.
+/// Performs scheduled cleanup of caches and temporary data to maintain system performance.
+/// </summary>
 public class CleanerService : ICleanerService
 {
+    /// <summary>
+    /// Gets or sets the frequency in seconds for running the cleanup job.
+    /// Default is 3600 seconds (1 hour).
+    /// </summary>
     public int FrequencyInSeconds { get; set; } = 3600; // Default to 1 hour
+
+    /// <summary>
+    /// Runs the cleanup operations asynchronously.
+    /// </summary>
+    /// <param name="serviceScopeFactory">Factory for creating service scopes.</param>
+    /// <param name="cancellationToken">Cancellation token for stopping the operation.</param>
     public Task RunAsync(IServiceScopeFactory serviceScopeFactory, CancellationToken cancellationToken)
     {
         using var scope = serviceScopeFactory.CreateScope();

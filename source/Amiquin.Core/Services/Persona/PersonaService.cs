@@ -2,7 +2,7 @@ using Amiquin.Core.Services.ApiClients;
 using Amiquin.Core.Services.BotContext;
 using Amiquin.Core.Services.Chat;
 using Amiquin.Core.Services.MessageCache;
-using Amiquin.Core.Services.ServerMeta;
+using Amiquin.Core.Services.Meta;
 using Amiquin.Core.Utilities;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
@@ -11,6 +11,10 @@ using System.Text;
 
 namespace Amiquin.Core.Services.Persona;
 
+/// <summary>
+/// Service implementation for managing server persona operations.
+/// Handles persona creation, updates, caching, and AI-powered persona generation for Discord servers.
+/// </summary>
 public class PersonaService : IPersonaService
 {
     private readonly ILogger<PersonaService> _logger;
@@ -23,6 +27,18 @@ public class PersonaService : IPersonaService
     private readonly BotContextAccessor _botContextAccessor;
     private readonly IConfiguration _configuration;
 
+    /// <summary>
+    /// Initializes a new instance of the PersonaService.
+    /// </summary>
+    /// <param name="logger">Logger instance for recording service operations.</param>
+    /// <param name="messageCacheService">Service for managing message cache operations.</param>
+    /// <param name="chatService">Core chat service for AI interactions.</param>
+    /// <param name="newsApiClient">Client for accessing news API services.</param>
+    /// <param name="memoryCache">Memory cache for storing frequently accessed data.</param>
+    /// <param name="chatSemaphoreManager">Manager for controlling concurrent chat operations.</param>
+    /// <param name="serverMetaService">Service for managing server metadata.</param>
+    /// <param name="botContextAccessor">Accessor for bot context information.</param>
+    /// <param name="configuration">Application configuration settings.</param>
     public PersonaService(ILogger<PersonaService> logger, IMessageCacheService messageCacheService, IChatCoreService chatService, INewsApiClient newsApiClient, IMemoryCache memoryCache, IChatSemaphoreManager chatSemaphoreManager, IServerMetaService serverMetaService, BotContextAccessor botContextAccessor, IConfiguration configuration)
     {
         _logger = logger;
@@ -36,6 +52,7 @@ public class PersonaService : IPersonaService
         _configuration = configuration;
     }
 
+    /// <inheritdoc/>
     public async Task<string> GetPersonaAsync(ulong serverId)
     {
         var channelSemaphore = _chatSemaphoreManager.GetOrCreateInstanceSemaphore(serverId);
@@ -54,6 +71,7 @@ public class PersonaService : IPersonaService
         return personaMessage;
     }
 
+    /// <inheritdoc/>
     public async Task AddSummaryAsync(ulong serverId, string updateMessage)
     {
         var cacheKey = StringModifier.CreateCacheKey(Constants.CacheKeys.ComputedPersonaMessageKey, serverId.ToString());
