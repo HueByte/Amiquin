@@ -27,7 +27,8 @@ foreach ($ext in $extensions) {
 
 if ($fixed_count -eq 0) {
     Write-Host "✅ No files needed fixing - all already have LF line endings!" -ForegroundColor Green
-} else {
+}
+else {
     Write-Host ""
     Write-Host "✅ Fixed $fixed_count files with CRLF line endings!" -ForegroundColor Green
     Write-Host "💡 Remember to commit these changes:" -ForegroundColor Yellow

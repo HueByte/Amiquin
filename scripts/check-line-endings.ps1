@@ -25,7 +25,8 @@ foreach ($ext in $extensions) {
 if ($crlf_files.Count -eq 0) {
     Write-Host "✅ All text files have LF line endings!" -ForegroundColor Green
     exit 0
-} else {
+}
+else {
     Write-Host "❌ Files with CRLF line endings found:" -ForegroundColor Red
     foreach ($file in $crlf_files) {
         Write-Host "  - $file" -ForegroundColor Red
