@@ -21,8 +21,7 @@
 			},
 			{
 				"files": ["docs/**/*.{md,yml}"],
-				"src": "..",
-				"dest": "docs"
+				"src": ".."
 			},
 			{
 				"files": ["*.yml", "*.md"],
@@ -43,8 +42,8 @@
 			"_appTitle": "Amiquin Documentation",
 			"_enableSearch": true,
 			"_enableNewTab": true,
-			"_appLogoPath": "../assets/Amiquin-40px.png",
-			"_appFaviconPath": "../assets/Amiquin-40px.png",
+			"_appLogoPath": "assets/Amiquin-40px.png",
+			"_appFaviconPath": "assets/Amiquin-40px.png",
 			"pdf": false,
 			"_gitContribute": {
 				"repo": "https://github.com/huebyte/Amiquin",
