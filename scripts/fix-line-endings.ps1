@@ -8,7 +8,12 @@ $extensions = @("*.cs", "*.json", "*.yml", "*.yaml", "*.xml", "*.md", "*.txt", "
 $fixed_count = 0
 
 foreach ($ext in $extensions) {
-    $files = Get-ChildItem -Path . -Recurse -Include $ext | Where-Object { -not $_.PSIsContainer }
+    $files = Get-ChildItem -Path . -Recurse -Include $ext | Where-Object { 
+        -not $_.PSIsContainer -and 
+        -not $_.FullName.Contains('\obj\') -and 
+        -not $_.FullName.Contains('\bin\') -and
+        -not $_.FullName.Contains('\generated\')
+    }
     foreach ($file in $files) {
         $content = Get-Content $file.FullName -Raw
         if ($content -match "`r`n") {
