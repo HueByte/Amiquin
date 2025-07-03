@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+      <title>Interface IToggleService | Amiquin Documentation </title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="title" content="Interface IToggleService | Amiquin Documentation ">
+      
+      <meta name="description" content="Service interface for managing server toggle operations. Provides methods for creating, retrieving, updating toggle states and configurations.">
+      <link rel="icon" href="../assets/Amiquin-40px.png">
+      <link rel="stylesheet" href="../public/docfx.min.css">
+      <link rel="stylesheet" href="../public/main.css">
+      <meta name="docfx:navrel" content="../toc.html">
+      <meta name="docfx:tocrel" content="toc.html">
+      
+      <meta name="docfx:rel" content="../">
+      
+      
+      <meta name="docfx:docurl" content="https://github.com/huebyte/Amiquin/new/main/apiSpec/new?filename=Amiquin_Core_Services_Chat_Toggle_IToggleService.md&amp;value=---%0Auid%3A%20Amiquin.Core.Services.Chat.Toggle.IToggleService%0Asummary%3A%20&#39;*You%20can%20override%20summary%20for%20the%20API%20here%20using%20*MARKDOWN*%20syntax&#39;%0A---%0A%0A*Please%20type%20below%20more%20information%20about%20this%20API%3A*%0A%0A">
+      <meta name="loc:inThisArticle" content="In this article">
+      <meta name="loc:searchResultsCount" content="{count} results for &quot;{query}&quot;">
+      <meta name="loc:searchNoResults" content="No results for &quot;{query}&quot;">
+      <meta name="loc:tocFilter" content="Filter by title">
+      <meta name="loc:nextArticle" content="Next">
+      <meta name="loc:prevArticle" content="Previous">
+      <meta name="loc:themeLight" content="Light">
+      <meta name="loc:themeDark" content="Dark">
+      <meta name="loc:themeAuto" content="Auto">
+      <meta name="loc:changeTheme" content="Change theme">
+      <meta name="loc:copy" content="Copy">
+      <meta name="loc:downloadPdf" content="Download PDF">
+
+      <script type="module" src="./../public/docfx.min.js"></script>
+
+      <script>
+        const theme = localStorage.getItem('theme') || 'auto'
+        document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
+      </script>
+
+  </head>
+
+  <body class="tex2jax_ignore" data-layout="" data-yaml-mime="ManagedReference">
+    <header class="bg-body border-bottom">
+      <nav id="autocollapse" class="navbar navbar-expand-md" role="navigation">
+        <div class="container-xxl flex-nowrap">
+          <a class="navbar-brand" href="../index.html">
+            <img id="logo" class="svg" src="../assets/Amiquin-40px.png" alt="Amiquin">
+            Amiquin
+          </a>
+          <button class="btn btn-lg d-md-none border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navpanel" aria-controls="navpanel" aria-expanded="false" aria-label="Toggle navigation">
+            <i class="bi bi-three-dots"></i>
+          </button>
+          <div class="collapse navbar-collapse" id="navpanel">
+            <div id="navbar">
+              <form class="search" role="search" id="search">
+                <i class="bi bi-search"></i>
+                <input class="form-control" id="search-query" type="search" disabled placeholder="Search" autocomplete="off" aria-label="Search">
+              </form>
+            </div>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="container-xxl">
+      <div class="toc-offcanvas">
+        <div class="offcanvas-md offcanvas-start" tabindex="-1" id="tocOffcanvas" aria-labelledby="tocOffcanvasLabel">
+          <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="tocOffcanvasLabel">Table of Contents</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#tocOffcanvas" aria-label="Close"></button>
+          </div>
+          <div class="offcanvas-body">
+            <nav class="toc" id="toc"></nav>
+          </div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="actionbar">
+          <button class="btn btn-lg border-0 d-md-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#tocOffcanvas" aria-controls="tocOffcanvas" aria-expanded="false" aria-label="Show table of contents">
+            <i class="bi bi-list"></i>
+          </button>
+
+          <nav id="breadcrumb"></nav>
+        </div>
+
+        <article data-uid="Amiquin.Core.Services.Chat.Toggle.IToggleService">
+
+
+
+  <h1 id="Amiquin_Core_Services_Chat_Toggle_IToggleService" data-uid="Amiquin.Core.Services.Chat.Toggle.IToggleService" class="text-break">
+Interface IToggleService  <a class="header-action link-secondary" title="View source" href="https://github.com/HueByte/Amiquin/blob/main/source/Amiquin.Core/Services/Toggle/IToggleService.cs/#L7"><i class="bi bi-code-slash"></i></a>
+  </h1>
+
+  <div class="facts text-secondary">
+    <dl><dt>Namespace</dt><dd><a class="xref" href="Amiquin.html">Amiquin</a>.<a class="xref" href="Amiquin.Core.html">Core</a>.<a class="xref" href="Amiquin.Core.Services.html">Services</a>.<a class="xref" href="Amiquin.Core.Services.Chat.html">Chat</a>.<a class="xref" href="Amiquin.Core.Services.Chat.Toggle.html">Toggle</a></dd></dl>
+  <dl><dt>Assembly</dt><dd>Amiquin.Core.dll</dd></dl>
+  </div>
+
+  <div class="markdown summary"><p>Service interface for managing server toggle operations.
+Provides methods for creating, retrieving, updating toggle states and configurations.</p>
+</div>
+  <div class="markdown conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public interface IToggleService</code></pre>
+  </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  <h2 class="section" id="methods">Methods
+</h2>
+
+
+  <a id="Amiquin_Core_Services_Chat_Toggle_IToggleService_CreateServerTogglesIfNotExistsAsync_" data-uid="Amiquin.Core.Services.Chat.Toggle.IToggleService.CreateServerTogglesIfNotExistsAsync*"></a>
+
+  <h3 id="Amiquin_Core_Services_Chat_Toggle_IToggleService_CreateServerTogglesIfNotExistsAsync_System_UInt64_" data-uid="Amiquin.Core.Services.Chat.Toggle.IToggleService.CreateServerTogglesIfNotExistsAsync(System.UInt64)">
+  CreateServerTogglesIfNotExistsAsync(ulong)
+  <a class="header-action link-secondary" title="View source" href="https://github.com/HueByte/Amiquin/blob/main/source/Amiquin.Core/Services/Toggle/IToggleService.cs/#L21"><i class="bi bi-code-slash"></i></a>
+  </h3>
+
+  <div class="markdown level1 summary"><p>Creates default toggles for a server if they don't already exist.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">Task CreateServerTogglesIfNotExistsAsync(ulong serverId)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>serverId</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint64">ulong</a></dt>
+    <dd><p>The Discord server ID to create toggles for.</p>
+</dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.tasks.task">Task</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Amiquin_Core_Services_Chat_Toggle_IToggleService_GetTogglesByServerId_" data-uid="Amiquin.Core.Services.Chat.Toggle.IToggleService.GetTogglesByServerId*"></a>
+
+  <h3 id="Amiquin_Core_Services_Chat_Toggle_IToggleService_GetTogglesByServerId_System_UInt64_" data-uid="Amiquin.Core.Services.Chat.Toggle.IToggleService.GetTogglesByServerId(System.UInt64)">
+  GetTogglesByServerId(ulong)
+  <a class="header-action link-secondary" title="View source" href="https://github.com/HueByte/Amiquin/blob/main/source/Amiquin.Core/Services/Toggle/IToggleService.cs/#L28"><i class="bi bi-code-slash"></i></a>
+  </h3>
+
+  <div class="markdown level1 summary"><p>Retrieves all toggles for a specific server.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">Task&lt;List&lt;Toggle&gt;&gt; GetTogglesByServerId(ulong serverId)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>serverId</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint64">ulong</a></dt>
+    <dd><p>The Discord server ID to retrieve toggles for.</p>
+</dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.tasks.task-1">Task</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.list-1">List</a>&lt;<a class="xref" href="Amiquin.Core.Models.Toggle.html">Toggle</a>&gt;&gt;</dt>
+    <dd><p>A list of toggles for the specified server.</p>
+</dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Amiquin_Core_Services_Chat_Toggle_IToggleService_IsEnabledAsync_" data-uid="Amiquin.Core.Services.Chat.Toggle.IToggleService.IsEnabledAsync*"></a>
+
+  <h3 id="Amiquin_Core_Services_Chat_Toggle_IToggleService_IsEnabledAsync_System_UInt64_System_String_" data-uid="Amiquin.Core.Services.Chat.Toggle.IToggleService.IsEnabledAsync(System.UInt64,System.String)">
+  IsEnabledAsync(ulong, string)
+  <a class="header-action link-secondary" title="View source" href="https://github.com/HueByte/Amiquin/blob/main/source/Amiquin.Core/Services/Toggle/IToggleService.cs/#L15"><i class="bi bi-code-slash"></i></a>
+  </h3>
+
+  <div class="markdown level1 summary"><p>Checks if a specific toggle is enabled for a server.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">Task&lt;bool&gt; IsEnabledAsync(ulong serverId, string toggleName)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>serverId</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint64">ulong</a></dt>
+    <dd><p>The Discord server ID to check the toggle for.</p>
+</dd>
+    <dt><code>toggleName</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd><p>The name of the toggle to check.</p>
+</dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.tasks.task-1">Task</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a>&gt;</dt>
+    <dd><p>True if the toggle is enabled; otherwise, false.</p>
+</dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Amiquin_Core_Services_Chat_Toggle_IToggleService_SetServerToggleAsync_" data-uid="Amiquin.Core.Services.Chat.Toggle.IToggleService.SetServerToggleAsync*"></a>
+
+  <h3 id="Amiquin_Core_Services_Chat_Toggle_IToggleService_SetServerToggleAsync_System_UInt64_System_String_System_Boolean_System_String_" data-uid="Amiquin.Core.Services.Chat.Toggle.IToggleService.SetServerToggleAsync(System.UInt64,System.String,System.Boolean,System.String)">
+  SetServerToggleAsync(ulong, string, bool, string?)
+  <a class="header-action link-secondary" title="View source" href="https://github.com/HueByte/Amiquin/blob/main/source/Amiquin.Core/Services/Toggle/IToggleService.cs/#L37"><i class="bi bi-code-slash"></i></a>
+  </h3>
+
+  <div class="markdown level1 summary"><p>Sets the state of a specific toggle for a server.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">Task SetServerToggleAsync(ulong serverId, string toggleName, bool isEnabled, string? description = null)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>serverId</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint64">ulong</a></dt>
+    <dd><p>The Discord server ID to set the toggle for.</p>
+</dd>
+    <dt><code>toggleName</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd><p>The name of the toggle to set.</p>
+</dd>
+    <dt><code>isEnabled</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
+    <dd><p>Whether the toggle should be enabled or disabled.</p>
+</dd>
+    <dt><code>description</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd><p>Optional description for the toggle.</p>
+</dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.tasks.task">Task</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Amiquin_Core_Services_Chat_Toggle_IToggleService_SetServerTogglesBulkAsync_" data-uid="Amiquin.Core.Services.Chat.Toggle.IToggleService.SetServerTogglesBulkAsync*"></a>
+
+  <h3 id="Amiquin_Core_Services_Chat_Toggle_IToggleService_SetServerTogglesBulkAsync_System_UInt64_System_Collections_Generic_Dictionary_System_String_System_ValueTuple_System_Boolean_System_String___" data-uid="Amiquin.Core.Services.Chat.Toggle.IToggleService.SetServerTogglesBulkAsync(System.UInt64,System.Collections.Generic.Dictionary{System.String,System.ValueTuple{System.Boolean,System.String}})">
+  SetServerTogglesBulkAsync(ulong, Dictionary&lt;string, (bool IsEnabled, string? Description)&gt;)
+  <a class="header-action link-secondary" title="View source" href="https://github.com/HueByte/Amiquin/blob/main/source/Amiquin.Core/Services/Toggle/IToggleService.cs/#L44"><i class="bi bi-code-slash"></i></a>
+  </h3>
+
+  <div class="markdown level1 summary"><p>Sets multiple toggles for a server in a single operation.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">Task SetServerTogglesBulkAsync(ulong serverId, Dictionary&lt;string, (bool IsEnabled, string? Description)&gt; toggles)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>serverId</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint64">ulong</a></dt>
+    <dd><p>The Discord server ID to set toggles for.</p>
+</dd>
+    <dt><code>toggles</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.dictionary-2">Dictionary</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a>, (<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.valuetuple-system.boolean,system.string-.isenabled">IsEnabled</a>, <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.valuetuple-system.boolean,system.string-.description">Description</a>)&gt;</dt>
+    <dd><p>Dictionary of toggle names with their enabled state and description.</p>
+</dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.tasks.task">Task</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Amiquin_Core_Services_Chat_Toggle_IToggleService_UpdateAllTogglesAsync_" data-uid="Amiquin.Core.Services.Chat.Toggle.IToggleService.UpdateAllTogglesAsync*"></a>
+
+  <h3 id="Amiquin_Core_Services_Chat_Toggle_IToggleService_UpdateAllTogglesAsync_System_String_System_Boolean_System_String_" data-uid="Amiquin.Core.Services.Chat.Toggle.IToggleService.UpdateAllTogglesAsync(System.String,System.Boolean,System.String)">
+  UpdateAllTogglesAsync(string, bool, string?)
+  <a class="header-action link-secondary" title="View source" href="https://github.com/HueByte/Amiquin/blob/main/source/Amiquin.Core/Services/Toggle/IToggleService.cs/#L53"><i class="bi bi-code-slash"></i></a>
+  </h3>
+
+  <div class="markdown level1 summary"><p>Updates a specific toggle across all servers in the system.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">Task&lt;bool&gt; UpdateAllTogglesAsync(string toggleName, bool isEnabled, string? description = null)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>toggleName</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd><p>The name of the toggle to update.</p>
+</dd>
+    <dt><code>isEnabled</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
+    <dd><p>Whether the toggle should be enabled or disabled.</p>
+</dd>
+    <dt><code>description</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd><p>Optional description for the toggle.</p>
+</dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.tasks.task-1">Task</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a>&gt;</dt>
+    <dd><p>True if the operation was successful; otherwise, false.</p>
+</dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+
+</article>
+
+        <div class="contribution d-print-none">
+          <a href="https://github.com/HueByte/Amiquin/blob/main/source/Amiquin.Core/Services/Toggle/IToggleService.cs/#L7" class="edit-link">Edit this page</a>
+        </div>
+
+
+      </div>
+
+      <div class="affix">
+        <nav id="affix"></nav>
+      </div>
+    </main>
+
+    <div class="container-xxl search-results" id="search-results"></div>
+
+    <footer class="border-top text-secondary">
+      <div class="container-xxl">
+        <div class="flex-fill">
+          <span>Made with <a href="https://dotnet.github.io/docfx">docfx</a></span>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

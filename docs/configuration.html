@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+      <title>Configuration Guide | Amiquin Documentation </title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="title" content="Configuration Guide | Amiquin Documentation ">
+      
+      
+      <link rel="icon" href="../assets/Amiquin-40px.png">
+      <link rel="stylesheet" href="../public/docfx.min.css">
+      <link rel="stylesheet" href="../public/main.css">
+      <meta name="docfx:navrel" content="../toc.html">
+      <meta name="docfx:tocrel" content="toc.html">
+      
+      <meta name="docfx:rel" content="../">
+      
+      
+      <meta name="docfx:docurl" content="https://github.com/huebyte/Amiquin/blob/main/docs/configuration.md/#L1">
+      <meta name="loc:inThisArticle" content="In this article">
+      <meta name="loc:searchResultsCount" content="{count} results for &quot;{query}&quot;">
+      <meta name="loc:searchNoResults" content="No results for &quot;{query}&quot;">
+      <meta name="loc:tocFilter" content="Filter by title">
+      <meta name="loc:nextArticle" content="Next">
+      <meta name="loc:prevArticle" content="Previous">
+      <meta name="loc:themeLight" content="Light">
+      <meta name="loc:themeDark" content="Dark">
+      <meta name="loc:themeAuto" content="Auto">
+      <meta name="loc:changeTheme" content="Change theme">
+      <meta name="loc:copy" content="Copy">
+      <meta name="loc:downloadPdf" content="Download PDF">
+
+      <script type="module" src="./../public/docfx.min.js"></script>
+
+      <script>
+        const theme = localStorage.getItem('theme') || 'auto'
+        document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
+      </script>
+
+  </head>
+
+  <body class="tex2jax_ignore" data-layout="" data-yaml-mime="">
+    <header class="bg-body border-bottom">
+      <nav id="autocollapse" class="navbar navbar-expand-md" role="navigation">
+        <div class="container-xxl flex-nowrap">
+          <a class="navbar-brand" href="../index.html">
+            <img id="logo" class="svg" src="../assets/Amiquin-40px.png" alt="Amiquin">
+            Amiquin
+          </a>
+          <button class="btn btn-lg d-md-none border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navpanel" aria-controls="navpanel" aria-expanded="false" aria-label="Toggle navigation">
+            <i class="bi bi-three-dots"></i>
+          </button>
+          <div class="collapse navbar-collapse" id="navpanel">
+            <div id="navbar">
+              <form class="search" role="search" id="search">
+                <i class="bi bi-search"></i>
+                <input class="form-control" id="search-query" type="search" disabled placeholder="Search" autocomplete="off" aria-label="Search">
+              </form>
+            </div>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="container-xxl">
+      <div class="toc-offcanvas">
+        <div class="offcanvas-md offcanvas-start" tabindex="-1" id="tocOffcanvas" aria-labelledby="tocOffcanvasLabel">
+          <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="tocOffcanvasLabel">Table of Contents</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#tocOffcanvas" aria-label="Close"></button>
+          </div>
+          <div class="offcanvas-body">
+            <nav class="toc" id="toc"></nav>
+          </div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="actionbar">
+          <button class="btn btn-lg border-0 d-md-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#tocOffcanvas" aria-controls="tocOffcanvas" aria-expanded="false" aria-label="Show table of contents">
+            <i class="bi bi-list"></i>
+          </button>
+
+          <nav id="breadcrumb"></nav>
+        </div>
+
+        <article data-uid="">
+<h1 id="configuration-guide">Configuration Guide</h1>
+
+<p>This guide covers how to configure Amiquin for your Discord server and customize its behavior.</p>
+<h2 id="bot-configuration">Bot Configuration</h2>
+<h3 id="environment-variables">Environment Variables</h3>
+<p>Amiquin uses environment variables for configuration. Create a <code>.env</code> file or set these in your hosting environment:</p>
+<pre><code class="lang-env"># Required
+DISCORD_TOKEN=your_bot_token_here
+
+# Database (choose one)
+DATABASE_TYPE=sqlite
+DATABASE_CONNECTION=Data Source=amiquin.db
+
+# OR for MySQL
+# DATABASE_TYPE=mysql
+# DATABASE_CONNECTION=Server=localhost;Database=amiquin;User=amiquin;Password=your_password;
+
+# Optional
+LOG_LEVEL=Information
+ENVIRONMENT=Production
+PREFIX=!
+</code></pre>
+<h3 id="configuration-files">Configuration Files</h3>
+<h4 id="appsettingsjson">appsettings.json</h4>
+<pre><code class="lang-json">{
+  &quot;Discord&quot;: {
+    &quot;Token&quot;: &quot;your_token_here&quot;,
+    &quot;Prefix&quot;: &quot;!&quot;,
+    &quot;ActivityType&quot;: &quot;Playing&quot;,
+    &quot;ActivityName&quot;: &quot;with Discord.Net&quot;
+  },
+  &quot;Database&quot;: {
+    &quot;Type&quot;: &quot;sqlite&quot;,
+    &quot;ConnectionString&quot;: &quot;Data Source=amiquin.db&quot;
+  },
+  &quot;Logging&quot;: {
+    &quot;LogLevel&quot;: {
+      &quot;Default&quot;: &quot;Information&quot;,
+      &quot;Microsoft&quot;: &quot;Warning&quot;,
+      &quot;System&quot;: &quot;Warning&quot;
+    }
+  }
+}
+</code></pre>
+<h2 id="server-settings">Server Settings</h2>
+<h3 id="basic-setup">Basic Setup</h3>
+<p>After inviting Amiquin to your server, configure basic settings:</p>
+<pre><code class="lang-sh">/config welcome_channel #general
+/config log_channel #bot-logs
+/config prefix !
+</code></pre>
+<h3 id="available-settings">Available Settings</h3>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Description</th>
+<th>Default</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>welcome_channel</code></td>
+<td>Channel for welcome messages</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>log_channel</code></td>
+<td>Channel for bot logs</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>prefix</code></td>
+<td>Command prefix (legacy)</td>
+<td><code>!</code></td>
+</tr>
+<tr>
+<td><code>auto_role</code></td>
+<td>Automatic role for new members</td>
+<td>None</td>
+</tr>
+<tr>
+<td><code>modlog_channel</code></td>
+<td>Channel for moderation logs</td>
+<td>None</td>
+</tr>
+</tbody>
+</table>
+<h3 id="permission-setup">Permission Setup</h3>
+<h4 id="required-bot-permissions">Required Bot Permissions</h4>
+<ul>
+<li><strong>Send Messages</strong> - Basic functionality</li>
+<li><strong>Use Slash Commands</strong> - Modern command interface</li>
+<li><strong>Embed Links</strong> - Rich message formatting</li>
+<li><strong>Read Message History</strong> - Context awareness</li>
+</ul>
+<h4 id="optional-permissions">Optional Permissions</h4>
+<ul>
+<li><strong>Manage Messages</strong> - Moderation features</li>
+<li><strong>Kick Members</strong> - Kick command</li>
+<li><strong>Ban Members</strong> - Ban/unban commands</li>
+<li><strong>Manage Roles</strong> - Role management</li>
+<li><strong>Connect</strong> - Voice features</li>
+<li><strong>Speak</strong> - Voice features</li>
+</ul>
+<h3 id="role-configuration">Role Configuration</h3>
+<h4 id="setting-up-moderation-roles">Setting Up Moderation Roles</h4>
+<ol>
+<li>Create moderation roles in your server</li>
+<li>Assign appropriate permissions to roles</li>
+<li>Configure bot to recognize these roles:</li>
+</ol>
+<pre><code class="lang-sh">/config mod_role @Moderator
+/config admin_role @Administrator
+</code></pre>
+<h2 id="feature-configuration">Feature Configuration</h2>
+<h3 id="welcome-messages">Welcome Messages</h3>
+<p>Configure automatic welcome messages for new members:</p>
+<pre><code class="lang-sh">/config welcome_channel #general
+/config welcome_message &quot;Welcome {user} to {server}! Please read #rules&quot;
+</code></pre>
+<p><strong>Available Variables:</strong></p>
+<ul>
+<li><code>{user}</code> - User mention</li>
+<li><code>{username}</code> - Username</li>
+<li><code>{server}</code> - Server name</li>
+<li><code>{membercount}</code> - Current member count</li>
+</ul>
+<h3 id="auto-moderation">Auto Moderation</h3>
+<p>Enable automatic moderation features:</p>
+<pre><code class="lang-sh">/config automod_enabled true
+/config automod_spam_detection true
+/config automod_link_filter true
+/config automod_bad_words true
+</code></pre>
+<h3 id="logging">Logging</h3>
+<p>Configure what events to log:</p>
+<pre><code class="lang-sh">/config log_joins true
+/config log_leaves true
+/config log_bans true
+/config log_kicks true
+/config log_message_edits true
+/config log_message_deletes true
+</code></pre>
+<h2 id="advanced-configuration">Advanced Configuration</h2>
+<h3 id="database-configuration">Database Configuration</h3>
+<h4 id="sqlite-default">SQLite (Default)</h4>
+<p>SQLite requires no additional setup:</p>
+<pre><code class="lang-env">DATABASE_TYPE=sqlite
+DATABASE_CONNECTION=Data Source=amiquin.db
+</code></pre>
+<h4 id="mysql">MySQL</h4>
+<p>For MySQL, set up the database first:</p>
+<pre><code class="lang-sql">CREATE DATABASE amiquin;
+CREATE USER 'amiquin'@'%' IDENTIFIED BY 'your_password';
+GRANT ALL PRIVILEGES ON amiquin.* TO 'amiquin'@'%';
+FLUSH PRIVILEGES;
+</code></pre>
+<p>Then configure:</p>
+<pre><code class="lang-env">DATABASE_TYPE=mysql
+DATABASE_CONNECTION=Server=localhost;Database=amiquin;User=amiquin;Password=your_password;
+</code></pre>
+<h3 id="custom-commands">Custom Commands</h3>
+<p>Create custom commands for your server:</p>
+<pre><code class="lang-sh">/custom add greet &quot;Hello {user}, welcome to our awesome server!&quot;
+/custom add rules &quot;Please read our rules in #rules channel&quot;
+</code></pre>
+<h3 id="scheduled-tasks">Scheduled Tasks</h3>
+<p>Configure recurring tasks:</p>
+<pre><code class="lang-sh">/schedule add daily &quot;Good morning everyone!&quot; #general 09:00
+/schedule add weekly &quot;Weekly server update!&quot; #announcements monday 18:00
+</code></pre>
+<h2 id="troubleshooting">Troubleshooting</h2>
+<h3 id="common-issues">Common Issues</h3>
+<h4 id="bot-not-responding">Bot Not Responding</h4>
+<p><strong>Symptoms</strong>: Bot appears online but doesn't respond to commands</p>
+<p><strong>Solutions</strong>:</p>
+<ol>
+<li>Check bot permissions in the channel</li>
+<li>Verify bot has &quot;Use Slash Commands&quot; permission</li>
+<li>Check if bot is rate-limited</li>
+<li>Restart the bot</li>
+</ol>
+<h4 id="permission-errors">Permission Errors</h4>
+<p><strong>Symptoms</strong>: &quot;Missing permissions&quot; errors</p>
+<p><strong>Solutions</strong>:</p>
+<ol>
+<li>Check bot role hierarchy (bot role should be above managed roles)</li>
+<li>Verify channel-specific permissions</li>
+<li>Grant necessary permissions in server settings</li>
+</ol>
+<h4 id="database-errors">Database Errors</h4>
+<p><strong>Symptoms</strong>: Commands fail with database errors</p>
+<p><strong>Solutions</strong>:</p>
+<ol>
+<li>Check database connection string</li>
+<li>Verify database permissions</li>
+<li>Check disk space (for SQLite)</li>
+<li>Restart bot to reset connections</li>
+</ol>
+<h3 id="getting-help">Getting Help</h3>
+<ol>
+<li><strong>Check bot logs</strong> in your configured log channel</li>
+<li><strong>Use the help command</strong>: <code>/help</code></li>
+<li><strong>Join support server</strong>: [Discord Server Link]</li>
+<li><strong>Create GitHub issue</strong>: <a href="https://github.com/huebyte/Amiquin/issues">GitHub Issues</a></li>
+</ol>
+<h3 id="debug-mode">Debug Mode</h3>
+<p>Enable debug mode for detailed logging:</p>
+<pre><code class="lang-env">LOG_LEVEL=Debug
+</code></pre>
+<p><strong>Warning</strong>: Debug mode generates lots of logs. Only use for troubleshooting.</p>
+<h2 id="migration">Migration</h2>
+<h3 id="from-other-bots">From Other Bots</h3>
+<p>When migrating from other Discord bots:</p>
+<ol>
+<li><strong>Export settings</strong> from your previous bot (if possible)</li>
+<li><strong>Configure Amiquin</strong> with similar settings</li>
+<li><strong>Test functionality</strong> before removing the old bot</li>
+<li><strong>Update documentation</strong> and inform users</li>
+</ol>
+<h3 id="backup-and-restore">Backup and Restore</h3>
+<h4 id="backing-up-configuration">Backing Up Configuration</h4>
+<pre><code class="lang-bash"># Backup SQLite database
+cp amiquin.db amiquin.db.backup
+
+# Backup configuration
+cp appsettings.json appsettings.json.backup
+</code></pre>
+<h4 id="restoring-configuration">Restoring Configuration</h4>
+<pre><code class="lang-bash"># Restore database
+cp amiquin.db.backup amiquin.db
+
+# Restore configuration
+cp appsettings.json.backup appsettings.json
+</code></pre>
+<h2 id="performance-optimization">Performance Optimization</h2>
+<h3 id="large-servers">Large Servers</h3>
+<p>For servers with many members:</p>
+<ol>
+<li><p><strong>Enable database indexing</strong></p>
+</li>
+<li><p><strong>Use MySQL instead of SQLite</strong></p>
+</li>
+<li><p><strong>Configure caching</strong>:</p>
+<pre><code class="lang-env">CACHE_ENABLED=true
+CACHE_EXPIRY=3600
+</code></pre>
+</li>
+</ol>
+<h3 id="resource-limits">Resource Limits</h3>
+<p>Monitor and configure resource usage:</p>
+<pre><code class="lang-env">MAX_MEMORY_MB=512
+MAX_CPU_PERCENT=80
+RATE_LIMIT_PER_USER=5
+RATE_LIMIT_WINDOW=60
+</code></pre>
+<p>This completes the basic configuration guide. For more advanced configurations, check the <a href="development.html">Development Guide</a> or consult the API documentation.</p>
+
+</article>
+
+        <div class="contribution d-print-none">
+          <a href="https://github.com/huebyte/Amiquin/blob/main/docs/configuration.md/#L1" class="edit-link">Edit this page</a>
+        </div>
+
+        <div class="next-article d-print-none border-top" id="nextArticle"></div>
+
+      </div>
+
+      <div class="affix">
+        <nav id="affix"></nav>
+      </div>
+    </main>
+
+    <div class="container-xxl search-results" id="search-results"></div>
+
+    <footer class="border-top text-secondary">
+      <div class="container-xxl">
+        <div class="flex-fill">
+          <span>Made with <a href="https://dotnet.github.io/docfx">docfx</a></span>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+      <title>Class NachoService | Amiquin Documentation </title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="title" content="Class NachoService | Amiquin Documentation ">
+      
+      <meta name="description" content="Service implementation for managing nacho operations. Handles database operations for nacho counting, statistics, and management across users and servers.">
+      <link rel="icon" href="../assets/Amiquin-40px.png">
+      <link rel="stylesheet" href="../public/docfx.min.css">
+      <link rel="stylesheet" href="../public/main.css">
+      <meta name="docfx:navrel" content="../toc.html">
+      <meta name="docfx:tocrel" content="toc.html">
+      
+      <meta name="docfx:rel" content="../">
+      
+      
+      <meta name="docfx:docurl" content="https://github.com/huebyte/Amiquin/new/main/apiSpec/new?filename=Amiquin_Core_Services_Nacho_NachoService.md&amp;value=---%0Auid%3A%20Amiquin.Core.Services.Nacho.NachoService%0Asummary%3A%20&#39;*You%20can%20override%20summary%20for%20the%20API%20here%20using%20*MARKDOWN*%20syntax&#39;%0A---%0A%0A*Please%20type%20below%20more%20information%20about%20this%20API%3A*%0A%0A">
+      <meta name="loc:inThisArticle" content="In this article">
+      <meta name="loc:searchResultsCount" content="{count} results for &quot;{query}&quot;">
+      <meta name="loc:searchNoResults" content="No results for &quot;{query}&quot;">
+      <meta name="loc:tocFilter" content="Filter by title">
+      <meta name="loc:nextArticle" content="Next">
+      <meta name="loc:prevArticle" content="Previous">
+      <meta name="loc:themeLight" content="Light">
+      <meta name="loc:themeDark" content="Dark">
+      <meta name="loc:themeAuto" content="Auto">
+      <meta name="loc:changeTheme" content="Change theme">
+      <meta name="loc:copy" content="Copy">
+      <meta name="loc:downloadPdf" content="Download PDF">
+
+      <script type="module" src="./../public/docfx.min.js"></script>
+
+      <script>
+        const theme = localStorage.getItem('theme') || 'auto'
+        document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
+      </script>
+
+  </head>
+
+  <body class="tex2jax_ignore" data-layout="" data-yaml-mime="ManagedReference">
+    <header class="bg-body border-bottom">
+      <nav id="autocollapse" class="navbar navbar-expand-md" role="navigation">
+        <div class="container-xxl flex-nowrap">
+          <a class="navbar-brand" href="../index.html">
+            <img id="logo" class="svg" src="../assets/Amiquin-40px.png" alt="Amiquin">
+            Amiquin
+          </a>
+          <button class="btn btn-lg d-md-none border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navpanel" aria-controls="navpanel" aria-expanded="false" aria-label="Toggle navigation">
+            <i class="bi bi-three-dots"></i>
+          </button>
+          <div class="collapse navbar-collapse" id="navpanel">
+            <div id="navbar">
+              <form class="search" role="search" id="search">
+                <i class="bi bi-search"></i>
+                <input class="form-control" id="search-query" type="search" disabled placeholder="Search" autocomplete="off" aria-label="Search">
+              </form>
+            </div>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="container-xxl">
+      <div class="toc-offcanvas">
+        <div class="offcanvas-md offcanvas-start" tabindex="-1" id="tocOffcanvas" aria-labelledby="tocOffcanvasLabel">
+          <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="tocOffcanvasLabel">Table of Contents</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#tocOffcanvas" aria-label="Close"></button>
+          </div>
+          <div class="offcanvas-body">
+            <nav class="toc" id="toc"></nav>
+          </div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="actionbar">
+          <button class="btn btn-lg border-0 d-md-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#tocOffcanvas" aria-controls="tocOffcanvas" aria-expanded="false" aria-label="Show table of contents">
+            <i class="bi bi-list"></i>
+          </button>
+
+          <nav id="breadcrumb"></nav>
+        </div>
+
+        <article data-uid="Amiquin.Core.Services.Nacho.NachoService">
+
+
+
+  <h1 id="Amiquin_Core_Services_Nacho_NachoService" data-uid="Amiquin.Core.Services.Nacho.NachoService" class="text-break">
+Class NachoService  <a class="header-action link-secondary" title="View source" href="https://github.com/HueByte/Amiquin/blob/main/source/Amiquin.Core/Services/Nacho/NachoService.cs/#L10"><i class="bi bi-code-slash"></i></a>
+  </h1>
+
+  <div class="facts text-secondary">
+    <dl><dt>Namespace</dt><dd><a class="xref" href="Amiquin.html">Amiquin</a>.<a class="xref" href="Amiquin.Core.html">Core</a>.<a class="xref" href="Amiquin.Core.Services.html">Services</a>.<a class="xref" href="Amiquin.Core.Services.Nacho.html">Nacho</a></dd></dl>
+  <dl><dt>Assembly</dt><dd>Amiquin.Core.dll</dd></dl>
+  </div>
+
+  <div class="markdown summary"><p>Service implementation for managing nacho operations.
+Handles database operations for nacho counting, statistics, and management across users and servers.</p>
+</div>
+  <div class="markdown conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public class NachoService : INachoService</code></pre>
+  </div>
+
+
+
+
+  <dl class="typelist inheritance">
+    <dt>Inheritance</dt>
+    <dd>
+      <div><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object">object</a></div>
+      <div><span class="xref">NachoService</span></div>
+    </dd>
+  </dl>
+
+  <dl class="typelist implements">
+    <dt>Implements</dt>
+    <dd>
+      <div><a class="xref" href="Amiquin.Core.Services.Nacho.INachoService.html">INachoService</a></div>
+    </dd>
+  </dl>
+
+
+  <dl class="typelist inheritedMembers">
+    <dt>Inherited Members</dt>
+    <dd>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.equals#system-object-equals(system-object)">object.Equals(object)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.equals#system-object-equals(system-object-system-object)">object.Equals(object, object)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.gethashcode">object.GetHashCode()</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.gettype">object.GetType()</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.memberwiseclone">object.MemberwiseClone()</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.referenceequals">object.ReferenceEquals(object, object)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.tostring">object.ToString()</a>
+    </div>
+  </dd></dl>
+
+
+
+
+
+
+  <h2 class="section" id="constructors">Constructors
+</h2>
+
+
+  <a id="Amiquin_Core_Services_Nacho_NachoService__ctor_" data-uid="Amiquin.Core.Services.Nacho.NachoService.#ctor*"></a>
+
+  <h3 id="Amiquin_Core_Services_Nacho_NachoService__ctor_Amiquin_Core_IRepositories_INachoRepository_" data-uid="Amiquin.Core.Services.Nacho.NachoService.#ctor(Amiquin.Core.IRepositories.INachoRepository)">
+  NachoService(INachoRepository)
+  <a class="header-action link-secondary" title="View source" href="https://github.com/HueByte/Amiquin/blob/main/source/Amiquin.Core/Services/Nacho/NachoService.cs/#L18"><i class="bi bi-code-slash"></i></a>
+  </h3>
+
+  <div class="markdown level1 summary"><p>Initializes a new instance of the NachoService.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public NachoService(INachoRepository nachoRepository)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>nachoRepository</code> <a class="xref" href="Amiquin.Core.IRepositories.INachoRepository.html">INachoRepository</a></dt>
+    <dd><p>Repository for database operations on nacho records.</p>
+</dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+
+  <h2 class="section" id="fields">Fields
+</h2>
+
+
+
+  <h3 id="Amiquin_Core_Services_Nacho_NachoService__nachoRepository" data-uid="Amiquin.Core.Services.Nacho.NachoService._nachoRepository">
+  _nachoRepository
+  <a class="header-action link-secondary" title="View source" href="https://github.com/HueByte/Amiquin/blob/main/source/Amiquin.Core/Services/Nacho/NachoService.cs/#L12"><i class="bi bi-code-slash"></i></a>
+  </h3>
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public readonly INachoRepository _nachoRepository</code></pre>
+  </div>
+
+
+
+
+  <h4 class="section">Field Value</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="Amiquin.Core.IRepositories.INachoRepository.html">INachoRepository</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+  <h2 class="section" id="methods">Methods
+</h2>
+
+
+  <a id="Amiquin_Core_Services_Nacho_NachoService_AddNachoAsync_" data-uid="Amiquin.Core.Services.Nacho.NachoService.AddNachoAsync*"></a>
+
+  <h3 id="Amiquin_Core_Services_Nacho_NachoService_AddNachoAsync_System_UInt64_System_UInt64_System_Int32_" data-uid="Amiquin.Core.Services.Nacho.NachoService.AddNachoAsync(System.UInt64,System.UInt64,System.Int32)">
+  AddNachoAsync(ulong, ulong, int)
+  <a class="header-action link-secondary" title="View source" href="https://github.com/HueByte/Amiquin/blob/main/source/Amiquin.Core/Services/Nacho/NachoService.cs/#L47"><i class="bi bi-code-slash"></i></a>
+  </h3>
+
+  <div class="markdown level1 summary"><p>Adds nacho count to a user in a specific server.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Task AddNachoAsync(ulong userId, ulong serverId, int nachoCount = 1)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>userId</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint64">ulong</a></dt>
+    <dd><p>The Discord user ID to add nachos for.</p>
+</dd>
+    <dt><code>serverId</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint64">ulong</a></dt>
+    <dd><p>The Discord server ID where the nachos are being added.</p>
+</dd>
+    <dt><code>nachoCount</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a></dt>
+    <dd><p>The number of nachos to add. Default is 1.</p>
+</dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.tasks.task">Task</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Amiquin_Core_Services_Nacho_NachoService_GetServerNachoCountAsync_" data-uid="Amiquin.Core.Services.Nacho.NachoService.GetServerNachoCountAsync*"></a>
+
+  <h3 id="Amiquin_Core_Services_Nacho_NachoService_GetServerNachoCountAsync_System_UInt64_" data-uid="Amiquin.Core.Services.Nacho.NachoService.GetServerNachoCountAsync(System.UInt64)">
+  GetServerNachoCountAsync(ulong)
+  <a class="header-action link-secondary" title="View source" href="https://github.com/HueByte/Amiquin/blob/main/source/Amiquin.Core/Services/Nacho/NachoService.cs/#L32"><i class="bi bi-code-slash"></i></a>
+  </h3>
+
+  <div class="markdown level1 summary"><p>Retrieves the total nacho count for a specific server.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Task&lt;int&gt; GetServerNachoCountAsync(ulong serverId)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>serverId</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint64">ulong</a></dt>
+    <dd><p>The Discord server ID to get the nacho count for.</p>
+</dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.tasks.task-1">Task</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a>&gt;</dt>
+    <dd><p>The total number of nachos in the server.</p>
+</dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Amiquin_Core_Services_Nacho_NachoService_GetTotalNachoCountAsync_" data-uid="Amiquin.Core.Services.Nacho.NachoService.GetTotalNachoCountAsync*"></a>
+
+  <h3 id="Amiquin_Core_Services_Nacho_NachoService_GetTotalNachoCountAsync" data-uid="Amiquin.Core.Services.Nacho.NachoService.GetTotalNachoCountAsync">
+  GetTotalNachoCountAsync()
+  <a class="header-action link-secondary" title="View source" href="https://github.com/HueByte/Amiquin/blob/main/source/Amiquin.Core/Services/Nacho/NachoService.cs/#L40"><i class="bi bi-code-slash"></i></a>
+  </h3>
+
+  <div class="markdown level1 summary"><p>Retrieves the total nacho count across all servers.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Task&lt;int&gt; GetTotalNachoCountAsync()</code></pre>
+  </div>
+
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.tasks.task-1">Task</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a>&gt;</dt>
+    <dd><p>The total number of nachos across all servers.</p>
+</dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Amiquin_Core_Services_Nacho_NachoService_GetUserNachoCountAsync_" data-uid="Amiquin.Core.Services.Nacho.NachoService.GetUserNachoCountAsync*"></a>
+
+  <h3 id="Amiquin_Core_Services_Nacho_NachoService_GetUserNachoCountAsync_System_UInt64_" data-uid="Amiquin.Core.Services.Nacho.NachoService.GetUserNachoCountAsync(System.UInt64)">
+  GetUserNachoCountAsync(ulong)
+  <a class="header-action link-secondary" title="View source" href="https://github.com/HueByte/Amiquin/blob/main/source/Amiquin.Core/Services/Nacho/NachoService.cs/#L24"><i class="bi bi-code-slash"></i></a>
+  </h3>
+
+  <div class="markdown level1 summary"><p>Retrieves the total nacho count for a specific user across all servers.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Task&lt;int&gt; GetUserNachoCountAsync(ulong userId)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>userId</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint64">ulong</a></dt>
+    <dd><p>The Discord user ID to get the nacho count for.</p>
+</dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.tasks.task-1">Task</a>&lt;<a class="xref" href="https://learn.microsoft.com/dotnet/api/system.int32">int</a>&gt;</dt>
+    <dd><p>The total number of nachos for the user.</p>
+</dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Amiquin_Core_Services_Nacho_NachoService_RemoveAllNachoAsync_" data-uid="Amiquin.Core.Services.Nacho.NachoService.RemoveAllNachoAsync*"></a>
+
+  <h3 id="Amiquin_Core_Services_Nacho_NachoService_RemoveAllNachoAsync_System_UInt64_" data-uid="Amiquin.Core.Services.Nacho.NachoService.RemoveAllNachoAsync(System.UInt64)">
+  RemoveAllNachoAsync(ulong)
+  <a class="header-action link-secondary" title="View source" href="https://github.com/HueByte/Amiquin/blob/main/source/Amiquin.Core/Services/Nacho/NachoService.cs/#L90"><i class="bi bi-code-slash"></i></a>
+  </h3>
+
+  <div class="markdown level1 summary"><p>Removes all nachos for a specific user across all servers.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Task RemoveAllNachoAsync(ulong userId)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>userId</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint64">ulong</a></dt>
+    <dd><p>The Discord user ID to remove nachos for.</p>
+</dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.tasks.task">Task</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Amiquin_Core_Services_Nacho_NachoService_RemoveAllServerNachoAsync_" data-uid="Amiquin.Core.Services.Nacho.NachoService.RemoveAllServerNachoAsync*"></a>
+
+  <h3 id="Amiquin_Core_Services_Nacho_NachoService_RemoveAllServerNachoAsync_System_UInt64_" data-uid="Amiquin.Core.Services.Nacho.NachoService.RemoveAllServerNachoAsync(System.UInt64)">
+  RemoveAllServerNachoAsync(ulong)
+  <a class="header-action link-secondary" title="View source" href="https://github.com/HueByte/Amiquin/blob/main/source/Amiquin.Core/Services/Nacho/NachoService.cs/#L104"><i class="bi bi-code-slash"></i></a>
+  </h3>
+
+  <div class="markdown level1 summary"><p>Removes all nachos for a specific server.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Task RemoveAllServerNachoAsync(ulong serverId)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>serverId</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint64">ulong</a></dt>
+    <dd><p>The Discord server ID to remove nachos for.</p>
+</dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.tasks.task">Task</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Amiquin_Core_Services_Nacho_NachoService_RemoveNachoAsync_" data-uid="Amiquin.Core.Services.Nacho.NachoService.RemoveNachoAsync*"></a>
+
+  <h3 id="Amiquin_Core_Services_Nacho_NachoService_RemoveNachoAsync_System_UInt64_System_UInt64_" data-uid="Amiquin.Core.Services.Nacho.NachoService.RemoveNachoAsync(System.UInt64,System.UInt64)">
+  RemoveNachoAsync(ulong, ulong)
+  <a class="header-action link-secondary" title="View source" href="https://github.com/HueByte/Amiquin/blob/main/source/Amiquin.Core/Services/Nacho/NachoService.cs/#L76"><i class="bi bi-code-slash"></i></a>
+  </h3>
+
+  <div class="markdown level1 summary"><p>Removes nacho records for a specific user in a specific server.</p>
+</div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public Task RemoveNachoAsync(ulong userId, ulong serverId)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>userId</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint64">ulong</a></dt>
+    <dd><p>The Discord user ID to remove nachos for.</p>
+</dd>
+    <dt><code>serverId</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.uint64">ulong</a></dt>
+    <dd><p>The Discord server ID to remove nachos from.</p>
+</dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.tasks.task">Task</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+
+</article>
+
+        <div class="contribution d-print-none">
+          <a href="https://github.com/HueByte/Amiquin/blob/main/source/Amiquin.Core/Services/Nacho/NachoService.cs/#L10" class="edit-link">Edit this page</a>
+        </div>
+
+
+      </div>
+
+      <div class="affix">
+        <nav id="affix"></nav>
+      </div>
+    </main>
+
+    <div class="container-xxl search-results" id="search-results"></div>
+
+    <footer class="border-top text-secondary">
+      <div class="container-xxl">
+        <div class="flex-fill">
+          <span>Made with <a href="https://dotnet.github.io/docfx">docfx</a></span>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

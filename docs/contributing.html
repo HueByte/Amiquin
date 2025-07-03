@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+      <title>Contributing to Amiquin | Amiquin Documentation </title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="title" content="Contributing to Amiquin | Amiquin Documentation ">
+      
+      
+      <link rel="icon" href="../assets/Amiquin-40px.png">
+      <link rel="stylesheet" href="../public/docfx.min.css">
+      <link rel="stylesheet" href="../public/main.css">
+      <meta name="docfx:navrel" content="../toc.html">
+      <meta name="docfx:tocrel" content="toc.html">
+      
+      <meta name="docfx:rel" content="../">
+      
+      
+      <meta name="docfx:docurl" content="https://github.com/huebyte/Amiquin/blob/main/docs/contributing.md/#L1">
+      <meta name="loc:inThisArticle" content="In this article">
+      <meta name="loc:searchResultsCount" content="{count} results for &quot;{query}&quot;">
+      <meta name="loc:searchNoResults" content="No results for &quot;{query}&quot;">
+      <meta name="loc:tocFilter" content="Filter by title">
+      <meta name="loc:nextArticle" content="Next">
+      <meta name="loc:prevArticle" content="Previous">
+      <meta name="loc:themeLight" content="Light">
+      <meta name="loc:themeDark" content="Dark">
+      <meta name="loc:themeAuto" content="Auto">
+      <meta name="loc:changeTheme" content="Change theme">
+      <meta name="loc:copy" content="Copy">
+      <meta name="loc:downloadPdf" content="Download PDF">
+
+      <script type="module" src="./../public/docfx.min.js"></script>
+
+      <script>
+        const theme = localStorage.getItem('theme') || 'auto'
+        document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
+      </script>
+
+  </head>
+
+  <body class="tex2jax_ignore" data-layout="" data-yaml-mime="">
+    <header class="bg-body border-bottom">
+      <nav id="autocollapse" class="navbar navbar-expand-md" role="navigation">
+        <div class="container-xxl flex-nowrap">
+          <a class="navbar-brand" href="../index.html">
+            <img id="logo" class="svg" src="../assets/Amiquin-40px.png" alt="Amiquin">
+            Amiquin
+          </a>
+          <button class="btn btn-lg d-md-none border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navpanel" aria-controls="navpanel" aria-expanded="false" aria-label="Toggle navigation">
+            <i class="bi bi-three-dots"></i>
+          </button>
+          <div class="collapse navbar-collapse" id="navpanel">
+            <div id="navbar">
+              <form class="search" role="search" id="search">
+                <i class="bi bi-search"></i>
+                <input class="form-control" id="search-query" type="search" disabled placeholder="Search" autocomplete="off" aria-label="Search">
+              </form>
+            </div>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="container-xxl">
+      <div class="toc-offcanvas">
+        <div class="offcanvas-md offcanvas-start" tabindex="-1" id="tocOffcanvas" aria-labelledby="tocOffcanvasLabel">
+          <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="tocOffcanvasLabel">Table of Contents</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#tocOffcanvas" aria-label="Close"></button>
+          </div>
+          <div class="offcanvas-body">
+            <nav class="toc" id="toc"></nav>
+          </div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="actionbar">
+          <button class="btn btn-lg border-0 d-md-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#tocOffcanvas" aria-controls="tocOffcanvas" aria-expanded="false" aria-label="Show table of contents">
+            <i class="bi bi-list"></i>
+          </button>
+
+          <nav id="breadcrumb"></nav>
+        </div>
+
+        <article data-uid="">
+<h1 id="contributing-to-amiquin">Contributing to Amiquin</h1>
+
+<p>Thank you for your interest in contributing to Amiquin! This guide will help you get started with contributing to the project.</p>
+<h2 id="code-of-conduct">Code of Conduct</h2>
+<p>By participating in this project, you agree to abide by our Code of Conduct:</p>
+<ul>
+<li><strong>Be respectful</strong> to all community members</li>
+<li><strong>Be constructive</strong> in discussions and feedback</li>
+<li><strong>Be helpful</strong> to newcomers and fellow contributors</li>
+<li><strong>Be patient</strong> with questions and different skill levels</li>
+</ul>
+<h2 id="ways-to-contribute">Ways to Contribute</h2>
+<h3 id="1-reporting-bugs">1. Reporting Bugs</h3>
+<p>Help us improve by reporting bugs you encounter:</p>
+<ol>
+<li><strong>Check existing issues</strong> to avoid duplicates</li>
+<li><strong>Use the bug report template</strong> when creating issues</li>
+<li><strong>Provide detailed information</strong>:
+<ul>
+<li>Steps to reproduce</li>
+<li>Expected vs actual behavior</li>
+<li>Environment details (OS, .NET version)</li>
+<li>Error messages or logs</li>
+</ul>
+</li>
+</ol>
+<h3 id="2-suggesting-features">2. Suggesting Features</h3>
+<p>We welcome feature suggestions:</p>
+<ol>
+<li><strong>Check the roadmap</strong> for planned features</li>
+<li><strong>Use the feature request template</strong></li>
+<li><strong>Explain the use case</strong> and benefits</li>
+<li><strong>Consider implementation complexity</strong></li>
+</ol>
+<h3 id="3-contributing-code">3. Contributing Code</h3>
+<h4 id="prerequisites">Prerequisites</h4>
+<p>Before contributing code, ensure you have:</p>
+<ul>
+<li><strong>.NET 9.0 SDK</strong> installed</li>
+<li><strong>Git</strong> for version control</li>
+<li><strong>Discord bot</strong> for testing</li>
+<li><strong>Development environment</strong> set up (see <a href="development.html">Development Guide</a>)</li>
+</ul>
+<h4 id="getting-started">Getting Started</h4>
+<ol>
+<li><p><strong>Fork the repository</strong> on GitHub</p>
+</li>
+<li><p><strong>Clone your fork</strong> locally:</p>
+<pre><code class="lang-bash">git clone https://github.com/YOUR_USERNAME/Amiquin.git
+cd Amiquin
+</code></pre>
+</li>
+<li><p><strong>Set up the development environment</strong> (see <a href="development.html">Development Guide</a>)</p>
+</li>
+<li><p><strong>Create a feature branch</strong>:</p>
+<pre><code class="lang-bash">git checkout -b feature/your-feature-name
+</code></pre>
+</li>
+</ol>
+<h4 id="making-changes">Making Changes</h4>
+<ol>
+<li><strong>Follow coding standards</strong> (see Code Style section)</li>
+<li><strong>Write tests</strong> for new functionality</li>
+<li><strong>Update documentation</strong> as needed</li>
+<li><strong>Test your changes</strong> thoroughly</li>
+</ol>
+<h4 id="submitting-changes">Submitting Changes</h4>
+<ol>
+<li><p><strong>Commit your changes</strong> with descriptive messages:</p>
+<pre><code class="lang-bash">git add .
+git commit -m &quot;feat: add new command for user management&quot;
+</code></pre>
+</li>
+<li><p><strong>Push to your fork</strong>:</p>
+<pre><code class="lang-bash">git push origin feature/your-feature-name
+</code></pre>
+</li>
+<li><p><strong>Create a pull request</strong> with:</p>
+<ul>
+<li>Clear title and description</li>
+<li>Reference to related issues</li>
+<li>Screenshots if applicable</li>
+</ul>
+</li>
+</ol>
+<h3 id="4-documentation">4. Documentation</h3>
+<p>Help improve our documentation:</p>
+<ul>
+<li><strong>Fix typos</strong> and grammatical errors</li>
+<li><strong>Add examples</strong> and clarifications</li>
+<li><strong>Update outdated information</strong></li>
+<li><strong>Translate documentation</strong> to other languages</li>
+</ul>
+<h3 id="5-testing">5. Testing</h3>
+<p>Contribute to test coverage:</p>
+<ul>
+<li><strong>Write unit tests</strong> for existing code</li>
+<li><strong>Add integration tests</strong> for new features</li>
+<li><strong>Test edge cases</strong> and error scenarios</li>
+<li><strong>Performance testing</strong> for optimization</li>
+</ul>
+<h2 id="code-style-guidelines">Code Style Guidelines</h2>
+<h3 id="general-principles">General Principles</h3>
+<ul>
+<li><strong>Consistency</strong>: Follow existing code patterns</li>
+<li><strong>Readability</strong>: Write self-documenting code</li>
+<li><strong>Simplicity</strong>: Prefer simple, clear solutions</li>
+<li><strong>Performance</strong>: Consider performance implications</li>
+</ul>
+<h3 id="c-style-guidelines">C# Style Guidelines</h3>
+<h4 id="naming-conventions">Naming Conventions</h4>
+<pre><code class="lang-csharp">// Classes: PascalCase
+public class UserService { }
+
+// Methods: PascalCase
+public async Task GetUserAsync() { }
+
+// Properties: PascalCase
+public string UserName { get; set; }
+
+// Fields: camelCase with underscore prefix for private
+private readonly IUserRepository _userRepository;
+
+// Constants: PascalCase
+public const string DefaultPrefix = &quot;!&quot;;
+
+// Parameters and local variables: camelCase
+public void ProcessUser(User user, string userName) { }
+</code></pre>
+<h4 id="code-organization">Code Organization</h4>
+<pre><code class="lang-csharp">// Using statements at the top
+using System;
+using System.Threading.Tasks;
+using Discord;
+
+namespace Amiquin.Bot.Commands
+{
+    // Class summary documentation
+    /// &lt;summary&gt;
+    /// Handles user-related commands and interactions.
+    /// &lt;/summary&gt;
+    public class UserCommands : InteractionModuleBase&lt;ExtendedShardedInteractionContext&gt;
+    {
+        // Fields first
+        private readonly IUserService _userService;
+        
+        // Constructor
+        public UserCommands(IUserService userService)
+        {
+            _userService = userService;
+        }
+        
+        // Methods
+        [SlashCommand(&quot;profile&quot;, &quot;View user profile&quot;)]
+        public async Task ProfileCommand(IUser user = null)
+        {
+            // Implementation
+        }
+    }
+}
+</code></pre>
+<h4 id="formatting">Formatting</h4>
+<ul>
+<li><strong>Use EditorConfig</strong>: The project includes <code>.editorconfig</code> for consistent formatting</li>
+<li><strong>Run formatter</strong>: Use <code>dotnet format</code> before committing</li>
+<li><strong>Indentation</strong>: 4 spaces (no tabs)</li>
+<li><strong>Line length</strong>: Aim for 120 characters or less</li>
+<li><strong>Braces</strong>: Opening brace on same line for methods, new line for classes</li>
+</ul>
+<h3 id="commit-message-format">Commit Message Format</h3>
+<p>Use <a href="https://www.conventionalcommits.org/">Conventional Commits</a> format:</p>
+<pre><code class="lang-xml">&lt;type&gt;[optional scope]: &lt;description&gt;
+
+[optional body]
+
+[optional footer(s)]
+</code></pre>
+<h4 id="types">Types</h4>
+<ul>
+<li><strong>feat</strong>: New feature</li>
+<li><strong>fix</strong>: Bug fix</li>
+<li><strong>docs</strong>: Documentation changes</li>
+<li><strong>style</strong>: Code style changes (formatting, etc.)</li>
+<li><strong>refactor</strong>: Code refactoring</li>
+<li><strong>test</strong>: Adding or updating tests</li>
+<li><strong>chore</strong>: Build process or auxiliary tool changes</li>
+</ul>
+<h4 id="examples">Examples</h4>
+<pre><code class="lang-sh">feat(commands): add user profile command
+
+Add new slash command to display user profiles with statistics
+and customizable display options.
+
+Closes #123
+</code></pre>
+<pre><code class="lang-sh">fix(database): resolve connection timeout issues
+
+Increase connection timeout and add retry logic for database
+operations to handle temporary network issues.
+
+Fixes #456
+</code></pre>
+<h2 id="pull-request-process">Pull Request Process</h2>
+<h3 id="before-submitting">Before Submitting</h3>
+<ol>
+<li><strong>Ensure tests pass</strong>: Run <code>dotnet test</code> locally</li>
+<li><strong>Format code</strong>: Run <code>dotnet format</code></li>
+<li><strong>Update documentation</strong>: Include relevant docs updates</li>
+<li><strong>Test thoroughly</strong>: Test your changes in various scenarios</li>
+</ol>
+<h3 id="pull-request-guidelines">Pull Request Guidelines</h3>
+<ol>
+<li><strong>Clear title</strong>: Use descriptive title following conventional commits</li>
+<li><strong>Detailed description</strong>: Explain what changes were made and why</li>
+<li><strong>Link issues</strong>: Reference related issues using keywords (Fixes #123)</li>
+<li><strong>Screenshots</strong>: Include screenshots for UI changes</li>
+<li><strong>Breaking changes</strong>: Clearly mark any breaking changes</li>
+</ol>
+<h3 id="review-process">Review Process</h3>
+<ol>
+<li><strong>Automated checks</strong>: Ensure CI/CD passes</li>
+<li><strong>Code review</strong>: Address reviewer feedback promptly</li>
+<li><strong>Testing</strong>: Reviewers will test functionality</li>
+<li><strong>Approval</strong>: At least one maintainer approval required</li>
+<li><strong>Merge</strong>: Maintainers will merge approved PRs</li>
+</ol>
+<h2 id="development-workflow">Development Workflow</h2>
+<h3 id="branch-strategy">Branch Strategy</h3>
+<ul>
+<li><strong>main</strong>: Stable, production-ready code</li>
+<li><strong>develop</strong>: Integration branch for features</li>
+<li><strong>feature/</strong>: Feature development branches</li>
+<li><strong>hotfix/</strong>: Critical bug fixes</li>
+<li><strong>release/</strong>: Release preparation branches</li>
+</ul>
+<h3 id="testing-strategy">Testing Strategy</h3>
+<h4 id="unit-tests">Unit Tests</h4>
+<pre><code class="lang-csharp">[Fact]
+public async Task GetUserAsync_ValidId_ReturnsUser()
+{
+    // Arrange
+    var userId = 123456789;
+    var expectedUser = new User { DiscordId = userId };
+    _mockRepository.Setup(r =&gt; r.GetUserAsync(userId))
+                   .ReturnsAsync(expectedUser);
+    
+    // Act
+    var result = await _userService.GetUserAsync(userId);
+    
+    // Assert
+    Assert.Equal(expectedUser, result);
+}
+</code></pre>
+<h4 id="integration-tests">Integration Tests</h4>
+<p>Test complete workflows including database interactions and external services.</p>
+<h3 id="documentation-updates">Documentation Updates</h3>
+<p>When contributing, update relevant documentation:</p>
+<ul>
+<li><strong>Code comments</strong>: Add XML documentation for public APIs</li>
+<li><strong>README files</strong>: Update setup and usage instructions</li>
+<li><strong>API docs</strong>: Update DocFX documentation</li>
+<li><strong>Change logs</strong>: Add entries for significant changes</li>
+</ul>
+<h2 id="getting-help">Getting Help</h2>
+<h3 id="resources">Resources</h3>
+<ul>
+<li><strong>Documentation</strong>: Check existing docs first</li>
+<li><strong>Issues</strong>: Search existing issues for similar problems</li>
+<li><strong>Discussions</strong>: Use GitHub Discussions for questions</li>
+<li><strong>Discord</strong>: Join our development Discord server</li>
+</ul>
+<h3 id="asking-questions">Asking Questions</h3>
+<p>When asking for help:</p>
+<ol>
+<li><strong>Search first</strong>: Check if the question was already answered</li>
+<li><strong>Be specific</strong>: Provide context and details</li>
+<li><strong>Include code</strong>: Share relevant code snippets</li>
+<li><strong>Describe attempts</strong>: What have you already tried?</li>
+</ol>
+<h3 id="mentoring">Mentoring</h3>
+<p>New contributors can get help from experienced developers:</p>
+<ul>
+<li><strong>Good first issues</strong>: Look for issues labeled &quot;good first issue&quot;</li>
+<li><strong>Pair programming</strong>: Request help with complex features</li>
+<li><strong>Code reviews</strong>: Learn from feedback on your PRs</li>
+</ul>
+<h2 id="recognition">Recognition</h2>
+<p>We appreciate all contributions! Contributors are recognized through:</p>
+<ul>
+<li><strong>Contributors section</strong> in README</li>
+<li><strong>Release notes</strong> mention significant contributions</li>
+<li><strong>Discord roles</strong> for active contributors</li>
+<li><strong>Maintainer status</strong> for long-term contributors</li>
+</ul>
+<h2 id="license">License</h2>
+<p>By contributing to Amiquin, you agree that your contributions will be licensed under the <a href="../LICENSE">MIT License</a>.</p>
+<p>Thank you for contributing to Amiquin! 🤖</p>
+
+</article>
+
+        <div class="contribution d-print-none">
+          <a href="https://github.com/huebyte/Amiquin/blob/main/docs/contributing.md/#L1" class="edit-link">Edit this page</a>
+        </div>
+
+        <div class="next-article d-print-none border-top" id="nextArticle"></div>
+
+      </div>
+
+      <div class="affix">
+        <nav id="affix"></nav>
+      </div>
+    </main>
+
+    <div class="container-xxl search-results" id="search-results"></div>
+
+    <footer class="border-top text-secondary">
+      <div class="container-xxl">
+        <div class="flex-fill">
+          <span>Made with <a href="https://dotnet.github.io/docfx">docfx</a></span>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

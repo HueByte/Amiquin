@@ -1,0 +1,318 @@
+/* Custom Amiquin Documentation Theme */
+/* Color Palette: #be3c88 (pink/magenta), #19b3b8 (teal/cyan), #838686 (gray) */
+
+:root {
+  --primary-color: #be3c88;
+  --secondary-color: #19b3b8;
+  --accent-color: #838686;
+  --primary-light: #d465a0;
+  --secondary-light: #2cc5cb;
+  --accent-light: #9ca0a0;
+  --primary-dark: #a52970;
+  --secondary-dark: #139ba0;
+  --accent-dark: #6b6f6f;
+}
+
+/* Header and Navigation */
+.navbar {
+  background-color: var(--primary-color) !important;
+  border-bottom: 2px solid var(--secondary-color) !important;
+}
+
+.navbar-brand {
+  color: white !important;
+  font-weight: bold;
+}
+
+.navbar-brand:hover {
+  color: var(--secondary-light) !important;
+}
+
+.navbar-nav .nav-link {
+  color: white !important;
+}
+
+.navbar-nav .nav-link:hover {
+  color: var(--secondary-light) !important;
+}
+
+/* Search Box */
+.search .form-control {
+  border: 1px solid var(--secondary-color);
+  border-radius: 20px;
+}
+
+.search .form-control:focus {
+  border-color: var(--secondary-color);
+  box-shadow: 0 0 0 0.2rem rgba(25, 179, 184, 0.25);
+}
+
+/* Sidebar TOC */
+.sidetoc {
+  background-color: #f8f9fa;
+  border-right: 1px solid var(--accent-color);
+}
+
+.toc .nav > li > a {
+  color: var(--accent-dark);
+  border-left: 3px solid transparent;
+  padding-left: 1rem;
+}
+
+.toc .nav > li > a:hover {
+  color: var(--primary-color);
+  background-color: rgba(190, 60, 136, 0.1);
+  border-left-color: var(--primary-color);
+}
+
+.toc .nav > li.active > a {
+  color: var(--primary-color);
+  background-color: rgba(190, 60, 136, 0.15);
+  border-left-color: var(--primary-color);
+  font-weight: 600;
+}
+
+.toc .nav .nav > li > a {
+  color: var(--accent-color);
+  padding-left: 2rem;
+}
+
+.toc .nav .nav > li > a:hover {
+  color: var(--secondary-color);
+  background-color: rgba(25, 179, 184, 0.1);
+  border-left-color: var(--secondary-color);
+}
+
+/* Main Content Area */
+.content h1 {
+  color: var(--primary-color);
+  border-bottom: 2px solid var(--secondary-color);
+  padding-bottom: 0.5rem;
+}
+
+.content h2 {
+  color: var(--primary-color);
+  border-bottom: 1px solid var(--accent-color);
+  padding-bottom: 0.3rem;
+}
+
+.content h3 {
+  color: var(--secondary-color);
+}
+
+.content h4, .content h5, .content h6 {
+  color: var(--accent-dark);
+}
+
+/* Links */
+a {
+  color: var(--primary-color);
+}
+
+a:hover {
+  color: var(--primary-dark);
+}
+
+/* Buttons */
+.btn-primary {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+.btn-primary:hover {
+  background-color: var(--primary-dark);
+  border-color: var(--primary-dark);
+}
+
+.btn-secondary {
+  background-color: var(--secondary-color);
+  border-color: var(--secondary-color);
+}
+
+.btn-secondary:hover {
+  background-color: var(--secondary-dark);
+  border-color: var(--secondary-dark);
+}
+
+/* Code Blocks */
+pre {
+  background-color: #f8f9fa;
+  border: 1px solid var(--accent-color);
+  border-radius: 4px;
+}
+
+code {
+  color: var(--primary-color);
+  background-color: rgba(190, 60, 136, 0.1);
+  padding: 0.2rem 0.4rem;
+  border-radius: 3px;
+}
+
+/* Tables */
+.table {
+  border-color: var(--accent-color);
+}
+
+.table thead th {
+  background-color: var(--primary-color);
+  color: white;
+  border-color: var(--primary-dark);
+}
+
+.table tbody tr:nth-child(even) {
+  background-color: rgba(25, 179, 184, 0.05);
+}
+
+/* API Documentation */
+.api-section h2 {
+  color: var(--secondary-color);
+  border-bottom: 2px solid var(--secondary-color);
+}
+
+.api-section h3 {
+  color: var(--primary-color);
+}
+
+/* Alerts and Callouts */
+.alert-info {
+  background-color: rgba(25, 179, 184, 0.1);
+  border-color: var(--secondary-color);
+  color: var(--secondary-dark);
+}
+
+.alert-warning {
+  background-color: rgba(190, 60, 136, 0.1);
+  border-color: var(--primary-color);
+  color: var(--primary-dark);
+}
+
+/* Breadcrumbs */
+.breadcrumb {
+  background-color: rgba(131, 134, 134, 0.1);
+}
+
+.breadcrumb-item a {
+  color: var(--secondary-color);
+}
+
+.breadcrumb-item.active {
+  color: var(--accent-dark);
+}
+
+/* Footer */
+footer {
+  background-color: var(--accent-color);
+  color: white;
+  border-top: 2px solid var(--primary-color);
+}
+
+footer a {
+  color: var(--secondary-light);
+}
+
+footer a:hover {
+  color: white;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--accent-color);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-dark);
+}
+
+/* Search Results */
+.search-results .search-list .search-item {
+  border-bottom: 1px solid var(--accent-color);
+}
+
+.search-results .search-list .search-item:hover {
+  background-color: rgba(25, 179, 184, 0.1);
+}
+
+/* Toggle Button */
+.btn-outline-secondary {
+  border-color: var(--accent-color);
+  color: var(--accent-dark);
+}
+
+.btn-outline-secondary:hover {
+  background-color: var(--accent-color);
+  border-color: var(--accent-color);
+  color: white;
+}
+
+/* Theme Toggle */
+.theme-toggle {
+  background-color: var(--secondary-color);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+}
+
+.theme-toggle:hover {
+  background-color: var(--secondary-dark);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .navbar-brand {
+    font-size: 1.1rem;
+  }
+  
+  .content h1 {
+    font-size: 1.8rem;
+  }
+  
+  .toc .nav > li > a {
+    padding-left: 0.5rem;
+  }
+  
+  .toc .nav .nav > li > a {
+    padding-left: 1rem;
+  }
+}
+
+/* Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-color: #1a1a1a;
+    --text-color: #e0e0e0;
+  }
+  
+  body {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+  }
+  
+  .sidetoc {
+    background-color: #2d2d2d;
+    border-right-color: var(--accent-dark);
+  }
+  
+  pre {
+    background-color: #2d2d2d;
+    border-color: var(--accent-dark);
+  }
+  
+  .table {
+    color: var(--text-color);
+  }
+  
+  .table tbody tr:nth-child(even) {
+    background-color: rgba(25, 179, 184, 0.1);
+  }
+}

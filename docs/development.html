@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+      <title>Development Guide | Amiquin Documentation </title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="title" content="Development Guide | Amiquin Documentation ">
+      
+      
+      <link rel="icon" href="../assets/Amiquin-40px.png">
+      <link rel="stylesheet" href="../public/docfx.min.css">
+      <link rel="stylesheet" href="../public/main.css">
+      <meta name="docfx:navrel" content="../toc.html">
+      <meta name="docfx:tocrel" content="toc.html">
+      
+      <meta name="docfx:rel" content="../">
+      
+      
+      <meta name="docfx:docurl" content="https://github.com/huebyte/Amiquin/blob/main/docs/development.md/#L1">
+      <meta name="loc:inThisArticle" content="In this article">
+      <meta name="loc:searchResultsCount" content="{count} results for &quot;{query}&quot;">
+      <meta name="loc:searchNoResults" content="No results for &quot;{query}&quot;">
+      <meta name="loc:tocFilter" content="Filter by title">
+      <meta name="loc:nextArticle" content="Next">
+      <meta name="loc:prevArticle" content="Previous">
+      <meta name="loc:themeLight" content="Light">
+      <meta name="loc:themeDark" content="Dark">
+      <meta name="loc:themeAuto" content="Auto">
+      <meta name="loc:changeTheme" content="Change theme">
+      <meta name="loc:copy" content="Copy">
+      <meta name="loc:downloadPdf" content="Download PDF">
+
+      <script type="module" src="./../public/docfx.min.js"></script>
+
+      <script>
+        const theme = localStorage.getItem('theme') || 'auto'
+        document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
+      </script>
+
+  </head>
+
+  <body class="tex2jax_ignore" data-layout="" data-yaml-mime="">
+    <header class="bg-body border-bottom">
+      <nav id="autocollapse" class="navbar navbar-expand-md" role="navigation">
+        <div class="container-xxl flex-nowrap">
+          <a class="navbar-brand" href="../index.html">
+            <img id="logo" class="svg" src="../assets/Amiquin-40px.png" alt="Amiquin">
+            Amiquin
+          </a>
+          <button class="btn btn-lg d-md-none border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navpanel" aria-controls="navpanel" aria-expanded="false" aria-label="Toggle navigation">
+            <i class="bi bi-three-dots"></i>
+          </button>
+          <div class="collapse navbar-collapse" id="navpanel">
+            <div id="navbar">
+              <form class="search" role="search" id="search">
+                <i class="bi bi-search"></i>
+                <input class="form-control" id="search-query" type="search" disabled placeholder="Search" autocomplete="off" aria-label="Search">
+              </form>
+            </div>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="container-xxl">
+      <div class="toc-offcanvas">
+        <div class="offcanvas-md offcanvas-start" tabindex="-1" id="tocOffcanvas" aria-labelledby="tocOffcanvasLabel">
+          <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="tocOffcanvasLabel">Table of Contents</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#tocOffcanvas" aria-label="Close"></button>
+          </div>
+          <div class="offcanvas-body">
+            <nav class="toc" id="toc"></nav>
+          </div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="actionbar">
+          <button class="btn btn-lg border-0 d-md-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#tocOffcanvas" aria-controls="tocOffcanvas" aria-expanded="false" aria-label="Show table of contents">
+            <i class="bi bi-list"></i>
+          </button>
+
+          <nav id="breadcrumb"></nav>
+        </div>
+
+        <article data-uid="">
+<h1 id="development-guide">Development Guide</h1>
+
+<p>This guide covers setting up a local development environment for Amiquin and contributing to the project.</p>
+<h2 id="prerequisites">Prerequisites</h2>
+<p>Before you begin, ensure you have the following installed:</p>
+<ul>
+<li><strong>.NET 9.0 SDK</strong> - <a href="https://dotnet.microsoft.com/download/dotnet/9.0">Download here</a></li>
+<li><strong>Git</strong> - <a href="https://git-scm.com/">Download here</a></li>
+<li><strong>Docker</strong> (optional) - <a href="https://www.docker.com/get-started">Download here</a></li>
+<li><strong>IDE/Editor</strong> - Visual Studio, VS Code, or JetBrains Rider</li>
+</ul>
+<h2 id="setting-up-development-environment">Setting Up Development Environment</h2>
+<h3 id="1-clone-the-repository">1. Clone the Repository</h3>
+<pre><code class="lang-bash">git clone https://github.com/huebyte/Amiquin.git
+cd Amiquin
+</code></pre>
+<h3 id="2-configure-environment">2. Configure Environment</h3>
+<pre><code class="lang-bash"># Copy example configuration
+cp source/Amiquin.Bot/appsettings.example.json source/Amiquin.Bot/appsettings.json
+cp .env.example .env
+
+# Edit configuration files with your settings
+</code></pre>
+<h3 id="3-install-dependencies">3. Install Dependencies</h3>
+<pre><code class="lang-bash"># Restore NuGet packages
+dotnet restore source/source.sln
+</code></pre>
+<h3 id="4-create-discord-bot-application">4. Create Discord Bot Application</h3>
+<ol>
+<li>Go to <a href="https://discord.com/developers/applications">Discord Developer Portal</a></li>
+<li>Create a new application</li>
+<li>Navigate to the &quot;Bot&quot; section</li>
+<li>Create a bot and copy the token</li>
+<li>Update your <code>appsettings.json</code> or <code>.env</code> file with the token</li>
+</ol>
+<h3 id="5-database-setup">5. Database Setup</h3>
+<h4 id="option-a-sqlite-default">Option A: SQLite (Default)</h4>
+<p>No additional setup required. The database will be created automatically.</p>
+<h4 id="option-b-mysql-docker">Option B: MySQL (Docker)</h4>
+<pre><code class="lang-bash"># Start MySQL container
+docker-compose up -d mysql
+
+# Update your configuration to use MySQL
+</code></pre>
+<h3 id="6-build-and-run">6. Build and Run</h3>
+<pre><code class="lang-bash"># Build the solution
+dotnet build source/source.sln
+
+# Run the bot
+dotnet run --project source/Amiquin.Bot
+</code></pre>
+<h2 id="project-structure">Project Structure</h2>
+<pre><code class="lang-sh">Amiquin/
+├── source/
+│   ├── Amiquin.Bot/          # Main bot application
+│   │   ├── Commands/         # Slash commands and command handlers
+│   │   ├── Configurators/    # Dependency injection setup
+│   │   ├── Messages/         # Bot personality and messages
+│   │   └── Preconditions/    # Command preconditions
+│   ├── Amiquin.Core/         # Core business logic
+│   │   ├── Models/           # Domain models
+│   │   ├── Services/         # Business services
+│   │   └── IRepositories/    # Repository interfaces
+│   ├── Amiquin.Infrastructure/ # Data access layer
+│   │   └── Repositories/     # Repository implementations
+│   └── Migrations/           # Database migrations
+├── docs/                     # Documentation
+├── .github/                  # CI/CD workflows
+└── docker-compose.yml        # Docker setup
+</code></pre>
+<h2 id="development-workflow">Development Workflow</h2>
+<h3 id="1-creating-a-new-feature">1. Creating a New Feature</h3>
+<pre><code class="lang-bash"># Create a feature branch
+git checkout -b feature/your-feature-name
+
+# Make your changes
+# ... code changes ...
+
+# Commit your changes
+git add .
+git commit -m &quot;feat: add new feature&quot;
+
+# Push to GitHub
+git push origin feature/your-feature-name
+</code></pre>
+<h3 id="2-adding-new-commands">2. Adding New Commands</h3>
+<ol>
+<li>Create a new command class in <code>source/Amiquin.Bot/Commands/</code></li>
+<li>Inherit from <code>InteractionModuleBase&lt;ExtendedShardedInteractionContext&gt;</code></li>
+<li>Use <code>[SlashCommand]</code> attribute for slash commands</li>
+<li>Add any required services via dependency injection</li>
+</ol>
+<p>Example:</p>
+<pre><code class="lang-csharp">[Group(&quot;example&quot;, &quot;Example command group&quot;)]
+public class ExampleCommands : InteractionModuleBase&lt;ExtendedShardedInteractionContext&gt;
+{
+    [SlashCommand(&quot;hello&quot;, &quot;Say hello&quot;)]
+    public async Task HelloCommand()
+    {
+        await RespondAsync(&quot;Hello, world!&quot;);
+    }
+}
+</code></pre>
+<h3 id="3-adding-new-services">3. Adding New Services</h3>
+<ol>
+<li>Create interface in <code>source/Amiquin.Core/Services/</code></li>
+<li>Implement service in <code>source/Amiquin.Core/Services/</code></li>
+<li>Register in <code>source/Amiquin.Bot/Configurators/InjectionConfigurator.cs</code></li>
+</ol>
+<h3 id="4-database-changes">4. Database Changes</h3>
+<ol>
+<li><p>Update models in <code>source/Amiquin.Core/Models/</code></p>
+</li>
+<li><p>Create migration:</p>
+<pre><code class="lang-bash">dotnet ef migrations add YourMigrationName --project source/Migrations/Amiquin.Sqlite
+</code></pre>
+</li>
+<li><p>Update database:</p>
+<pre><code class="lang-bash">dotnet ef database update --project source/Migrations/Amiquin.Sqlite
+</code></pre>
+</li>
+</ol>
+<h2 id="code-style-guidelines">Code Style Guidelines</h2>
+<h3 id="general-principles">General Principles</h3>
+<ul>
+<li>Follow C# naming conventions</li>
+<li>Use meaningful variable and method names</li>
+<li>Write clear, concise comments</li>
+<li>Keep methods focused and small</li>
+<li>Use dependency injection for services</li>
+</ul>
+<h3 id="formatting">Formatting</h3>
+<p>The project uses <code>.editorconfig</code> for consistent formatting. Run:</p>
+<pre><code class="lang-bash">dotnet format source/source.sln
+</code></pre>
+<h3 id="commit-messages">Commit Messages</h3>
+<p>Use <a href="https://www.conventionalcommits.org/">Conventional Commits</a>:</p>
+<ul>
+<li><code>feat:</code> for new features</li>
+<li><code>fix:</code> for bug fixes</li>
+<li><code>docs:</code> for documentation changes</li>
+<li><code>refactor:</code> for code refactoring</li>
+<li><code>test:</code> for adding tests</li>
+</ul>
+<h2 id="testing">Testing</h2>
+<h3 id="running-tests">Running Tests</h3>
+<pre><code class="lang-bash"># Run all tests
+dotnet test source/source.sln
+
+# Run with coverage
+dotnet test source/source.sln --collect:&quot;XPlat Code Coverage&quot;
+</code></pre>
+<h3 id="writing-tests">Writing Tests</h3>
+<ol>
+<li>Create test classes in appropriate test projects</li>
+<li>Use xUnit framework</li>
+<li>Follow AAA pattern (Arrange, Act, Assert)</li>
+<li>Mock external dependencies</li>
+</ol>
+<h2 id="debugging">Debugging</h2>
+<h3 id="visual-studiovs-code">Visual Studio/VS Code</h3>
+<ol>
+<li>Set breakpoints in your code</li>
+<li>Press F5 to start debugging</li>
+<li>The bot will start with debugger attached</li>
+</ol>
+<h3 id="docker-debugging">Docker Debugging</h3>
+<pre><code class="lang-bash"># Build debug image
+docker build -t amiquin:debug .
+
+# Run with debug ports exposed
+docker run -p 5000:5000 amiquin:debug
+</code></pre>
+<h2 id="contributing">Contributing</h2>
+<ol>
+<li><strong>Fork the repository</strong> on GitHub</li>
+<li><strong>Create a feature branch</strong> from <code>main</code></li>
+<li><strong>Make your changes</strong> following the style guidelines</li>
+<li><strong>Add tests</strong> for new functionality</li>
+<li><strong>Ensure all tests pass</strong> and code is formatted</li>
+<li><strong>Create a pull request</strong> with a clear description</li>
+</ol>
+<h3 id="pull-request-process">Pull Request Process</h3>
+<ol>
+<li>Update documentation if needed</li>
+<li>Add tests for new features</li>
+<li>Ensure CI/CD passes</li>
+<li>Request review from maintainers</li>
+<li>Address any feedback</li>
+<li>Merge after approval</li>
+</ol>
+<h2 id="useful-commands">Useful Commands</h2>
+<pre><code class="lang-bash"># Build solution
+dotnet build source/source.sln
+
+# Run bot locally
+dotnet run --project source/Amiquin.Bot
+
+# Format code
+dotnet format source/source.sln
+
+# Run tests
+dotnet test source/source.sln
+
+# Create migration
+dotnet ef migrations add MigrationName --project source/Migrations/Amiquin.Sqlite
+
+# Update database
+dotnet ef database update --project source/Migrations/Amiquin.Sqlite
+
+# Build Docker image
+docker build -t amiquin .
+
+# Run with Docker Compose
+docker-compose up -d
+</code></pre>
+<h2 id="getting-help">Getting Help</h2>
+<ul>
+<li><strong>Documentation</strong>: Check this documentation and inline code comments</li>
+<li><strong>Issues</strong>: Create an issue on GitHub for bugs or feature requests</li>
+<li><strong>Discussions</strong>: Use GitHub Discussions for questions and ideas</li>
+<li><strong>Discord</strong>: Join our development Discord server for real-time help</li>
+</ul>
+
+</article>
+
+        <div class="contribution d-print-none">
+          <a href="https://github.com/huebyte/Amiquin/blob/main/docs/development.md/#L1" class="edit-link">Edit this page</a>
+        </div>
+
+        <div class="next-article d-print-none border-top" id="nextArticle"></div>
+
+      </div>
+
+      <div class="affix">
+        <nav id="affix"></nav>
+      </div>
+    </main>
+
+    <div class="container-xxl search-results" id="search-results"></div>
+
+    <footer class="border-top text-secondary">
+      <div class="container-xxl">
+        <div class="flex-fill">
+          <span>Made with <a href="https://dotnet.github.io/docfx">docfx</a></span>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

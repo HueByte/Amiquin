@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+      <title>Class DevCommands | Amiquin Documentation </title>
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="title" content="Class DevCommands | Amiquin Documentation ">
+      
+      
+      <link rel="icon" href="../assets/Amiquin-40px.png">
+      <link rel="stylesheet" href="../public/docfx.min.css">
+      <link rel="stylesheet" href="../public/main.css">
+      <meta name="docfx:navrel" content="../toc.html">
+      <meta name="docfx:tocrel" content="toc.html">
+      
+      <meta name="docfx:rel" content="../">
+      
+      
+      <meta name="docfx:docurl" content="https://github.com/huebyte/Amiquin/new/main/apiSpec/new?filename=Amiquin_Bot_Commands_DevCommands.md&amp;value=---%0Auid%3A%20Amiquin.Bot.Commands.DevCommands%0Asummary%3A%20&#39;*You%20can%20override%20summary%20for%20the%20API%20here%20using%20*MARKDOWN*%20syntax&#39;%0A---%0A%0A*Please%20type%20below%20more%20information%20about%20this%20API%3A*%0A%0A">
+      <meta name="loc:inThisArticle" content="In this article">
+      <meta name="loc:searchResultsCount" content="{count} results for &quot;{query}&quot;">
+      <meta name="loc:searchNoResults" content="No results for &quot;{query}&quot;">
+      <meta name="loc:tocFilter" content="Filter by title">
+      <meta name="loc:nextArticle" content="Next">
+      <meta name="loc:prevArticle" content="Previous">
+      <meta name="loc:themeLight" content="Light">
+      <meta name="loc:themeDark" content="Dark">
+      <meta name="loc:themeAuto" content="Auto">
+      <meta name="loc:changeTheme" content="Change theme">
+      <meta name="loc:copy" content="Copy">
+      <meta name="loc:downloadPdf" content="Download PDF">
+
+      <script type="module" src="./../public/docfx.min.js"></script>
+
+      <script>
+        const theme = localStorage.getItem('theme') || 'auto'
+        document.documentElement.setAttribute('data-bs-theme', theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme)
+      </script>
+
+  </head>
+
+  <body class="tex2jax_ignore" data-layout="" data-yaml-mime="ManagedReference">
+    <header class="bg-body border-bottom">
+      <nav id="autocollapse" class="navbar navbar-expand-md" role="navigation">
+        <div class="container-xxl flex-nowrap">
+          <a class="navbar-brand" href="../index.html">
+            <img id="logo" class="svg" src="../assets/Amiquin-40px.png" alt="Amiquin">
+            Amiquin
+          </a>
+          <button class="btn btn-lg d-md-none border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navpanel" aria-controls="navpanel" aria-expanded="false" aria-label="Toggle navigation">
+            <i class="bi bi-three-dots"></i>
+          </button>
+          <div class="collapse navbar-collapse" id="navpanel">
+            <div id="navbar">
+              <form class="search" role="search" id="search">
+                <i class="bi bi-search"></i>
+                <input class="form-control" id="search-query" type="search" disabled placeholder="Search" autocomplete="off" aria-label="Search">
+              </form>
+            </div>
+          </div>
+        </div>
+      </nav>
+    </header>
+
+    <main class="container-xxl">
+      <div class="toc-offcanvas">
+        <div class="offcanvas-md offcanvas-start" tabindex="-1" id="tocOffcanvas" aria-labelledby="tocOffcanvasLabel">
+          <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="tocOffcanvasLabel">Table of Contents</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" data-bs-target="#tocOffcanvas" aria-label="Close"></button>
+          </div>
+          <div class="offcanvas-body">
+            <nav class="toc" id="toc"></nav>
+          </div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="actionbar">
+          <button class="btn btn-lg border-0 d-md-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#tocOffcanvas" aria-controls="tocOffcanvas" aria-expanded="false" aria-label="Show table of contents">
+            <i class="bi bi-list"></i>
+          </button>
+
+          <nav id="breadcrumb"></nav>
+        </div>
+
+        <article data-uid="Amiquin.Bot.Commands.DevCommands">
+
+
+
+  <h1 id="Amiquin_Bot_Commands_DevCommands" data-uid="Amiquin.Bot.Commands.DevCommands" class="text-break">
+Class DevCommands  <a class="header-action link-secondary" title="View source" href="https://github.com/HueByte/Amiquin/blob/main/source/Amiquin.Bot/Commands/DevCommands.cs/#L18"><i class="bi bi-code-slash"></i></a>
+  </h1>
+
+  <div class="facts text-secondary">
+    <dl><dt>Namespace</dt><dd><a class="xref" href="Amiquin.html">Amiquin</a>.<a class="xref" href="Amiquin.Bot.html">Bot</a>.<a class="xref" href="Amiquin.Bot.Commands.html">Commands</a></dd></dl>
+  <dl><dt>Assembly</dt><dd>Amiquin.Bot.dll</dd></dl>
+  </div>
+
+  <div class="markdown summary"></div>
+  <div class="markdown conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">[Group(&quot;dev&quot;, &quot;Developer commands&quot;)]
+[RequireTeam(new string[] { })]
+public class DevCommands : InteractionModuleBase&lt;ExtendedShardedInteractionContext&gt;, IInteractionModuleBase</code></pre>
+  </div>
+
+
+
+
+  <dl class="typelist inheritance">
+    <dt>Inheritance</dt>
+    <dd>
+      <div><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object">object</a></div>
+      <div><span class="xref">InteractionModuleBase</span>&lt;<a class="xref" href="Amiquin.Core.DiscordExtensions.ExtendedShardedInteractionContext.html">ExtendedShardedInteractionContext</a>&gt;</div>
+      <div><span class="xref">DevCommands</span></div>
+    </dd>
+  </dl>
+
+  <dl class="typelist implements">
+    <dt>Implements</dt>
+    <dd>
+      <div><span class="xref">IInteractionModuleBase</span></div>
+    </dd>
+  </dl>
+
+
+  <dl class="typelist inheritedMembers">
+    <dt>Inherited Members</dt>
+    <dd>
+    <div>
+      <span class="xref">InteractionModuleBase&lt;ExtendedShardedInteractionContext&gt;.AfterExecute(ICommandInfo)</span>
+    </div>
+    <div>
+      <span class="xref">InteractionModuleBase&lt;ExtendedShardedInteractionContext&gt;.BeforeExecute(ICommandInfo)</span>
+    </div>
+    <div>
+      <span class="xref">InteractionModuleBase&lt;ExtendedShardedInteractionContext&gt;.BeforeExecuteAsync(ICommandInfo)</span>
+    </div>
+    <div>
+      <span class="xref">InteractionModuleBase&lt;ExtendedShardedInteractionContext&gt;.AfterExecuteAsync(ICommandInfo)</span>
+    </div>
+    <div>
+      <span class="xref">InteractionModuleBase&lt;ExtendedShardedInteractionContext&gt;.OnModuleBuilding(InteractionService, ModuleInfo)</span>
+    </div>
+    <div>
+      <span class="xref">InteractionModuleBase&lt;ExtendedShardedInteractionContext&gt;.Construct(ModuleBuilder, InteractionService)</span>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">InteractionModuleBase&lt;ExtendedShardedInteractionContext&gt;.DeferAsync(bool, RequestOptions)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">InteractionModuleBase&lt;ExtendedShardedInteractionContext&gt;.RespondAsync(string, Embed[], bool, bool, AllowedMentions, RequestOptions, MessageComponent, Embed, PollProperties)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.io.stream">InteractionModuleBase&lt;ExtendedShardedInteractionContext&gt;.RespondWithFileAsync(Stream, string, string, Embed[], bool, bool, AllowedMentions, MessageComponent, Embed, RequestOptions, PollProperties)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">InteractionModuleBase&lt;ExtendedShardedInteractionContext&gt;.RespondWithFileAsync(string, string, string, Embed[], bool, bool, AllowedMentions, MessageComponent, Embed, RequestOptions, PollProperties)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">InteractionModuleBase&lt;ExtendedShardedInteractionContext&gt;.RespondWithFileAsync(FileAttachment, string, Embed[], bool, bool, AllowedMentions, MessageComponent, Embed, RequestOptions, PollProperties)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ienumerable-1">InteractionModuleBase&lt;ExtendedShardedInteractionContext&gt;.RespondWithFilesAsync(IEnumerable&lt;FileAttachment&gt;, string, Embed[], bool, bool, AllowedMentions, MessageComponent, Embed, RequestOptions, PollProperties)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">InteractionModuleBase&lt;ExtendedShardedInteractionContext&gt;.FollowupAsync(string, Embed[], bool, bool, AllowedMentions, RequestOptions, MessageComponent, Embed, PollProperties)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.io.stream">InteractionModuleBase&lt;ExtendedShardedInteractionContext&gt;.FollowupWithFileAsync(Stream, string, string, Embed[], bool, bool, AllowedMentions, MessageComponent, Embed, RequestOptions, PollProperties)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">InteractionModuleBase&lt;ExtendedShardedInteractionContext&gt;.FollowupWithFileAsync(string, string, string, Embed[], bool, bool, AllowedMentions, MessageComponent, Embed, RequestOptions, PollProperties)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">InteractionModuleBase&lt;ExtendedShardedInteractionContext&gt;.FollowupWithFileAsync(FileAttachment, string, Embed[], bool, bool, AllowedMentions, MessageComponent, Embed, RequestOptions, PollProperties)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.collections.generic.ienumerable-1">InteractionModuleBase&lt;ExtendedShardedInteractionContext&gt;.FollowupWithFilesAsync(IEnumerable&lt;FileAttachment&gt;, string, Embed[], bool, bool, AllowedMentions, MessageComponent, Embed, RequestOptions, PollProperties)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">InteractionModuleBase&lt;ExtendedShardedInteractionContext&gt;.ReplyAsync(string, bool, Embed, RequestOptions, AllowedMentions, MessageReference, MessageComponent, ISticker[], Embed[], MessageFlags, PollProperties)</a>
+    </div>
+    <div>
+      <span class="xref">InteractionModuleBase&lt;ExtendedShardedInteractionContext&gt;.GetOriginalResponseAsync(RequestOptions)</span>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.action-1">InteractionModuleBase&lt;ExtendedShardedInteractionContext&gt;.ModifyOriginalResponseAsync(Action&lt;MessageProperties&gt;, RequestOptions)</a>
+    </div>
+    <div>
+      <span class="xref">InteractionModuleBase&lt;ExtendedShardedInteractionContext&gt;.DeleteOriginalResponseAsync()</span>
+    </div>
+    <div>
+      <span class="xref">InteractionModuleBase&lt;ExtendedShardedInteractionContext&gt;.RespondWithModalAsync(Modal, RequestOptions)</span>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">InteractionModuleBase&lt;ExtendedShardedInteractionContext&gt;.RespondWithModalAsync&lt;TModal&gt;(string, TModal, RequestOptions, Action&lt;ModalBuilder&gt;)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">InteractionModuleBase&lt;ExtendedShardedInteractionContext&gt;.RespondWithModalAsync&lt;TModal&gt;(string, RequestOptions, Action&lt;ModalBuilder&gt;)</a>
+    </div>
+    <div>
+      <span class="xref">InteractionModuleBase&lt;ExtendedShardedInteractionContext&gt;.RespondWithPremiumRequiredAsync(RequestOptions)</span>
+    </div>
+    <div>
+      <span class="xref">InteractionModuleBase&lt;ExtendedShardedInteractionContext&gt;.Context</span>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.equals#system-object-equals(system-object)">object.Equals(object)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.equals#system-object-equals(system-object-system-object)">object.Equals(object, object)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.gethashcode">object.GetHashCode()</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.gettype">object.GetType()</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.memberwiseclone">object.MemberwiseClone()</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.referenceequals">object.ReferenceEquals(object, object)</a>
+    </div>
+    <div>
+      <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.object.tostring">object.ToString()</a>
+    </div>
+  </dd></dl>
+
+
+
+
+
+
+  <h2 class="section" id="constructors">Constructors
+</h2>
+
+
+  <a id="Amiquin_Bot_Commands_DevCommands__ctor_" data-uid="Amiquin.Bot.Commands.DevCommands.#ctor*"></a>
+
+  <h3 id="Amiquin_Bot_Commands_DevCommands__ctor_Amiquin_Core_Services_Chat_IChatCoreService_Amiquin_Core_Services_MessageCache_IMessageCacheService_Amiquin_Core_Services_Persona_IPersonaService_Discord_WebSocket_DiscordShardedClient_Amiquin_Core_Services_Voice_IVoiceService_Amiquin_Core_Services_Voice_IVoiceStateManager_Amiquin_Core_Services_Chat_IPersonaChatService_Amiquin_Core_Services_Chat_Toggle_IToggleService_" data-uid="Amiquin.Bot.Commands.DevCommands.#ctor(Amiquin.Core.Services.Chat.IChatCoreService,Amiquin.Core.Services.MessageCache.IMessageCacheService,Amiquin.Core.Services.Persona.IPersonaService,Discord.WebSocket.DiscordShardedClient,Amiquin.Core.Services.Voice.IVoiceService,Amiquin.Core.Services.Voice.IVoiceStateManager,Amiquin.Core.Services.Chat.IPersonaChatService,Amiquin.Core.Services.Chat.Toggle.IToggleService)">
+  DevCommands(IChatCoreService, IMessageCacheService, IPersonaService, DiscordShardedClient, IVoiceService, IVoiceStateManager, IPersonaChatService, IToggleService)
+  <a class="header-action link-secondary" title="View source" href="https://github.com/HueByte/Amiquin/blob/main/source/Amiquin.Bot/Commands/DevCommands.cs/#L31"><i class="bi bi-code-slash"></i></a>
+  </h3>
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">public DevCommands(IChatCoreService chatService, IMessageCacheService messageCacheService, IPersonaService personaService, DiscordShardedClient client, IVoiceService voiceService, IVoiceStateManager voiceStateManager, IPersonaChatService personaChatService, IToggleService toggleService)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>chatService</code> <a class="xref" href="Amiquin.Core.Services.Chat.IChatCoreService.html">IChatCoreService</a></dt>
+    <dd></dd>
+    <dt><code>messageCacheService</code> <a class="xref" href="Amiquin.Core.Services.MessageCache.IMessageCacheService.html">IMessageCacheService</a></dt>
+    <dd></dd>
+    <dt><code>personaService</code> <a class="xref" href="Amiquin.Core.Services.Persona.IPersonaService.html">IPersonaService</a></dt>
+    <dd></dd>
+    <dt><code>client</code> <span class="xref">DiscordShardedClient</span></dt>
+    <dd></dd>
+    <dt><code>voiceService</code> <a class="xref" href="Amiquin.Core.Services.Voice.IVoiceService.html">IVoiceService</a></dt>
+    <dd></dd>
+    <dt><code>voiceStateManager</code> <a class="xref" href="Amiquin.Core.Services.Voice.IVoiceStateManager.html">IVoiceStateManager</a></dt>
+    <dd></dd>
+    <dt><code>personaChatService</code> <a class="xref" href="Amiquin.Core.Services.Chat.IPersonaChatService.html">IPersonaChatService</a></dt>
+    <dd></dd>
+    <dt><code>toggleService</code> <a class="xref" href="Amiquin.Core.Services.Chat.Toggle.IToggleService.html">IToggleService</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+
+  <h2 class="section" id="methods">Methods
+</h2>
+
+
+  <a id="Amiquin_Bot_Commands_DevCommands_CreateNachoSquad_" data-uid="Amiquin.Bot.Commands.DevCommands.CreateNachoSquad*"></a>
+
+  <h3 id="Amiquin_Bot_Commands_DevCommands_CreateNachoSquad" data-uid="Amiquin.Bot.Commands.DevCommands.CreateNachoSquad">
+  CreateNachoSquad()
+  <a class="header-action link-secondary" title="View source" href="https://github.com/HueByte/Amiquin/blob/main/source/Amiquin.Bot/Commands/DevCommands.cs/#L172"><i class="bi bi-code-slash"></i></a>
+  </h3>
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">[SlashCommand(&quot;create-nacho-squad&quot;, &quot;Create the NachoSquad role&quot;, false, RunMode.Default)]
+public Task CreateNachoSquad()</code></pre>
+  </div>
+
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.tasks.task">Task</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Amiquin_Bot_Commands_DevCommands_JoinAsync_" data-uid="Amiquin.Bot.Commands.DevCommands.JoinAsync*"></a>
+
+  <h3 id="Amiquin_Bot_Commands_DevCommands_JoinAsync" data-uid="Amiquin.Bot.Commands.DevCommands.JoinAsync">
+  JoinAsync()
+  <a class="header-action link-secondary" title="View source" href="https://github.com/HueByte/Amiquin/blob/main/source/Amiquin.Bot/Commands/DevCommands.cs/#L108"><i class="bi bi-code-slash"></i></a>
+  </h3>
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">[SlashCommand(&quot;join&quot;, &quot;Join a voice channel&quot;, false, RunMode.Default)]
+public Task JoinAsync()</code></pre>
+  </div>
+
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.tasks.task">Task</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Amiquin_Bot_Commands_DevCommands_LeaveAsync_" data-uid="Amiquin.Bot.Commands.DevCommands.LeaveAsync*"></a>
+
+  <h3 id="Amiquin_Bot_Commands_DevCommands_LeaveAsync" data-uid="Amiquin.Bot.Commands.DevCommands.LeaveAsync">
+  LeaveAsync()
+  <a class="header-action link-secondary" title="View source" href="https://github.com/HueByte/Amiquin/blob/main/source/Amiquin.Bot/Commands/DevCommands.cs/#L123"><i class="bi bi-code-slash"></i></a>
+  </h3>
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">[SlashCommand(&quot;leave&quot;, &quot;Leave a voice channel&quot;, false, RunMode.Default)]
+public Task LeaveAsync()</code></pre>
+  </div>
+
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.tasks.task">Task</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Amiquin_Bot_Commands_DevCommands_PersonaAsync_" data-uid="Amiquin.Bot.Commands.DevCommands.PersonaAsync*"></a>
+
+  <h3 id="Amiquin_Bot_Commands_DevCommands_PersonaAsync" data-uid="Amiquin.Bot.Commands.DevCommands.PersonaAsync">
+  PersonaAsync()
+  <a class="header-action link-secondary" title="View source" href="https://github.com/HueByte/Amiquin/blob/main/source/Amiquin.Bot/Commands/DevCommands.cs/#L81"><i class="bi bi-code-slash"></i></a>
+  </h3>
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">[SlashCommand(&quot;persona&quot;, &quot;Get persona message&quot;, false, RunMode.Default)]
+public Task PersonaAsync()</code></pre>
+  </div>
+
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.tasks.task">Task</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Amiquin_Bot_Commands_DevCommands_PingAsync_" data-uid="Amiquin.Bot.Commands.DevCommands.PingAsync*"></a>
+
+  <h3 id="Amiquin_Bot_Commands_DevCommands_PingAsync" data-uid="Amiquin.Bot.Commands.DevCommands.PingAsync">
+  PingAsync()
+  <a class="header-action link-secondary" title="View source" href="https://github.com/HueByte/Amiquin/blob/main/source/Amiquin.Bot/Commands/DevCommands.cs/#L221"><i class="bi bi-code-slash"></i></a>
+  </h3>
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">[SlashCommand(&quot;ping&quot;, &quot;Pong!&quot;, false, RunMode.Default)]
+public Task PingAsync()</code></pre>
+  </div>
+
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.tasks.task">Task</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Amiquin_Bot_Commands_DevCommands_RestartAsync_" data-uid="Amiquin.Bot.Commands.DevCommands.RestartAsync*"></a>
+
+  <h3 id="Amiquin_Bot_Commands_DevCommands_RestartAsync" data-uid="Amiquin.Bot.Commands.DevCommands.RestartAsync">
+  RestartAsync()
+  <a class="header-action link-secondary" title="View source" href="https://github.com/HueByte/Amiquin/blob/main/source/Amiquin.Bot/Commands/DevCommands.cs/#L183"><i class="bi bi-code-slash"></i></a>
+  </h3>
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">[SlashCommand(&quot;restart&quot;, &quot;Restart the bot&quot;, false, RunMode.Default)]
+public Task RestartAsync()</code></pre>
+  </div>
+
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.tasks.task">Task</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Amiquin_Bot_Commands_DevCommands_SaySomethingAsync_" data-uid="Amiquin.Bot.Commands.DevCommands.SaySomethingAsync*"></a>
+
+  <h3 id="Amiquin_Bot_Commands_DevCommands_SaySomethingAsync_System_String_" data-uid="Amiquin.Bot.Commands.DevCommands.SaySomethingAsync(System.String)">
+  SaySomethingAsync(string)
+  <a class="header-action link-secondary" title="View source" href="https://github.com/HueByte/Amiquin/blob/main/source/Amiquin.Bot/Commands/DevCommands.cs/#L191"><i class="bi bi-code-slash"></i></a>
+  </h3>
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">[SlashCommand(&quot;say&quot;, &quot;Amiquin will say something in the voice chat&quot;, false, RunMode.Default)]
+[RequireToggle(&quot;EnableTTS&quot;)]
+public Task SaySomethingAsync(string input)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>input</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.tasks.task">Task</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Amiquin_Bot_Commands_DevCommands_ToggleAsync_" data-uid="Amiquin.Bot.Commands.DevCommands.ToggleAsync*"></a>
+
+  <h3 id="Amiquin_Bot_Commands_DevCommands_ToggleAsync_System_String_System_Boolean_System_String_" data-uid="Amiquin.Bot.Commands.DevCommands.ToggleAsync(System.String,System.Boolean,System.String)">
+  ToggleAsync(string, bool, string?)
+  <a class="header-action link-secondary" title="View source" href="https://github.com/HueByte/Amiquin/blob/main/source/Amiquin.Bot/Commands/DevCommands.cs/#L43"><i class="bi bi-code-slash"></i></a>
+  </h3>
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">[SlashCommand(&quot;toggle-feature&quot;, &quot;Toggle a feature&quot;, false, RunMode.Default)]
+public Task ToggleAsync(string toggleName, bool isEnabled, string? description = null)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>toggleName</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+    <dt><code>isEnabled</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.boolean">bool</a></dt>
+    <dd></dd>
+    <dt><code>description</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.tasks.task">Task</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Amiquin_Bot_Commands_DevCommands_VoiceChatAsync_" data-uid="Amiquin.Bot.Commands.DevCommands.VoiceChatAsync*"></a>
+
+  <h3 id="Amiquin_Bot_Commands_DevCommands_VoiceChatAsync_System_String_" data-uid="Amiquin.Bot.Commands.DevCommands.VoiceChatAsync(System.String)">
+  VoiceChatAsync(string)
+  <a class="header-action link-secondary" title="View source" href="https://github.com/HueByte/Amiquin/blob/main/source/Amiquin.Bot/Commands/DevCommands.cs/#L137"><i class="bi bi-code-slash"></i></a>
+  </h3>
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">[SlashCommand(&quot;voice-chat&quot;, &quot;Amiquin will answer in a voice channel&quot;, false, RunMode.Default)]
+[RequireToggle(&quot;EnableTTS&quot;)]
+[RequireToggle(&quot;EnableChat&quot;)]
+public Task VoiceChatAsync(string input)</code></pre>
+  </div>
+
+  <h4 class="section">Parameters</h4>
+  <dl class="parameters">
+    <dt><code>input</code> <a class="xref" href="https://learn.microsoft.com/dotnet/api/system.string">string</a></dt>
+    <dd></dd>
+  </dl>
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.tasks.task">Task</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+  <a id="Amiquin_Bot_Commands_DevCommands_VoiceDebugAsync_" data-uid="Amiquin.Bot.Commands.DevCommands.VoiceDebugAsync*"></a>
+
+  <h3 id="Amiquin_Bot_Commands_DevCommands_VoiceDebugAsync" data-uid="Amiquin.Bot.Commands.DevCommands.VoiceDebugAsync">
+  VoiceDebugAsync()
+  <a class="header-action link-secondary" title="View source" href="https://github.com/HueByte/Amiquin/blob/main/source/Amiquin.Bot/Commands/DevCommands.cs/#L51"><i class="bi bi-code-slash"></i></a>
+  </h3>
+
+  <div class="markdown level1 summary"></div>
+  <div class="markdown level1 conceptual"></div>
+
+  <div class="codewrapper">
+    <pre><code class="lang-csharp hljs">[SlashCommand(&quot;voicedebug&quot;, &quot;debug&quot;, false, RunMode.Default)]
+public Task VoiceDebugAsync()</code></pre>
+  </div>
+
+
+  <h4 class="section">Returns</h4>
+  <dl class="parameters">
+    <dt><a class="xref" href="https://learn.microsoft.com/dotnet/api/system.threading.tasks.task">Task</a></dt>
+    <dd></dd>
+  </dl>
+
+
+
+
+
+
+
+
+
+
+
+
+</article>
+
+        <div class="contribution d-print-none">
+          <a href="https://github.com/HueByte/Amiquin/blob/main/source/Amiquin.Bot/Commands/DevCommands.cs/#L18" class="edit-link">Edit this page</a>
+        </div>
+
+
+      </div>
+
+      <div class="affix">
+        <nav id="affix"></nav>
+      </div>
+    </main>
+
+    <div class="container-xxl search-results" id="search-results"></div>
+
+    <footer class="border-top text-secondary">
+      <div class="container-xxl">
+        <div class="flex-fill">
+          <span>Made with <a href="https://dotnet.github.io/docfx">docfx</a></span>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

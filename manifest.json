@@ -1,0 +1,2700 @@
+{
+  "source_base_path": "/home/runner/work/Amiquin/Amiquin/dev",
+  "xrefmap": "xrefmap.yml",
+  "files": [
+    {
+      "type": "Resource",
+      "output": {
+        "resource": {
+          "relative_path": "index.json"
+        }
+      }
+    },
+    {
+      "type": "Resource",
+      "source_relative_path": "../Assets/Amiquin-40px.png",
+      "output": {
+        "resource": {
+          "relative_path": "Assets/Amiquin-40px.png"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Resource",
+      "source_relative_path": "../Assets/bannah.gif",
+      "output": {
+        "resource": {
+          "relative_path": "Assets/bannah.gif"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Resource",
+      "source_relative_path": "../Assets/bg.jpg",
+      "output": {
+        "resource": {
+          "relative_path": "Assets/bg.jpg"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Resource",
+      "source_relative_path": "../Assets/logos.png",
+      "output": {
+        "resource": {
+          "relative_path": "Assets/logos.png"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Conceptual",
+      "source_relative_path": "../docs/architecture.md",
+      "output": {
+        ".html": {
+          "relative_path": "docs/architecture.html"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Conceptual",
+      "source_relative_path": "../docs/commands.md",
+      "output": {
+        ".html": {
+          "relative_path": "docs/commands.html"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Conceptual",
+      "source_relative_path": "../docs/configuration.md",
+      "output": {
+        ".html": {
+          "relative_path": "docs/configuration.html"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Conceptual",
+      "source_relative_path": "../docs/contributing.md",
+      "output": {
+        ".html": {
+          "relative_path": "docs/contributing.html"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Conceptual",
+      "source_relative_path": "../docs/development.md",
+      "output": {
+        ".html": {
+          "relative_path": "docs/development.html"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Conceptual",
+      "source_relative_path": "../docs/getting-started.md",
+      "output": {
+        ".html": {
+          "relative_path": "docs/getting-started.html"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Conceptual",
+      "source_relative_path": "../docs/git-setup.md",
+      "output": {
+        ".html": {
+          "relative_path": "docs/git-setup.html"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Conceptual",
+      "source_relative_path": "../docs/index.md",
+      "output": {
+        ".html": {
+          "relative_path": "docs/index.html"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Conceptual",
+      "source_relative_path": "../docs/installation.md",
+      "output": {
+        ".html": {
+          "relative_path": "docs/installation.html"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Toc",
+      "source_relative_path": "../docs/toc.yml",
+      "output": {
+        ".html": {
+          "relative_path": "docs/toc.html"
+        },
+        ".json": {
+          "relative_path": "docs/toc.json"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Bot.AmiquinHost.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Bot.AmiquinHost.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Bot.AmiquinHost",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Bot.Commands.AdminCommands.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Bot.Commands.AdminCommands.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Bot.Commands.AdminCommands",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Bot.Commands.DevCommands.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Bot.Commands.DevCommands.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Bot.Commands.DevCommands",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Bot.Commands.MainCommands.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Bot.Commands.MainCommands.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Bot.Commands.MainCommands",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Bot.Commands.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Bot.Commands.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Bot.Commands",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Bot.Configurators.InjectionConfigurator.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Bot.Configurators.InjectionConfigurator.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Bot.Configurators.InjectionConfigurator",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Bot.Configurators.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Bot.Configurators.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Bot.Configurators",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Bot.Console.Writer.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Bot.Console.Writer.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Bot.Console.Writer",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Bot.Console.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Bot.Console.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Bot.Console",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Bot.Preconditions.RequireServerMeta.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Bot.Preconditions.RequireServerMeta.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Bot.Preconditions.RequireServerMeta",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Bot.Preconditions.RequireToggle.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Bot.Preconditions.RequireToggle.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Bot.Preconditions.RequireToggle",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Bot.Preconditions.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Bot.Preconditions.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Bot.Preconditions",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Bot.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Bot.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Bot",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Abstraction.BaseRepository-3.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Abstraction.BaseRepository-3.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Abstraction.BaseRepository<TKeyType, TEntity, TContext>",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Abstraction.DbModel-1.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Abstraction.DbModel-1.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Abstraction.DbModel<TKey>",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Abstraction.IQueryableRepository-2.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Abstraction.IQueryableRepository-2.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Abstraction.IQueryableRepository<TKey, TEntity>",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Abstraction.IRepository-2.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Abstraction.IRepository-2.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Abstraction.IRepository<Tkey, TEntity>",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Abstraction.IRunnableJob.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Abstraction.IRunnableJob.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Abstraction.IRunnableJob",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Abstraction.QueryableBaseRepository-3.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Abstraction.QueryableBaseRepository-3.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Abstraction.QueryableBaseRepository<TKeyType, TEntity, TContext>",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Abstraction.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Abstraction.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Abstraction",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Attributes.AnomifyAttribute.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Attributes.AnomifyAttribute.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Attributes.AnomifyAttribute",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Attributes.EphemeralAttribute.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Attributes.EphemeralAttribute.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Attributes.EphemeralAttribute",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Attributes.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Attributes.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Attributes",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Cleaner.CleanerService.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Cleaner.CleanerService.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Cleaner.CleanerService",
+      "Summary": "<p sourcefile=\"api/Amiquin.Core.Cleaner.CleanerService.yml\" sourcestartlinenumber=\"1\">Service implementation for cleaning and maintenance operations.\nPerforms scheduled cleanup of caches and temporary data to maintain system performance.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Cleaner.ICleanerService.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Cleaner.ICleanerService.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Cleaner.ICleanerService",
+      "Summary": "<p sourcefile=\"api/Amiquin.Core.Cleaner.ICleanerService.yml\" sourcestartlinenumber=\"1\">Service interface for cleaning and maintenance operations.\nExtends IRunnableJob to provide scheduled cleanup functionality.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Cleaner.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Cleaner.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Cleaner",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Constants.AI.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Constants.AI.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Constants.AI",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Constants.APIs.NewsApi.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Constants.APIs.NewsApi.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Constants.APIs.NewsApi",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Constants.APIs.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Constants.APIs.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Constants.APIs",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Constants.CacheKeys.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Constants.CacheKeys.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Constants.CacheKeys",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Constants.Emoji.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Constants.Emoji.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Constants.Emoji",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Constants.Environment.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Constants.Environment.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Constants.Environment",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Constants.Paths.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Constants.Paths.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Constants.Paths",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Constants.PersonaKeywordsCache.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Constants.PersonaKeywordsCache.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Constants.PersonaKeywordsCache",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Constants.ToggleNames.SystemExclusiveToggles.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Constants.ToggleNames.SystemExclusiveToggles.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Constants.ToggleNames.SystemExclusiveToggles",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Constants.ToggleNames.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Constants.ToggleNames.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Constants.ToggleNames",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Constants.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Constants.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Constants",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.DiscordExtensions.ExtendedShardedInteractionContext.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.DiscordExtensions.ExtendedShardedInteractionContext.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.DiscordExtensions.ExtendedShardedInteractionContext",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.DiscordExtensions.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.DiscordExtensions.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.DiscordExtensions",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Exceptions.DatabaseNotImplementedException.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Exceptions.DatabaseNotImplementedException.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Exceptions.DatabaseNotImplementedException",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Exceptions.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Exceptions.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Exceptions",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.IRepositories.IBotStatisticsRepository.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.IRepositories.IBotStatisticsRepository.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.IRepositories.IBotStatisticsRepository",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.IRepositories.ICommandLogRepository.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.IRepositories.ICommandLogRepository.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.IRepositories.ICommandLogRepository",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.IRepositories.IMessageRepository.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.IRepositories.IMessageRepository.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.IRepositories.IMessageRepository",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.IRepositories.INachoRepository.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.IRepositories.INachoRepository.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.IRepositories.INachoRepository",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.IRepositories.IServerMetaRepository.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.IRepositories.IServerMetaRepository.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.IRepositories.IServerMetaRepository",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.IRepositories.IToggleRepository.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.IRepositories.IToggleRepository.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.IRepositories.IToggleRepository",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.IRepositories.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.IRepositories.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.IRepositories",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Job.IJobService.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Job.IJobService.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Job.IJobService",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Job.JobService.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Job.JobService.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Job.JobService",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Job.Models.AmiquinJob.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Job.Models.AmiquinJob.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Job.Models.AmiquinJob",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Job.Models.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Job.Models.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Job.Models",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Job.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Job.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Job",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Models.BotStatistics.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Models.BotStatistics.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Models.BotStatistics",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Models.CommandLog.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Models.CommandLog.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Models.CommandLog",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Models.Message.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Models.Message.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Models.Message",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Models.NachoPack.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Models.NachoPack.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Models.NachoPack",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Models.ServerMeta.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Models.ServerMeta.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Models.ServerMeta",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Models.Toggle.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Models.Toggle.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Models.Toggle",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Models.ToggleScope.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Models.ToggleScope.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Models.ToggleScope",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Models.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Models.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Models",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Options.BotOptions.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Options.BotOptions.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Options.BotOptions",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Options.DatabaseOptions.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Options.DatabaseOptions.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Options.DatabaseOptions",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Options.ExternalOptions.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Options.ExternalOptions.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Options.ExternalOptions",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Options.IOption.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Options.IOption.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Options.IOption",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Options.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Options.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Options",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Services.ApiClients.INewsApiClient.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Services.ApiClients.INewsApiClient.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Services.ApiClients.INewsApiClient",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Services.ApiClients.NewsApiClient.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Services.ApiClients.NewsApiClient.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Services.ApiClients.NewsApiClient",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Services.ApiClients.Responses.Data.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Services.ApiClients.Responses.Data.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Services.ApiClients.Responses.Data",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Services.ApiClients.Responses.NewsApiResponse.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Services.ApiClients.Responses.NewsApiResponse.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Services.ApiClients.Responses.NewsApiResponse",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Services.ApiClients.Responses.NewsList.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Services.ApiClients.Responses.NewsList.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Services.ApiClients.Responses.NewsList",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Services.ApiClients.Responses.NewsObj.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Services.ApiClients.Responses.NewsObj.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Services.ApiClients.Responses.NewsObj",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Services.ApiClients.Responses.PublisherInfo.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Services.ApiClients.Responses.PublisherInfo.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Services.ApiClients.Responses.PublisherInfo",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Services.ApiClients.Responses.PublisherInteractionMeta.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Services.ApiClients.Responses.PublisherInteractionMeta.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Services.ApiClients.Responses.PublisherInteractionMeta",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Services.ApiClients.Responses.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Services.ApiClients.Responses.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Services.ApiClients.Responses",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Services.ApiClients.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Services.ApiClients.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Services.ApiClients",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Services.BotContext.BotContextAccessor.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Services.BotContext.BotContextAccessor.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Services.BotContext.BotContextAccessor",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Services.BotContext.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Services.BotContext.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Services.BotContext",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Services.BotSession.BotSessionService.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Services.BotSession.BotSessionService.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Services.BotSession.BotSessionService",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Services.BotSession.IPerformanceAnalyzer.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Services.BotSession.IPerformanceAnalyzer.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Services.BotSession.IPerformanceAnalyzer",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Services.BotSession.PerformanceAnalyzerFactory.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Services.BotSession.PerformanceAnalyzerFactory.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Services.BotSession.PerformanceAnalyzerFactory",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Services.BotSession.PerformanceAnalyzerLinux.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Services.BotSession.PerformanceAnalyzerLinux.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Services.BotSession.PerformanceAnalyzerLinux",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Services.BotSession.PerformanceAnalyzerWindows.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Services.BotSession.PerformanceAnalyzerWindows.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Services.BotSession.PerformanceAnalyzerWindows",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Services.BotSession.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Services.BotSession.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Services.BotSession",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Services.Chat.ChatCoreService.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Services.Chat.ChatCoreService.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Services.Chat.ChatCoreService",
+      "Summary": "<p sourcefile=\"api/Amiquin.Core.Services.Chat.ChatCoreService.yml\" sourcestartlinenumber=\"1\">Service implementation for core chat operations using OpenAI models.\nHandles chat completions, message exchange, and semaphore-based concurrency control for chat instances.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Services.Chat.ChatSemaphoreManager.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Services.Chat.ChatSemaphoreManager.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Services.Chat.ChatSemaphoreManager",
+      "Summary": "<p sourcefile=\"api/Amiquin.Core.Services.Chat.ChatSemaphoreManager.yml\" sourcestartlinenumber=\"1\">Manager implementation for handling semaphore-based synchronization for chat and voice operations.\nUses concurrent dictionaries to manage semaphores per instance, ensuring thread-safe operations.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Services.Chat.HistoryOptimizerService.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Services.Chat.HistoryOptimizerService.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Services.Chat.HistoryOptimizerService",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Services.Chat.IChatCoreService.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Services.Chat.IChatCoreService.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Services.Chat.IChatCoreService",
+      "Summary": "<p sourcefile=\"api/Amiquin.Core.Services.Chat.IChatCoreService.yml\" sourcestartlinenumber=\"1\">Service interface for core chat operations using AI models.\nProvides methods for chat completion and message exchange functionality.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Services.Chat.IChatSemaphoreManager.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Services.Chat.IChatSemaphoreManager.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Services.Chat.IChatSemaphoreManager",
+      "Summary": "<p sourcefile=\"api/Amiquin.Core.Services.Chat.IChatSemaphoreManager.yml\" sourcestartlinenumber=\"1\">Manager interface for handling semaphore-based synchronization for chat and voice operations.\nProvides methods for creating and managing semaphores to prevent concurrent operations.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Services.Chat.IHistoryOptimizerService.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Services.Chat.IHistoryOptimizerService.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Services.Chat.IHistoryOptimizerService",
+      "Summary": "<p sourcefile=\"api/Amiquin.Core.Services.Chat.IHistoryOptimizerService.yml\" sourcestartlinenumber=\"1\">Service interface for optimizing chat message history to manage token usage.\nProvides methods for analyzing and reducing message history when token limits are approached.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Services.Chat.IPersonaChatService.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Services.Chat.IPersonaChatService.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Services.Chat.IPersonaChatService",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Services.Chat.Model.OptimizerResult.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Services.Chat.Model.OptimizerResult.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Services.Chat.Model.OptimizerResult",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Services.Chat.Model.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Services.Chat.Model.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Services.Chat.Model",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Services.Chat.PersonaChatService.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Services.Chat.PersonaChatService.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Services.Chat.PersonaChatService",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Services.Chat.Toggle.IToggleService.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Services.Chat.Toggle.IToggleService.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Services.Chat.Toggle.IToggleService",
+      "Summary": "<p sourcefile=\"api/Amiquin.Core.Services.Chat.Toggle.IToggleService.yml\" sourcestartlinenumber=\"1\">Service interface for managing server toggle operations.\nProvides methods for creating, retrieving, updating toggle states and configurations.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Services.Chat.Toggle.ToggleService.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Services.Chat.Toggle.ToggleService.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Services.Chat.Toggle.ToggleService",
+      "Summary": "<p sourcefile=\"api/Amiquin.Core.Services.Chat.Toggle.ToggleService.yml\" sourcestartlinenumber=\"1\">Service implementation for managing server toggle operations.\nHandles toggle state management, default toggle creation, and server-specific toggle configurations.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Services.Chat.Toggle.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Services.Chat.Toggle.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Services.Chat.Toggle",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Services.Chat.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Services.Chat.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Services.Chat",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Services.CommandHandler.CommandHandlerService.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Services.CommandHandler.CommandHandlerService.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Services.CommandHandler.CommandHandlerService",
+      "Summary": "<p sourcefile=\"api/Amiquin.Core.Services.CommandHandler.CommandHandlerService.yml\" sourcestartlinenumber=\"1\">Implementation of the <xref href=\"Amiquin.Core.Services.CommandHandler.ICommandHandlerService\" data-throw-if-not-resolved=\"false\"></xref> interface.\nHandles Discord bot commands and interactions.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Services.CommandHandler.ICommandHandlerService.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Services.CommandHandler.ICommandHandlerService.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Services.CommandHandler.ICommandHandlerService",
+      "Summary": "<p sourcefile=\"api/Amiquin.Core.Services.CommandHandler.ICommandHandlerService.yml\" sourcestartlinenumber=\"1\">Service interface for handling Discord bot commands and interactions.\nProvides methods for command initialization, execution, and management.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Services.CommandHandler.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Services.CommandHandler.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Services.CommandHandler",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Services.EventHandler.EventHandlerService.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Services.EventHandler.EventHandlerService.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Services.EventHandler.EventHandlerService",
+      "Summary": "<p sourcefile=\"api/Amiquin.Core.Services.EventHandler.EventHandlerService.yml\" sourcestartlinenumber=\"1\">Implementation of the <xref href=\"Amiquin.Core.Services.EventHandler.IEventHandlerService\" data-throw-if-not-resolved=\"false\"></xref> interface.\nHandles Discord bot events and interactions.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Services.EventHandler.IEventHandlerService.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Services.EventHandler.IEventHandlerService.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Services.EventHandler.IEventHandlerService",
+      "Summary": "<p sourcefile=\"api/Amiquin.Core.Services.EventHandler.IEventHandlerService.yml\" sourcestartlinenumber=\"1\">Service interface for handling Discord bot events and interactions.\nProvides methods for managing bot lifecycle events, commands, and guild interactions.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Services.EventHandler.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Services.EventHandler.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Services.EventHandler",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Services.ExternalProcessRunner.ExternalProcessRunnerService.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Services.ExternalProcessRunner.ExternalProcessRunnerService.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Services.ExternalProcessRunner.ExternalProcessRunnerService",
+      "Summary": "<p sourcefile=\"api/Amiquin.Core.Services.ExternalProcessRunner.ExternalProcessRunnerService.yml\" sourcestartlinenumber=\"1\">Implementation of the <xref href=\"Amiquin.Core.Services.ExternalProcessRunner.IExternalProcessRunnerService\" data-throw-if-not-resolved=\"false\"></xref> interface.\nManages creation and execution of external processes for audio processing.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Services.ExternalProcessRunner.IExternalProcessRunnerService.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Services.ExternalProcessRunner.IExternalProcessRunnerService.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Services.ExternalProcessRunner.IExternalProcessRunnerService",
+      "Summary": "<p sourcefile=\"api/Amiquin.Core.Services.ExternalProcessRunner.IExternalProcessRunnerService.yml\" sourcestartlinenumber=\"1\">Service interface for creating and managing external processes.\nProvides methods for creating FFmpeg and Piper processes for audio processing.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Services.ExternalProcessRunner.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Services.ExternalProcessRunner.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Services.ExternalProcessRunner",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Services.MessageCache.IMessageCacheService.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Services.MessageCache.IMessageCacheService.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Services.MessageCache.IMessageCacheService",
+      "Summary": "<p sourcefile=\"api/Amiquin.Core.Services.MessageCache.IMessageCacheService.yml\" sourcestartlinenumber=\"1\">Service interface for managing message caching operations.\nProvides methods for caching chat messages, persona messages, and managing message history.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Services.MessageCache.MessageCacheService.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Services.MessageCache.MessageCacheService.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Services.MessageCache.MessageCacheService",
+      "Summary": "<p sourcefile=\"api/Amiquin.Core.Services.MessageCache.MessageCacheService.yml\" sourcestartlinenumber=\"1\">Service implementation for managing message caching operations.\nHandles in-memory caching of chat messages, persona messages, and database operations for message persistence.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Services.MessageCache.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Services.MessageCache.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Services.MessageCache",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Services.Meta.IServerMetaService.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Services.Meta.IServerMetaService.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Services.Meta.IServerMetaService",
+      "Summary": "<p sourcefile=\"api/Amiquin.Core.Services.Meta.IServerMetaService.yml\" sourcestartlinenumber=\"1\">Service interface for managing server metadata operations.\nProvides methods for creating, retrieving, updating, and deleting server-specific configuration and state data.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Services.Meta.ServerMetaService.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Services.Meta.ServerMetaService.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Services.Meta.ServerMetaService",
+      "Summary": "<p sourcefile=\"api/Amiquin.Core.Services.Meta.ServerMetaService.yml\" sourcestartlinenumber=\"1\">Service implementation for managing server metadata operations.\nHandles caching, database operations, and server-specific configuration management.\nImplements thread-safe operations using semaphores for concurrent access control.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Services.Meta.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Services.Meta.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Services.Meta",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Services.Nacho.INachoService.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Services.Nacho.INachoService.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Services.Nacho.INachoService",
+      "Summary": "<p sourcefile=\"api/Amiquin.Core.Services.Nacho.INachoService.yml\" sourcestartlinenumber=\"1\">Service interface for managing nacho operations.\nHandles nacho counting, addition, removal, and statistics tracking for users and servers.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Services.Nacho.NachoService.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Services.Nacho.NachoService.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Services.Nacho.NachoService",
+      "Summary": "<p sourcefile=\"api/Amiquin.Core.Services.Nacho.NachoService.yml\" sourcestartlinenumber=\"1\">Service implementation for managing nacho operations.\nHandles database operations for nacho counting, statistics, and management across users and servers.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Services.Nacho.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Services.Nacho.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Services.Nacho",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Services.Persona.IPersonaService.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Services.Persona.IPersonaService.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Services.Persona.IPersonaService",
+      "Summary": "<p sourcefile=\"api/Amiquin.Core.Services.Persona.IPersonaService.yml\" sourcestartlinenumber=\"1\">Service interface for managing server persona operations.\nHandles persona creation, updates, and retrieval for Discord servers.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Services.Persona.PersonaService.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Services.Persona.PersonaService.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Services.Persona.PersonaService",
+      "Summary": "<p sourcefile=\"api/Amiquin.Core.Services.Persona.PersonaService.yml\" sourcestartlinenumber=\"1\">Service implementation for managing server persona operations.\nHandles persona creation, updates, caching, and AI-powered persona generation for Discord servers.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Services.Persona.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Services.Persona.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Services.Persona",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Services.ServerInteraction.IServerInteractionService.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Services.ServerInteraction.IServerInteractionService.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Services.ServerInteraction.IServerInteractionService",
+      "Summary": "<p sourcefile=\"api/Amiquin.Core.Services.ServerInteraction.IServerInteractionService.yml\" sourcestartlinenumber=\"1\">Service interface for interacting with Discord servers.\nProvides methods for sending messages when the bot joins a server.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Services.ServerInteraction.ServerInteractionService.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Services.ServerInteraction.ServerInteractionService.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Services.ServerInteraction.ServerInteractionService",
+      "Summary": "<p sourcefile=\"api/Amiquin.Core.Services.ServerInteraction.ServerInteractionService.yml\" sourcestartlinenumber=\"1\">Implementation of the <xref href=\"Amiquin.Core.Services.ServerInteraction.IServerInteractionService\" data-throw-if-not-resolved=\"false\"></xref> interface.\nHandles interactions with Discord servers.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Services.ServerInteraction.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Services.ServerInteraction.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Services.ServerInteraction",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Services.StatisticsCollector.IStatisticsCollector.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Services.StatisticsCollector.IStatisticsCollector.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Services.StatisticsCollector.IStatisticsCollector",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Services.StatisticsCollector.StatisticsCollector.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Services.StatisticsCollector.StatisticsCollector.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Services.StatisticsCollector.StatisticsCollector",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Services.StatisticsCollector.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Services.StatisticsCollector.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Services.StatisticsCollector",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Services.Voice.IVoiceService.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Services.Voice.IVoiceService.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Services.Voice.IVoiceService",
+      "Summary": "<p sourcefile=\"api/Amiquin.Core.Services.Voice.IVoiceService.yml\" sourcestartlinenumber=\"1\">Service interface for managing voice operations in Discord channels.\nProvides methods for text-to-speech, audio streaming, and voice channel management.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Services.Voice.IVoiceStateManager.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Services.Voice.IVoiceStateManager.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Services.Voice.IVoiceStateManager",
+      "Summary": "<p sourcefile=\"api/Amiquin.Core.Services.Voice.IVoiceStateManager.yml\" sourcestartlinenumber=\"1\">Manager interface for handling Discord voice channel state and connections.\nProvides methods for connecting to, disconnecting from, and managing voice channels.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Services.Voice.Models.AmiquinVoice.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Services.Voice.Models.AmiquinVoice.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Services.Voice.Models.AmiquinVoice",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Services.Voice.Models.TTSMessage.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Services.Voice.Models.TTSMessage.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Services.Voice.Models.TTSMessage",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Services.Voice.Models.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Services.Voice.Models.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Services.Voice.Models",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Services.Voice.VoiceService.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Services.Voice.VoiceService.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Services.Voice.VoiceService",
+      "Summary": "<p sourcefile=\"api/Amiquin.Core.Services.Voice.VoiceService.yml\" sourcestartlinenumber=\"1\">Service implementation for managing voice operations in Discord channels.\nHandles text-to-speech conversion, audio streaming, and voice channel management using external tools like Piper and FFmpeg.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Services.Voice.VoiceStateManager.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Services.Voice.VoiceStateManager.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Services.Voice.VoiceStateManager",
+      "Summary": "<p sourcefile=\"api/Amiquin.Core.Services.Voice.VoiceStateManager.yml\" sourcestartlinenumber=\"1\">Implementation of the <xref href=\"Amiquin.Core.Services.Voice.IVoiceStateManager\" data-throw-if-not-resolved=\"false\"></xref> interface.\nManages Discord voice channel connections and state.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Services.Voice.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Services.Voice.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Services.Voice",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Utilities.DiscordUtilities.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Utilities.DiscordUtilities.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Utilities.DiscordUtilities",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Utilities.GeneralUtilities.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Utilities.GeneralUtilities.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Utilities.GeneralUtilities",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Utilities.ProgressUtilities.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Utilities.ProgressUtilities.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Utilities.ProgressUtilities",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Utilities.Reflection.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Utilities.Reflection.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Utilities.Reflection",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Utilities.StringModifier.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Utilities.StringModifier.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Utilities.StringModifier",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Utilities.Tokenizer.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Utilities.Tokenizer.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Utilities.Tokenizer",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.Utilities.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.Utilities.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core.Utilities",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Core.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Core.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Core",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Infrastructure.AmiquinContext.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Infrastructure.AmiquinContext.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Infrastructure.AmiquinContext",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Infrastructure.Repositories.BotStatisticsRepository.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Infrastructure.Repositories.BotStatisticsRepository.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Infrastructure.Repositories.BotStatisticsRepository",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Infrastructure.Repositories.CommandLogRepository.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Infrastructure.Repositories.CommandLogRepository.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Infrastructure.Repositories.CommandLogRepository",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Infrastructure.Repositories.MessageRepository.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Infrastructure.Repositories.MessageRepository.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Infrastructure.Repositories.MessageRepository",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Infrastructure.Repositories.NachoRepository.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Infrastructure.Repositories.NachoRepository.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Infrastructure.Repositories.NachoRepository",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Infrastructure.Repositories.ServerMetaRepository.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Infrastructure.Repositories.ServerMetaRepository.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Infrastructure.Repositories.ServerMetaRepository",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Infrastructure.Repositories.ToggleRepository.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Infrastructure.Repositories.ToggleRepository.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Infrastructure.Repositories.ToggleRepository",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Infrastructure.Repositories.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Infrastructure.Repositories.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Infrastructure.Repositories",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Infrastructure.Setup.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Infrastructure.Setup.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Infrastructure.Setup",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Infrastructure.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Infrastructure.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Infrastructure",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.IntegrationTests.Fixtures.DatabaseFixture.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.IntegrationTests.Fixtures.DatabaseFixture.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.IntegrationTests.Fixtures.DatabaseFixture",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.IntegrationTests.Fixtures.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.IntegrationTests.Fixtures.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.IntegrationTests.Fixtures",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.IntegrationTests.Services.MessageCacheServiceIntegrationTests.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.IntegrationTests.Services.MessageCacheServiceIntegrationTests.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.IntegrationTests.Services.MessageCacheServiceIntegrationTests",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.IntegrationTests.Services.NachoServiceIntegrationTests.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.IntegrationTests.Services.NachoServiceIntegrationTests.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.IntegrationTests.Services.NachoServiceIntegrationTests",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.IntegrationTests.Services.ServerMetaServiceIntegrationTests.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.IntegrationTests.Services.ServerMetaServiceIntegrationTests.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.IntegrationTests.Services.ServerMetaServiceIntegrationTests",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.IntegrationTests.Services.ServiceIntegrationTests.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.IntegrationTests.Services.ServiceIntegrationTests.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.IntegrationTests.Services.ServiceIntegrationTests",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.IntegrationTests.Services.ToggleServiceIntegrationTests.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.IntegrationTests.Services.ToggleServiceIntegrationTests.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.IntegrationTests.Services.ToggleServiceIntegrationTests",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.IntegrationTests.Services.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.IntegrationTests.Services.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.IntegrationTests.Services",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.MySql.Migrations.Init_MySql.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.MySql.Migrations.Init_MySql.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.MySql.Migrations.Init_MySql",
+      "Summary": "<p sourcefile=\"api/Amiquin.MySql.Migrations.Init_MySql.yml\" sourcestartlinenumber=\"1\">A base class inherited by each EF Core migration.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.MySql.Migrations.RemovedToggleScope_MySql.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.MySql.Migrations.RemovedToggleScope_MySql.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.MySql.Migrations.RemovedToggleScope_MySql",
+      "Summary": "<p sourcefile=\"api/Amiquin.MySql.Migrations.RemovedToggleScope_MySql.yml\" sourcestartlinenumber=\"1\">A base class inherited by each EF Core migration.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.MySql.Migrations.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.MySql.Migrations.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.MySql.Migrations",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Sqlite.Migrations.Init_SQLite.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Sqlite.Migrations.Init_SQLite.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Sqlite.Migrations.Init_SQLite",
+      "Summary": "<p sourcefile=\"api/Amiquin.Sqlite.Migrations.Init_SQLite.yml\" sourcestartlinenumber=\"1\">A base class inherited by each EF Core migration.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Sqlite.Migrations.RemovedToggleScope_SQLite.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Sqlite.Migrations.RemovedToggleScope_SQLite.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Sqlite.Migrations.RemovedToggleScope_SQLite",
+      "Summary": "<p sourcefile=\"api/Amiquin.Sqlite.Migrations.RemovedToggleScope_SQLite.yml\" sourcestartlinenumber=\"1\">A base class inherited by each EF Core migration.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Sqlite.Migrations.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Sqlite.Migrations.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Sqlite.Migrations",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Tests.Services.ExternalProcessRunner.ExternalProcessRunnerServiceTests.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Tests.Services.ExternalProcessRunner.ExternalProcessRunnerServiceTests.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Tests.Services.ExternalProcessRunner.ExternalProcessRunnerServiceTests",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Tests.Services.ExternalProcessRunner.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Tests.Services.ExternalProcessRunner.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Tests.Services.ExternalProcessRunner",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Tests.Services.MessageCacheServiceTests.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Tests.Services.MessageCacheServiceTests.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Tests.Services.MessageCacheServiceTests",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Tests.Services.NachoServiceTests.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Tests.Services.NachoServiceTests.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Tests.Services.NachoServiceTests",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Tests.Services.Persona.PersonaServiceTests.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Tests.Services.Persona.PersonaServiceTests.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Tests.Services.Persona.PersonaServiceTests",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Tests.Services.Persona.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Tests.Services.Persona.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Tests.Services.Persona",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Tests.Services.ServerMeta.ServerMetaServiceTests.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Tests.Services.ServerMeta.ServerMetaServiceTests.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Tests.Services.ServerMeta.ServerMetaServiceTests",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Tests.Services.ServerMeta.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Tests.Services.ServerMeta.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Tests.Services.ServerMeta",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Tests.Services.Voice.MockVoiceService.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Tests.Services.Voice.MockVoiceService.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Tests.Services.Voice.MockVoiceService",
+      "Summary": "<p sourcefile=\"api/Amiquin.Tests.Services.Voice.MockVoiceService.yml\" sourcestartlinenumber=\"1\">Mock implementation of IVoiceService for testing purposes.\nThis helps verify that the interface contract is sound and can be implemented.</p>\n"
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Tests.Services.Voice.MockVoiceServiceTests.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Tests.Services.Voice.MockVoiceServiceTests.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Tests.Services.Voice.MockVoiceServiceTests",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Tests.Services.Voice.VoiceServiceTests.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Tests.Services.Voice.VoiceServiceTests.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Tests.Services.Voice.VoiceServiceTests",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Tests.Services.Voice.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Tests.Services.Voice.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Tests.Services.Voice",
+      "Summary": null
+    },
+    {
+      "type": "ManagedReference",
+      "source_relative_path": "api/Amiquin.Tests.Services.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/Amiquin.Tests.Services.html"
+        }
+      },
+      "version": "",
+      "Uid": null,
+      "IsMRef": true,
+      "Title": "Amiquin.Tests.Services",
+      "Summary": null
+    },
+    {
+      "type": "Conceptual",
+      "source_relative_path": "api/index.md",
+      "output": {
+        ".html": {
+          "relative_path": "api/index.html"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Toc",
+      "source_relative_path": "api/toc.yml",
+      "output": {
+        ".html": {
+          "relative_path": "api/toc.html"
+        },
+        ".json": {
+          "relative_path": "api/toc.json"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Conceptual",
+      "source_relative_path": "index.md",
+      "output": {
+        ".html": {
+          "relative_path": "index.html"
+        }
+      },
+      "version": ""
+    },
+    {
+      "type": "Toc",
+      "source_relative_path": "toc.yml",
+      "output": {
+        ".html": {
+          "relative_path": "toc.html"
+        },
+        ".json": {
+          "relative_path": "toc.json"
+        }
+      },
+      "version": ""
+    }
+  ],
+  "groups": [
+    {
+      "xrefmap": "xrefmap.yml"
+    }
+  ]
+}
