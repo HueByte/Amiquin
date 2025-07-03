@@ -43,7 +43,7 @@ jobs:
           dotnet-version: "9.0.x"
 
       - name: Setup DocFX
-        run: dotnet tool update -g docfx --version 2.75.3
+        run: dotnet tool update -g docfx --version 2.78.3
 
       - name: Restore dependencies for API documentation
         run: dotnet restore source/source.sln
@@ -82,6 +82,20 @@ jobs:
           else
             echo "❌ index.html missing"
             exit 1
+          fi
+          echo ""
+          echo "Checking API directory:"
+          if [ -d "generated/api" ]; then
+            echo "✅ API directory found"
+            echo "API files:"
+            ls -la generated/api/ | head -10
+            if [ -f "generated/api/index.html" ]; then
+              echo "✅ API index.html found"
+            else
+              echo "❌ API index.html missing"
+            fi
+          else
+            echo "❌ API directory missing"
           fi
 
       - name: Deploy to web branch
