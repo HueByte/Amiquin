@@ -3,7 +3,7 @@ using Amiquin.Core.Attributes;
 using Amiquin.Core.DiscordExtensions;
 using Amiquin.Core.Services.BotContext;
 using Amiquin.Core.Services.Chat.Toggle;
-using Amiquin.Core.Services.ServerMeta;
+using Amiquin.Core.Services.Meta;
 using Amiquin.Core.Utilities;
 using Discord;
 using Discord.Interactions;
