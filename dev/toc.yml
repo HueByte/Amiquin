@@ -1,5 +1,5 @@
 - name: Home
-  href: index.md
+  href: /
 - name: Documentation
   href: ../docs/
   items:

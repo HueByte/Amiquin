@@ -10,30 +10,30 @@ Amiquin is a feature-rich Discord bot designed to enhance your server experience
 
 ### For Users
 
-- [Getting Started](docs/getting-started.md)
-- [Commands Reference](docs/commands.md)
-- [Configuration Guide](docs/configuration.md)
+- [Getting Started](docs/getting-started.html)
+- [Commands Reference](docs/commands.html)
+- [Configuration Guide](docs/configuration.html)
 
 ### For Developers
 
-- [API Reference](api/index.md)
-- [Development Setup](docs/development.md)
-- [Contributing Guidelines](docs/contributing.md)
+- [API Reference](api/index.html)
+- [Development Setup](docs/development.html)
+- [Contributing Guidelines](docs/contributing.html)
 
 ## 📚 Documentation Sections
 
 ### User Guides
 
-- **[Installation](docs/installation.md)** - How to add Amiquin to your Discord server
-- **[Configuration](docs/configuration.md)** - Setting up bot preferences and permissions
-- **[Commands](docs/commands.md)** - Complete list of available commands and features
+- **[Installation](docs/installation.html)** - How to add Amiquin to your Discord server
+- **[Configuration](docs/configuration.html)** - Setting up bot preferences and permissions
+- **[Commands](docs/commands.html)** - Complete list of available commands and features
 
 ### Developer Documentation
 
-- **[API Reference](api/index.md)** - Detailed API documentation
-- **[Architecture](docs/architecture.md)** - System design and component overview
-- **[Development Setup](docs/development.md)** - Local development environment setup
-- **[Contributing](docs/contributing.md)** - How to contribute to the project
+- **[API Reference](api/index.html)** - Detailed API documentation
+- **[Architecture](docs/architecture.html)** - System design and component overview
+- **[Development Setup](docs/development.html)** - Local development environment setup
+- **[Contributing](docs/contributing.html)** - How to contribute to the project
 
 ## 🏗️ Architecture Overview
 

@@ -308,4 +308,4 @@ RATE_LIMIT_PER_USER=5
 RATE_LIMIT_WINDOW=60
 ```
 
-This completes the basic configuration guide. For more advanced configurations, check the [Development Guide](development.md) or consult the API documentation.
+This completes the basic configuration guide. For more advanced configurations, check the [Development Guide](development.html) or consult the API documentation.

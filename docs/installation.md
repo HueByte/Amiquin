@@ -8,7 +8,7 @@ This guide covers different ways to install and deploy Amiquin.
 
 The easiest way to get Amiquin in your server:
 
-1. **Use the invite link**: [Add Amiquin to your server](https://discord.com/oauth2/authorize?client_id=YOUR_BOT_ID&permissions=8&scope=bot)
+1. **Use the invite link**: [Add Amiquin to your server](https://discord.com/oauth2/authorize?client_id=894305597569257492&permissions=8&integration_type=0&scope=bot)
 2. **Select your server** from the dropdown
 3. **Review permissions** and click "Authorize"
 4. **Verify** the bot appears in your member list
@@ -160,6 +160,6 @@ After installation, verify Amiquin is working:
 
 ### Getting Help
 
-- Check [configuration guide](configuration.md)
+- Check [configuration guide](configuration.html)
 - Join our [Discord server](https://discord.gg/your-invite-link)
 - Create an [issue on GitHub](https://github.com/huebyte/Amiquin/issues)

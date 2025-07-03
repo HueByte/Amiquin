@@ -43,7 +43,7 @@ Before contributing code, ensure you have:
 - **.NET 9.0 SDK** installed
 - **Git** for version control
 - **Discord bot** for testing
-- **Development environment** set up (see [Development Guide](development.md))
+- **Development environment** set up (see [Development Guide](development.html))
 
 #### Getting Started
 
@@ -55,7 +55,7 @@ Before contributing code, ensure you have:
    cd Amiquin
    ```
 
-3. **Set up the development environment** (see [Development Guide](development.md))
+3. **Set up the development environment** (see [Development Guide](development.html))
 4. **Create a feature branch**:
 
    ```bash

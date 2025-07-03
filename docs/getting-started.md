@@ -46,9 +46,9 @@ Here are some basic commands to test Amiquin:
 
 ## Next Steps
 
-- [Learn about all available commands](commands.md)
-- [Configure advanced settings](configuration.md)
-- [Set up logging and moderation](configuration.md#moderation)
+- [Learn about all available commands](commands.html)
+- [Configure advanced settings](configuration.html)
+- [Set up logging and moderation](configuration.html#moderation)
 
 ## Need Help?
 
