@@ -6,7 +6,7 @@ This document provides an overview of Amiquin's architecture and design principl
 
 Amiquin follows a clean architecture approach with clear separation of concerns:
 
-```
+```cs
 ┌─────────────────────────────────────────────────────────────┐
 │                    Presentation Layer                       │
 │                    (Amiquin.Bot)                           │
@@ -34,6 +34,7 @@ The main bot application responsible for:
 - **Configuration**: Bot settings and dependency injection
 
 Key Components:
+
 - `Commands/` - Slash command implementations
 - `Configurators/` - Dependency injection setup
 - `Messages/` - Bot personality and response templates
@@ -50,6 +51,7 @@ Contains the core business logic and domain models:
 - **Utilities**: Helper functions and extensions
 
 Key Components:
+
 - `Models/` - Domain entities (User, Server, Settings, etc.)
 - `Services/` - Business logic implementation
 - `IRepositories/` - Repository contracts
@@ -66,6 +68,7 @@ Handles data persistence and external service integration:
 - **Caching**: Performance optimization
 
 Key Components:
+
 - `Repositories/` - Repository implementations
 - `AmiquinContext.cs` - Database context
 - `Setup.cs` - Infrastructure configuration
@@ -181,7 +184,7 @@ public class UserCommands : InteractionModuleBase<ExtendedShardedInteractionCont
 
 ### Example Flow
 
-```
+```cs
 User types: /user profile @someone
      ↓
 Discord.Net receives interaction
@@ -208,7 +211,7 @@ Result formatted and sent to Discord
 
 ### Relationships
 
-```
+```cs
 Server (1) ←→ (N) Users
 Server (1) ←→ (N) Settings
 User (1) ←→ (N) CommandLogs

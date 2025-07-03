@@ -14,7 +14,7 @@ This document lists all available Amiquin commands and their usage.
 
 **Examples**:
 
-```
+```cs
 /help
 /help ping
 ```
@@ -55,7 +55,7 @@ This document lists all available Amiquin commands and their usage.
 
 ## Server Commands
 
-*Note: These commands require appropriate permissions*
+> Note: These commands require appropriate permissions
 
 ### `/config`
 
@@ -71,7 +71,7 @@ This document lists all available Amiquin commands and their usage.
 
 **Examples**:
 
-```
+```sh
 /config welcome_channel #general
 /config log_channel #bot-logs
 /config auto_role @Member
@@ -79,7 +79,7 @@ This document lists all available Amiquin commands and their usage.
 
 ## Moderation Commands
 
-*Note: Requires appropriate moderation permissions*
+> Note: Requires appropriate moderation permissions*
 
 ### `/kick`
 
@@ -193,7 +193,7 @@ This document lists all available Amiquin commands and their usage.
 
 ## Music Commands
 
-*Note: Bot must be in a voice channel*
+> Note: Bot must be in a voice channel*
 
 ### `/play`
 
@@ -238,7 +238,7 @@ This document lists all available Amiquin commands and their usage.
 
 ## Admin Commands
 
-*Note: These commands require administrator permissions*
+> Note: These commands require administrator permissions*
 
 ### `/admin purge`
 

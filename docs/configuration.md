@@ -58,7 +58,7 @@ PREFIX=!
 
 After inviting Amiquin to your server, configure basic settings:
 
-```
+```sh
 /config welcome_channel #general
 /config log_channel #bot-logs
 /config prefix !
@@ -100,7 +100,7 @@ After inviting Amiquin to your server, configure basic settings:
 2. Assign appropriate permissions to roles
 3. Configure bot to recognize these roles:
 
-```
+```sh
 /config mod_role @Moderator
 /config admin_role @Administrator
 ```
@@ -111,12 +111,13 @@ After inviting Amiquin to your server, configure basic settings:
 
 Configure automatic welcome messages for new members:
 
-```
+```sh
 /config welcome_channel #general
 /config welcome_message "Welcome {user} to {server}! Please read #rules"
 ```
 
 **Available Variables:**
+
 - `{user}` - User mention
 - `{username}` - Username
 - `{server}` - Server name
@@ -126,7 +127,7 @@ Configure automatic welcome messages for new members:
 
 Enable automatic moderation features:
 
-```
+```sh
 /config automod_enabled true
 /config automod_spam_detection true
 /config automod_link_filter true
@@ -137,7 +138,7 @@ Enable automatic moderation features:
 
 Configure what events to log:
 
-```
+```sh
 /config log_joins true
 /config log_leaves true
 /config log_bans true
@@ -181,7 +182,7 @@ DATABASE_CONNECTION=Server=localhost;Database=amiquin;User=amiquin;Password=your
 
 Create custom commands for your server:
 
-```
+```sh
 /custom add greet "Hello {user}, welcome to our awesome server!"
 /custom add rules "Please read our rules in #rules channel"
 ```
@@ -190,7 +191,7 @@ Create custom commands for your server:
 
 Configure recurring tasks:
 
-```
+```sh
 /schedule add daily "Good morning everyone!" #general 09:00
 /schedule add weekly "Weekly server update!" #announcements monday 18:00
 ```
@@ -204,6 +205,7 @@ Configure recurring tasks:
 **Symptoms**: Bot appears online but doesn't respond to commands
 
 **Solutions**:
+
 1. Check bot permissions in the channel
 2. Verify bot has "Use Slash Commands" permission
 3. Check if bot is rate-limited
@@ -214,6 +216,7 @@ Configure recurring tasks:
 **Symptoms**: "Missing permissions" errors
 
 **Solutions**:
+
 1. Check bot role hierarchy (bot role should be above managed roles)
 2. Verify channel-specific permissions
 3. Grant necessary permissions in server settings
@@ -223,6 +226,7 @@ Configure recurring tasks:
 **Symptoms**: Commands fail with database errors
 
 **Solutions**:
+
 1. Check database connection string
 2. Verify database permissions
 3. Check disk space (for SQLite)
@@ -287,6 +291,7 @@ For servers with many members:
 1. **Enable database indexing**
 2. **Use MySQL instead of SQLite**
 3. **Configure caching**:
+
    ```env
    CACHE_ENABLED=true
    CACHE_EXPIRY=3600

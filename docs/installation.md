@@ -70,18 +70,21 @@ For development or custom deployments:
 #### Steps
 
 1. **Clone the repository**:
+
    ```bash
    git clone https://github.com/huebyte/Amiquin.git
    cd Amiquin
    ```
 
 2. **Configure settings**:
+
    ```bash
    cp source/Amiquin.Bot/appsettings.example.json source/Amiquin.Bot/appsettings.json
    # Edit appsettings.json with your configuration
    ```
 
 3. **Build and run**:
+
    ```bash
    dotnet restore
    dotnet build
@@ -125,6 +128,7 @@ No additional setup required. The database file will be created automatically.
 ### MySQL
 
 1. **Create database**:
+
    ```sql
    CREATE DATABASE amiquin;
    CREATE USER 'amiquin'@'%' IDENTIFIED BY 'your_password';
@@ -132,6 +136,7 @@ No additional setup required. The database file will be created automatically.
    ```
 
 2. **Update connection string**:
+
    ```env
    DATABASE_TYPE=mysql
    DATABASE_CONNECTION=Server=localhost;Database=amiquin;User=amiquin;Password=your_password;

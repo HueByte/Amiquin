@@ -30,8 +30,7 @@ Once Amiquin is added to your server:
 
 Configure Amiquin for your server:
 
-```
-/config set prefix !
+```sh
 /config set welcome_channel #general
 /config set log_channel #bot-logs
 ```

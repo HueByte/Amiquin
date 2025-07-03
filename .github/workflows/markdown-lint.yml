@@ -7,12 +7,14 @@ on:
       - "**/*.md"
       - ".github/workflows/markdown-lint.yml"
       - "dev/.markdownlint.json"
+      - ".markdownlintignore"
   pull_request:
     branches: ["main", "dev"]
     paths:
       - "**/*.md"
       - ".github/workflows/markdown-lint.yml"
       - "dev/.markdownlint.json"
+      - ".markdownlintignore"
 
 jobs:
   markdown-lint:
@@ -47,7 +49,7 @@ jobs:
           fi
 
       - name: Run markdownlint
-        run: markdownlint '**/*.md' --ignore node_modules --ignore TestResults --ignore source/docs/build --config dev/.markdownlint.json
+        run: markdownlint '**/*.md' --config dev/.markdownlint.json
 
       - name: Markdown linting completed
         run: echo "✅ Markdown linting completed successfully"

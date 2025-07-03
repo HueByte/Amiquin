@@ -49,12 +49,15 @@ Before contributing code, ensure you have:
 
 1. **Fork the repository** on GitHub
 2. **Clone your fork** locally:
+
    ```bash
    git clone https://github.com/YOUR_USERNAME/Amiquin.git
    cd Amiquin
    ```
+
 3. **Set up the development environment** (see [Development Guide](development.md))
 4. **Create a feature branch**:
+
    ```bash
    git checkout -b feature/your-feature-name
    ```
@@ -69,14 +72,18 @@ Before contributing code, ensure you have:
 #### Submitting Changes
 
 1. **Commit your changes** with descriptive messages:
+
    ```bash
    git add .
    git commit -m "feat: add new command for user management"
    ```
+
 2. **Push to your fork**:
+
    ```bash
    git push origin feature/your-feature-name
    ```
+
 3. **Create a pull request** with:
    - Clear title and description
    - Reference to related issues
@@ -180,7 +187,7 @@ namespace Amiquin.Bot.Commands
 
 Use [Conventional Commits](https://www.conventionalcommits.org/) format:
 
-```
+```xml
 <type>[optional scope]: <description>
 
 [optional body]
@@ -200,7 +207,7 @@ Use [Conventional Commits](https://www.conventionalcommits.org/) format:
 
 #### Examples
 
-```
+```sh
 feat(commands): add user profile command
 
 Add new slash command to display user profiles with statistics
@@ -209,7 +216,7 @@ and customizable display options.
 Closes #123
 ```
 
-```
+```sh
 fix(database): resolve connection timeout issues
 
 Increase connection timeout and add retry logic for database

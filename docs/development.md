@@ -72,7 +72,7 @@ dotnet run --project source/Amiquin.Bot
 
 ## Project Structure
 
-```
+```sh
 Amiquin/
 ├── source/
 │   ├── Amiquin.Bot/          # Main bot application
@@ -142,10 +142,13 @@ public class ExampleCommands : InteractionModuleBase<ExtendedShardedInteractionC
 
 1. Update models in `source/Amiquin.Core/Models/`
 2. Create migration:
+
    ```bash
    dotnet ef migrations add YourMigrationName --project source/Migrations/Amiquin.Sqlite
    ```
+
 3. Update database:
+
    ```bash
    dotnet ef database update --project source/Migrations/Amiquin.Sqlite
    ```

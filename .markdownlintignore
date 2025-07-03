@@ -1,0 +1,38 @@
+# Generated folders
+bin/
+obj/
+build/
+dist/
+out/
+.vs/
+TestResults/
+generated/
+packages/
+node_modules/
+
+# Build output
+**/bin/**
+**/obj/**
+**/build/**
+**/dist/**
+**/out/**
+**/TestResults/**
+**/generated/**
+**/packages/**
+**/node_modules/**
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Documentation build artifacts
+source/docs/build/
+docs/build/
+_site/
