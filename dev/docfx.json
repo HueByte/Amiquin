@@ -25,7 +25,12 @@
 				"dest": "docs"
 			},
 			{
-				"files": ["**/*.yml", "index.md", "toc.yml"],
+				"files": ["**/*.yml"],
+				"src": "api",
+				"dest": "api"
+			},
+			{
+				"files": ["index.md", "toc.yml"],
 				"src": "api",
 				"dest": "api"
 			}
