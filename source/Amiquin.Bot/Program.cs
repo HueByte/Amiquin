@@ -1,4 +1,4 @@
-﻿using Amiquin.Bot.Configurators;
+using Amiquin.Bot.Configurators;
 using Amiquin.Core;
 using Amiquin.Core.Exceptions;
 using Microsoft.Extensions.Configuration;

@@ -1,6 +1,42 @@
 # Remove the line below if you want to inherit .editorconfig settings from higher directories
 root = true
 
+# All files - default to LF line endings
+[*]
+end_of_line = lf
+insert_final_newline = true
+charset = utf-8
+
+# YAML files
+[*.{yml,yaml}]
+indent_style = space
+indent_size = 2
+
+# JSON files
+[*.json]
+indent_style = space
+indent_size = 2
+
+# XML files
+[*.xml]
+indent_style = space
+indent_size = 2
+
+# Markdown files
+[*.md]
+indent_style = space
+indent_size = 2
+
+# PowerShell files
+[*.ps1]
+indent_style = space
+indent_size = 4
+
+# Shell files
+[*.sh]
+indent_style = space
+indent_size = 4
+
 # C# files
 [*.cs]
 
@@ -10,10 +46,6 @@ root = true
 indent_size = 4
 indent_style = space
 tab_width = 4
-
-# New line preferences
-end_of_line = lf
-insert_final_newline = true
 
 #### .NET Code Actions ####
 
