@@ -20,8 +20,9 @@
 				"files": ["toc.yml", "index.md"]
 			},
 			{
-				"files": ["docs/**/*.{md,yml}"],
-				"src": ".."
+				"files": ["*.{md,yml}"],
+				"src": "../docs",
+				"dest": "docs"
 			},
 			{
 				"files": ["*.yml"],
