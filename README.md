@@ -7,6 +7,18 @@
 Amiquin is a modular and extensible application designed to streamline development with a focus on configurability, logging, and dependency injection. This project leverages modern .NET technologies to provide a solid foundation for building applications.
 The goal is to create a robust, fun and scalable bot.
 
+## 📚 Documentation
+
+For comprehensive documentation, guides, and API references, visit our [GitHub Pages documentation](https://huebyte.github.io/Amiquin/).
+
+The documentation includes:
+
+- **Getting Started Guide** - Step-by-step setup and configuration
+- **Commands Reference** - Complete list of available Discord commands
+- **Architecture Overview** - Technical details about the project structure
+- **Development Guide** - Contributing and development best practices
+- **Configuration Guide** - Detailed configuration options and examples
+
 ## ⚗️ Prerequisites
 
 - [.NET SDK](https://dotnet.microsoft.com/download) (version 9.0 or later)
@@ -95,38 +107,33 @@ Logs are written to the console and a rolling log file located in the directory 
 
 ## ☁️ Project Structure
 
-- **source/Amiquin.Bot**: Entry point and application layer.
-- **source/Amiquin.Core**: (BL) Core functionalities and shared logic.
-- **source/Amiquin.Infrastructure**: (DAL) External services logic.
-
-### 🕵️ Detailed
-
-> `Amiquin.Bot`
-
-- **source/Amiquin.Bot.Configurators**: Dependency injection and configuration setup.
-- **source/Amiquin.Bot.Commands**: Discord commands.
-- **source/Amiquin.Bot.Console**: Console related features like Spectre.
-- **source/Amiquin.Bot.Messages**: Markdown files that are moved on build and utilised by Amiquin.
-
-> `Amiquin.Core`
-
-- **source/Amiquin.Core.Models**: Shared ORM models.
-- **source/Amiquin.Core.Abstraction**: Abstractions.
-- **source/Amiquin.Core.Services**: Core services.
-- **source/Amiquin.Core.Utilities**: Utility classes.
-- **source/Amiquin.Core.Extensions**: Extension methods.
-- **source/Amiquin.Core.Attributes**: Attributes.
-- **source/Amiquin.Core.Discord**: Discord specific features.
-- **source/Amiquin.Core.Options**: Options for options pattern.
-
-> `Amiquin.Infrastructure`
-
-- **source/Amiquin.Infrastructure.Repositories**: Repositories.
-- **source/Amiquin.Infrastructure.Migrations**: EFC migrations.
+For detailed information about the project architecture, components, and structure, please refer to the [Architecture Documentation](https://huebyte.github.io/Amiquin/architecture.html).
 
 ## 🫂 Contributing
 
 Contributions are welcome! Please fork the repository and submit a pull request with your changes.
+
+## 📄 GitHub Pages Documentation
+
+This project uses GitHub Pages to host its documentation. The documentation is automatically built and deployed from the `docs/` folder.
+For this project: `https://huebyte.github.io/Amiquin/`
+
+### Updating Documentation
+
+The documentation is written in Markdown and located in the `docs/` folder:
+
+- `docs/index.md` - Main documentation homepage
+- `docs/getting-started.md` - Installation and setup guide
+- `docs/commands.md` - Discord commands reference
+- `docs/architecture.md` - Technical architecture details
+- `docs/development.md` - Development and contribution guide
+- `docs/configuration.md` - Configuration options and examples
+
+To update the documentation:
+
+1. Edit the relevant Markdown files in the `docs/` folder
+2. Commit and push your changes
+3. GitHub Pages will automatically rebuild and deploy the updated documentation
 
 ## 🪪 License
 
