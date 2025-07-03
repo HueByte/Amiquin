@@ -35,6 +35,13 @@ jobs:
       - name: Install markdownlint-cli
         run: npm install -g markdownlint-cli
 
+      - name: List markdown files to be checked
+        run: |
+          echo "📄 Markdown files that will be checked:"
+          find . -name "*.md" -not -path "./node_modules/*" -not -path "./bin/*" -not -path "./obj/*" -not -path "./build/*" -not -path "./dist/*" -not -path "./out/*" -not -path "./TestResults/*" -not -path "./generated/*" -not -path "./packages/*" -not -path "./.vs/*" | head -20
+          echo "..."
+          echo "Total markdown files: $(find . -name "*.md" -not -path "./node_modules/*" -not -path "./bin/*" -not -path "./obj/*" -not -path "./build/*" -not -path "./dist/*" -not -path "./out/*" -not -path "./TestResults/*" -not -path "./generated/*" -not -path "./packages/*" -not -path "./.vs/*" | wc -l)"
+
       - name: Create markdownlint config if not exists
         run: |
           if [ ! -f dev/.markdownlint.json ]; then
@@ -49,7 +56,14 @@ jobs:
           fi
 
       - name: Run markdownlint
-        run: markdownlint '**/*.md' --config dev/.markdownlint.json
+        run: |
+          echo "🔍 Running markdownlint on all markdown files..."
+          if markdownlint '**/*.md' --config dev/.markdownlint.json; then
+            echo "✅ All markdown files pass linting checks"
+          else
+            echo "❌ Markdown linting failed - please fix the issues above"
+            exit 1
+          fi
 
       - name: Markdown linting completed
         run: echo "✅ Markdown linting completed successfully"
