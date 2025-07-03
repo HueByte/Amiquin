@@ -24,7 +24,12 @@
 				"src": ".."
 			},
 			{
-				"files": ["*.yml", "*.md"],
+				"files": ["*.yml"],
+				"src": "api",
+				"dest": "api"
+			},
+			{
+				"files": ["index.md"],
 				"src": "api",
 				"dest": "api"
 			}
