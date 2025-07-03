@@ -37,7 +37,7 @@
 			}
 		],
 		"output": "../generated",
-		"template": ["default", "modern"],
+		"template": ["templates/amiquin-modern"],
 		"globalMetadata": {
 			"_appName": "Amiquin",
 			"_appTitle": "Amiquin Documentation",
