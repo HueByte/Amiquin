@@ -20,17 +20,12 @@
 				"files": ["toc.yml", "index.md"]
 			},
 			{
-				"files": ["*.{md,yml}"],
+				"files": ["**/*.md", "toc.yml"],
 				"src": "../docs",
 				"dest": "docs"
 			},
 			{
-				"files": ["*.yml"],
-				"src": "api",
-				"dest": "api"
-			},
-			{
-				"files": ["index.md"],
+				"files": ["**/*.yml", "index.md", "toc.yml"],
 				"src": "api",
 				"dest": "api"
 			}
@@ -54,12 +49,6 @@
 			"_gitContribute": {
 				"repo": "https://github.com/huebyte/Amiquin",
 				"branch": "main"
-			}
-		},
-		"fileMetadata": {
-			"_tocTitle": {
-				"docs/**/*.md": "Documentation",
-				"api/**/*.yml": "API Reference"
 			}
 		}
 	}
