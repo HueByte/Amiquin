@@ -1,10 +1,10 @@
-using System.Text;
 using Amiquin.Core.Options;
 using Amiquin.Core.Services.Chat.Model;
 using Amiquin.Core.Utilities;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using OpenAI.Chat;
+using System.Text;
 
 namespace Amiquin.Core.Services.Chat;
 

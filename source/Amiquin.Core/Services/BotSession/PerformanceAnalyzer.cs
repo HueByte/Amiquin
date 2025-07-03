@@ -1,6 +1,6 @@
+using Amiquin.Core.Utilities;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
-using Amiquin.Core.Utilities;
 
 namespace Amiquin.Core.Services.BotSession
 {

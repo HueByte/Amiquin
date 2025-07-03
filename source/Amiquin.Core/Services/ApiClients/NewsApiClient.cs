@@ -1,6 +1,6 @@
-using System.Net.Http.Json;
 using Amiquin.Core.Services.ApiClients.Responses;
 using Microsoft.Extensions.Logging;
+using System.Net.Http.Json;
 
 namespace Amiquin.Core.Services.ApiClients;
 

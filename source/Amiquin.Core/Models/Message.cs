@@ -1,5 +1,5 @@
-using System.ComponentModel.DataAnnotations.Schema;
 using Amiquin.Core.Abstraction;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Amiquin.Core.Models;
 

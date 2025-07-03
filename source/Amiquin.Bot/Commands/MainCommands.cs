@@ -1,4 +1,3 @@
-using System.Reflection;
 using Amiquin.Bot.Preconditions;
 using Amiquin.Core;
 using Amiquin.Core.DiscordExtensions;
@@ -7,6 +6,7 @@ using Amiquin.Core.Services.MessageCache;
 using Amiquin.Core.Utilities;
 using Discord;
 using Discord.Interactions;
+using System.Reflection;
 namespace Amiquin.Bot.Commands;
 
 public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionContext>

@@ -1,8 +1,8 @@
-using System.ComponentModel;
-using System.Reflection;
 using Amiquin.Core.Attributes;
 using Amiquin.Core.Options;
 using Discord.Interactions;
+using System.ComponentModel;
+using System.Reflection;
 
 namespace Amiquin.Core.Utilities;
 
