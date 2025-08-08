@@ -5,56 +5,92 @@
 			"src": [
 				{
 					"src": "../source",
-					"files": ["**/*.csproj"]
+					"files": [
+						"Amiquin.Core/**/*.csproj",
+						"Amiquin.Bot/**/*.csproj",
+						"Amiquin.Infrastructure/**/*.csproj"
+					]
 				}
 			],
-			"dest": "api",
+			"output": "_temp/api",
 			"properties": {
 				"TargetFramework": "net9.0"
-			}
+			},
+			"filter": "config/filterConfig.yml",
+			"disableGitFeatures": false
 		}
 	],
 	"build": {
 		"content": [
 			{
+				"src": ".",
+				"dest": ".",
 				"files": ["toc.yml", "index.md"]
 			},
 			{
-				"files": ["**/*.md", "toc.yml"],
 				"src": "../docs",
-				"dest": "docs"
+				"dest": "documentation",
+				"files": ["**/*.md", "**/toc.yml"],
+				"exclude": [
+					"api/**",
+					"build/**",
+					"_site/**",
+					"_temp/**",
+					"**/bin/**",
+					"**/obj/**",
+					"**/TestResults/**"
+				]
 			},
 			{
-				"files": ["**/*.yml"],
 				"src": "api",
-				"dest": "api"
+				"dest": "api",
+				"files": ["index.md"]
 			},
 			{
-				"files": ["index.md", "toc.yml"],
-				"src": "api",
-				"dest": "api"
+				"src": "_temp/api",
+				"dest": "api",
+				"files": ["*.yml", ".manifest"]
 			}
 		],
 		"resource": [
 			{
-				"files": ["images/**", "assets/**"],
-				"src": ".."
+				"files": [
+					"../docs/images/**",
+					"assets/**"
+				]
 			}
 		],
-		"output": "../generated",
-		"template": ["default", "templates/amiquin-modern"],
+		"overwrite": [
+			{
+				"files": ["../docs/overwrite/**/*.md"],
+				"exclude": [
+					"../docs/build/**",
+					"_site/**",
+					"_temp/**",
+					"**/bin/**",
+					"**/obj/**"
+				]
+			}
+		],
+		"output": "_site",
+		"template": ["default", "modern", "templates/amiquin-modern"],
 		"globalMetadata": {
 			"_appName": "Amiquin",
 			"_appTitle": "Amiquin Documentation",
+			"_appLogoPath": "assets/logo.png",
+			"_appFaviconPath": "assets/favicon.ico",
+			"_appFooter": "<div class=\"footer-custom\"><div class=\"footer-inner\"><div class=\"footer-text\">© 2024 Amiquin Project</div><div class=\"footer-links\"><a href=\"https://github.com/huebyte/amiquin\" target=\"_blank\"><i class=\"fab fa-github\"></i> GitHub</a></div></div></div>",
 			"_enableSearch": true,
 			"_enableNewTab": true,
-			"_appLogoPath": "assets/Amiquin-40px.png",
-			"_appFaviconPath": "assets/Amiquin-40px.png",
-			"pdf": false,
+			"_disableNavbar": false,
+			"_disableBreadcrumb": false,
 			"_gitContribute": {
-				"repo": "https://github.com/huebyte/Amiquin",
-				"branch": "main"
-			}
+				"repo": "https://github.com/huebyte/amiquin",
+				"branch": "main",
+				"path": "docs"
+			},
+			"_gitUrlPattern": "github",
+			"pdf": false
 		}
 	}
 }

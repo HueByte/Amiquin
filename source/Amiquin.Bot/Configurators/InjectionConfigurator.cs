@@ -4,6 +4,7 @@ using Amiquin.Core.Exceptions;
 using Amiquin.Core.IRepositories;
 using Amiquin.Core.Job;
 using Amiquin.Core.Options;
+using Amiquin.Core.Options.Configuration;
 using Amiquin.Core.Services.ApiClients;
 using Amiquin.Core.Services.BotContext;
 using Amiquin.Core.Services.BotSession;
@@ -145,6 +146,14 @@ public class InjectionConfigurator
                  .AddScoped<IServerMetaService, ServerMetaService>()
                  .AddScoped<INachoService, NachoService>();
 
+        // New Discord bot chat services with session management
+        _services.AddScoped<IConversationCoreService, ConversationCoreService>()
+                 .AddSingleton<ISessionManager, SessionManager>()
+                 .AddSingleton<IMessageHistoryManager, MessageHistoryManager>()
+                 .AddSingleton<ISemaphoreManager, SemaphoreManager>()
+                 .AddScoped<IMessageManager, MessageManager>()
+                 .AddScoped<IDiscordBotChatService, DiscordBotChatService>();
+
         _services.AddTransient<IExternalProcessRunnerService, ExternalProcessRunnerService>();
 
         _services.AddScoped<ChatClient>((services) =>
@@ -193,9 +202,22 @@ public class InjectionConfigurator
 
     public InjectionConfigurator AddOptions()
     {
+        // Original options
         _services.AddOptions<BotOptions>().Bind(_configuration.GetSection(BotOptions.Bot));
         _services.AddOptions<ExternalOptions>().Bind(_configuration.GetSection(ExternalOptions.External));
         _services.Configure<DatabaseOptions>(_configuration.GetSection(DatabaseOptions.Database));
+
+        // New improved configuration options
+        _services.Configure<ChatOptions>(_configuration.GetSection(ChatOptions.SectionName));
+        _services.Configure<DataPathOptions>(_configuration.GetSection(DataPathOptions.SectionName));
+        _services.Configure<SessionManagementOptions>(_configuration.GetSection(SessionManagementOptions.SectionName));
+        _services.Configure<DiscordOptions>(_configuration.GetSection(DiscordOptions.SectionName));
+        
+        // Register as singletons for easy access
+        _services.AddSingleton(sp => sp.GetRequiredService<IOptions<ChatOptions>>().Value);
+        _services.AddSingleton(sp => sp.GetRequiredService<IOptions<DataPathOptions>>().Value);
+        _services.AddSingleton(sp => sp.GetRequiredService<IOptions<SessionManagementOptions>>().Value);
+        _services.AddSingleton(sp => sp.GetRequiredService<IOptions<DiscordOptions>>().Value);
 
         return this;
     }

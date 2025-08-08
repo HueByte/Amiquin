@@ -6,6 +6,9 @@
 
 *ExternalTools/
 
+# Development local files and ideas
+dev-local/
+
 # DocFX generated documentation
 generated/
 dev/api/*
@@ -415,3 +418,5 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+.claude/settings.local.json
+CLAUDE.md
