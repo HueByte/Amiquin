@@ -63,4 +63,4 @@ This project is licensed under the [MIT License](https://github.com/huebyte/Amiq
 
 ---
 
-### Last updated: July 2025
+### Last updated: January 2025

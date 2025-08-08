@@ -1,9 +1,25 @@
-- name: Getting Started
+- name: Documentation Home
   href: index.md
-- name: Project Structure
-  href: project-structure.md
+- name: Getting Started
+  href: getting-started.md
+- name: Installation
+  href: installation.md
+- name: Configuration
+  href: configuration.md
+- name: Commands Reference
+  href: commands.md
 - name: User Guide
   href: user-guide.md
+- name: Project Structure
+  href: project-structure.md
+- name: Architecture
+  href: architecture.md
+- name: Development
+  href: development.md
+- name: Git Setup
+  href: git-setup.md
+- name: Contributing
+  href: contributing.md
 - name: Scripts Reference
   href: scripts-reference.md
 - name: Database Schema

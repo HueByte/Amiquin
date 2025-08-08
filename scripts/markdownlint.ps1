@@ -26,7 +26,7 @@
     Run markdownlint and automatically fix issues
 
 .EXAMPLE
-    .\markdownlint.ps1 -Path "docs/*.md"
+    .\markdownlint.ps1 -Path "dev/docs/*.md"
     Run markdownlint only on files in the docs directory
 
 .EXAMPLE
@@ -138,7 +138,11 @@ try {
     $markdownlintArgs += "--ignore"
     $markdownlintArgs += "TestResults"
     $markdownlintArgs += "--ignore"
-    $markdownlintArgs += "source/docs/build"
+    $markdownlintArgs += "dev/_site"
+    $markdownlintArgs += "--ignore"
+    $markdownlintArgs += "dev/_temp"
+    $markdownlintArgs += "--ignore"
+    $markdownlintArgs += "docs"
     $markdownlintArgs += "--ignore"
     $markdownlintArgs += "generated"
     $markdownlintArgs += "--ignore"

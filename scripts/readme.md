@@ -91,7 +91,7 @@ For Windows users with PowerShell:
 .\markdownlint.ps1 -Fix
 
 # Lint specific path
-.\markdownlint.ps1 -Path "docs/*.md"
+.\markdownlint.ps1 -Path "dev/docs/*.md"
 
 # Verbose output
 .\markdownlint.ps1 -Verbose
@@ -112,7 +112,7 @@ For Linux/MacOS/WSL users:
 ./markdownlint.sh --fix
 
 # Lint specific path
-./markdownlint.sh docs/*.md
+./markdownlint.sh dev/docs/*.md
 
 # Verbose output
 ./markdownlint.sh --verbose
@@ -134,7 +134,7 @@ markdownlint.cmd
 
 REM With parameters (passed to PowerShell script)
 markdownlint.cmd -Fix
-markdownlint.cmd -Path "docs/*.md"
+markdownlint.cmd -Path "dev/docs/*.md"
 ```
 
 #### Testing Scripts

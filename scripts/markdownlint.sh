@@ -67,7 +67,7 @@ ARGUMENTS:
 EXAMPLES:
     ./markdownlint.sh                    # Lint all Markdown files
     ./markdownlint.sh --fix              # Lint and auto-fix issues
-    ./markdownlint.sh docs/*.md          # Lint only docs directory
+    ./markdownlint.sh dev/docs/*.md      # Lint only docs directory
     ./markdownlint.sh -v --fix           # Verbose mode with auto-fix
 
 REQUIREMENTS:
@@ -163,7 +163,9 @@ MARKDOWNLINT_ARGS=(
     "$LINT_PATH"
     --ignore "node_modules"
     --ignore "TestResults"
-    --ignore "source/docs/build"
+    --ignore "dev/_site"
+    --ignore "dev/_temp"
+    --ignore "docs"
     --ignore "generated"
     --ignore "_site"
     --ignore "bin"
