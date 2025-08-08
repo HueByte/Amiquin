@@ -92,8 +92,8 @@ async Task RunAsync(string[] args)
             .CreateBootstrapLogger();
 
     var configurationManager = new ConfigurationManager()
-        .AddEnvironmentVariables(prefix: "AMQ_")
-        .AddJsonFile("appsettings.json", optional: false)
+        .AddEnvironmentVariables(prefix: "AMIQUIN_")
+        .AddJsonFile("Configuration/appsettings.json", optional: false)
         .AddCommandLine(args);
 
     var logger = new SerilogLoggerProvider(Serilog.Log.Logger)
@@ -116,12 +116,14 @@ async Task RunAsync(string[] args)
         })
         .UseSerilog((context, services, config) =>
         {
-            var logsPath = context.Configuration.GetValue<string>(Constants.Environment.LogsPath);
+            var logsPath = context.Configuration.GetValue<string>("DataPaths:Logs");
             if (string.IsNullOrEmpty(logsPath))
-                logsPath = AppContext.BaseDirectory;
+                logsPath = "Data/Logs";
+
+            var fullLogsPath = Path.IsPathRooted(logsPath) ? logsPath : Path.Combine(AppContext.BaseDirectory, logsPath);
 
             config.WriteTo.Console(restrictedToMinimumLevel: LogEventLevel.Information, theme: AnsiConsoleTheme.Code)
-                .WriteTo.File(Path.Combine(logsPath, "logs/log.log"), rollingInterval: RollingInterval.Day)
+                .WriteTo.File(Path.Combine(fullLogsPath, "log.log"), rollingInterval: RollingInterval.Day)
                 .Enrich.FromLogContext()
                 .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
                 .MinimumLevel.Override("Microsoft.EntityFrameworkCore", LogEventLevel.Information)

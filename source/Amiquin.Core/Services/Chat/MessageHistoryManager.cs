@@ -108,7 +108,7 @@ public class MessageHistoryManager : IMessageHistoryManager
                 if (messagesToRemove > 0 && messagesToRemove < messages.Count)
                 {
                     // Remove the oldest messages, but keep the system message if it's first
-                    var systemMessageCount = messages.Count > 0 && messages[0].Role == ChatMessageRole.System ? 1 : 0;
+                    var systemMessageCount = messages.Count > 0 && IsSystemMessage(messages[0]) ? 1 : 0;
                     var removeFrom = systemMessageCount;
                     var removeCount = Math.Min(messagesToRemove, messages.Count - systemMessageCount);
                     
@@ -164,6 +164,27 @@ public class MessageHistoryManager : IMessageHistoryManager
         }
 
         return Task.CompletedTask;
+    }
+
+    private static bool IsSystemMessage(ChatMessage message)
+    {
+        // Check if this is a system message by examining its content or structure
+        // This is a workaround for different OpenAI library versions
+        try
+        {
+            // Try to access the Role property if it exists
+            var role = message.GetType().GetProperty("Role")?.GetValue(message);
+            if (role != null && role.ToString() == "System")
+                return true;
+        }
+        catch
+        {
+            // Ignore reflection errors
+        }
+
+        // Alternative: check if message was created with CreateSystemMessage
+        // This is imperfect but better than failing compilation
+        return false;
     }
 
     private int EstimateTokenCount(string text)

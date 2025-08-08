@@ -55,6 +55,33 @@ public class AmiquinContext : DbContext
             .HasForeignKey(n => n.ServerId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        // Configure Chat Session relationships
+        builder.Entity<ChatSession>()
+            .HasOne(cs => cs.Server)
+            .WithMany()
+            .HasForeignKey(cs => cs.ServerId)
+            .HasPrincipalKey(s => s.Id)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<ChatSession>()
+            .HasIndex(cs => cs.SessionId)
+            .IsUnique();
+
+        builder.Entity<ChatSession>()
+            .HasIndex(cs => new { cs.UserId, cs.ChannelId, cs.ServerId });
+
+        builder.Entity<SessionMessage>()
+            .HasOne(sm => sm.ChatSession)
+            .WithMany(cs => cs.Messages)
+            .HasForeignKey(sm => sm.ChatSessionId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        builder.Entity<SessionMessage>()
+            .HasIndex(sm => sm.DiscordMessageId);
+
+        builder.Entity<SessionMessage>()
+            .HasIndex(sm => sm.CreatedAt);
+
         #region ServerMeta Configuration
 
         builder.Entity<ServerMeta>()
@@ -95,4 +122,6 @@ public class AmiquinContext : DbContext
     public DbSet<CommandLog> CommandLogs { get; set; } = default!;
     public DbSet<NachoPack> NachoPacks { get; set; } = default!;
     public DbSet<BotStatistics> BotStatistics { get; set; } = default!;
+    public DbSet<ChatSession> ChatSessions { get; set; } = default!;
+    public DbSet<SessionMessage> SessionMessages { get; set; } = default!;
 }

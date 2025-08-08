@@ -57,7 +57,8 @@ public class SessionManager : ISessionManager
     {
         var userSessions = _sessions.Values
             .Where(s => s.UserId == userId)
-            .OrderByDescending(s => s.LastActivityAt);
+            .OrderByDescending(s => s.LastActivityAt)
+            .AsEnumerable();
         
         return Task.FromResult(userSessions);
     }
