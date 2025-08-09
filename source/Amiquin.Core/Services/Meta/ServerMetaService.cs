@@ -5,97 +5,190 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
+using System.Diagnostics;
 
 namespace Amiquin.Core.Services.Meta;
 
 /// <summary>
-/// Service implementation for managing server metadata operations.
-/// Handles caching, database operations, and server-specific configuration management.
-/// Implements thread-safe operations using semaphores for concurrent access control.
+/// Service implementation for managing server metadata operations with advanced caching and performance optimizations.
+/// Handles caching, database operations, server-specific configuration management, and implements
+/// thread-safe operations using semaphores for concurrent access control with automatic cleanup.
 /// </summary>
-public class ServerMetaService : IServerMetaService
+public class ServerMetaService : IServerMetaService, IDisposable
 {
+    private const int DefaultCacheTimeoutMinutes = 30;
+    private const int SemaphoreTimeoutSeconds = 30;
+    private const int MaxConcurrentOperations = 1;
+    private const int SemaphoreCleanupIntervalMinutes = 60;
+    private const string CacheHitMetric = "ServerMeta cache hit";
+    private const string CacheMissMetric = "ServerMeta cache miss";
+    private const string DatabaseQueryMetric = "ServerMeta database query";
+    
     private readonly ILogger<IServerMetaService> _logger;
     private readonly IMemoryCache _memoryCache;
     private readonly IServerMetaRepository _serverMetaRepository;
 
-    // Semaphore dictionary to manage access to ServerMeta objects
-    private readonly ConcurrentDictionary<ulong, SemaphoreSlim> _serverMetaSemaphores = new();
+    // Semaphore dictionary to manage access to ServerMeta objects with automatic cleanup
+    private readonly ConcurrentDictionary<ulong, SemaphoreEntry> _serverMetaSemaphores = new();
+    
+    // Performance tracking
+    private readonly ConcurrentDictionary<string, long> _operationMetrics = new();
+    
+    // Disposal tracking
+    private volatile bool _disposed;
+    private readonly Timer _cleanupTimer;
 
     /// <summary>
-    /// Initializes a new instance of the ServerMetaService.
+    /// Initializes a new instance of the ServerMetaService with advanced caching and cleanup mechanisms.
     /// </summary>
     /// <param name="logger">Logger instance for recording service operations.</param>
     /// <param name="memoryCache">Memory cache for storing frequently accessed server metadata.</param>
     /// <param name="serverMetaRepository">Repository for database operations on server metadata.</param>
     public ServerMetaService(ILogger<IServerMetaService> logger, IMemoryCache memoryCache, IServerMetaRepository serverMetaRepository)
     {
-        _logger = logger;
-        _memoryCache = memoryCache;
-        _serverMetaRepository = serverMetaRepository;
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _memoryCache = memoryCache ?? throw new ArgumentNullException(nameof(memoryCache));
+        _serverMetaRepository = serverMetaRepository ?? throw new ArgumentNullException(nameof(serverMetaRepository));
+        
+        // Set up automatic semaphore cleanup every hour
+        _cleanupTimer = new Timer(CleanupUnusedSemaphores, null, 
+            TimeSpan.FromMinutes(SemaphoreCleanupIntervalMinutes), 
+            TimeSpan.FromMinutes(SemaphoreCleanupIntervalMinutes));
+
+        _logger.LogDebug("ServerMetaService initialized with cleanup timer interval: {minutes} minutes", SemaphoreCleanupIntervalMinutes);
+    }
+
+    /// <summary>
+    /// Represents a semaphore entry with tracking information for automatic cleanup.
+    /// </summary>
+    private sealed class SemaphoreEntry
+    {
+        public SemaphoreSlim Semaphore { get; }
+        public DateTime LastUsed { get; set; }
+
+        public SemaphoreEntry()
+        {
+            Semaphore = new SemaphoreSlim(MaxConcurrentOperations, MaxConcurrentOperations);
+            LastUsed = DateTime.UtcNow;
+        }
     }
 
     /// <inheritdoc/>
     public async Task<Models.ServerMeta?> GetServerMetaAsync(ulong serverId)
     {
+        ThrowIfDisposed();
         return await GetServerMetaInternalAsync(serverId);
     }
 
     /// <inheritdoc/>
     public async Task<Models.ServerMeta?> GetServerMetaAsync(ulong serverId, bool includeToggles)
     {
-        var serverMeta = await GetServerMetaInternalAsync(serverId);
-
-        if (includeToggles)
+        ThrowIfDisposed();
+        
+        var stopwatch = Stopwatch.StartNew();
+        try
         {
-            await EnsureTogglesLoadedAsync(serverMeta, serverId);
-        }
+            var serverMeta = await GetServerMetaInternalAsync(serverId);
 
-        return serverMeta;
+            if (includeToggles && serverMeta is not null)
+            {
+                await EnsureTogglesLoadedAsync(serverMeta, serverId);
+            }
+
+            return serverMeta;
+        }
+        finally
+        {
+            stopwatch.Stop();
+            RecordMetric("GetServerMetaWithToggles", stopwatch.ElapsedMilliseconds);
+        }
     }
 
     /// <inheritdoc/>
     public async Task<Models.ServerMeta> GetOrCreateServerMetaAsync(ExtendedShardedInteractionContext context)
     {
+        ThrowIfDisposed();
+        ArgumentNullException.ThrowIfNull(context);
+        
         var serverId = context.Guild?.Id ?? 0;
         if (serverId == 0)
         {
-            throw new ArgumentException("ServerId cannot be zero.");
+            throw new ArgumentException("ServerId cannot be zero - context must contain a valid guild.", nameof(context));
         }
 
-        var cacheKey = GetServerMetaCacheKey(serverId);
-        if (_memoryCache.TryGetValue(cacheKey, out Models.ServerMeta? serverMeta) && serverMeta is not null)
+        var stopwatch = Stopwatch.StartNew();
+        try
         {
-            return serverMeta;
-        }
-
-        serverMeta = await _serverMetaRepository.AsQueryable()
-                .FirstOrDefaultAsync(x => x.Id == serverId);
-
-        if (serverMeta is null)
-        {
-            serverMeta = new Models.ServerMeta
+            var cacheKey = GetServerMetaCacheKey(serverId);
+            
+            // Check cache first
+            if (_memoryCache.TryGetValue(cacheKey, out Models.ServerMeta? serverMeta) && serverMeta is not null)
             {
-                Id = serverId,
-                CreatedAt = DateTime.UtcNow,
-                LastUpdated = DateTime.UtcNow,
-                IsActive = true,
-                ServerName = context.Guild?.Name ?? string.Empty,
-                Persona = string.Empty,
-                Toggles = [],
-                Messages = [],
-                CommandLogs = [],
-                NachoPacks = []
-            };
+                RecordMetric(CacheHitMetric, 1);
+                return serverMeta;
+            }
 
-            _logger.LogInformation("Creating new ServerMeta for serverId {serverId}", serverId);
+            RecordMetric(CacheMissMetric, 1);
 
-            await _serverMetaRepository.AddAsync(serverMeta);
-            await _serverMetaRepository.SaveChangesAsync();
+            // Use semaphore for thread-safe get-or-create operation
+            var semaphoreEntry = GetOrCreateSemaphoreEntry(serverId);
+            var cancellationToken = new CancellationTokenSource(TimeSpan.FromSeconds(SemaphoreTimeoutSeconds)).Token;
+
+            if (!await semaphoreEntry.Semaphore.WaitAsync(TimeSpan.FromSeconds(SemaphoreTimeoutSeconds), cancellationToken))
+            {
+                throw new TimeoutException($"Timeout waiting for semaphore access for serverId {serverId}");
+            }
+
+            try
+            {
+                // Double-check cache after acquiring semaphore
+                if (_memoryCache.TryGetValue(cacheKey, out serverMeta) && serverMeta is not null)
+                {
+                    RecordMetric(CacheHitMetric, 1);
+                    return serverMeta;
+                }
+
+                // Query database
+                var queryStopwatch = Stopwatch.StartNew();
+                serverMeta = await _serverMetaRepository.AsQueryable()
+                    .FirstOrDefaultAsync(x => x.Id == serverId, cancellationToken);
+                queryStopwatch.Stop();
+                RecordMetric(DatabaseQueryMetric, queryStopwatch.ElapsedMilliseconds);
+
+                if (serverMeta is null)
+                {
+                    // Create new ServerMeta
+                    serverMeta = CreateNewServerMeta(serverId, context.Guild?.Name ?? "Unknown Server");
+                    
+                    _logger.LogInformation("Creating new ServerMeta for serverId {serverId} with name {serverName}", 
+                        serverId, serverMeta.ServerName);
+
+                    await _serverMetaRepository.AddAsync(serverMeta);
+                    await _serverMetaRepository.SaveChangesAsync();
+                }
+
+                // Cache with sliding expiration
+                var cacheOptions = new MemoryCacheEntryOptions
+                {
+                    AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(DefaultCacheTimeoutMinutes),
+                    SlidingExpiration = TimeSpan.FromMinutes(DefaultCacheTimeoutMinutes / 2),
+                    Priority = CacheItemPriority.High
+                };
+
+                _memoryCache.Set(cacheKey, serverMeta, cacheOptions);
+                return serverMeta;
+            }
+            finally
+            {
+                semaphoreEntry.Semaphore.Release();
+                semaphoreEntry.LastUsed = DateTime.UtcNow;
+            }
         }
-
-        _memoryCache.Set(cacheKey, serverMeta, TimeSpan.FromMinutes(30)); // Cache for 30 minutes
-        return serverMeta;
+        finally
+        {
+            stopwatch.Stop();
+            RecordMetric("GetOrCreateServerMeta", stopwatch.ElapsedMilliseconds);
+        }
     }
 
     /// <inheritdoc/>
@@ -154,125 +247,206 @@ public class ServerMetaService : IServerMetaService
     /// <inheritdoc/>
     public async Task UpdateServerMetaAsync(Models.ServerMeta serverMeta)
     {
-        _logger.LogInformation("Updating ServerMeta for serverId {serverId}", serverMeta.Id);
-
+        ThrowIfDisposed();
+        ArgumentNullException.ThrowIfNull(serverMeta);
+        
         if (serverMeta.Id == 0)
         {
-            throw new ArgumentException("ServerId must be set before updating ServerMeta.");
+            throw new ArgumentException("ServerId must be set before updating ServerMeta.", nameof(serverMeta));
         }
 
-        var semaphore = _serverMetaSemaphores.GetOrAdd(serverMeta.Id, _ => new SemaphoreSlim(1, 1));
-
-        await semaphore.WaitAsync();
+        var stopwatch = Stopwatch.StartNew();
         try
         {
-            var meta = await _serverMetaRepository.AsQueryable()
-                .Include(x => x.Toggles)
-                .FirstOrDefaultAsync(x => x.Id == serverMeta.Id)
-                ?? throw new Exception($"ServerMeta not found for serverId {serverMeta.Id}");
+            _logger.LogInformation("Updating ServerMeta for serverId {serverId}", serverMeta.Id);
 
-            meta.ServerName = serverMeta.ServerName;
-            meta.Persona = serverMeta.Persona;
-            meta.LastUpdated = DateTime.UtcNow;
-            meta.IsActive = serverMeta.IsActive;
+            var semaphoreEntry = GetOrCreateSemaphoreEntry(serverMeta.Id);
+            var cancellationToken = new CancellationTokenSource(TimeSpan.FromSeconds(SemaphoreTimeoutSeconds)).Token;
 
-            // Merge Toggles manually
-            if (serverMeta.Toggles is not null)
+            if (!await semaphoreEntry.Semaphore.WaitAsync(TimeSpan.FromSeconds(SemaphoreTimeoutSeconds), cancellationToken))
             {
-                foreach (var incomingToggle in serverMeta.Toggles)
-                {
-                    var existingToggle = meta.Toggles?
-                        .FirstOrDefault(x => x.Name == incomingToggle.Name);
-
-                    if (existingToggle is not null)
-                    {
-                        existingToggle.IsEnabled = incomingToggle.IsEnabled;
-                        existingToggle.Description = incomingToggle.Description;
-                    }
-                    else
-                    {
-                        meta.Toggles?.Add(new Models.Toggle
-                        {
-                            Id = Guid.NewGuid().ToString(),
-                            ServerId = serverMeta.Id,
-                            Name = incomingToggle.Name,
-                            IsEnabled = incomingToggle.IsEnabled,
-                            Description = incomingToggle.Description,
-                            CreatedAt = DateTime.UtcNow
-                        });
-                    }
-                }
+                throw new TimeoutException($"Timeout waiting for semaphore access for serverId {serverMeta.Id}");
             }
 
-            await _serverMetaRepository.SaveChangesAsync();
-            _memoryCache.Set(GetServerMetaCacheKey(serverMeta.Id), meta, TimeSpan.FromMinutes(30));
-            _memoryCache.Remove(StringModifier.CreateCacheKey(Constants.CacheKeys.ComputedPersonaMessageKey, serverMeta.Id.ToString()));
+            try
+            {
+                var meta = await _serverMetaRepository.AsQueryable()
+                    .Include(x => x.Toggles)
+                    .FirstOrDefaultAsync(x => x.Id == serverMeta.Id, cancellationToken)
+                    ?? throw new InvalidOperationException($"ServerMeta not found for serverId {serverMeta.Id}");
+
+                // Update basic properties
+                meta.ServerName = serverMeta.ServerName ?? meta.ServerName;
+                meta.Persona = serverMeta.Persona ?? meta.Persona;
+                meta.LastUpdated = DateTime.UtcNow;
+                meta.IsActive = serverMeta.IsActive;
+
+                // Merge toggles if provided
+                if (serverMeta.Toggles is not null)
+                {
+                    MergeToggles(meta, serverMeta.Toggles, serverMeta.Id);
+                }
+
+                await _serverMetaRepository.SaveChangesAsync();
+
+                // Update cache with sliding expiration
+                var cacheOptions = new MemoryCacheEntryOptions
+                {
+                    AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(DefaultCacheTimeoutMinutes),
+                    SlidingExpiration = TimeSpan.FromMinutes(DefaultCacheTimeoutMinutes / 2),
+                    Priority = CacheItemPriority.High
+                };
+
+                _memoryCache.Set(GetServerMetaCacheKey(serverMeta.Id), meta, cacheOptions);
+                
+                // Invalidate related caches
+                InvalidateRelatedCaches(serverMeta.Id);
+                
+                _logger.LogDebug("Updated ServerMeta for serverId {serverId}", serverMeta.Id);
+            }
+            finally
+            {
+                semaphoreEntry.Semaphore.Release();
+                semaphoreEntry.LastUsed = DateTime.UtcNow;
+            }
         }
         finally
         {
-            semaphore.Release();
+            stopwatch.Stop();
+            RecordMetric("UpdateServerMeta", stopwatch.ElapsedMilliseconds);
         }
     }
 
     /// <inheritdoc/>
     public async Task DeleteServerMetaAsync(ulong serverId)
     {
-        _logger.LogInformation("Deleting ServerMeta for serverId {serverId}", serverId);
+        ThrowIfDisposed();
+        
+        if (serverId == 0)
+        {
+            throw new ArgumentException("ServerId cannot be zero.", nameof(serverId));
+        }
 
-        var semaphore = _serverMetaSemaphores.GetOrAdd(serverId, _ => new SemaphoreSlim(1, 1));
-
-        await semaphore.WaitAsync();
+        var stopwatch = Stopwatch.StartNew();
         try
         {
-            var serverMeta = await GetServerMetaAsync(serverId) ?? throw new Exception($"ServerMeta not found for serverId {serverId}");
+            _logger.LogInformation("Deleting ServerMeta for serverId {serverId}", serverId);
 
-            await _serverMetaRepository.RemoveAsync(serverMeta);
-            await _serverMetaRepository.SaveChangesAsync();
-            _memoryCache.Remove(GetServerMetaCacheKey(serverId)); // Remove from cache
+            var semaphoreEntry = GetOrCreateSemaphoreEntry(serverId);
+            var cancellationToken = new CancellationTokenSource(TimeSpan.FromSeconds(SemaphoreTimeoutSeconds)).Token;
+
+            if (!await semaphoreEntry.Semaphore.WaitAsync(TimeSpan.FromSeconds(SemaphoreTimeoutSeconds), cancellationToken))
+            {
+                throw new TimeoutException($"Timeout waiting for semaphore access for serverId {serverId}");
+            }
+
+            try
+            {
+                var serverMeta = await GetServerMetaAsync(serverId) 
+                    ?? throw new InvalidOperationException($"ServerMeta not found for serverId {serverId}");
+
+                await _serverMetaRepository.RemoveAsync(serverMeta);
+                await _serverMetaRepository.SaveChangesAsync();
+                
+                // Remove from cache and invalidate related caches
+                _memoryCache.Remove(GetServerMetaCacheKey(serverId));
+                InvalidateRelatedCaches(serverId);
+                
+                _logger.LogInformation("Successfully deleted ServerMeta for serverId {serverId}", serverId);
+            }
+            finally
+            {
+                semaphoreEntry.Semaphore.Release();
+                
+                // Clean up semaphore for deleted server
+                if (_serverMetaSemaphores.TryRemove(serverId, out var removedEntry))
+                {
+                    removedEntry.Semaphore.Dispose();
+                }
+            }
         }
         finally
         {
-            semaphore.Release();
-            _serverMetaSemaphores.TryRemove(serverId, out _); // Clean up semaphore
+            stopwatch.Stop();
+            RecordMetric("DeleteServerMeta", stopwatch.ElapsedMilliseconds);
         }
     }
 
     /// <inheritdoc/>
     public async Task<List<Models.ServerMeta>> GetAllServerMetasAsync()
     {
-        _logger.LogInformation("Fetching all ServerMetas from repository");
-        return await _serverMetaRepository.AsQueryable().ToListAsync();
+        ThrowIfDisposed();
+
+        var stopwatch = Stopwatch.StartNew();
+        try
+        {
+            _logger.LogInformation("Fetching all ServerMetas from repository");
+            
+            var serverMetas = await _serverMetaRepository.AsQueryable()
+                .OrderBy(x => x.ServerName)
+                .ToListAsync();
+
+            _logger.LogDebug("Retrieved {count} ServerMetas from repository", serverMetas.Count);
+            return serverMetas;
+        }
+        finally
+        {
+            stopwatch.Stop();
+            RecordMetric("GetAllServerMetas", stopwatch.ElapsedMilliseconds);
+        }
     }
 
     // Private methods
 
     /// <summary>
-    /// Internal method for retrieving server metadata with caching support.
-    /// Fetches from cache first, then from database if not cached.
+    /// Internal method for retrieving server metadata with advanced caching support.
+    /// Fetches from cache first, then from database if not cached with performance tracking.
     /// </summary>
     /// <param name="serverId">The Discord server ID to retrieve metadata for.</param>
     /// <returns>The server metadata if found; otherwise, null.</returns>
     private async Task<Models.ServerMeta?> GetServerMetaInternalAsync(ulong serverId)
     {
         var cacheKey = GetServerMetaCacheKey(serverId);
+        
+        // Check cache first
         if (_memoryCache.TryGetValue(cacheKey, out Models.ServerMeta? serverMeta) && serverMeta is not null)
         {
+            RecordMetric(CacheHitMetric, 1);
             return serverMeta;
         }
 
-        _logger.LogInformation("Fetching ServerMeta for serverId {serverId} from repository", serverId);
-
-        serverMeta = await _serverMetaRepository.AsQueryable()
-            .FirstOrDefaultAsync(x => x.Id == serverId);
-
-        if (serverMeta is null)
+        RecordMetric(CacheMissMetric, 1);
+        
+        var queryStopwatch = Stopwatch.StartNew();
+        try
         {
-            _logger.LogWarning("Server meta not found for serverId {serverId}", serverId);
-            return null;
-        }
+            _logger.LogDebug("Fetching ServerMeta for serverId {serverId} from repository", serverId);
 
-        _memoryCache.Set(cacheKey, serverMeta, TimeSpan.FromMinutes(30)); // Cache for 30 minutes
-        return serverMeta;
+            serverMeta = await _serverMetaRepository.AsQueryable()
+                .FirstOrDefaultAsync(x => x.Id == serverId);
+
+            if (serverMeta is null)
+            {
+                _logger.LogDebug("ServerMeta not found for serverId {serverId}", serverId);
+                return null;
+            }
+
+            // Cache with sliding expiration
+            var cacheOptions = new MemoryCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(DefaultCacheTimeoutMinutes),
+                SlidingExpiration = TimeSpan.FromMinutes(DefaultCacheTimeoutMinutes / 2),
+                Priority = CacheItemPriority.Normal
+            };
+
+            _memoryCache.Set(cacheKey, serverMeta, cacheOptions);
+            return serverMeta;
+        }
+        finally
+        {
+            queryStopwatch.Stop();
+            RecordMetric(DatabaseQueryMetric, queryStopwatch.ElapsedMilliseconds);
+        }
     }
 
     /// <summary>
@@ -364,5 +538,202 @@ public class ServerMetaService : IServerMetaService
     private string GetServerMetaCacheKey(ulong serverId)
     {
         return StringModifier.CreateCacheKey(Constants.CacheKeys.ServerMeta, serverId.ToString());
+    }
+
+    /// <summary>
+    /// Gets or creates a semaphore entry for thread-safe operations on a specific server.
+    /// </summary>
+    /// <param name="serverId">The Discord server ID.</param>
+    /// <returns>A semaphore entry for the specified server.</returns>
+    private SemaphoreEntry GetOrCreateSemaphoreEntry(ulong serverId)
+    {
+        return _serverMetaSemaphores.GetOrAdd(serverId, _ => new SemaphoreEntry());
+    }
+
+    /// <summary>
+    /// Creates a new ServerMeta instance with default values.
+    /// </summary>
+    /// <param name="serverId">The Discord server ID.</param>
+    /// <param name="serverName">The name of the Discord server.</param>
+    /// <returns>A new ServerMeta instance.</returns>
+    private static Models.ServerMeta CreateNewServerMeta(ulong serverId, string serverName)
+    {
+        return new Models.ServerMeta
+        {
+            Id = serverId,
+            CreatedAt = DateTime.UtcNow,
+            LastUpdated = DateTime.UtcNow,
+            IsActive = true,
+            ServerName = serverName,
+            Persona = string.Empty,
+            Toggles = [],
+            Messages = [],
+            CommandLogs = [],
+            NachoPacks = []
+        };
+    }
+
+    /// <summary>
+    /// Merges incoming toggles with existing toggles in the server metadata.
+    /// </summary>
+    /// <param name="existingMeta">The existing server metadata.</param>
+    /// <param name="incomingToggles">The incoming toggles to merge.</param>
+    /// <param name="serverId">The Discord server ID for logging.</param>
+    private void MergeToggles(Models.ServerMeta existingMeta, ICollection<Models.Toggle> incomingToggles, ulong serverId)
+    {
+        existingMeta.Toggles ??= [];
+
+        foreach (var incomingToggle in incomingToggles)
+        {
+            var existingToggle = existingMeta.Toggles.FirstOrDefault(x => x.Name == incomingToggle.Name);
+
+            if (existingToggle is not null)
+            {
+                existingToggle.IsEnabled = incomingToggle.IsEnabled;
+                existingToggle.Description = incomingToggle.Description ?? existingToggle.Description;
+            }
+            else
+            {
+                existingMeta.Toggles.Add(new Models.Toggle
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    ServerId = serverId,
+                    Name = incomingToggle.Name,
+                    IsEnabled = incomingToggle.IsEnabled,
+                    Description = incomingToggle.Description ?? string.Empty,
+                    CreatedAt = DateTime.UtcNow
+                });
+            }
+        }
+    }
+
+    /// <summary>
+    /// Invalidates caches related to the specified server.
+    /// </summary>
+    /// <param name="serverId">The Discord server ID.</param>
+    private void InvalidateRelatedCaches(ulong serverId)
+    {
+        var serverIdString = serverId.ToString();
+        var computedPersonaCacheKey = StringModifier.CreateCacheKey(Constants.CacheKeys.ComputedPersonaMessageKey, serverIdString);
+        var serverTogglesCacheKey = StringModifier.CreateCacheKey(Constants.CacheKeys.ServerToggles, serverIdString);
+
+        _memoryCache.Remove(computedPersonaCacheKey);
+        _memoryCache.Remove(serverTogglesCacheKey);
+
+        _logger.LogDebug("Invalidated related caches for serverId {serverId}", serverId);
+    }
+
+    /// <summary>
+    /// Records a performance metric for monitoring and debugging.
+    /// </summary>
+    /// <param name="operationName">The name of the operation.</param>
+    /// <param name="value">The metric value (usually duration in milliseconds or count).</param>
+    private void RecordMetric(string operationName, long value)
+    {
+        _operationMetrics.AddOrUpdate(operationName, value, (key, oldValue) => oldValue + value);
+        
+        // Log significant operations for monitoring
+        if (value > 1000) // Log operations taking more than 1 second
+        {
+            _logger.LogWarning("Slow ServerMetaService operation: {operationName} took {duration}ms", operationName, value);
+        }
+    }
+
+    /// <summary>
+    /// Cleans up unused semaphores to prevent memory leaks.
+    /// </summary>
+    /// <param name="state">Timer callback state (unused).</param>
+    private void CleanupUnusedSemaphores(object? state)
+    {
+        if (_disposed) return;
+
+        try
+        {
+            var cutoffTime = DateTime.UtcNow.AddMinutes(-SemaphoreCleanupIntervalMinutes);
+            var entriesToRemove = new List<ulong>();
+
+            foreach (var kvp in _serverMetaSemaphores)
+            {
+                if (kvp.Value.LastUsed < cutoffTime && kvp.Value.Semaphore.CurrentCount == MaxConcurrentOperations)
+                {
+                    entriesToRemove.Add(kvp.Key);
+                }
+            }
+
+            foreach (var serverId in entriesToRemove)
+            {
+                if (_serverMetaSemaphores.TryRemove(serverId, out var entry))
+                {
+                    entry.Semaphore.Dispose();
+                }
+            }
+
+            if (entriesToRemove.Count > 0)
+            {
+                _logger.LogDebug("Cleaned up {count} unused semaphores", entriesToRemove.Count);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error during semaphore cleanup");
+        }
+    }
+
+    /// <summary>
+    /// Throws ObjectDisposedException if the service has been disposed.
+    /// </summary>
+    private void ThrowIfDisposed()
+    {
+        if (_disposed) throw new ObjectDisposedException(GetType().Name);
+    }
+
+    /// <summary>
+    /// Gets performance metrics for monitoring and debugging.
+    /// </summary>
+    /// <returns>A dictionary containing operation metrics.</returns>
+    public IReadOnlyDictionary<string, long> GetPerformanceMetrics()
+    {
+        ThrowIfDisposed();
+        return _operationMetrics.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+    }
+
+    /// <summary>
+    /// Clears all cached server metadata. Use with caution.
+    /// </summary>
+    public void ClearAllCache()
+    {
+        ThrowIfDisposed();
+        
+        // This is a simplified approach - in a real implementation you might want to track cache keys
+        if (_memoryCache is MemoryCache memoryCache)
+        {
+            memoryCache.Compact(1.0); // Remove all entries
+        }
+        
+        _logger.LogInformation("Cleared all ServerMeta cache entries");
+    }
+
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!_disposed && disposing)
+        {
+            _cleanupTimer?.Dispose();
+            
+            // Dispose all semaphores
+            foreach (var entry in _serverMetaSemaphores.Values)
+            {
+                entry.Semaphore.Dispose();
+            }
+            _serverMetaSemaphores.Clear();
+
+            _disposed = true;
+            _logger.LogDebug("ServerMetaService disposed");
+        }
     }
 }
