@@ -1,46 +1,288 @@
 using Amiquin.Core.DiscordExtensions;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
+using System.Collections.Concurrent;
 
 namespace Amiquin.Core.Services.BotContext;
 
-public class BotContextAccessor
+/// <summary>
+/// Thread-safe accessor for bot context information during Discord interactions.
+/// Provides centralized access to context data, server metadata, and execution tracking.
+/// </summary>
+public class BotContextAccessor : IDisposable
 {
-    public string BotName = "Amiquin";
-    public string BotVersion = "1.0.0";
+    private static readonly ConcurrentDictionary<string, object> _contextData = new();
+    private readonly ILogger<BotContextAccessor>? _logger;
+    private readonly object _lock = new();
+    private volatile bool _disposed;
+    private volatile bool _isFinished;
+
+    /// <summary>
+    /// Gets the bot name from configuration or uses default value.
+    /// </summary>
+    public string BotName { get; private set; } = Constants.DefaultValues.BotName;
+
+    /// <summary>
+    /// Gets the bot version from configuration or uses default value.
+    /// </summary>
+    public string BotVersion { get; private set; } = Constants.DefaultValues.BotVersion;
+
+    /// <summary>
+    /// Gets the unique identifier for this context instance.
+    /// </summary>
+    public string ContextId { get; } = Guid.NewGuid().ToString("N")[..8];
+
+    /// <summary>
+    /// Gets the server ID from the current Discord context.
+    /// </summary>
     public ulong ServerId => Context?.Guild?.Id ?? 0;
+
+    /// <summary>
+    /// Gets the user ID from the current Discord context.
+    /// </summary>
+    public ulong UserId => Context?.User?.Id ?? 0;
+
+    /// <summary>
+    /// Gets the channel ID from the current Discord context.
+    /// </summary>
+    public ulong ChannelId => Context?.Channel?.Id ?? 0;
+
+    /// <summary>
+    /// Gets the server metadata associated with this context.
+    /// </summary>
     public Models.ServerMeta? ServerMeta { get; private set; }
+
+    /// <summary>
+    /// Gets the Discord interaction context.
+    /// </summary>
     public ExtendedShardedInteractionContext? Context { get; private set; }
-    public DateTime CreatedAt { get; } = DateTime.UtcNow;
+
+    /// <summary>
+    /// Gets the timestamp when this context was created.
+    /// </summary>
+    public DateTime CreatedAt { get; }
+
+    /// <summary>
+    /// Gets the timestamp when the context execution finished.
+    /// </summary>
     public DateTime FinishedAt { get; private set; }
 
-    public BotContextAccessor() { }
+    /// <summary>
+    /// Gets the execution duration in milliseconds.
+    /// </summary>
+    public long ExecutionTimeMs => _isFinished 
+        ? (long)(FinishedAt - CreatedAt).TotalMilliseconds 
+        : (long)(DateTime.UtcNow - CreatedAt).TotalMilliseconds;
 
+    /// <summary>
+    /// Gets whether the context execution has finished.
+    /// </summary>
+    public bool IsFinished => _isFinished;
+
+    /// <summary>
+    /// Gets whether the context has been initialized with Discord context and server metadata.
+    /// </summary>
+    public bool IsInitialized => Context is not null && ServerMeta is not null;
+
+    /// <summary>
+    /// Initializes a new instance of the BotContextAccessor.
+    /// </summary>
+    /// <param name="logger">Optional logger for context operations.</param>
+    public BotContextAccessor(ILogger<BotContextAccessor>? logger = null)
+    {
+        CreatedAt = DateTime.UtcNow;
+        _logger = logger;
+        
+        _logger?.LogTrace("Created new BotContextAccessor with ID: {ContextId}", ContextId);
+    }
+
+    /// <summary>
+    /// Initializes the context with Discord interaction data, server metadata, and configuration.
+    /// </summary>
+    /// <param name="context">The Discord interaction context.</param>
+    /// <param name="serverMeta">The server metadata.</param>
+    /// <param name="config">The application configuration.</param>
+    /// <exception cref="ArgumentNullException">Thrown when context or serverMeta is null.</exception>
+    /// <exception cref="InvalidOperationException">Thrown when context is already initialized or disposed.</exception>
     public void Initialize(ExtendedShardedInteractionContext context, Models.ServerMeta serverMeta, IConfiguration config)
     {
-        Context = context;
-        ServerMeta = serverMeta;
+        if (_disposed) throw new ObjectDisposedException(GetType().Name);
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(serverMeta);
+        ArgumentNullException.ThrowIfNull(config);
 
-        BotName = config.GetValue<string>(Constants.Environment.BotName) ?? BotName;
-        BotVersion = config.GetValue<string>(Constants.Environment.BotVersion) ?? BotVersion;
+        lock (_lock)
+        {
+            if (IsInitialized)
+            {
+                throw new InvalidOperationException("Context is already initialized");
+            }
+
+            Context = context;
+            ServerMeta = serverMeta;
+
+            // Load configuration values with fallback to defaults
+            BotName = config.GetValue<string>(Constants.Environment.BotName) ?? Constants.DefaultValues.BotName;
+            BotVersion = config.GetValue<string>(Constants.Environment.BotVersion) ?? Constants.DefaultValues.BotVersion;
+
+            _logger?.LogDebug("Initialized BotContextAccessor {ContextId} for server {ServerId} ({ServerName})", 
+                ContextId, ServerId, serverMeta.ServerName);
+        }
     }
 
+    /// <summary>
+    /// Marks the context execution as finished and records the finish timestamp.
+    /// </summary>
     public void Finish()
     {
-        FinishedAt = DateTime.UtcNow;
+        if (_disposed) throw new ObjectDisposedException(GetType().Name);
+
+        lock (_lock)
+        {
+            if (_isFinished)
+            {
+                _logger?.LogWarning("Context {ContextId} finish called multiple times", ContextId);
+                return;
+            }
+
+            FinishedAt = DateTime.UtcNow;
+            _isFinished = true;
+
+            _logger?.LogDebug("Finished BotContextAccessor {ContextId} execution in {ExecutionTime}ms", 
+                ContextId, ExecutionTimeMs);
+        }
     }
 
+    /// <summary>
+    /// Updates the server metadata for this context.
+    /// </summary>
+    /// <param name="serverMeta">The new server metadata.</param>
+    /// <exception cref="ArgumentNullException">Thrown when serverMeta is null.</exception>
     public void SetServerMeta(Models.ServerMeta serverMeta)
     {
-        if (serverMeta is null)
-        {
-            throw new ArgumentNullException(nameof(serverMeta), "ServerMeta cannot be null");
-        }
+        if (_disposed) throw new ObjectDisposedException(GetType().Name);
+        ArgumentNullException.ThrowIfNull(serverMeta);
 
-        ServerMeta = serverMeta;
+        lock (_lock)
+        {
+            ServerMeta = serverMeta;
+            _logger?.LogTrace("Updated ServerMeta for context {ContextId}", ContextId);
+        }
     }
 
+    /// <summary>
+    /// Updates the Discord interaction context.
+    /// </summary>
+    /// <param name="context">The new Discord interaction context.</param>
+    /// <exception cref="ArgumentNullException">Thrown when context is null.</exception>
     public void SetContext(ExtendedShardedInteractionContext context)
     {
-        Context = context;
+        if (_disposed) throw new ObjectDisposedException(GetType().Name);
+        ArgumentNullException.ThrowIfNull(context);
+
+        lock (_lock)
+        {
+            Context = context;
+            _logger?.LogTrace("Updated Context for context {ContextId}", ContextId);
+        }
+    }
+
+    /// <summary>
+    /// Stores arbitrary data associated with this context.
+    /// </summary>
+    /// <param name="key">The key to store the data under.</param>
+    /// <param name="value">The value to store.</param>
+    public void SetContextData(string key, object value)
+    {
+        if (_disposed) throw new ObjectDisposedException(GetType().Name);
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+
+        var contextKey = $"{ContextId}:{key}";
+        _contextData.AddOrUpdate(contextKey, value, (_, _) => value);
+        
+        _logger?.LogTrace("Set context data {Key} for context {ContextId}", key, ContextId);
+    }
+
+    /// <summary>
+    /// Retrieves data associated with this context.
+    /// </summary>
+    /// <typeparam name="T">The type of data to retrieve.</typeparam>
+    /// <param name="key">The key of the data to retrieve.</param>
+    /// <returns>The stored data or default value if not found.</returns>
+    public T? GetContextData<T>(string key)
+    {
+        if (_disposed) throw new ObjectDisposedException(GetType().Name);
+        ArgumentException.ThrowIfNullOrWhiteSpace(key);
+
+        var contextKey = $"{ContextId}:{key}";
+        if (_contextData.TryGetValue(contextKey, out var value) && value is T typedValue)
+        {
+            return typedValue;
+        }
+
+        return default;
+    }
+
+    /// <summary>
+    /// Gets a summary of the context information for logging or debugging.
+    /// </summary>
+    /// <returns>A formatted string containing context information.</returns>
+    public string GetContextSummary()
+    {
+        var summary = $"Context {ContextId}: ";
+        
+        if (IsInitialized)
+        {
+            summary += $"Server={ServerMeta?.ServerName} ({ServerId}), " +
+                      $"User={Context?.User?.Username} ({UserId}), " +
+                      $"Channel={ChannelId}, " +
+                      $"Duration={ExecutionTimeMs}ms, " +
+                      $"Finished={IsFinished}";
+        }
+        else
+        {
+            summary += "Not initialized";
+        }
+
+        return summary;
+    }
+
+    /// <summary>
+    /// Performs application-defined tasks associated with freeing, releasing, or resetting unmanaged resources.
+    /// </summary>
+    public void Dispose()
+    {
+        if (_disposed) return;
+
+        lock (_lock)
+        {
+            if (_disposed) return;
+
+            // Clean up context-specific data
+            var keysToRemove = _contextData.Keys.Where(k => k.StartsWith($"{ContextId}:")).ToList();
+            foreach (var key in keysToRemove)
+            {
+                _contextData.TryRemove(key, out _);
+            }
+
+            if (!_isFinished)
+            {
+                Finish();
+            }
+
+            _disposed = true;
+            _logger?.LogTrace("Disposed BotContextAccessor {ContextId} after {ExecutionTime}ms", 
+                ContextId, ExecutionTimeMs);
+        }
+
+        GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Finalizer to ensure cleanup if Dispose is not called.
+    /// </summary>
+    ~BotContextAccessor()
+    {
+        Dispose();
     }
 }

@@ -113,4 +113,13 @@ public class Constants
             public const bool IncludeCard = true;
         }
     }
+
+    public class DefaultValues
+    {
+        #region Default Values
+        public const string BotName = "Amiquin";
+        public const string BotVersion = "1.0.0";
+        public const string DefaultLogsPath = "Data/Logs";
+        #endregion
+    }
 }
