@@ -63,25 +63,38 @@ public class ChatCoreService : IChatCoreService
     }
 
     /// <inheritdoc/>
-    public async Task<string> ExchangeMessageAsync(string message, ChatMessage? developerPersonaChatMessage = null, int tokenLimit = 1200)
+    public async Task<string> ExchangeMessageAsync(string message, ChatMessage? developerPersonaChatMessage = null, int tokenLimit = 1200, ulong? instanceId = null)
     {
-        if (developerPersonaChatMessage is null)
+        // Use the provided instance ID or a generic semaphore for non-instance-specific exchanges
+        // We use 0 as the instance ID for general message exchanges that don't belong to a specific chat session
+        var effectiveInstanceId = instanceId ?? 0;
+        var semaphore = _chatSemaphoreManager.GetOrCreateInstanceSemaphore(effectiveInstanceId);
+        await semaphore.WaitAsync();
+        
+        try
         {
-            developerPersonaChatMessage = await GetCorePersonaAsync();
+            if (developerPersonaChatMessage is null)
+            {
+                developerPersonaChatMessage = await GetCorePersonaAsync();
+            }
+
+            var userMessage = ChatMessage.CreateUserMessage(message);
+
+            var messages = new List<ChatMessage> { developerPersonaChatMessage, userMessage };
+            ChatCompletionOptions options = new()
+            {
+                MaxOutputTokenCount = tokenLimit,
+                Temperature = 0.6f,
+            };
+
+            var response = await _openAIClient.CompleteChatAsync(messages, options);
+
+            return response.Value.Content.First().Text;
         }
-
-        var userMessage = ChatMessage.CreateUserMessage(message);
-
-        var messages = new List<ChatMessage> { developerPersonaChatMessage, userMessage };
-        ChatCompletionOptions options = new()
+        finally
         {
-            MaxOutputTokenCount = tokenLimit,
-            Temperature = 0.6f,
-        };
-
-        var response = await _openAIClient.CompleteChatAsync(messages, options);
-
-        return response.Value.Content.First().Text;
+            semaphore.Release();
+        }
     }
 
     private async Task<ChatMessage> GetCorePersonaAsync()

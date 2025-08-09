@@ -23,6 +23,7 @@ public interface IChatCoreService
     /// <param name="message">The message to send to the AI model.</param>
     /// <param name="developerPersonaChatMessage">Optional developer persona message for context.</param>
     /// <param name="tokenLimit">The maximum number of tokens for the response. Default is 1200.</param>
+    /// <param name="instanceId">Optional instance ID for semaphore management. Use null for generic exchanges.</param>
     /// <returns>The AI model's response as a string.</returns>
-    Task<string> ExchangeMessageAsync(string message, ChatMessage? developerPersonaChatMessage = null, int tokenLimit = 1200);
+    Task<string> ExchangeMessageAsync(string message, ChatMessage? developerPersonaChatMessage = null, int tokenLimit = 1200, ulong? instanceId = null);
 }

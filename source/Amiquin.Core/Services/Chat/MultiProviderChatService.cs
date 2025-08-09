@@ -82,33 +82,46 @@ public class MultiProviderChatService : IChatCoreService
     public async Task<string> ExchangeMessageAsync(
         string message, 
         OpenAI.Chat.ChatMessage? developerPersonaChatMessage = null, 
-        int tokenLimit = 1200)
+        int tokenLimit = 1200,
+        ulong? instanceId = null)
     {
-        if (developerPersonaChatMessage is null)
+        // Use the provided instance ID or a generic semaphore for non-instance-specific exchanges
+        var effectiveInstanceId = instanceId ?? 0;
+        var semaphore = _chatSemaphoreManager.GetOrCreateInstanceSemaphore(effectiveInstanceId);
+        await semaphore.WaitAsync();
+        
+        try
         {
-            developerPersonaChatMessage = await GetCorePersonaAsync();
+            if (developerPersonaChatMessage is null)
+            {
+                developerPersonaChatMessage = await GetCorePersonaAsync();
+            }
+            
+            var userMessage = OpenAI.Chat.ChatMessage.CreateUserMessage(message);
+            var messages = new List<OpenAI.Chat.ChatMessage> { developerPersonaChatMessage, userMessage };
+            
+            // Convert to session messages
+            var sessionMessages = ConvertToSessionMessages(messages);
+            
+            // Get provider
+            var provider = GetProviderWithFallback();
+            
+            // Set up options
+            var options = new ChatCompletionOptions
+            {
+                MaxTokens = tokenLimit,
+                Temperature = _chatOptions.Temperature
+            };
+            
+            // Call provider
+            var response = await CallProviderWithFallback(provider, sessionMessages, options);
+            
+            return response.Content;
         }
-        
-        var userMessage = OpenAI.Chat.ChatMessage.CreateUserMessage(message);
-        var messages = new List<OpenAI.Chat.ChatMessage> { developerPersonaChatMessage, userMessage };
-        
-        // Convert to session messages
-        var sessionMessages = ConvertToSessionMessages(messages);
-        
-        // Get provider
-        var provider = GetProviderWithFallback();
-        
-        // Set up options
-        var options = new ChatCompletionOptions
+        finally
         {
-            MaxTokens = tokenLimit,
-            Temperature = _chatOptions.Temperature
-        };
-        
-        // Call provider
-        var response = await CallProviderWithFallback(provider, sessionMessages, options);
-        
-        return response.Content;
+            semaphore.Release();
+        }
     }
     
     private IChatProvider GetProviderWithFallback()

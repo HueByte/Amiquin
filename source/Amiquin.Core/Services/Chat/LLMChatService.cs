@@ -94,15 +94,22 @@ public class LLMChatService : IMultiProviderChatService
         int tokenLimit = 1200,
         string? provider = null)
     {
-        // Get system message if not provided
-        if (string.IsNullOrEmpty(systemMessage))
-        {
-            systemMessage = await _messageCacheService.GetPersonaCoreMessageAsync()
-                ?? _llmOptions.GlobalSystemMessage;
-        }
+        // Use a generic semaphore for non-instance-specific message exchanges
+        const ulong genericInstanceId = 0;
+        var semaphore = _chatSemaphoreManager.GetOrCreateInstanceSemaphore(genericInstanceId);
+        await semaphore.WaitAsync();
         
-        // Create message list
-        var messages = new List<SessionMessage>
+        try
+        {
+            // Get system message if not provided
+            if (string.IsNullOrEmpty(systemMessage))
+            {
+                systemMessage = await _messageCacheService.GetPersonaCoreMessageAsync()
+                    ?? _llmOptions.GlobalSystemMessage;
+            }
+            
+            // Create message list
+            var messages = new List<SessionMessage>
         {
             new SessionMessage
             {
@@ -118,29 +125,34 @@ public class LLMChatService : IMultiProviderChatService
                 Content = message,
                 CreatedAt = DateTime.UtcNow
             }
-        };
+            };
+            
+            // Get provider and configuration
+            var chatProvider = GetProvider(provider ?? _llmOptions.DefaultProvider);
+            var providerConfig = _llmOptions.GetProvider(chatProvider.ProviderName);
+            var modelConfig = providerConfig?.GetDefaultModel();
         
-        // Get provider and configuration
-        var chatProvider = GetProvider(provider ?? _llmOptions.DefaultProvider);
-        var providerConfig = _llmOptions.GetProvider(chatProvider.ProviderName);
-        var modelConfig = providerConfig?.GetDefaultModel();
-        
-        // Set up options
-        var options = new ChatCompletionOptions
+            // Set up options
+            var options = new ChatCompletionOptions
+            {
+                MaxTokens = Math.Min(tokenLimit, modelConfig?.MaxOutputTokens ?? tokenLimit),
+                Temperature = modelConfig?.GetEffectiveTemperature(_llmOptions.GlobalTemperature) ?? _llmOptions.GlobalTemperature,
+                Model = providerConfig?.DefaultModel
+            };
+            
+            // Call provider
+            var response = await CallProviderWithFallback(chatProvider, messages, options);
+            
+            _logger.LogDebug("Message exchange completed using provider {Provider} model {Model}", 
+                response.Metadata?.GetValueOrDefault("provider") ?? chatProvider.ProviderName,
+                response.Model ?? options.Model);
+            
+            return response;
+        }
+        finally
         {
-            MaxTokens = Math.Min(tokenLimit, modelConfig?.MaxOutputTokens ?? tokenLimit),
-            Temperature = modelConfig?.GetEffectiveTemperature(_llmOptions.GlobalTemperature) ?? _llmOptions.GlobalTemperature,
-            Model = providerConfig?.DefaultModel
-        };
-        
-        // Call provider
-        var response = await CallProviderWithFallback(chatProvider, messages, options);
-        
-        _logger.LogDebug("Message exchange completed using provider {Provider} model {Model}", 
-            response.Metadata?.GetValueOrDefault("provider") ?? chatProvider.ProviderName,
-            response.Model ?? options.Model);
-        
-        return response;
+            semaphore.Release();
+        }
     }
     
     public string GetCurrentProvider()

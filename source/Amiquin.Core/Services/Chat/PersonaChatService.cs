@@ -75,7 +75,7 @@ public class PersonaChatService : IPersonaChatService
     public async Task<string> ExchangeMessageAsync(ulong instanceId, string message)
     {
         var persona = await _personaService.GetPersonaAsync(instanceId);
-        return await _chatCoreService.ExchangeMessageAsync(message, persona);
+        return await _chatCoreService.ExchangeMessageAsync(message, persona, tokenLimit: 1200, instanceId: instanceId);
     }
 
     private void LogTokenUsage(ChatTokenUsage usage)
