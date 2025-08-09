@@ -95,8 +95,10 @@ async Task RunAsync(string[] args)
 
     var basePath = AppContext.BaseDirectory;
     var configurationManager = new ConfigurationManager()
-        .AddEnvironmentVariables(prefix: "AMQ_")
+        .SetBasePath(basePath)
         .AddJsonFile(Path.Combine(basePath, "Configuration", "appsettings.json"), optional: false)
+        .AddEnvironmentVariables()
+        .AddEnvironmentVariables(prefix: "AMQ_")
         .AddCommandLine(args);
 
     var logger = new SerilogLoggerProvider(Serilog.Log.Logger)
