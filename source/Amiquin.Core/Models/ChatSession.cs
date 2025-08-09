@@ -1,45 +1,42 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Amiquin.Core.Abstraction;
 
 namespace Amiquin.Core.Models;
+
+/// <summary>
+/// Defines the scope level for a chat session
+/// </summary>
+public enum SessionScope
+{
+    /// <summary>
+    /// Session is scoped to a specific user across all channels/servers
+    /// </summary>
+    User = 0,
+    
+    /// <summary>
+    /// Session is scoped to a specific channel (all users in that channel share context)
+    /// </summary>
+    Channel = 1,
+    
+    /// <summary>
+    /// Session is scoped to a specific server (default)
+    /// </summary>
+    Server = 2
+}
 
 /// <summary>
 /// Represents a chat session between a user and the bot in a specific channel.
 /// </summary>
 [Table("ChatSessions")]
-public class ChatSession
+public class ChatSession : DbModel<string>
 {
-    [Key]
-    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-    public int Id { get; set; }
 
     /// <summary>
-    /// Unique identifier for the session (combines UserId, ChannelId, ServerId)
+    /// The ID of the entity that owns this session (UserId for User scope, ChannelId for Channel scope, etc.)
     /// </summary>
     [Required]
-    [MaxLength(255)]
-    public string SessionId { get; set; } = string.Empty;
-
-    /// <summary>
-    /// Discord User ID who owns this session
-    /// </summary>
-    [Required]
-    [MaxLength(20)]
-    public string UserId { get; set; } = string.Empty;
-
-    /// <summary>
-    /// Discord Channel ID where the session takes place
-    /// </summary>
-    [Required]
-    [MaxLength(20)]
-    public string ChannelId { get; set; } = string.Empty;
-
-    /// <summary>
-    /// Discord Server ID (Guild ID) where the session takes place
-    /// </summary>
-    [Required]
-    [MaxLength(20)]
-    public string ServerId { get; set; } = string.Empty;
+    public ulong OwningEntityId { get; set; }
 
     /// <summary>
     /// When the session was created
@@ -75,6 +72,12 @@ public class ChatSession
     public bool IsActive { get; set; } = true;
 
     /// <summary>
+    /// The scope level for this session (User, Channel, or Server)
+    /// </summary>
+    [Required]
+    public SessionScope Scope { get; set; } = SessionScope.Server;
+
+    /// <summary>
     /// JSON metadata for additional session data
     /// </summary>
     public string? Metadata { get; set; }
@@ -84,10 +87,71 @@ public class ChatSession
     public virtual ServerMeta? Server { get; set; }
 
     /// <summary>
-    /// Generates a session ID from user, channel, and server IDs
+    /// Creates a new chat session with the specified scope and context
     /// </summary>
-    public static string GenerateSessionId(string userId, string channelId, string serverId)
+    /// <param name="scope">The scope level for the session</param>
+    /// <param name="userId">Discord User ID (for User scope)</param>
+    /// <param name="channelId">Discord Channel ID (for Channel scope)</param>
+    /// <param name="serverId">Discord Server ID (for Server scope)</param>
+    /// <param name="model">AI model to use for this session</param>
+    /// <returns>A new ChatSession instance</returns>
+    public static ChatSession CreateSession(SessionScope scope, ulong userId = 0, ulong channelId = 0, ulong serverId = 0, string model = "gpt-4o-mini")
     {
-        return $"{serverId}_{channelId}_{userId}";
+        var owningEntityId = scope switch
+        {
+            SessionScope.User => userId,
+            SessionScope.Channel => channelId,
+            SessionScope.Server => serverId, // Server scope is keyed by server/guild ID
+            _ => throw new ArgumentOutOfRangeException(nameof(scope), scope, "Invalid session scope")
+        };
+
+        if (owningEntityId == 0)
+        {
+            throw new ArgumentException($"Valid {scope} ID is required for {scope} scope");
+        }
+
+        return new ChatSession
+        {
+            Id = Guid.NewGuid().ToString(),
+            Scope = scope,
+            OwningEntityId = owningEntityId,
+            Model = model,
+            CreatedAt = DateTime.UtcNow,
+            LastActivityAt = DateTime.UtcNow,
+            IsActive = true
+        };
+    }
+
+    /// <summary>
+    /// Determines if this session matches the given scope and context
+    /// </summary>
+    public bool MatchesScope(SessionScope scope, ulong userId, ulong channelId, ulong serverId)
+    {
+        if (Scope != scope)
+            return false;
+
+        var expectedOwningEntityId = scope switch
+        {
+            SessionScope.User => userId,
+            SessionScope.Channel => channelId,
+            SessionScope.Server => serverId, // Server scope uses server/guild ID as owning entity
+            _ => (ulong)0
+        };
+
+        return OwningEntityId == expectedOwningEntityId;
+    }
+
+    /// <summary>
+    /// Gets the appropriate owning entity ID for a given scope and context
+    /// </summary>
+    public static ulong GetOwningEntityId(SessionScope scope, ulong userId, ulong channelId, ulong serverId)
+    {
+        return scope switch
+        {
+            SessionScope.User => userId,
+            SessionScope.Channel => channelId,
+            SessionScope.Server => serverId, // Server scope uses server/guild ID
+            _ => throw new ArgumentOutOfRangeException(nameof(scope), scope, "Invalid session scope")
+        };
     }
 }

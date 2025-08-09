@@ -55,20 +55,26 @@ public class AmiquinContext : DbContext
             .HasForeignKey(n => n.ServerId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        // Configure Chat Session relationships
+        // Configure Chat Session
+
+        // Primary index for session lookups by scope and owning entity
         builder.Entity<ChatSession>()
-            .HasOne(cs => cs.Server)
-            .WithMany()
-            .HasForeignKey(cs => cs.ServerId)
-            .HasPrincipalKey(s => s.Id)
-            .OnDelete(DeleteBehavior.Cascade);
+            .HasIndex(cs => new { cs.Scope, cs.OwningEntityId })
+            .HasDatabaseName("IX_ChatSessions_Scope_Owner");
+
+        // Additional indexes for performance
+        builder.Entity<ChatSession>()
+            .HasIndex(cs => new { cs.IsActive, cs.LastActivityAt })
+            .HasDatabaseName("IX_ChatSessions_Activity");
 
         builder.Entity<ChatSession>()
-            .HasIndex(cs => cs.SessionId)
-            .IsUnique();
+            .HasIndex(cs => cs.CreatedAt)
+            .HasDatabaseName("IX_ChatSessions_Created");
 
+        // Configure Scope enum to be stored as integer
         builder.Entity<ChatSession>()
-            .HasIndex(cs => new { cs.UserId, cs.ChannelId, cs.ServerId });
+            .Property(cs => cs.Scope)
+            .HasConversion<int>();
 
         builder.Entity<SessionMessage>()
             .HasOne(sm => sm.ChatSession)

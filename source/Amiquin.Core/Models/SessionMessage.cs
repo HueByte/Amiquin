@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Amiquin.Core.Abstraction;
 
 namespace Amiquin.Core.Models;
 
@@ -7,17 +8,13 @@ namespace Amiquin.Core.Models;
 /// Represents a single message in a chat session.
 /// </summary>
 [Table("SessionMessages")]
-public class SessionMessage
+public class SessionMessage : DbModel<string>
 {
-    [Key]
-    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-    public int Id { get; set; }
-
     /// <summary>
     /// Foreign key to the chat session
     /// </summary>
     [Required]
-    public int ChatSessionId { get; set; }
+    public string ChatSessionId { get; set; } = string.Empty;
 
     /// <summary>
     /// Discord Message ID

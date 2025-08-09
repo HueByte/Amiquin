@@ -3,6 +3,7 @@ using System;
 using Amiquin.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Amiquin.Sqlite.Migrations
 {
     [DbContext(typeof(AmiquinContext))]
-    partial class AmiquinContextModelSnapshot : ModelSnapshot
+    [Migration("20250809001152_SessionArchitectureUpdate_SQLite")]
+    partial class SessionArchitectureUpdate_SQLite
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "9.0.8");
@@ -81,8 +84,9 @@ namespace Amiquin.Sqlite.Migrations
 
             modelBuilder.Entity("Amiquin.Core.Models.ChatSession", b =>
                 {
-                    b.Property<string>("Id")
-                        .HasColumnType("TEXT");
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("TEXT");
@@ -116,12 +120,20 @@ namespace Amiquin.Sqlite.Migrations
                     b.Property<ulong?>("ServerId")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("SessionId")
+                        .IsRequired()
+                        .HasMaxLength(36)
+                        .HasColumnType("TEXT");
+
                     b.HasKey("Id");
 
                     b.HasIndex("CreatedAt")
                         .HasDatabaseName("IX_ChatSessions_Created");
 
                     b.HasIndex("ServerId");
+
+                    b.HasIndex("SessionId")
+                        .IsUnique();
 
                     b.HasIndex("IsActive", "LastActivityAt")
                         .HasDatabaseName("IX_ChatSessions_Activity");
@@ -261,12 +273,12 @@ namespace Amiquin.Sqlite.Migrations
 
             modelBuilder.Entity("Amiquin.Core.Models.SessionMessage", b =>
                 {
-                    b.Property<string>("Id")
-                        .HasColumnType("TEXT");
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
 
-                    b.Property<string>("ChatSessionId")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
+                    b.Property<int>("ChatSessionId")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("Content")
                         .IsRequired()

@@ -12,13 +12,11 @@ namespace Amiquin.Bot.Commands;
 public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionContext>
 {
     private readonly IPersonaChatService _chatService;
-    private readonly IDiscordBotChatService _discordBotChatService;
     private readonly IMessageCacheService _messageCacheService;
 
-    public MainCommands(IPersonaChatService chatService, IDiscordBotChatService discordBotChatService, IMessageCacheService messageCacheService)
+    public MainCommands(IPersonaChatService chatService, IMessageCacheService messageCacheService)
     {
         _chatService = chatService;
-        _discordBotChatService = discordBotChatService;
         _messageCacheService = messageCacheService;
     }
 
@@ -90,79 +88,6 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
         await ModifyOriginalResponseAsync(msg => msg.Embed = embed);
     }
 
-    [SlashCommand("chat-new", "Chat with the bot using improved session management")]
-    [RequireToggle(Constants.ToggleNames.EnableChat)]
-    public async Task ChatNewAsync(string message)
-    {
-        await DeferAsync();
-        
-        try
-        {
-            var response = await _discordBotChatService.ProcessMessageAsync(
-                message, 
-                Context.User.Id, 
-                Context.Channel.Id, 
-                Context.Guild?.Id);
-
-            // Split long responses if needed (Discord has 2000 character limit)
-            await RespondWithSplitMessageAsync(response);
-        }
-        catch (Exception ex)
-        {
-            await FollowupAsync("Sorry, I encountered an error processing your message.");
-        }
-    }
-
-    [SlashCommand("clear-chat", "Clear your conversation history")]
-    [RequireToggle(Constants.ToggleNames.EnableChat)]
-    public async Task ClearChatAsync()
-    {
-        try
-        {
-            await _discordBotChatService.ClearConversationAsync(
-                Context.User.Id, 
-                Context.Channel.Id, 
-                Context.Guild?.Id);
-                
-            await RespondAsync("Your conversation history has been cleared! 🗑️", ephemeral: true);
-        }
-        catch (Exception ex)
-        {
-            await RespondAsync("Failed to clear conversation history.", ephemeral: true);
-        }
-    }
-
-    [SlashCommand("chat-stats", "View your conversation statistics")]
-    [RequireToggle(Constants.ToggleNames.EnableChat)]
-    public async Task ChatStatsAsync()
-    {
-        await DeferAsync();
-        
-        try
-        {
-            var stats = await _discordBotChatService.GetConversationStatsAsync(
-                Context.User.Id, 
-                Context.Channel.Id, 
-                Context.Guild?.Id);
-                
-            var embed = new EmbedBuilder()
-                .WithTitle("📊 Conversation Statistics")
-                .AddField("Messages", stats.MessageCount, true)
-                .AddField("Session Started", stats.StartTime.ToString("yyyy-MM-dd HH:mm"), true)
-                .AddField("Last Message", stats.LastMessageTime.ToString("yyyy-MM-dd HH:mm"), true)
-                .AddField("Estimated Tokens", stats.TotalTokensUsed, true)
-                .WithColor(Color.Blue)
-                .WithFooter($"Session: {Context.User.Id}:{Context.Channel.Id}")
-                .WithTimestamp(DateTimeOffset.Now)
-                .Build();
-                
-            await FollowupAsync(embed: embed, ephemeral: true);
-        }
-        catch (Exception ex)
-        {
-            await FollowupAsync("Failed to retrieve conversation statistics.", ephemeral: true);
-        }
-    }
 
     private async Task RespondWithSplitMessageAsync(string message)
     {

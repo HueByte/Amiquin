@@ -146,13 +146,9 @@ public class InjectionConfigurator
                  .AddScoped<IServerMetaService, ServerMetaService>()
                  .AddScoped<INachoService, NachoService>();
 
-        // New Discord bot chat services with session management
-        _services.AddScoped<IConversationCoreService, ConversationCoreService>()
-                 .AddSingleton<ISessionManager, SessionManager>()
-                 .AddSingleton<IMessageHistoryManager, MessageHistoryManager>()
-                 .AddSingleton<ISemaphoreManager, SemaphoreManager>()
-                 .AddScoped<IMessageManager, MessageManager>()
-                 .AddScoped<IDiscordBotChatService, DiscordBotChatService>();
+        // Discord bot chat services
+        _services.AddSingleton<ISemaphoreManager, SemaphoreManager>()
+                 .AddScoped<IMessageManager, MessageManager>();
 
         _services.AddTransient<IExternalProcessRunnerService, ExternalProcessRunnerService>();
 
@@ -210,13 +206,11 @@ public class InjectionConfigurator
         // New improved configuration options
         _services.Configure<ChatOptions>(_configuration.GetSection(ChatOptions.SectionName));
         _services.Configure<DataPathOptions>(_configuration.GetSection(DataPathOptions.SectionName));
-        _services.Configure<SessionManagementOptions>(_configuration.GetSection(SessionManagementOptions.SectionName));
         _services.Configure<DiscordOptions>(_configuration.GetSection(DiscordOptions.SectionName));
         
         // Register as singletons for easy access
         _services.AddSingleton(sp => sp.GetRequiredService<IOptions<ChatOptions>>().Value);
         _services.AddSingleton(sp => sp.GetRequiredService<IOptions<DataPathOptions>>().Value);
-        _services.AddSingleton(sp => sp.GetRequiredService<IOptions<SessionManagementOptions>>().Value);
         _services.AddSingleton(sp => sp.GetRequiredService<IOptions<DiscordOptions>>().Value);
 
         return this;
