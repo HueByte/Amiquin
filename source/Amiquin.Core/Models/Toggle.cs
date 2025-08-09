@@ -3,12 +3,6 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Amiquin.Core.Models;
 
-public enum ToggleScope
-{
-    Server,
-    Global
-}
-
 public class Toggle : DbModel<string>
 {
     public override string Id { get; set; } = string.Empty;
