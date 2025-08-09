@@ -67,6 +67,12 @@ public class ChatSession : DbModel<string>
     public string Model { get; set; } = "gpt-4o-mini";
 
     /// <summary>
+    /// The AI provider being used for this session (OpenAI, Gemini, Grok)
+    /// </summary>
+    [MaxLength(20)]
+    public string Provider { get; set; } = "OpenAI";
+
+    /// <summary>
     /// Whether the session is currently active
     /// </summary>
     public bool IsActive { get; set; } = true;
@@ -94,8 +100,9 @@ public class ChatSession : DbModel<string>
     /// <param name="channelId">Discord Channel ID (for Channel scope)</param>
     /// <param name="serverId">Discord Server ID (for Server scope)</param>
     /// <param name="model">AI model to use for this session</param>
+    /// <param name="provider">AI provider to use for this session</param>
     /// <returns>A new ChatSession instance</returns>
-    public static ChatSession CreateSession(SessionScope scope, ulong userId = 0, ulong channelId = 0, ulong serverId = 0, string model = "gpt-4o-mini")
+    public static ChatSession CreateSession(SessionScope scope, ulong userId = 0, ulong channelId = 0, ulong serverId = 0, string model = "gpt-4o-mini", string provider = "OpenAI")
     {
         var owningEntityId = scope switch
         {
@@ -116,6 +123,7 @@ public class ChatSession : DbModel<string>
             Scope = scope,
             OwningEntityId = owningEntityId,
             Model = model,
+            Provider = provider,
             CreatedAt = DateTime.UtcNow,
             LastActivityAt = DateTime.UtcNow,
             IsActive = true

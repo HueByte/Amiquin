@@ -9,6 +9,7 @@ using Amiquin.Core.Services.ApiClients;
 using Amiquin.Core.Services.BotContext;
 using Amiquin.Core.Services.BotSession;
 using Amiquin.Core.Services.Chat;
+using Amiquin.Core.Services.Chat.Providers;
 using Amiquin.Core.Services.Chat.Toggle;
 using Amiquin.Core.Services.CommandHandler;
 using Amiquin.Core.Services.EventHandler;
@@ -146,6 +147,10 @@ public class InjectionConfigurator
                  .AddScoped<IServerMetaService, ServerMetaService>()
                  .AddScoped<INachoService, NachoService>();
 
+        // LLM-based chat services (new system)
+        _services.AddScoped<LLMChatService>()
+                 .AddScoped<IMultiProviderChatService>(provider => provider.GetRequiredService<LLMChatService>());
+
         // Discord bot chat services
         _services.AddSingleton<ISemaphoreManager, SemaphoreManager>()
                  .AddScoped<IMessageManager, MessageManager>();
@@ -165,6 +170,43 @@ public class InjectionConfigurator
         {
             var externalUrls = services.GetRequiredService<IOptions<ExternalOptions>>().Value;
             client.BaseAddress = new Uri(externalUrls.NewsApiUrl);
+        });
+
+        // Configure HTTP clients for LLM providers
+        _services.AddHttpClient("LLM_OpenAI", (services, client) =>
+        {
+            var llmOptions = services.GetRequiredService<IOptions<LLMOptions>>().Value;
+            var openAIConfig = llmOptions.GetProvider("OpenAI");
+            if (openAIConfig != null && openAIConfig.Enabled)
+            {
+                client.BaseAddress = new Uri(openAIConfig.BaseUrl);
+                client.DefaultRequestHeaders.Add("Accept", "application/json");
+                client.Timeout = TimeSpan.FromSeconds(llmOptions.GlobalTimeout);
+            }
+        });
+
+        _services.AddHttpClient("LLM_Grok", (services, client) =>
+        {
+            var llmOptions = services.GetRequiredService<IOptions<LLMOptions>>().Value;
+            var grokConfig = llmOptions.GetProvider("Grok");
+            if (grokConfig != null && grokConfig.Enabled)
+            {
+                client.BaseAddress = new Uri(grokConfig.BaseUrl);
+                client.DefaultRequestHeaders.Add("Accept", "application/json");
+                client.Timeout = TimeSpan.FromSeconds(llmOptions.GlobalTimeout);
+            }
+        });
+
+        _services.AddHttpClient("LLM_Gemini", (services, client) =>
+        {
+            var llmOptions = services.GetRequiredService<IOptions<LLMOptions>>().Value;
+            var geminiConfig = llmOptions.GetProvider("Gemini");
+            if (geminiConfig != null && geminiConfig.Enabled)
+            {
+                client.BaseAddress = new Uri(geminiConfig.BaseUrl);
+                client.DefaultRequestHeaders.Add("Accept", "application/json");
+                client.Timeout = TimeSpan.FromSeconds(llmOptions.GlobalTimeout);
+            }
         });
 
         return this;
@@ -203,15 +245,19 @@ public class InjectionConfigurator
         _services.AddOptions<ExternalOptions>().Bind(_configuration.GetSection(ExternalOptions.External));
         _services.Configure<DatabaseOptions>(_configuration.GetSection(DatabaseOptions.Database));
 
-        // New improved configuration options
+        // Legacy configuration options (for backward compatibility)
         _services.Configure<ChatOptions>(_configuration.GetSection(ChatOptions.SectionName));
         _services.Configure<DataPathOptions>(_configuration.GetSection(DataPathOptions.SectionName));
         _services.Configure<DiscordOptions>(_configuration.GetSection(DiscordOptions.SectionName));
+        
+        // New LLM configuration system
+        _services.Configure<LLMOptions>(_configuration.GetSection(LLMOptions.SectionName));
         
         // Register as singletons for easy access
         _services.AddSingleton(sp => sp.GetRequiredService<IOptions<ChatOptions>>().Value);
         _services.AddSingleton(sp => sp.GetRequiredService<IOptions<DataPathOptions>>().Value);
         _services.AddSingleton(sp => sp.GetRequiredService<IOptions<DiscordOptions>>().Value);
+        _services.AddSingleton(sp => sp.GetRequiredService<IOptions<LLMOptions>>().Value);
 
         return this;
     }
