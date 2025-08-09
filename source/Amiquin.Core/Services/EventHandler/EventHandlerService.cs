@@ -1,4 +1,4 @@
-using Amiquin.Core.Services.Chat.Toggle;
+using Amiquin.Core.Services.Toggle;
 using Amiquin.Core.Services.CommandHandler;
 using Amiquin.Core.Services.Meta;
 using Amiquin.Core.Services.ServerInteraction;

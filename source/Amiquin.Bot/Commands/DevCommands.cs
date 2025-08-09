@@ -3,7 +3,7 @@ using Amiquin.Core;
 using Amiquin.Core.Attributes;
 using Amiquin.Core.DiscordExtensions;
 using Amiquin.Core.Services.Chat;
-using Amiquin.Core.Services.Chat.Toggle;
+using Amiquin.Core.Services.Toggle;
 using Amiquin.Core.Services.MessageCache;
 using Amiquin.Core.Services.Persona;
 using Amiquin.Core.Services.Voice;

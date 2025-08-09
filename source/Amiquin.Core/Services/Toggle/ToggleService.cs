@@ -3,7 +3,7 @@ using Amiquin.Core.Services.Meta;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 
-namespace Amiquin.Core.Services.Chat.Toggle;
+namespace Amiquin.Core.Services.Toggle;
 
 /// <summary>
 /// Service implementation for managing server toggle operations.

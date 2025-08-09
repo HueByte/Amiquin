@@ -1,4 +1,4 @@
-using Amiquin.Core.Services.Chat.Toggle;
+using Amiquin.Core.Services.Toggle;
 using Discord;
 using Discord.Interactions;
 using Microsoft.Extensions.DependencyInjection;

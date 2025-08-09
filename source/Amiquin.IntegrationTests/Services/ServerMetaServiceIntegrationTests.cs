@@ -140,7 +140,7 @@ public class ServerMetaServiceIntegrationTests : IClassFixture<DatabaseFixture>
         var Id = 123456789UL;
 
         // Add some toggles first
-        var toggleService = _fixture.ServiceProvider.GetRequiredService<Core.Services.Chat.Toggle.IToggleService>();
+        var toggleService = _fixture.ServiceProvider.GetRequiredService<Core.Services.Toggle.IToggleService>();
         await toggleService.SetServerToggleAsync(Id, "TestToggle1", true, "Description 1");
         await toggleService.SetServerToggleAsync(Id, "TestToggle2", false, "Description 2");
 

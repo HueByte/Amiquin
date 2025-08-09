@@ -1,4 +1,4 @@
-namespace Amiquin.Core.Services.Chat.Toggle;
+namespace Amiquin.Core.Services.Toggle;
 
 /// <summary>
 /// Service interface for managing server toggle operations.

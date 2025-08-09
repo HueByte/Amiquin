@@ -1,6 +1,6 @@
 using Amiquin.Core.IRepositories;
 using Amiquin.Core.Options;
-using Amiquin.Core.Services.Chat.Toggle;
+using Amiquin.Core.Services.Toggle;
 using Amiquin.Core.Services.MessageCache;
 using Amiquin.Core.Services.Meta;
 using Amiquin.Core.Services.Nacho;

@@ -9,7 +9,7 @@ using Amiquin.Core.Services.BotContext;
 using Amiquin.Core.Services.BotSession;
 using Amiquin.Core.Services.Chat;
 using Amiquin.Core.Services.Chat.Providers;
-using Amiquin.Core.Services.Chat.Toggle;
+using Amiquin.Core.Services.Toggle;
 using Amiquin.Core.Services.CommandHandler;
 using Amiquin.Core.Services.EventHandler;
 using Amiquin.Core.Services.ExternalProcessRunner;
