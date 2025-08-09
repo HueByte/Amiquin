@@ -1,7 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Amiquin.Core.Options.Configuration;
+using Amiquin.Core.Options;
 
 namespace Amiquin.Core.Services.Chat.Providers;
 

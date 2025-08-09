@@ -1,7 +1,6 @@
 using Amiquin.Core;
 using Amiquin.Core.Job;
 using Amiquin.Core.Options;
-using Amiquin.Core.Options.Configuration;
 using Amiquin.Core.Services.CommandHandler;
 using Amiquin.Core.Services.EventHandler;
 using Amiquin.Core.Utilities;

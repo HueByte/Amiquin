@@ -1,4 +1,4 @@
-namespace Amiquin.Core.Options.Configuration;
+namespace Amiquin.Core.Options;
 
 /// <summary>
 /// Configuration options for AI chat functionality.

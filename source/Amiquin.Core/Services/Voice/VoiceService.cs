@@ -1,5 +1,4 @@
 using Amiquin.Core.Options;
-using Amiquin.Core.Options.Configuration;
 using Amiquin.Core.Services.Chat;
 using Amiquin.Core.Services.ExternalProcessRunner;
 using Discord;

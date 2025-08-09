@@ -1,5 +1,5 @@
 using Amiquin.Core.Models;
-using Amiquin.Core.Options.Configuration;
+using Amiquin.Core.Options;
 using Amiquin.Core.Services.Chat.Providers;
 using Amiquin.Core.Services.MessageCache;
 using Microsoft.Extensions.Logging;

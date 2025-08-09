@@ -4,7 +4,6 @@ using Amiquin.Core.Exceptions;
 using Amiquin.Core.IRepositories;
 using Amiquin.Core.Job;
 using Amiquin.Core.Options;
-using Amiquin.Core.Options.Configuration;
 using Amiquin.Core.Services.ApiClients;
 using Amiquin.Core.Services.BotContext;
 using Amiquin.Core.Services.BotSession;

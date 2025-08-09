@@ -1,7 +1,7 @@
 using Amiquin.Bot.Configurators;
 using Amiquin.Core;
 using Amiquin.Core.Exceptions;
-using Amiquin.Core.Options.Configuration;
+using Amiquin.Core.Options;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;

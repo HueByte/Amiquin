@@ -1,5 +1,5 @@
 using Amiquin.Core.Models;
-using Amiquin.Core.Options.Configuration;
+using Amiquin.Core.Options;
 using Microsoft.Extensions.Logging;
 using System.Text;
 using System.Text.Json;

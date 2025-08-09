@@ -1,6 +1,6 @@
 using Amiquin.Core.Abstraction;
 using Amiquin.Core.Job.Models;
-using Amiquin.Core.Options.Configuration;
+using Amiquin.Core.Options;
 using Jiro.Shared.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
