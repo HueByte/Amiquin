@@ -30,6 +30,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using OpenAI.Chat;
 using Serilog;
+using Jiro.Shared.Tasks;
 
 namespace Amiquin.Bot.Configurators;
 
@@ -81,6 +82,7 @@ public class InjectionConfigurator
                  .AddSingleton<IChatSemaphoreManager, ChatSemaphoreManager>()
                  .AddSingleton<IVoiceStateManager, VoiceStateManager>()
                  .AddSingleton<IJobService, JobService>()
+                 .AddSingleton<ITaskManager, TaskManager>()
                  .AddMemoryCache();
 
         var dbOptions = _configuration.GetSection(DatabaseOptions.Database).Get<DatabaseOptions>();
@@ -249,6 +251,10 @@ public class InjectionConfigurator
         _services.Configure<DataPathOptions>(_configuration.GetSection(DataPathOptions.SectionName));
         _services.Configure<DiscordOptions>(_configuration.GetSection(DiscordOptions.SectionName));
         _services.Configure<VoiceOptions>(_configuration.GetSection(VoiceOptions.SectionName));
+        _services.Configure<JobManagerOptions>(_configuration.GetSection(JobManagerOptions.SectionName));
+        
+        // TaskManager options (map from JobManager section for now)
+        _services.Configure<TaskManagerOptions>(_configuration.GetSection(JobManagerOptions.SectionName));
         
         // LLM configuration system
         _services.Configure<LLMOptions>(_configuration.GetSection(LLMOptions.SectionName));

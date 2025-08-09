@@ -420,3 +420,4 @@ FodyWeavers.xsd
 *.sln.iml
 .claude/settings.local.json
 CLAUDE.md
+nul

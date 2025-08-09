@@ -65,8 +65,6 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
     [SlashCommand("info", "Display bot information including version")]
     public async Task InfoAsync()
     {
-        await DeferAsync();
-
         // Get version from assembly
         var assemblyVersion = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "Unknown";
 

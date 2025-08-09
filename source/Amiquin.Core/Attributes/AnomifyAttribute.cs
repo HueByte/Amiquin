@@ -1,7 +1,4 @@
 namespace Amiquin.Core.Attributes;
 
 [AttributeUsage(AttributeTargets.Property)]
-public class AnomifyAttribute : Attribute
-{
-
-}
+public class AnomifyAttribute : Attribute { }

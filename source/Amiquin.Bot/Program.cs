@@ -7,10 +7,9 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Serilog;
 using Serilog.Events;
-using Serilog.Extensions.Logging;
 using Serilog.Sinks.SystemConsole.Themes;
 
-DotNetEnv.Env.Load(); // Load environment variables from .env file
+// DotNetEnv.Env.Load(); // Load environment variables from .env file
 
 var tcs = new TaskCompletionSource();
 var sigintReceived = false;
@@ -86,13 +85,11 @@ while (!sigintReceived && !_shutdownTokenSource.IsCancellationRequested)
 
 await tcs.Task;
 
+// Ensure logs are flushed before application exits
+Log.CloseAndFlush();
+
 async Task RunAsync(string[] args)
 {
-    Serilog.Log.Logger = new LoggerConfiguration()
-            .WriteTo.Console()
-            .Enrich.FromLogContext()
-            .CreateBootstrapLogger();
-
     var basePath = AppContext.BaseDirectory;
     var configurationManager = new ConfigurationManager()
         .SetBasePath(basePath)
@@ -101,11 +98,15 @@ async Task RunAsync(string[] args)
         .AddEnvironmentVariables(prefix: "AMQ_")
         .AddCommandLine(args);
 
-    var logger = new SerilogLoggerProvider(Serilog.Log.Logger)
-         .CreateLogger(nameof(Program));
+    // Create a bootstrap logger for early initialization logging
+    Log.Logger = new LoggerConfiguration()
+        .MinimumLevel.Debug()
+        .WriteTo.Console()
+        .CreateBootstrapLogger();
 
     var hostBuilder = Host.CreateDefaultBuilder(args);
-    var host = hostBuilder.ConfigureHostConfiguration(host =>
+    var host = hostBuilder
+        .ConfigureHostConfiguration(host =>
         {
             host.AddConfiguration(configurationManager.Build());
         })
@@ -125,6 +126,7 @@ async Task RunAsync(string[] args)
             var logsPath = dataPathOptions?.Value?.Logs ?? "Data/Logs";
             var fullLogsPath = Path.IsPathRooted(logsPath) ? logsPath : Path.Combine(AppContext.BaseDirectory, logsPath);
 
+            // This replaces the bootstrap logger and configures the final logger
             config.WriteTo.Console(restrictedToMinimumLevel: LogEventLevel.Information, theme: AnsiConsoleTheme.Code)
                 .WriteTo.File(Path.Combine(fullLogsPath, "log.log"), rollingInterval: RollingInterval.Day)
                 .Enrich.FromLogContext()
@@ -132,7 +134,7 @@ async Task RunAsync(string[] args)
                 .MinimumLevel.Override("Microsoft.EntityFrameworkCore", LogEventLevel.Information)
                 .ReadFrom.Configuration(context.Configuration)
                 .ReadFrom.Services(services);
-        })
+        }, writeToProviders: false) // Important: don't write to default providers to avoid duplication
         .Build();
 
     await host.RunAsync(_restartBotTokenSource.Token);
