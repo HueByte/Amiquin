@@ -15,16 +15,24 @@ namespace Amiquin.Core.Services.CommandHandler;
 
 /// <summary>
 /// Implementation of the <see cref="ICommandHandlerService"/> interface.
-/// Handles Discord bot commands and interactions.
+/// Handles Discord bot commands and interactions with enhanced error handling and resource management.
 /// </summary>
 public class CommandHandlerService : ICommandHandlerService
 {
+    private const string DefaultErrorMessage = "An error occurred while processing your command. Please try again later.";
+    private const string CommandExecutionLogTemplate = "Command [{command}] executed by [{username}] in server [{serverName}] and took {timeToExecute} ms to execute";
+    private const string CommandFailedLogTemplate = "Command [{name}] failed to execute in [{serverName}]";
+    private const string ServerMetaNullWarning = "ServerMeta is null for command [{command}]";
+    private const string InitializingMessage = "Initializing Command Handler Service";
+    private const string AddingModulesMessage = "Adding Modules";
+    
     private readonly ILogger _logger;
     private readonly IServiceScopeFactory _serviceScopeFactory;
     private readonly IServiceProvider _serviceProvider;
     private readonly DiscordShardedClient _discordClient;
     private readonly InteractionService _interactionService;
-    private HashSet<string> _ephemeralCommands = [];
+    private readonly HashSet<string> _ephemeralCommands = [];
+    private volatile bool _isInitialized;
 
     /// <inheritdoc/>
     public IReadOnlyCollection<string> EphemeralCommands => _ephemeralCommands.ToList().AsReadOnly();
@@ -52,41 +60,91 @@ public class CommandHandlerService : ICommandHandlerService
     /// <inheritdoc/>
     public async Task InitializeAsync()
     {
-        _logger.LogInformation("Initializing Command Handler Service");
-        _logger.LogInformation("Adding Modules");
+        if (_isInitialized)
+        {
+            _logger.LogWarning("Command Handler Service is already initialized");
+            return;
+        }
 
-        await _interactionService.AddModulesAsync(Assembly.GetEntryAssembly(), _serviceProvider);
-        _ephemeralCommands = Reflection.GetAllEphemeralCommands();
+        try
+        {
+            _logger.LogInformation(InitializingMessage);
+            _logger.LogInformation(AddingModulesMessage);
+
+            await _interactionService.AddModulesAsync(Assembly.GetEntryAssembly(), _serviceProvider);
+            
+            var ephemeralCommands = Reflection.GetAllEphemeralCommands();
+            foreach (var command in ephemeralCommands)
+            {
+                _ephemeralCommands.Add(command);
+            }
+
+            _isInitialized = true;
+            _logger.LogInformation("Command Handler Service initialized successfully with {commandCount} ephemeral commands", _ephemeralCommands.Count);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to initialize Command Handler Service");
+            throw;
+        }
     }
 
     /// <inheritdoc/>
     public async Task HandleCommandAsync(SocketInteraction interaction)
     {
+        ArgumentNullException.ThrowIfNull(interaction);
+
+        if (!_isInitialized)
+        {
+            _logger.LogWarning("Command Handler Service is not initialized, cannot process command");
+            await RespondWithErrorAsync(interaction, "Service is not ready. Please try again later.");
+            return;
+        }
+
         ExtendedShardedInteractionContext? extendedContext = null;
         BotContextAccessor? botContext = null;
+        
         try
         {
             var scope = _serviceScopeFactory.CreateAsyncScope();
-
             extendedContext = new ExtendedShardedInteractionContext(_discordClient, interaction, scope);
-            await interaction.DeferAsync(IsEphemeralCommand(interaction));
+            
+            var isEphemeral = IsEphemeralCommand(interaction);
+            await interaction.DeferAsync(isEphemeral);
 
             botContext = scope.ServiceProvider.GetRequiredService<BotContextAccessor>();
-            IServerMetaService? serverMetaService = scope.ServiceProvider.GetRequiredService<IServerMetaService>();
+            var serverMetaService = scope.ServiceProvider.GetRequiredService<IServerMetaService>();
+            var configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>();
 
             // Ensure no concurrency issues when retrieving or creating server meta
             var serverMeta = await serverMetaService.GetOrCreateServerMetaAsync(extendedContext);
-            botContext.Initialize(extendedContext, serverMeta, scope.ServiceProvider.GetRequiredService<IConfiguration>());
+            botContext.Initialize(extendedContext, serverMeta, configuration);
+
+            var guildId = GetGuildId(interaction);
+            _logger.LogDebug("Executing command {commandName} for user {userId} in guild {guildId}", 
+                GetCommandName(interaction), interaction.User.Id, guildId);
 
             await _interactionService.ExecuteCommandAsync(extendedContext, scope.ServiceProvider);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to execute command");
-            await interaction.ModifyOriginalResponseAsync((msg) => msg.Content = "An error occurred while processing your command. Please try again later.");
-
+            _logger.LogError(ex, "Failed to execute command {commandName} for user {userId} in guild {guildId}", 
+                GetCommandName(interaction), interaction.User.Id, GetGuildId(interaction));
+                
+            await HandleCommandErrorAsync(interaction, ex);
+            
+            // Clean up resources on error
             if (extendedContext is not null)
-                await extendedContext.DisposeAsync();
+            {
+                try
+                {
+                    await extendedContext.DisposeAsync();
+                }
+                catch (Exception disposeEx)
+                {
+                    _logger.LogWarning(disposeEx, "Failed to dispose extended context after error");
+                }
+            }
 
             botContext?.Finish();
         }
@@ -95,66 +153,47 @@ public class CommandHandlerService : ICommandHandlerService
     /// <inheritdoc/>
     public async Task HandleSlashCommandExecutedAsync(SlashCommandInfo slashCommandInfo, IInteractionContext interactionContext, IResult result)
     {
+        ArgumentNullException.ThrowIfNull(slashCommandInfo);
+        ArgumentNullException.ThrowIfNull(interactionContext);
+        ArgumentNullException.ThrowIfNull(result);
+
         var extendedContext = interactionContext as ExtendedShardedInteractionContext;
-        var scope = extendedContext is not null ? extendedContext.AsyncScope : _serviceScopeFactory.CreateAsyncScope();
+        var scope = extendedContext?.AsyncScope ?? _serviceScopeFactory.CreateAsyncScope();
+        
         try
         {
             var commandLogRepository = scope.ServiceProvider.GetRequiredService<ICommandLogRepository>();
             var botContextAccessor = scope.ServiceProvider.GetRequiredService<BotContextAccessor>();
             botContextAccessor.Finish();
+            
             await LogCommandAsync(commandLogRepository, botContextAccessor, slashCommandInfo, result);
 
             if (!result.IsSuccess)
             {
-                var embed = new EmbedBuilder().WithCurrentTimestamp()
-                                              .WithColor(Color.Red);
-
-                switch (result.Error)
-                {
-                    case InteractionCommandError.UnmetPrecondition:
-                        embed.WithTitle("Unmet Precondition");
-                        embed.WithDescription(result.ErrorReason);
-                        break;
-
-                    case InteractionCommandError.UnknownCommand:
-                        embed.WithTitle("Unknown command");
-                        embed.WithDescription(result.ErrorReason);
-                        break;
-
-                    case InteractionCommandError.BadArgs:
-                        embed.WithTitle($"Invalid number or arguments");
-                        embed.WithDescription(result.ErrorReason);
-                        break;
-
-                    case InteractionCommandError.Exception:
-                        embed.WithTitle("Command exception");
-                        embed.WithDescription(result.ErrorReason);
-
-                        if (result is ExecuteResult execResult)
-                        {
-                            _logger.LogError(execResult.Exception, "Command [{name}] failed to execute in [{serverName}]", slashCommandInfo.Name, interactionContext.Guild.Name);
-                        }
-
-                        break;
-
-                    case InteractionCommandError.Unsuccessful:
-                        embed.WithTitle("Command could not be executed");
-                        embed.WithDescription(result.ErrorReason);
-                        break;
-
-                    default:
-                        embed.WithTitle("Something went wrong");
-                        embed.WithDescription(result.ErrorReason);
-                        break;
-                }
-
-                await interactionContext.Interaction.ModifyOriginalResponseAsync((msg) => msg.Embed = embed.Build());
+                await HandleCommandExecutionErrorAsync(interactionContext, slashCommandInfo, result);
             }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to handle slash command execution for {commandName}", slashCommandInfo.Name);
         }
         finally
         {
-            if (extendedContext is null) scope.Dispose();
-            else await scope.DisposeAsync();
+            if (extendedContext is null)
+            {
+                scope.Dispose();
+            }
+            else
+            {
+                try
+                {
+                    await scope.DisposeAsync();
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to dispose async scope for command {commandName}", slashCommandInfo.Name);
+                }
+            }
         }
     }
 
@@ -165,15 +204,12 @@ public class CommandHandlerService : ICommandHandlerService
     /// <returns>True if the command should be ephemeral; otherwise, false.</returns>
     private bool IsEphemeralCommand(SocketInteraction interaction)
     {
-        if (interaction.Type != InteractionType.ApplicationCommand)
-            return false;
-
-        if (interaction is not SocketSlashCommand command)
+        if (interaction.Type != InteractionType.ApplicationCommand || interaction is not SocketSlashCommand command)
             return false;
 
         // Amiquin supports one level of subcommands.
-        string commandName = command.Data.Options.FirstOrDefault(op => op.Type == ApplicationCommandOptionType.SubCommand)?.Name ?? command.Data.Name;
-        return _ephemeralCommands.Contains(commandName);
+        var commandName = command.Data.Options.FirstOrDefault(op => op.Type == ApplicationCommandOptionType.SubCommand)?.Name ?? command.Data.Name;
+        return !string.IsNullOrEmpty(commandName) && _ephemeralCommands.Contains(commandName);
     }
 
     /// <summary>
@@ -186,26 +222,181 @@ public class CommandHandlerService : ICommandHandlerService
     /// <returns>A task representing the asynchronous operation.</returns>
     private async Task LogCommandAsync(ICommandLogRepository commandLogRepository, BotContextAccessor context, SlashCommandInfo slashCommandInfo, IResult result)
     {
-        if (context?.ServerMeta is null)
+        try
         {
-            _logger.LogWarning("ServerMeta is null for command [{command}]", slashCommandInfo.Name);
-            return;
+            if (context?.ServerMeta is null)
+            {
+                _logger.LogWarning(ServerMetaNullWarning, slashCommandInfo.Name);
+                return;
+            }
+
+            var executionTime = (int)(context.FinishedAt - context.CreatedAt).TotalMilliseconds;
+            var logEntry = new Models.CommandLog
+            {
+                Command = slashCommandInfo.Name,
+                CommandDate = context.CreatedAt,
+                Duration = executionTime,
+                ErrorMessage = result.ErrorReason,
+                IsSuccess = result.IsSuccess,
+                ServerId = context.ServerMeta.Id,
+                Username = context.Context?.User?.Username ?? "Unknown",
+            };
+
+            await commandLogRepository.AddAsync(logEntry);
+            await commandLogRepository.SaveChangesAsync();
+            
+            _logger.LogInformation(CommandExecutionLogTemplate, 
+                logEntry.Command, 
+                logEntry.Username, 
+                context.ServerMeta.ServerName, 
+                executionTime);
         }
-
-        var executionTime = (context.FinishedAt - context.CreatedAt).Milliseconds;
-        var logEntry = new Models.CommandLog
+        catch (Exception ex)
         {
-            Command = slashCommandInfo.Name,
-            CommandDate = context.CreatedAt,
-            Duration = executionTime,
-            ErrorMessage = result.ErrorReason,
-            IsSuccess = result.IsSuccess,
-            ServerId = context.ServerMeta.Id,
-            Username = context?.Context?.User?.Username ?? string.Empty,
-        };
+            _logger.LogError(ex, "Failed to log command execution for {commandName}", slashCommandInfo.Name);
+        }
+    }
 
-        await commandLogRepository.AddAsync(logEntry);
-        await commandLogRepository.SaveChangesAsync();
-        _logger.LogInformation("Command [{command}] executed by [{username}] in server [{serverName}] and took {timeToExecute} ms to execute", logEntry.Command, logEntry.Username, context?.ServerMeta?.ServerName, executionTime);
+    /// <summary>
+    /// Handles command errors with appropriate responses to the user.
+    /// </summary>
+    /// <param name="interaction">The interaction that caused the error.</param>
+    /// <param name="exception">The exception that occurred.</param>
+    private async Task HandleCommandErrorAsync(SocketInteraction interaction, Exception exception)
+    {
+        try
+        {
+            var errorMessage = exception switch
+            {
+                TimeoutException => "The command timed out. Please try again.",
+                UnauthorizedAccessException => "You don't have permission to execute this command.",
+                InvalidOperationException => "The command cannot be executed in this context.",
+                ArgumentException => "Invalid arguments provided to the command.",
+                _ => DefaultErrorMessage
+            };
+
+            await RespondWithErrorAsync(interaction, errorMessage);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to handle command error for interaction {interactionId}", interaction.Id);
+        }
+    }
+
+    /// <summary>
+    /// Handles command execution errors with appropriate error embeds.
+    /// </summary>
+    /// <param name="interactionContext">The interaction context.</param>
+    /// <param name="slashCommandInfo">The slash command information.</param>
+    /// <param name="result">The execution result containing error information.</param>
+    private async Task HandleCommandExecutionErrorAsync(IInteractionContext interactionContext, SlashCommandInfo slashCommandInfo, IResult result)
+    {
+        try
+        {
+            var embed = CreateErrorEmbed(result);
+
+            if (result.Error == InteractionCommandError.Exception && result is ExecuteResult execResult)
+            {
+                _logger.LogError(execResult.Exception, CommandFailedLogTemplate, 
+                    slashCommandInfo.Name, 
+                    interactionContext.Guild?.Name ?? "DM");
+            }
+
+            await interactionContext.Interaction.ModifyOriginalResponseAsync(msg => msg.Embed = embed.Build());
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to handle command execution error for {commandName}", slashCommandInfo.Name);
+        }
+    }
+
+    /// <summary>
+    /// Creates an error embed based on the command execution result.
+    /// </summary>
+    /// <param name="result">The command execution result.</param>
+    /// <returns>An EmbedBuilder configured with error information.</returns>
+    private static EmbedBuilder CreateErrorEmbed(IResult result)
+    {
+        var embed = new EmbedBuilder()
+            .WithCurrentTimestamp()
+            .WithColor(Color.Red);
+
+        return result.Error switch
+        {
+            InteractionCommandError.UnmetPrecondition => embed
+                .WithTitle("Unmet Precondition")
+                .WithDescription(result.ErrorReason),
+            InteractionCommandError.UnknownCommand => embed
+                .WithTitle("Unknown Command")
+                .WithDescription(result.ErrorReason),
+            InteractionCommandError.BadArgs => embed
+                .WithTitle("Invalid Arguments")
+                .WithDescription(result.ErrorReason),
+            InteractionCommandError.Exception => embed
+                .WithTitle("Command Exception")
+                .WithDescription(result.ErrorReason),
+            InteractionCommandError.Unsuccessful => embed
+                .WithTitle("Command Failed")
+                .WithDescription(result.ErrorReason),
+            _ => embed
+                .WithTitle("Something Went Wrong")
+                .WithDescription(result.ErrorReason)
+        };
+    }
+
+    /// <summary>
+    /// Responds to an interaction with an error message.
+    /// </summary>
+    /// <param name="interaction">The interaction to respond to.</param>
+    /// <param name="message">The error message to send.</param>
+    private async Task RespondWithErrorAsync(SocketInteraction interaction, string message)
+    {
+        try
+        {
+            if (interaction.HasResponded)
+            {
+                await interaction.ModifyOriginalResponseAsync(msg => msg.Content = message);
+            }
+            else
+            {
+                await interaction.RespondAsync(message, ephemeral: true);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to respond with error message to interaction {interactionId}", interaction.Id);
+        }
+    }
+
+    /// <summary>
+    /// Gets the command name from a socket interaction.
+    /// </summary>
+    /// <param name="interaction">The socket interaction.</param>
+    /// <returns>The command name or "Unknown" if unable to determine.</returns>
+    private static string GetCommandName(SocketInteraction interaction)
+    {
+        return interaction switch
+        {
+            SocketSlashCommand slashCommand => slashCommand.Data.Name,
+            SocketMessageCommand messageCommand => messageCommand.Data.Name,
+            SocketUserCommand userCommand => userCommand.Data.Name,
+            _ => "Unknown"
+        };
+    }
+
+    /// <summary>
+    /// Gets the guild ID from a socket interaction.
+    /// </summary>
+    /// <param name="interaction">The socket interaction.</param>
+    /// <returns>The guild ID or null if not in a guild (DM).</returns>
+    private static ulong? GetGuildId(SocketInteraction interaction)
+    {
+        return interaction switch
+        {
+            SocketSlashCommand slashCommand => slashCommand.GuildId,
+            SocketMessageCommand messageCommand => messageCommand.GuildId,
+            SocketUserCommand userCommand => userCommand.GuildId,
+            _ => null
+        };
     }
 }
