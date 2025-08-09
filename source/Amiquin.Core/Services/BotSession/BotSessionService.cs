@@ -1,4 +1,5 @@
-using Microsoft.Extensions.Configuration;
+using Amiquin.Core.Options;
+using Microsoft.Extensions.Options;
 
 namespace Amiquin.Core.Services.BotSession;
 
@@ -14,10 +15,11 @@ public class BotSessionService
     public async Task<float> GetUsedMemoryMBAsync() => await _performanceAnalyzer.GetApplicationMemoryUsedMBAsync();
     public async Task<float> GetUsedMemoryPercentageAsync() => await _performanceAnalyzer.GetApplicationMemoryUsagePercentageAsync();
 
-    public BotSessionService(IConfiguration config)
+    public BotSessionService(IOptions<BotOptions> botOptions)
     {
         StartedAt = DateTime.UtcNow;
-        BotName = config.GetValue<string>(Constants.Environment.BotName) ?? "Amiquin";
-        BotVersion = config.GetValue<string>(Constants.Environment.BotVersion) ?? "1.0.0";
+        var options = botOptions.Value;
+        BotName = options.Name;
+        BotVersion = options.Version;
     }
 }

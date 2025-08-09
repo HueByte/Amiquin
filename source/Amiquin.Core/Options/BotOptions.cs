@@ -1,4 +1,4 @@
-using Amiquin.Core.Attributes;
+using System.Reflection;
 
 namespace Amiquin.Core.Options;
 
@@ -6,14 +6,13 @@ public class BotOptions : IOption
 {
     public const string Bot = "Bot";
 
-    [Anomify]
-    public string Token { get; set; } = default!;
-
-    [Anomify]
-    public string OpenAIKey { get; set; } = default!;
-
-    public int MessageFetchCount { get; set; } = default!;
-    public int MaxTokens { get; set; }
-    public string BotName { get; set; } = default!;
-    public string Version { get; set; } = default!;
+    public string Name { get; set; } = "Amiquin";
+    public bool PrintLogo { get; set; } = false;
+    public int MessageFetchCount { get; set; } = 40;
+    public int MaxTokens { get; set; } = 20000;
+    
+    /// <summary>
+    /// Gets the version from the assembly, not from configuration.
+    /// </summary>
+    public string Version => Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "Unknown";
 }

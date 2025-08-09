@@ -1,3 +1,4 @@
+using Amiquin.Core.Options;
 using Amiquin.Core.Services.ApiClients;
 using Amiquin.Core.Services.BotContext;
 using Amiquin.Core.Services.Chat;
@@ -5,8 +6,8 @@ using Amiquin.Core.Services.MessageCache;
 using Amiquin.Core.Services.Meta;
 using Amiquin.Core.Utilities;
 using Microsoft.Extensions.Caching.Memory;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using System.Text;
 
 namespace Amiquin.Core.Services.Persona;
@@ -25,7 +26,7 @@ public class PersonaService : IPersonaService
     private readonly IChatSemaphoreManager _chatSemaphoreManager;
     private readonly IServerMetaService _serverMetaService;
     private readonly BotContextAccessor _botContextAccessor;
-    private readonly IConfiguration _configuration;
+    private readonly BotOptions _botOptions;
 
     /// <summary>
     /// Initializes a new instance of the PersonaService.
@@ -38,8 +39,8 @@ public class PersonaService : IPersonaService
     /// <param name="chatSemaphoreManager">Manager for controlling concurrent chat operations.</param>
     /// <param name="serverMetaService">Service for managing server metadata.</param>
     /// <param name="botContextAccessor">Accessor for bot context information.</param>
-    /// <param name="configuration">Application configuration settings.</param>
-    public PersonaService(ILogger<PersonaService> logger, IMessageCacheService messageCacheService, IChatCoreService chatService, INewsApiClient newsApiClient, IMemoryCache memoryCache, IChatSemaphoreManager chatSemaphoreManager, IServerMetaService serverMetaService, BotContextAccessor botContextAccessor, IConfiguration configuration)
+    /// <param name="botOptions">Bot configuration options.</param>
+    public PersonaService(ILogger<PersonaService> logger, IMessageCacheService messageCacheService, IChatCoreService chatService, INewsApiClient newsApiClient, IMemoryCache memoryCache, IChatSemaphoreManager chatSemaphoreManager, IServerMetaService serverMetaService, BotContextAccessor botContextAccessor, IOptions<BotOptions> botOptions)
     {
         _logger = logger;
         _messageCacheService = messageCacheService;
@@ -49,7 +50,7 @@ public class PersonaService : IPersonaService
         _chatSemaphoreManager = chatSemaphoreManager;
         _serverMetaService = serverMetaService;
         _botContextAccessor = botContextAccessor;
-        _configuration = configuration;
+        _botOptions = botOptions.Value;
     }
 
     /// <inheritdoc/>
@@ -165,8 +166,8 @@ public class PersonaService : IPersonaService
 
     private string ReplacePersonaKeywords(string message, string mood)
     {
-        string name = _configuration.GetValue<string>(Constants.Environment.BotName) ?? "Amiquin";
-        string version = _configuration.GetValue<string>(Constants.Environment.BotVersion) ?? "1.0.0";
+        string name = _botOptions.Name;
+        string version = _botOptions.Version;
 
         return message
             .Replace(Constants.PersonaKeywordsCache.Mood, mood)

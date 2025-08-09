@@ -1,9 +1,9 @@
 using Amiquin.Core.Options;
+using Amiquin.Core.Options.Configuration;
 using Amiquin.Core.Services.Chat;
 using Amiquin.Core.Services.ExternalProcessRunner;
 using Discord;
 using Discord.Audio;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -17,9 +17,9 @@ public class VoiceService : IVoiceService
 {
     private readonly ILogger<VoiceService> _logger;
     private readonly IVoiceStateManager _voiceStateManager;
-    private readonly IConfiguration _configuration;
     private readonly IChatSemaphoreManager _chatSemaphoreManager;
     private readonly ExternalOptions _externalOptions;
+    private readonly VoiceOptions _voiceOptions;
     private readonly IExternalProcessRunnerService _externalProcessRunner;
 
     /// <summary>
@@ -27,17 +27,17 @@ public class VoiceService : IVoiceService
     /// </summary>
     /// <param name="logger">Logger instance for recording service operations.</param>
     /// <param name="voiceStateManager">Manager for handling voice channel state.</param>
-    /// <param name="configuration">Configuration for accessing application settings.</param>
     /// <param name="chatSemaphoreManager">Manager for handling voice operation synchronization.</param>
     /// <param name="externalOptions">Options for external tool configurations.</param>
+    /// <param name="voiceOptions">Options for voice/TTS configurations.</param>
     /// <param name="externalProcessRunner">Service for running external processes like Piper and FFmpeg.</param>
-    public VoiceService(ILogger<VoiceService> logger, IVoiceStateManager voiceStateManager, IConfiguration configuration, IChatSemaphoreManager chatSemaphoreManager, IOptions<ExternalOptions> externalOptions, IExternalProcessRunnerService externalProcessRunner)
+    public VoiceService(ILogger<VoiceService> logger, IVoiceStateManager voiceStateManager, IChatSemaphoreManager chatSemaphoreManager, IOptions<ExternalOptions> externalOptions, IOptions<VoiceOptions> voiceOptions, IExternalProcessRunnerService externalProcessRunner)
     {
         _logger = logger;
         _voiceStateManager = voiceStateManager;
-        _configuration = configuration;
         _chatSemaphoreManager = chatSemaphoreManager;
         _externalOptions = externalOptions.Value;
+        _voiceOptions = voiceOptions.Value;
         _externalProcessRunner = externalProcessRunner;
     }
 
@@ -65,8 +65,8 @@ public class VoiceService : IVoiceService
 
         var guid = Guid.NewGuid().ToString();
 
-        string? modelName = _configuration.GetValue<string>(Constants.Environment.TTSModelName) ?? _externalOptions.ModelName;
-        string? piperCommand = _configuration.GetValue<string>(Constants.Environment.PiperCommand) ?? _externalOptions.PiperCommand;
+        string? modelName = _voiceOptions.TTSModelName;
+        string? piperCommand = _voiceOptions.PiperCommand;
 
         var modelPath = Path.Join(Constants.Paths.TTSBasePath, string.IsNullOrEmpty(modelName) ? "en_GB-northern_english_male-medium.onnx" : $"{modelName}.onnx");
         var ttsOutputPath = Path.Join(Constants.Paths.TTSBasePath, "output", $"o_{guid}.wav");

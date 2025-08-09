@@ -1,8 +1,10 @@
 using Amiquin.Bot.Configurators;
 using Amiquin.Core;
 using Amiquin.Core.Exceptions;
+using Amiquin.Core.Options.Configuration;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using Serilog;
 using Serilog.Events;
 using Serilog.Extensions.Logging;
@@ -91,9 +93,10 @@ async Task RunAsync(string[] args)
             .Enrich.FromLogContext()
             .CreateBootstrapLogger();
 
+    var basePath = AppContext.BaseDirectory;
     var configurationManager = new ConfigurationManager()
-        .AddEnvironmentVariables(prefix: "AMIQUIN_")
-        .AddJsonFile("Configuration/appsettings.json", optional: false)
+        .AddEnvironmentVariables(prefix: "AMQ_")
+        .AddJsonFile(Path.Combine(basePath, "Configuration", "appsettings.json"), optional: false)
         .AddCommandLine(args);
 
     var logger = new SerilogLoggerProvider(Serilog.Log.Logger)
@@ -116,10 +119,8 @@ async Task RunAsync(string[] args)
         })
         .UseSerilog((context, services, config) =>
         {
-            var logsPath = context.Configuration.GetValue<string>("DataPaths:Logs");
-            if (string.IsNullOrEmpty(logsPath))
-                logsPath = "Data/Logs";
-
+            var dataPathOptions = services.GetService(typeof(IOptions<DataPathOptions>)) as IOptions<DataPathOptions>;
+            var logsPath = dataPathOptions?.Value?.Logs ?? "Data/Logs";
             var fullLogsPath = Path.IsPathRooted(logsPath) ? logsPath : Path.Combine(AppContext.BaseDirectory, logsPath);
 
             config.WriteTo.Console(restrictedToMinimumLevel: LogEventLevel.Information, theme: AnsiConsoleTheme.Code)

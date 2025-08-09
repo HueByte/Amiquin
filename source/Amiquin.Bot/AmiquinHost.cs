@@ -1,6 +1,7 @@
 using Amiquin.Core;
 using Amiquin.Core.Job;
 using Amiquin.Core.Options;
+using Amiquin.Core.Options.Configuration;
 using Amiquin.Core.Services.CommandHandler;
 using Amiquin.Core.Services.EventHandler;
 using Amiquin.Core.Utilities;
@@ -9,7 +10,6 @@ using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -26,13 +26,27 @@ public class AmiquinHost : IHostedService
     private readonly InteractionService _interactionService;
     private readonly ICommandHandlerService _commandHandlerService;
     private readonly IServiceScopeFactory _serviceScopeFactory;
-    private readonly IConfiguration _configuration;
     private readonly BotOptions _botOptions;
     private readonly ExternalOptions _externalOptions;
+    private readonly DiscordOptions _discordOptions;
+    private readonly VoiceOptions _voiceOptions;
+    private readonly DataPathOptions _dataPathOptions;
     private readonly IJobService _jobService;
     private bool _isInitialized = false;
 
-    public AmiquinHost(IEventHandlerService eventHandlerService, DiscordShardedClient discordClient, InteractionService interactionService, ILogger<AmiquinHost> logger, IOptions<BotOptions> botOptions, ICommandHandlerService commandHandlerService, IServiceScopeFactory serviceScopeFactory, IConfiguration configuration, IOptions<ExternalOptions> externalOptions, IJobService jobService)
+    public AmiquinHost(
+        IEventHandlerService eventHandlerService, 
+        DiscordShardedClient discordClient, 
+        InteractionService interactionService, 
+        ILogger<AmiquinHost> logger, 
+        IOptions<BotOptions> botOptions, 
+        ICommandHandlerService commandHandlerService, 
+        IServiceScopeFactory serviceScopeFactory, 
+        IOptions<ExternalOptions> externalOptions, 
+        IOptions<DiscordOptions> discordOptions,
+        IOptions<VoiceOptions> voiceOptions,
+        IOptions<DataPathOptions> dataPathOptions,
+        IJobService jobService)
     {
         _eventHandlerService = eventHandlerService;
         _client = discordClient;
@@ -41,8 +55,10 @@ public class AmiquinHost : IHostedService
         _commandHandlerService = commandHandlerService;
         _botOptions = botOptions.Value;
         _serviceScopeFactory = serviceScopeFactory;
-        _configuration = configuration;
         _externalOptions = externalOptions.Value;
+        _discordOptions = discordOptions.Value;
+        _voiceOptions = voiceOptions.Value;
+        _dataPathOptions = dataPathOptions.Value;
         _jobService = jobService;
     }
 
@@ -85,9 +101,7 @@ public class AmiquinHost : IHostedService
 
     private async Task CreateBotAsync()
     {
-        var token = _configuration.GetValue<string>(Constants.Environment.BotToken);
-        if (string.IsNullOrEmpty(token))
-            token = _botOptions.Token;
+        var token = _discordOptions.Token;
 
         _logger.LogInformation("Creating bot");
         _logger.LogInformation("Logging in with token: {Token}", StringModifier.Anomify(token));
@@ -109,24 +123,14 @@ public class AmiquinHost : IHostedService
 
     private void DisplayData()
     {
-        var shouldPrintLogo = _configuration.GetValue<bool>(Constants.Environment.PrintLogo);
-        if (shouldPrintLogo)
+        if (_botOptions.PrintLogo)
             Console.Writer.WriteLogo();
 
         Console.Writer.WriteJsonData("Bot Options", _botOptions);
         Console.Writer.WriteJsonData("External Options", _externalOptions);
-        Dictionary<string, string> envVariables = new()
-        {
-            { Constants.Environment.BotToken, StringModifier.Anomify(_configuration.GetValue<string>(Constants.Environment.BotToken) ?? string.Empty) ?? "null" },
-            { Constants.Environment.OpenAiKey, StringModifier.Anomify(_configuration.GetValue<string>(Constants.Environment.OpenAiKey) ?? string.Empty) ?? "null" },
-            { Constants.Environment.LogsPath, _configuration.GetValue<string>(Constants.Environment.LogsPath) ?? "null" },
-            { Constants.Environment.PrintLogo, _configuration.GetValue<string>(Constants.Environment.PrintLogo) ?? "null" },
-            { Constants.Environment.SQLitePath, _configuration.GetValue<string>(Constants.Environment.SQLitePath) ?? "null" },
-            { Constants.Environment.TTSModelName, _configuration.GetValue<string>(Constants.Environment.TTSModelName) ?? "null" },
-            { Constants.Environment.PiperCommand, _configuration.GetValue<string>(Constants.Environment.PiperCommand) ?? "null" },
-            { Constants.Environment.MessageFetchCount, _configuration.GetValue<string>(Constants.Environment.MessageFetchCount) ?? "null" },
-        };
-        Console.Writer.WriteDictionaryData("Environment Variables", envVariables);
+        Console.Writer.WriteJsonData("Discord Options", _discordOptions);
+        Console.Writer.WriteJsonData("Voice Options", _voiceOptions);
+        Console.Writer.WriteJsonData("Data Path Options", _dataPathOptions);
 
         Dictionary<string, string> calculatedPaths = new()
         {
@@ -144,13 +148,12 @@ public class AmiquinHost : IHostedService
 
         // Get version from assembly
         var assemblyVersion = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "Unknown";
-        var configVersion = _configuration.GetValue<string>(Constants.Environment.BotVersion);
-        var displayVersion = !string.IsNullOrEmpty(configVersion) ? configVersion : assemblyVersion;
+        var displayVersion = !string.IsNullOrEmpty(_botOptions.Version) ? _botOptions.Version : assemblyVersion;
 
         Dictionary<string, string> data = new()
         {
             { "ID", _client.CurrentUser.Id.ToString() },
-            { "Name Const", _configuration.GetValue<string>(Constants.Environment.BotName) ?? "Amiquin" },
+            { "Name Const", _botOptions.Name },
             { "Name", _client.CurrentUser.Username},
             { "Discriminator", _client.CurrentUser.Discriminator},
             { "Global Name", _client.CurrentUser.GlobalName},

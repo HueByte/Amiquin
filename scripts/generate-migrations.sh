@@ -29,14 +29,14 @@ echo "Migration name: $MIGRATION_NAME"
 # Set environment variable to skip database connection during migrations
 export DOTNET_RUNNING_IN_CONTAINER=true
 
-# Iterate through AMQ_DATABASE_MODE values
-for MODE in 0 1 2 3; do
+# Iterate through AMQ_DATABASE_MODE values (corrected mapping)
+for MODE in 1 0 2 3; do
     export AMQ_DATABASE_MODE=$MODE
     echo "Running migration step with AMQ_DATABASE_MODE=$MODE"
 
     case $MODE in
-        0)
-            # SQLite
+        1)
+            # SQLite (Mode 1)
             (cd "$ROOT_DIR/$INFRASTRUCTURE_PROJECT" && dotnet ef migrations add "${MIGRATION_NAME}_SQLite" \
                 --startup-project "$ROOT_DIR/$STARTUP_PROJECT" \
                 --output-dir "$MIGRATION_DIR/Amiquin.Sqlite/Migrations" \
@@ -45,8 +45,8 @@ for MODE in 0 1 2 3; do
                 -- \
                 --provider Sqlite)
             ;;
-        1)
-            # MySQL
+        0)
+            # MySQL (Mode 0)
             (cd "$ROOT_DIR/$INFRASTRUCTURE_PROJECT" && dotnet ef migrations add "${MIGRATION_NAME}_MySql" \
                 --startup-project "$ROOT_DIR/$STARTUP_PROJECT" \
                 --output-dir "$MIGRATION_DIR/Amiquin.MySql/Migrations" \
@@ -54,17 +54,7 @@ for MODE in 0 1 2 3; do
                 --project ../Migrations/Amiquin.MySql)
             ;;
         2)
-            # MSSQL
-            (cd "$ROOT_DIR/$INFRASTRUCTURE_PROJECT" && dotnet ef migrations add "${MIGRATION_NAME}_MSSql" \
-                --startup-project "$ROOT_DIR/$STARTUP_PROJECT" \
-                --output-dir "$MIGRATION_DIR/Amiquin.MSSql/Migrations" \
-                --context $CONTEXT_NAME \
-                --project ../Migrations/Amiquin.MSSql \
-                -- \
-                --provider SqlServer)
-            ;;
-        3)
-            # PostgreSQL
+            # PostgreSQL (Mode 2)
             (cd "$ROOT_DIR/$INFRASTRUCTURE_PROJECT" && dotnet ef migrations add "${MIGRATION_NAME}_Postgres" \
                 --startup-project "$ROOT_DIR/$STARTUP_PROJECT" \
                 --output-dir "$MIGRATION_DIR/Amiquin.Postgres/Migrations" \
@@ -72,6 +62,16 @@ for MODE in 0 1 2 3; do
                 --project ../Migrations/Amiquin.Postgres \
                 -- \
                 --provider Npgsql)
+            ;;
+        3)
+            # MSSQL (Mode 3)
+            (cd "$ROOT_DIR/$INFRASTRUCTURE_PROJECT" && dotnet ef migrations add "${MIGRATION_NAME}_MSSql" \
+                --startup-project "$ROOT_DIR/$STARTUP_PROJECT" \
+                --output-dir "$MIGRATION_DIR/Amiquin.MSSql/Migrations" \
+                --context $CONTEXT_NAME \
+                --project ../Migrations/Amiquin.MSSql \
+                -- \
+                --provider SqlServer)
             ;;
     esac
 done

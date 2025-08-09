@@ -71,12 +71,11 @@ public class InjectionConfigurator
         };
 
         InteractionService interactionService = new(client, interactionServiceConfig);
-        BotSessionService botSessionService = new(_configuration);
 
         _services.AddHostedService<AmiquinHost>()
                  .AddSingleton(client)
                  .AddSingleton(interactionService)
-                 .AddSingleton(botSessionService)
+                 .AddSingleton<BotSessionService>()
                  .AddSingleton<ICommandHandlerService, CommandHandlerService>()
                  .AddSingleton<IEventHandlerService, EventHandlerService>()
                  .AddSingleton<IChatSemaphoreManager, ChatSemaphoreManager>()
@@ -124,8 +123,8 @@ public class InjectionConfigurator
     private string GetDatabaseModeValue(string? value) => value switch
     {
         null or "" => "sqlite",
-        "0" => "sqlite",
-        "1" => "mysql",
+        "0" => "mysql",
+        "1" => "sqlite",
         "2" => "postgres",
         "3" => "mssql",
         _ => throw new InvalidOperationException($"Unsupported database mode: {value}")
@@ -159,9 +158,9 @@ public class InjectionConfigurator
 
         _services.AddScoped<ChatClient>((services) =>
         {
-            var configManager = services.GetRequiredService<IConfiguration>();
-            string openApiKey = configManager.GetValue<string>(Constants.Environment.OpenAiKey)
-                ?? services.GetRequiredService<IOptions<BotOptions>>().Value.OpenAIKey;
+            var llmOptions = services.GetRequiredService<IOptions<LLMOptions>>().Value;
+            var openAIProvider = llmOptions.GetProvider("OpenAI");
+            string openApiKey = openAIProvider?.ApiKey ?? throw new InvalidOperationException("OpenAI API key is not configured");
 
             return new ChatClient(Constants.AI.Gpt4oMiniModel, openApiKey);
         });
@@ -240,24 +239,19 @@ public class InjectionConfigurator
 
     public InjectionConfigurator AddOptions()
     {
-        // Original options
-        _services.AddOptions<BotOptions>().Bind(_configuration.GetSection(BotOptions.Bot));
-        _services.AddOptions<ExternalOptions>().Bind(_configuration.GetSection(ExternalOptions.External));
+        // Main options
+        _services.Configure<BotOptions>(_configuration.GetSection(BotOptions.Bot));
+        _services.Configure<ExternalOptions>(_configuration.GetSection(ExternalOptions.External));
         _services.Configure<DatabaseOptions>(_configuration.GetSection(DatabaseOptions.Database));
 
-        // Legacy configuration options (for backward compatibility)
+        // Configuration options
         _services.Configure<ChatOptions>(_configuration.GetSection(ChatOptions.SectionName));
         _services.Configure<DataPathOptions>(_configuration.GetSection(DataPathOptions.SectionName));
         _services.Configure<DiscordOptions>(_configuration.GetSection(DiscordOptions.SectionName));
+        _services.Configure<VoiceOptions>(_configuration.GetSection(VoiceOptions.SectionName));
         
-        // New LLM configuration system
+        // LLM configuration system
         _services.Configure<LLMOptions>(_configuration.GetSection(LLMOptions.SectionName));
-        
-        // Register as singletons for easy access
-        _services.AddSingleton(sp => sp.GetRequiredService<IOptions<ChatOptions>>().Value);
-        _services.AddSingleton(sp => sp.GetRequiredService<IOptions<DataPathOptions>>().Value);
-        _services.AddSingleton(sp => sp.GetRequiredService<IOptions<DiscordOptions>>().Value);
-        _services.AddSingleton(sp => sp.GetRequiredService<IOptions<LLMOptions>>().Value);
 
         return this;
     }
