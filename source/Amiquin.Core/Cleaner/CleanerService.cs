@@ -94,7 +94,7 @@ public class CleanerService : ICleanerService
                     var cacheKeys = string.Join(", ", memoryCache.Keys.Take(10));
                     logger.LogTrace("Sample cache keys: {CacheKeys}{More}", 
                         cacheKeys, 
-                        memoryCache.Count > 10 ? "..." : "");
+                        memoryCache.Count > Constants.Limits.CacheDisplayThreshold ? "..." : "");
                 }
                 
                 memoryCache.Clear();
@@ -120,7 +120,7 @@ public class CleanerService : ICleanerService
     {
         try
         {
-            var logsPath = configuration.GetValue<string>("DataPaths:Logs") ?? "Data/Logs";
+            var logsPath = configuration.GetValue<string>("DataPaths:Logs") ?? Constants.Paths.DefaultDataLogsPath;
             var logDirectory = Path.GetFullPath(logsPath);
             
             if (!Directory.Exists(logDirectory))
@@ -199,7 +199,7 @@ public class CleanerService : ICleanerService
             }
             
             // Clean system temp files related to the application
-            var appTempPath = Path.Combine(Path.GetTempPath(), "Amiquin");
+            var appTempPath = Constants.Paths.ApplicationTempPath;
             if (Directory.Exists(appTempPath))
             {
                 try

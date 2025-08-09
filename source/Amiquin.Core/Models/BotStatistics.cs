@@ -20,5 +20,5 @@ public class BotStatistics : DbModel<string>
     public double CpuUsage { get; set; }
     public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
     public string? Version { get; set; }
-    public string BotName { get; set; } = "Amiquin";
+    public string BotName { get; set; } = Constants.DefaultValues.BotName;
 }

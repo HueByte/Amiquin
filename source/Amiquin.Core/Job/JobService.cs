@@ -293,7 +293,7 @@ public class JobService : IAsyncDisposable, IJobService
             // Wait for cancellations with timeout
             try
             {
-                await Task.WhenAll(cancellationTasks).WaitAsync(TimeSpan.FromSeconds(5));
+                await Task.WhenAll(cancellationTasks).WaitAsync(TimeSpan.FromSeconds(Constants.Timeouts.JobCancellationTimeoutSeconds));
             }
             catch (TimeoutException)
             {

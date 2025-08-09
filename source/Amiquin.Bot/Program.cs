@@ -123,7 +123,7 @@ async Task RunAsync(string[] args)
         .UseSerilog((context, services, config) =>
         {
             var dataPathOptions = services.GetService(typeof(IOptions<DataPathOptions>)) as IOptions<DataPathOptions>;
-            var logsPath = dataPathOptions?.Value?.Logs ?? "Data/Logs";
+            var logsPath = dataPathOptions?.Value?.Logs ?? Constants.DefaultValues.DefaultLogsPath;
             var fullLogsPath = Path.IsPathRooted(logsPath) ? logsPath : Path.Combine(AppContext.BaseDirectory, logsPath);
 
             // This replaces the bootstrap logger and configures the final logger

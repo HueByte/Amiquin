@@ -18,11 +18,11 @@ namespace Amiquin.Core.Services.StatisticsCollector;
 /// </summary>
 public class StatisticsCollector : IStatisticsCollector
 {
-    private const int DefaultFrequencySeconds = 300; // 5 minutes
-    private const int DatabaseTimeoutSeconds = 30;
+    private const int DefaultFrequencySeconds = Constants.JobFrequencies.StatisticsCollectionFrequency;
+    private const int DatabaseTimeoutSeconds = Constants.Timeouts.DatabaseOperationTimeoutSeconds;
     private const string LoggerPrefix = "StatisticsCollector";
-    private const string UnknownVersion = "Unknown";
-    private const string FallbackBotName = "Amiquin";
+    private const string UnknownVersion = Constants.DefaultValues.UnknownValue;
+    private const string FallbackBotName = Constants.DefaultValues.BotName;
 
     public int FrequencyInSeconds { get; set; } = DefaultFrequencySeconds;
 
@@ -221,7 +221,7 @@ public class StatisticsCollector : IStatisticsCollector
                 sessionService.GetUsedMemoryPercentageAsync()
             };
 
-            using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(Constants.Timeouts.SystemMetricsTimeoutSeconds));
             using var combinedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
 
             var results = await Task.WhenAll(tasks);

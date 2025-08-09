@@ -88,9 +88,19 @@ public class Constants
 
     public class Paths
     {
+        #region Application Paths
         public static string Assets = Path.Join(AppContext.BaseDirectory, "Messages");
         public static string TTSBasePath = Path.Join(AppContext.BaseDirectory, "TTS");
         public static string TTSBaseOutputPath = Path.Join(TTSBasePath, "output");
+        public static string ApplicationTempPath = Path.Combine(Path.GetTempPath(), "Amiquin");
+        #endregion
+
+        #region Data Paths
+        public const string DefaultDataLogsPath = "Data/Logs";
+        public const string DefaultDataMessagesPath = "Data/Messages";
+        public const string DefaultDataSessionsPath = "Data/Sessions";
+        public const string DefaultDataPluginsPath = "Data/Plugins";
+        #endregion
     }
 
     public class Emoji
@@ -120,6 +130,88 @@ public class Constants
         public const string BotName = "Amiquin";
         public const string BotVersion = "1.0.0";
         public const string DefaultLogsPath = "Data/Logs";
+        public const string UnknownValue = "Unknown";
+        public const string UnknownServer = "Unknown Server";
+        public const string UnknownUser = "Unknown";
+        public const string NoneActivity = "None";
+        public const string DefaultSQLiteDatabase = "data.db";
+        public const string DefaultMySQLConnectionString = "Server=localhost;Database=Amiquin;User=root;Password=;";
+        public const string InMemoryDatabase = "Data Source=:memory:";
+        public const string ContainerEnvironmentVariable = "DOTNET_RUNNING_IN_CONTAINER";
+        public const string ContainerEnvironmentValue = "true";
+        #endregion
+    }
+
+    public class MigrationAssemblies
+    {
+        #region Migration Assembly Names
+        public const string SQLite = "Amiquin.Sqlite";
+        public const string MySQL = "Amiquin.MySql";
+        #endregion
+    }
+
+    public class DatabaseIndexNames
+    {
+        #region Index Names
+        public const string ChatSessionsScopeOwner = "IX_ChatSessions_Scope_Owner";
+        public const string ChatSessionsActivity = "IX_ChatSessions_Activity";
+        public const string ChatSessionsCreated = "IX_ChatSessions_Created";
+        #endregion
+    }
+
+    public class Timeouts
+    {
+        #region Timeout Values (in seconds)
+        public const int DatabaseOperationTimeoutSeconds = 30;
+        public const int SystemMetricsTimeoutSeconds = 10;
+        public const int JobCancellationTimeoutSeconds = 5;
+        public const int DefaultCommandTimeoutSeconds = 120;
+        public const int SemaphoreTimeoutSeconds = 30;
+        #endregion
+
+        #region Cache Timeouts (in minutes)
+        public const int DefaultCacheTimeoutMinutes = 30;
+        public const int MessageCacheTimeoutMinutes = 5;
+        public const int SemaphoreCleanupIntervalMinutes = 60;
+        #endregion
+    }
+
+    public class Limits
+    {
+        #region General Limits
+        public const int EmbedDescriptionMaxLength = 2048;
+        public const int MessageHistoryMinCount = 1;
+        public const int MessageHistoryMaxCount = 100;
+        public const int CacheDisplayThreshold = 10;
+        public const int SlowOperationThresholdMs = 1000;
+        #endregion
+
+        #region Job Manager Limits
+        public const int MaxHealthCheckIntervalSeconds = 3600; // 1 hour
+        public const int MaxJobTimeoutSeconds = 3600; // 1 hour
+        public const int MaxQueueTimeoutSeconds = 1800; // 30 minutes
+        public const int MaxPendingJobsLimit = 1000;
+        #endregion
+
+        #region Model Context Limits
+        public const int Grok2ContextLimit = 131072; // 128k context
+        public const int Grok2VisionContextLimit = 32768; // 32k context for vision model
+        public const int GrokBetaContextLimit = 131072; // 128k context
+        #endregion
+
+        #region Network and Protocol Limits
+        public const int IPv4AddressFamily = 4;
+        public const int IPv6AddressFamily = 6;
+        public const int IPv6LocalAddressFamily = 128;
+        #endregion
+    }
+
+    public class JobFrequencies
+    {
+        #region Default Job Frequencies (in seconds)
+        public const int StatisticsCollectionFrequency = 300; // 5 minutes
+        public const int CleanupServiceFrequency = 3600; // 1 hour
+        public const int HealthCheckFrequency = 60; // 1 minute
         #endregion
     }
 }

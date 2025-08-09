@@ -15,7 +15,7 @@ public class GeneralUtilities
     public static bool IsLinux()
     {
         int p = (int)Environment.OSVersion.Platform;
-        return (p == 4) || (p == 6) || (p == 128);
+        return (p == Constants.Limits.IPv4AddressFamily) || (p == Constants.Limits.IPv6AddressFamily) || (p == Constants.Limits.IPv6LocalAddressFamily);
     }
 
     public static bool IsDebugMode()

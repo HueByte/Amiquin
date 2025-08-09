@@ -24,10 +24,10 @@ public class GrokProvider : IChatProvider
     
     public int MaxContextTokens => _grokOptions.Model switch
     {
-        "grok-2-1212" => 131072, // 128k context
-        "grok-2-vision-1212" => 32768, // 32k context for vision model
-        "grok-beta" => 131072, // 128k context
-        _ => 32768
+        "grok-2-1212" => Constants.Limits.Grok2ContextLimit, // 128k context
+        "grok-2-vision-1212" => Constants.Limits.Grok2VisionContextLimit, // 32k context for vision model
+        "grok-beta" => Constants.Limits.GrokBetaContextLimit, // 128k context
+        _ => Constants.Limits.Grok2VisionContextLimit
     };
     
     public GrokProvider(

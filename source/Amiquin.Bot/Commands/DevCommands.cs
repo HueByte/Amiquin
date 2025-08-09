@@ -84,7 +84,7 @@ Streams: {voiceState.AudioClient?.GetStreams().ToDictionary(x => x.Key, x => x.V
         var fullPersonaMessage = await _personaService.GetPersonaAsync(Context.Guild.Id);
 
         List<Embed> chunks = new();
-        if (fullPersonaMessage?.Length > 2048)
+        if (fullPersonaMessage?.Length > Constants.Limits.EmbedDescriptionMaxLength)
         {
             chunks.AddRange(ChunkMessage(fullPersonaMessage, "Computed Persona"));
         }

@@ -133,9 +133,9 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
     public async Task NukeAsync(int messageCount)
     {
         IUserMessage currentMessage = await ModifyOriginalResponseAsync((msg) => msg.Content = "Preparing to nuke...");
-        if (messageCount < 1 || messageCount > 100)
+        if (messageCount < Constants.Limits.MessageHistoryMinCount || messageCount > Constants.Limits.MessageHistoryMaxCount)
         {
-            await currentMessage.ModifyAsync((msg) => msg.Content = "Message count must be between 1 and 100");
+            await currentMessage.ModifyAsync((msg) => msg.Content = $"Message count must be between {Constants.Limits.MessageHistoryMinCount} and {Constants.Limits.MessageHistoryMaxCount}");
             return;
         }
 

@@ -1,3 +1,4 @@
+using Amiquin.Core;
 using Amiquin.Core.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -19,11 +20,11 @@ public class AmiquinContext : DbContext
     {
         if (!optionsBuilder.IsConfigured)
         {
-            var environment = Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER");
-            if (environment == "true")
+            var environment = Environment.GetEnvironmentVariable(Constants.DefaultValues.ContainerEnvironmentVariable);
+            if (environment == Constants.DefaultValues.ContainerEnvironmentValue)
             {
                 // Use a default SQLite configuration for design-time
-                optionsBuilder.UseSqlite("Data Source=:memory:");
+                optionsBuilder.UseSqlite(Constants.DefaultValues.InMemoryDatabase);
             }
         }
     }
@@ -60,16 +61,16 @@ public class AmiquinContext : DbContext
         // Primary index for session lookups by scope and owning entity
         builder.Entity<ChatSession>()
             .HasIndex(cs => new { cs.Scope, cs.OwningEntityId })
-            .HasDatabaseName("IX_ChatSessions_Scope_Owner");
+            .HasDatabaseName(Constants.DatabaseIndexNames.ChatSessionsScopeOwner);
 
         // Additional indexes for performance
         builder.Entity<ChatSession>()
             .HasIndex(cs => new { cs.IsActive, cs.LastActivityAt })
-            .HasDatabaseName("IX_ChatSessions_Activity");
+            .HasDatabaseName(Constants.DatabaseIndexNames.ChatSessionsActivity);
 
         builder.Entity<ChatSession>()
             .HasIndex(cs => cs.CreatedAt)
-            .HasDatabaseName("IX_ChatSessions_Created");
+            .HasDatabaseName(Constants.DatabaseIndexNames.ChatSessionsCreated);
 
         // Configure Scope enum to be stored as integer
         builder.Entity<ChatSession>()

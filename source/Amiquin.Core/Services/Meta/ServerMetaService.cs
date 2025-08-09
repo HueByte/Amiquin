@@ -16,10 +16,10 @@ namespace Amiquin.Core.Services.Meta;
 /// </summary>
 public class ServerMetaService : IServerMetaService, IDisposable
 {
-    private const int DefaultCacheTimeoutMinutes = 30;
-    private const int SemaphoreTimeoutSeconds = 30;
+    private const int DefaultCacheTimeoutMinutes = Constants.Timeouts.DefaultCacheTimeoutMinutes;
+    private const int SemaphoreTimeoutSeconds = Constants.Timeouts.SemaphoreTimeoutSeconds;
     private const int MaxConcurrentOperations = 1;
-    private const int SemaphoreCleanupIntervalMinutes = 60;
+    private const int SemaphoreCleanupIntervalMinutes = Constants.Timeouts.SemaphoreCleanupIntervalMinutes;
     private const string CacheHitMetric = "ServerMeta cache hit";
     private const string CacheMissMetric = "ServerMeta cache miss";
     private const string DatabaseQueryMetric = "ServerMeta database query";
@@ -158,7 +158,7 @@ public class ServerMetaService : IServerMetaService, IDisposable
                 if (serverMeta is null)
                 {
                     // Create new ServerMeta
-                    serverMeta = CreateNewServerMeta(serverId, context.Guild?.Name ?? "Unknown Server");
+                    serverMeta = CreateNewServerMeta(serverId, context.Guild?.Name ?? Constants.DefaultValues.UnknownServer);
                     
                     _logger.LogInformation("Creating new ServerMeta for serverId {serverId} with name {serverName}", 
                         serverId, serverMeta.ServerName);
@@ -633,7 +633,7 @@ public class ServerMetaService : IServerMetaService, IDisposable
         _operationMetrics.AddOrUpdate(operationName, value, (key, oldValue) => oldValue + value);
         
         // Log significant operations for monitoring
-        if (value > 1000) // Log operations taking more than 1 second
+        if (value > Constants.Limits.SlowOperationThresholdMs) // Log operations taking more than 1 second
         {
             _logger.LogWarning("Slow ServerMetaService operation: {operationName} took {duration}ms", operationName, value);
         }

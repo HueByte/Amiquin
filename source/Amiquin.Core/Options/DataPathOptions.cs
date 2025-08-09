@@ -10,22 +10,22 @@ public class DataPathOptions
     /// <summary>
     /// Path for log files.
     /// </summary>
-    public string Logs { get; set; } = "Data/Logs";
+    public string Logs { get; set; } = Constants.Paths.DefaultDataLogsPath;
     
     /// <summary>
     /// Path for message storage.
     /// </summary>
-    public string Messages { get; set; } = "Data/Messages";
+    public string Messages { get; set; } = Constants.Paths.DefaultDataMessagesPath;
     
     /// <summary>
     /// Path for session data.
     /// </summary>
-    public string Sessions { get; set; } = "Data/Sessions";
+    public string Sessions { get; set; } = Constants.Paths.DefaultDataSessionsPath;
     
     /// <summary>
     /// Path for plugin data.
     /// </summary>
-    public string Plugins { get; set; } = "Data/Plugins";
+    public string Plugins { get; set; } = Constants.Paths.DefaultDataPluginsPath;
     
     /// <summary>
     /// Path for configuration files.

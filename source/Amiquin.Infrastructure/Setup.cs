@@ -20,8 +20,8 @@ public static class Setup
     /// <returns>The updated service collection.</returns>
     public static IServiceCollection AddAmiquinContext(this IServiceCollection services, IConfiguration configuration)
     {
-        var connectionString = configuration.GetValue<string>(Constants.Environment.SQLitePath) ?? $"Data Source={Path.Join(AppContext.BaseDirectory, "data.db")}";
-        var migrationAssembly = "Amiquin.Sqlite";
+        var connectionString = configuration.GetValue<string>(Constants.Environment.SQLitePath) ?? $"Data Source={Path.Join(AppContext.BaseDirectory, Constants.DefaultValues.DefaultSQLiteDatabase)}";
+        var migrationAssembly = Constants.MigrationAssemblies.SQLite;
         Log.Information("Using SQLite database at {ConnectionString}", connectionString);
         Log.Information("Using migration assembly {MigrationAssembly}", migrationAssembly);
 
@@ -40,8 +40,8 @@ public static class Setup
     public static IServiceCollection AddAmiquinMySqlContext(this IServiceCollection services, IConfiguration configuration)
     {
         var dbConfig = configuration.GetSection(DatabaseOptions.Database).Get<DatabaseOptions>();
-        var connectionString = configuration.GetValue<string>(Constants.Environment.DbConnectionString) ?? dbConfig?.ConnectionString ?? "Server=localhost;Database=Amiquin;User=root;Password=;";
-        var migrationAssembly = "Amiquin.MySql";
+        var connectionString = configuration.GetValue<string>(Constants.Environment.DbConnectionString) ?? dbConfig?.ConnectionString ?? Constants.DefaultValues.DefaultMySQLConnectionString;
+        var migrationAssembly = Constants.MigrationAssemblies.MySQL;
         Log.Information("Using MySQL database at {ConnectionString}", StringModifier.Anomify(connectionString));
         Log.Information("Using migration assembly {MigrationAssembly}", migrationAssembly);
 

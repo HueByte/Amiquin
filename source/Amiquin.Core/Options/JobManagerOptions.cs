@@ -93,16 +93,16 @@ public class JobManagerOptions
             throw new ArgumentException("MaximumJobIntervalSeconds must be greater than MinimumJobIntervalSeconds", nameof(MaximumJobIntervalSeconds));
 
         // Ensure reasonable upper bounds
-        if (HealthCheckIntervalSeconds > 3600) // 1 hour max
-            throw new ArgumentException("HealthCheckIntervalSeconds cannot exceed 3600 seconds (1 hour)", nameof(HealthCheckIntervalSeconds));
+        if (HealthCheckIntervalSeconds > Constants.Limits.MaxHealthCheckIntervalSeconds) // 1 hour max
+            throw new ArgumentException($"HealthCheckIntervalSeconds cannot exceed {Constants.Limits.MaxHealthCheckIntervalSeconds} seconds (1 hour)", nameof(HealthCheckIntervalSeconds));
 
-        if (DefaultTimeoutSeconds > 3600) // 1 hour max
-            throw new ArgumentException("DefaultTimeoutSeconds cannot exceed 3600 seconds (1 hour)", nameof(DefaultTimeoutSeconds));
+        if (DefaultTimeoutSeconds > Constants.Limits.MaxJobTimeoutSeconds) // 1 hour max
+            throw new ArgumentException($"DefaultTimeoutSeconds cannot exceed {Constants.Limits.MaxJobTimeoutSeconds} seconds (1 hour)", nameof(DefaultTimeoutSeconds));
 
-        if (MaxQueueTimeoutSeconds > 1800) // 30 minutes max
-            throw new ArgumentException("MaxQueueTimeoutSeconds cannot exceed 1800 seconds (30 minutes)", nameof(MaxQueueTimeoutSeconds));
+        if (MaxQueueTimeoutSeconds > Constants.Limits.MaxQueueTimeoutSeconds) // 30 minutes max
+            throw new ArgumentException($"MaxQueueTimeoutSeconds cannot exceed {Constants.Limits.MaxQueueTimeoutSeconds} seconds (30 minutes)", nameof(MaxQueueTimeoutSeconds));
 
-        if (MaxPendingJobs > 1000) // Reasonable limit
-            throw new ArgumentException("MaxPendingJobs cannot exceed 1000", nameof(MaxPendingJobs));
+        if (MaxPendingJobs > Constants.Limits.MaxPendingJobsLimit) // Reasonable limit
+            throw new ArgumentException($"MaxPendingJobs cannot exceed {Constants.Limits.MaxPendingJobsLimit}", nameof(MaxPendingJobs));
     }
 }
