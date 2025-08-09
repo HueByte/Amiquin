@@ -2,21 +2,39 @@ FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 ARG MAIN_WORK_DIR=/home/app/amiquin
 WORKDIR ${MAIN_WORK_DIR}
 
-# Update and install required dependencies
-RUN apt-get update && apt-get -y upgrade && apt-get install -y \
-    build-essential gcc g++ curl tar pkg-config libtool m4
+# Install build dependencies in a single layer
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    gcc \
+    g++ \
+    curl \
+    tar \
+    pkg-config \
+    libtool \
+    m4 \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install libsodium and libopus
-RUN curl -L https://download.libsodium.org/libsodium/releases/LATEST.tar.gz | tar xz && \
-    cd libsodium-* && ./configure && make -j$(nproc) && make install && ldconfig && \
-    cd .. && rm -rf libsodium-* && \
-    curl -L https://ftp.osuosl.org/pub/xiph/releases/opus/opus-1.5.tar.gz | tar xz && \
-    cd opus-1.5 && ./configure && make -j$(nproc) && make install && ldconfig && \
-    cd .. && rm -rf opus-1.5
+# Build and install libsodium and libopus in optimized layers
+RUN curl -L https://download.libsodium.org/libsodium/releases/LATEST.tar.gz | tar xz \
+    && cd libsodium-* \
+    && ./configure --enable-minimal \
+    && make -j$(nproc) \
+    && make install \
+    && ldconfig \
+    && cd .. \
+    && rm -rf libsodium-*
 
-WORKDIR ${MAIN_WORK_DIR}
+RUN curl -L https://ftp.osuosl.org/pub/xiph/releases/opus/opus-1.5.tar.gz | tar xz \
+    && cd opus-1.5 \
+    && ./configure --disable-doc --disable-extra-programs \
+    && make -j$(nproc) \
+    && make install \
+    && ldconfig \
+    && cd .. \
+    && rm -rf opus-1.5
 
-# Copy solution and project files for dependency caching
+# Copy solution and project files for better dependency caching
 COPY source.sln ./ 
 COPY Amiquin.Bot/Amiquin.Bot.csproj ./Amiquin.Bot/
 COPY Amiquin.Core/Amiquin.Core.csproj ./Amiquin.Core/
@@ -24,46 +42,70 @@ COPY Amiquin.Infrastructure/Amiquin.Infrastructure.csproj ./Amiquin.Infrastructu
 COPY Migrations/Amiquin.Sqlite/Amiquin.Sqlite.csproj ./Migrations/Amiquin.Sqlite/
 COPY Migrations/Amiquin.MySql/Amiquin.MySql.csproj ./Migrations/Amiquin.MySql/
 
-# Restore dependencies
-RUN dotnet restore source.sln
+# Restore dependencies (this layer will be cached if project files don't change)
+RUN dotnet restore source.sln --runtime linux-x64
 
-# Copy the rest of the source code and build the application
+# Copy source code and build the application
 COPY . ./
-RUN dotnet publish Amiquin.Bot/Amiquin.Bot.csproj -c Release -o build
+RUN dotnet publish Amiquin.Bot/Amiquin.Bot.csproj \
+    -c Release \
+    -o build \
+    --runtime linux-x64 \
+    --self-contained false \
+    --no-restore
 
 # Stage 2: Runtime image
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
 ARG MAIN_WORK_DIR=/home/app/amiquin
 WORKDIR ${MAIN_WORK_DIR}
 
-# Create a non-root user
-RUN useradd -ms /bin/bash amiquin
+# Install runtime dependencies in optimized layers
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ffmpeg \
+    python3-full \
+    python3-pip \
+    pipx \
+    curl \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install runtime dependencies
-RUN apt-get update && apt-get install -y ffmpeg python3-full python3-pip pipx build-essential
+# Create non-root user with proper setup
+RUN useradd -ms /bin/bash -u 1000 amiquin \
+    && mkdir -p ${MAIN_WORK_DIR}/Data/Logs \
+    && mkdir -p ${MAIN_WORK_DIR}/Data/Database \
+    && mkdir -p ${MAIN_WORK_DIR}/Data/Messages \
+    && mkdir -p ${MAIN_WORK_DIR}/Data/Sessions \
+    && chown -R amiquin:amiquin ${MAIN_WORK_DIR}
 
-# Install Piper TTS
+# Install Piper TTS as amiquin user
+USER amiquin
 RUN pipx install piper-tts && pipx ensurepath
 
-# Copy build output and required libraries
-COPY --from=build ${MAIN_WORK_DIR}/build ${MAIN_WORK_DIR}/build
+# Copy application and libraries from build stage
+COPY --from=build --chown=amiquin:amiquin ${MAIN_WORK_DIR}/build ${MAIN_WORK_DIR}/build
+
+# Switch back to root temporarily to copy system libraries and update linker
+USER root
 COPY --from=build /usr/local/lib /usr/local/lib
-
-# Set up log directory
-ARG LOGS_PATH=${MAIN_WORK_DIR}/Data/Logs
-ENV LOGS_PATH=${LOGS_PATH}
-RUN mkdir -p ${LOGS_PATH}
-
-WORKDIR ${MAIN_WORK_DIR}/build
-
-# Update dynamic linker bindings
 RUN ldconfig
 
-# Switch to non-root user
-USER amiquin
-RUN pipx ensurepath
+# Set working directory to application
+WORKDIR ${MAIN_WORK_DIR}/build
 
-USER root
+# Set environment variables for data paths
+ENV AMQ_DataPaths__Logs=${MAIN_WORK_DIR}/Data/Logs
+ENV AMQ_DataPaths__Database=${MAIN_WORK_DIR}/Data/Database
+ENV AMQ_DataPaths__Messages=${MAIN_WORK_DIR}/Data/Messages
+ENV AMQ_DataPaths__Sessions=${MAIN_WORK_DIR}/Data/Sessions
+ENV AMQ_Database__Mode=1
+ENV AMQ_ConnectionStrings__AmiquinContext="Data Source=${MAIN_WORK_DIR}/Data/Database/amiquin.db"
+
+# Switch to non-root user for security
+USER amiquin
+
+# Add health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8080/health || exit 1
 
 # Run the application
 ENTRYPOINT ["dotnet", "Amiquin.Bot.dll"]

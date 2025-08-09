@@ -1,0 +1,76 @@
+# Build outputs
+**/bin/
+**/obj/
+**/build/
+**/publish/
+
+# IDE files
+**/.vs/
+**/.vscode/
+**/*.user
+**/*.suo
+**/*.userosscache
+**/*.sln.docstates
+
+# Test results
+**/TestResults/
+**/coverage.xml
+**/coverage.json
+
+# NuGet packages
+**/packages/
+!**/packages/repositories.config
+
+# Logs
+**/logs/
+**/Data/Logs/
+**/*.log
+
+# Database files
+**/Data/Database/
+**/*.db
+**/*.db-*
+
+# Temporary files
+**/temp/
+**/tmp/
+**/.tmp/
+**/*.tmp
+**/*.temp
+
+# OS files
+**/Thumbs.db
+**/.DS_Store
+
+# Git
+**/.git/
+**/.gitignore
+
+# Documentation
+**/docs/
+**/README.md
+**/CHANGELOG.md
+
+# Docker files (avoid recursion)
+**/Dockerfile*
+**/docker-compose*
+**/.dockerignore
+
+# Environment files
+**/.env*
+!**/.env.example
+
+# Development tools
+**/node_modules/
+**/coverage/
+**/.nyc_output/
+
+# JetBrains Rider
+**/.idea/
+
+# Visual Studio Code
+**/.vscode/
+
+# Local development
+**/dev-local/
+**/scripts/
