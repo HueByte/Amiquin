@@ -61,7 +61,7 @@ public class CleanerService : ICleanerService
             var messageCacheService = scope.ServiceProvider.GetRequiredService<IMessageCacheService>();
             logger.LogDebug("Clearing message cache");
             
-            messageCacheService.ClearMessageCachce();
+            messageCacheService.ClearMessageCache();
             
             await Task.Delay(100, cancellationToken);
             return ("Message Cache", true, 1);

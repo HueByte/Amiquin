@@ -217,7 +217,7 @@ public class MessageCacheServiceIntegrationTests : IClassFixture<DatabaseFixture
     }
 
     [Fact]
-    public void ClearMessageCachce_ShouldRemoveSpecificCacheKeys()
+    public void ClearMessageCache_ShouldRemoveSpecificCacheKeys()
     {
         // Arrange
         var memoryCache = _fixture.ServiceProvider.GetRequiredService<IMemoryCache>();
@@ -229,7 +229,7 @@ public class MessageCacheServiceIntegrationTests : IClassFixture<DatabaseFixture
         memoryCache.Set("other_cache_key", "should remain", TimeSpan.FromHours(1));
 
         // Act
-        _messageCacheService.ClearMessageCachce();
+        _messageCacheService.ClearMessageCache();
 
         // Assert
         // The specific keys should be removed

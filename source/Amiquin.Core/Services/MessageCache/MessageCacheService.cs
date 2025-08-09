@@ -17,8 +17,7 @@ public class MessageCacheService : IMessageCacheService
 {
     private readonly IMemoryCache _memoryCache;
     private readonly IMessageRepository _messageRepository;
-    private readonly int _messageFetchCount = 40;
-    private const int MEMORY_CACHE_EXPIRATION = 5;
+    private readonly int _messageFetchCount = Constants.MessageCacheDefaults.DefaultMessageFetchCount;
 
     /// <summary>
     /// Initializes a new instance of the MessageCacheService.
@@ -36,7 +35,7 @@ public class MessageCacheService : IMessageCacheService
     }
 
     /// <inheritdoc/>
-    public void ClearMessageCachce()
+    public void ClearMessageCache()
     {
         _memoryCache.Remove(Constants.CacheKeys.ComputedPersonaMessageKey);
         _memoryCache.Remove(Constants.CacheKeys.CorePersonaMessageKey);
@@ -71,11 +70,11 @@ public class MessageCacheService : IMessageCacheService
     {
         return await _memoryCache.GetOrCreateAsync<List<ChatMessage>?>(serverId, async entry =>
         {
-            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromDays(MEMORY_CACHE_EXPIRATION);
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromDays(Constants.MessageCacheDefaults.MemoryCacheExpirationDays);
             var messages = await _messageRepository.AsQueryable()
                 .Where(x => x.ServerId == serverId)
                 .OrderBy(x => x.CreatedAt)
-                .Take(_messageFetchCount)
+                .TakeLast(_messageFetchCount) // Get the most recent messages
                 .ToListAsync();
 
             return messages.Select(x =>
@@ -89,24 +88,24 @@ public class MessageCacheService : IMessageCacheService
     /// <inheritdoc/>
     public async Task AddChatExchangeAsync(ulong instanceId, List<ChatMessage> messages, List<Message> modelMessages)
     {
-        List<ChatMessage>? chatMessages;
-        if (_memoryCache.TryGetValue(instanceId, out chatMessages))
+        // Get existing messages or create new list
+        List<ChatMessage> chatMessages;
+        if (_memoryCache.TryGetValue(instanceId, out List<ChatMessage>? existingMessages) && existingMessages != null)
         {
-            if (chatMessages?.Count > 0)
-            {
-                chatMessages.Clear();
-            }
-
-            chatMessages = chatMessages ?? messages;
-            chatMessages.AddRange(messages);
-
-            _memoryCache.Set(instanceId, chatMessages, TimeSpan.FromDays(MEMORY_CACHE_EXPIRATION));
+            // Update the existing cached messages with the new ones
+            existingMessages.AddRange(messages);
+            chatMessages = existingMessages;
         }
         else
         {
-            _memoryCache.Set(instanceId, messages, TimeSpan.FromDays(MEMORY_CACHE_EXPIRATION));
+            // Create new message list from the provided messages
+            chatMessages = new List<ChatMessage>(messages);
         }
 
+        // Update cache with the complete message list
+        _memoryCache.Set(instanceId, chatMessages, TimeSpan.FromDays(Constants.MessageCacheDefaults.MemoryCacheExpirationDays));
+
+        // Persist to database
         await _messageRepository.AddRangeAsync(modelMessages);
         await _messageRepository.SaveChangesAsync();
     }
@@ -119,12 +118,13 @@ public class MessageCacheService : IMessageCacheService
             if (serverMessages is not null && serverMessages.Count > range)
             {
                 serverMessages.RemoveRange(0, serverMessages.Count - range);
-                _memoryCache.Set(instanceId, serverMessages, TimeSpan.FromDays(MEMORY_CACHE_EXPIRATION));
+                _memoryCache.Set(instanceId, serverMessages, TimeSpan.FromDays(Constants.MessageCacheDefaults.MemoryCacheExpirationDays));
             }
         }
     }
 
-    public void ModifyMessage(string key, string message, int minutes = 30)
+    /// <inheritdoc/>
+    public void ModifyMessage(string key, string message, int minutes = Constants.MessageCacheDefaults.DefaultModifyMessageTimeoutMinutes)
     {
         _memoryCache.Set(key, message, TimeSpan.FromMinutes(minutes));
     }

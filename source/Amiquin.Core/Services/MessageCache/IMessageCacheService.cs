@@ -12,7 +12,7 @@ public interface IMessageCacheService
     /// <summary>
     /// Clears all cached messages.
     /// </summary>
-    void ClearMessageCachce();
+    void ClearMessageCache();
 
     /// <summary>
     /// Retrieves the core persona message from cache.
@@ -60,6 +60,6 @@ public interface IMessageCacheService
     /// </summary>
     /// <param name="key">The cache key for the message.</param>
     /// <param name="message">The message content to cache.</param>
-    /// <param name="minutes">The expiration time in minutes.</param>
+    /// <param name="minutes">The expiration time in minutes. Defaults to 30 minutes if not specified.</param>
     void ModifyMessage(string key, string message, int minutes = 30);
 }

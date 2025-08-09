@@ -214,4 +214,24 @@ public class Constants
         public const int HealthCheckFrequency = 60; // 1 minute
         #endregion
     }
+
+    public class PersonaDefaults
+    {
+        #region Persona Configuration
+        public const int NewsPersonaTokenLimit = 500;
+        public const int PersonaCacheDurationDays = 1;
+        public const string DefaultPersonaTemplate = "You are [$Name$]. The AI assistant for discord.\n[$Mood$]";
+        public const string NewsMoodNotAvailableMessage = "I couldn't find any news at the moment.";
+        public const string NewsProcessingErrorMessage = "I'm having trouble processing the news right now.";
+        #endregion
+    }
+
+    public class MessageCacheDefaults
+    {
+        #region Message Cache Configuration
+        public const int MemoryCacheExpirationDays = 5;
+        public const int DefaultModifyMessageTimeoutMinutes = 30;
+        public const int DefaultMessageFetchCount = 40;
+        #endregion
+    }
 }

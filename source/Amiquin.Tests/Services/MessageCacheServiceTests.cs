@@ -46,7 +46,7 @@ public class MessageCacheServiceTests
     public void ClearMessageCache_ShouldRemoveAllCachedMessages()
     {
         // Act
-        _sut.ClearMessageCachce();
+        _sut.ClearMessageCache();
 
         // Assert
         _memoryCacheMock.Verify(x => x.Remove("computed_persona_message"), Times.Once);

@@ -75,15 +75,28 @@ public class PersonaService : IPersonaService
     /// <inheritdoc/>
     public async Task AddSummaryAsync(ulong serverId, string updateMessage)
     {
-        var cacheKey = StringModifier.CreateCacheKey(Constants.CacheKeys.ComputedPersonaMessageKey, serverId.ToString());
-        string? personaMessage = _memoryCache.Get<string>(cacheKey);
-        if (string.IsNullOrEmpty(personaMessage))
+        var semaphore = _chatSemaphoreManager.GetOrCreateInstanceSemaphore(serverId);
+        await semaphore.WaitAsync();
+        
+        try
         {
-            personaMessage = await GetPersonaInternalAsync(serverId);
-        }
+            var cacheKey = StringModifier.CreateCacheKey(Constants.CacheKeys.ComputedPersonaMessageKey, serverId.ToString());
+            string? personaMessage = _memoryCache.Get<string>(cacheKey);
+            if (string.IsNullOrEmpty(personaMessage))
+            {
+                personaMessage = await GetPersonaInternalAsync(serverId);
+            }
 
-        personaMessage += $"This is your summary of recent conversations: {updateMessage}";
-        _memoryCache.Set(Constants.CacheKeys.ComputedPersonaMessageKey, personaMessage, TimeSpan.FromDays(1));
+            personaMessage += $"This is your summary of recent conversations: {updateMessage}";
+            // Use the server-specific cache key consistently
+            _memoryCache.Set(cacheKey, personaMessage, TimeSpan.FromDays(Constants.PersonaDefaults.PersonaCacheDurationDays));
+            
+            _logger.LogDebug("Added summary to persona for server {ServerId}: {Summary}", serverId, updateMessage);
+        }
+        finally
+        {
+            semaphore.Release();
+        }
     }
 
     private async Task<string> GetPersonaInternalAsync(ulong serverId)
@@ -100,13 +113,13 @@ public class PersonaService : IPersonaService
         personaMessage = (await _serverMetaService.GetServerMetaAsync(serverId))?.Persona;
         if (string.IsNullOrEmpty(personaMessage))
         {
-            personaMessage = $"You are {Constants.PersonaKeywordsCache.Name}. The AI assistant for discord.\n{Constants.PersonaKeywordsCache.Mood}";
+            personaMessage = Constants.PersonaDefaults.DefaultPersonaTemplate;
         }
 
         var computedMood = await GetComputedMoodAsync();
-        personaMessage = personaMessage.Replace(Constants.PersonaKeywordsCache.Mood, computedMood);
+        personaMessage = ReplacePersonaKeywords(personaMessage, computedMood);
 
-        _memoryCache.Set(computedPersonaCacheKey, personaMessage, TimeSpan.FromDays(1));
+        _memoryCache.Set(computedPersonaCacheKey, personaMessage, TimeSpan.FromDays(Constants.PersonaDefaults.PersonaCacheDurationDays));
         _logger.LogInformation("Computed persona message: {personaMessage}", personaMessage);
 
         return personaMessage;
@@ -136,7 +149,7 @@ public class PersonaService : IPersonaService
             if (news is null || news.Data is null || news.Data.NewsList is null || news.Data.NewsList.Count == 0)
             {
                 _logger.LogWarning("No news data received from API.");
-                return "I couldn't find any news at the moment.";
+                return Constants.PersonaDefaults.NewsMoodNotAvailableMessage;
             }
 
             sb.AppendLine($"{_botContextAccessor.BotName} just received some juicy news and is bursting with snarky curiosity. Express {_botContextAccessor.BotName}’s thoughts in the third person—never say “I,” only “Amiquin.” Keep the playful, sarcastic edge, but don’t let it overshadow the message. Reflect how {_botContextAccessor.BotName} feels about the latest updates and respond accordingly.");
@@ -152,7 +165,7 @@ public class PersonaService : IPersonaService
                 sb.AppendLine(newsObj.NewsObj.Content);
             }
 
-            var personaOpinion = await _coreChatService.ExchangeMessageAsync(sb.ToString(), tokenLimit: 500);
+            var personaOpinion = await _coreChatService.ExchangeMessageAsync(sb.ToString(), tokenLimit: Constants.PersonaDefaults.NewsPersonaTokenLimit, instanceId: 0); // Generic instance for news processing
             _logger.LogInformation("Persona Opinion: {personaOpinion}", personaOpinion);
 
             return personaOpinion;
@@ -160,12 +173,21 @@ public class PersonaService : IPersonaService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error while computing mood in GetInfoFromNewsAsync.");
-            return "I'm having trouble processing the news right now.";
+            return Constants.PersonaDefaults.NewsProcessingErrorMessage;
         }
     }
 
+    /// <summary>
+    /// Replaces persona keywords with actual values in the persona message.
+    /// </summary>
+    /// <param name="message">The persona message template.</param>
+    /// <param name="mood">The computed mood to replace.</param>
+    /// <returns>The persona message with replaced keywords.</returns>
     private string ReplacePersonaKeywords(string message, string mood)
     {
+        if (string.IsNullOrEmpty(message))
+            return message;
+            
         string name = _botOptions.Name;
         string version = _botOptions.Version;
 
