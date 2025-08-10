@@ -52,8 +52,8 @@ try {
     # Database modes with corrected mapping
     # Mode 0 = MySQL, Mode 1 = SQLite, Mode 2 = PostgreSQL, Mode 3 = MSSQL
     $DatabaseModes = @(
-        @{ Mode = 1; Name = "SQLite"; ProjectSuffix = "Sqlite"; Provider = "Sqlite" },
-        @{ Mode = 0; Name = "MySQL"; ProjectSuffix = "MySql"; Provider = $null }
+        @{ Mode = 0; Name = "MySQL"; ProjectSuffix = "MySql"; Provider = $null },
+        @{ Mode = 1; Name = "SQLite"; ProjectSuffix = "Sqlite"; Provider = "Sqlite" }
         # @{ Mode = 2; Name = "PostgreSQL"; ProjectSuffix = "Postgres"; Provider = "Npgsql" },
         # @{ Mode = 3; Name = "MSSQL"; ProjectSuffix = "MSSql"; Provider = "SqlServer" }
     )
