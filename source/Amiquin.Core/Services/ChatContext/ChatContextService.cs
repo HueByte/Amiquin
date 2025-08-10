@@ -556,9 +556,77 @@ public class ChatContextService : IChatContextService
         }
     }
 
+    public async Task InitializeActivityContextAsync(SocketGuild guild)
+    {
+        try
+        {
+            _logger.LogInformation("Initializing activity context for guild {GuildName} ({GuildId})", guild.Name, guild.Id);
+
+            // Find the general channel (prefer "general", "main", "chat", etc.)
+            var generalChannel = FindGeneralChannel(guild);
+            if (generalChannel == null)
+            {
+                _logger.LogWarning("No suitable general channel found in guild {GuildName} ({GuildId})", guild.Name, guild.Id);
+                return;
+            }
+
+            _logger.LogDebug("Found general channel: {ChannelName} in guild {GuildName}", generalChannel.Name, guild.Name);
+
+            // Get the last 10 messages from the general channel
+            var messageBatches = await generalChannel.GetMessagesAsync(10, CacheMode.AllowDownload).ToListAsync();
+            var messages = messageBatches.SelectMany(x => x).OrderBy(m => m.Timestamp).ToArray();
+
+            var processedCount = 0;
+            foreach (var message in messages)
+            {
+                // Convert to SocketMessage for processing (we need to simulate the message structure)
+                if (message is SocketMessage socketMessage)
+                {
+                    // Add message to context without triggering activity spike checks or engagement
+                    await AddMessageToContextAsync(guild.Id, socketMessage);
+                    processedCount++;
+                }
+            }
+
+            _logger.LogInformation("Initialized activity context for guild {GuildName} with {Count} messages from #{ChannelName}", 
+                guild.Name, processedCount, generalChannel.Name);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error initializing activity context for guild {GuildName} ({GuildId})", guild.Name, guild.Id);
+        }
+    }
+
     #endregion
 
     #region Private Helper Methods
+
+    /// <summary>
+    /// Finds the most suitable "general" channel in a guild for initialization
+    /// </summary>
+    private static ITextChannel? FindGeneralChannel(SocketGuild guild)
+    {
+        // Priority order for finding a general channel
+        var preferredNames = new[] { "general", "main", "chat", "lobby", "discussion", "public" };
+
+        // First, try to find channels with preferred names
+        foreach (var name in preferredNames)
+        {
+            var channel = guild.TextChannels.FirstOrDefault(c =>
+                c.Name.Contains(name, StringComparison.OrdinalIgnoreCase) &&
+                guild.CurrentUser.GetPermissions(c).ReadMessageHistory &&
+                guild.CurrentUser.GetPermissions(c).ViewChannel);
+            if (channel != null)
+                return channel;
+        }
+
+        // Fallback to the first text channel the bot can read from
+        return guild.TextChannels
+            .Where(c => guild.CurrentUser.GetPermissions(c).ReadMessageHistory && 
+                       guild.CurrentUser.GetPermissions(c).ViewChannel)
+            .OrderBy(c => c.Position)
+            .FirstOrDefault();
+    }
 
     /// <summary>
     /// Gets the target channel for sending messages - uses PrimaryChannelId from ServerMeta if configured,

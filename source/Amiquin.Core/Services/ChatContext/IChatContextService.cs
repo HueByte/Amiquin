@@ -139,5 +139,13 @@ public interface IChatContextService
     /// <param name="channel">The Discord channel to send the message to.</param>
     /// <returns>The generated message content if successful, null otherwise.</returns>
     Task<string?> SendContextAwareMessage(Discord.WebSocket.SocketGuild guild, Discord.IMessageChannel channel);
+
+    /// <summary>
+    /// Initializes the activity context by loading the last 10 messages from the general channel.
+    /// This method is called during bot initialization to provide initial context for engagement.
+    /// </summary>
+    /// <param name="guild">The Discord guild to initialize context for.</param>
+    /// <returns>A task representing the initialization operation.</returns>
+    Task InitializeActivityContextAsync(Discord.WebSocket.SocketGuild guild);
     #endregion
 }

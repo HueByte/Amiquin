@@ -4,6 +4,7 @@ using Amiquin.Core.Exceptions;
 using Amiquin.Core.IRepositories;
 using Amiquin.Core.Job;
 using Amiquin.Core.Options;
+using Amiquin.Core.Services.ActivitySession;
 using Amiquin.Core.Services.ApiClients;
 using Amiquin.Core.Services.BotContext;
 using Amiquin.Core.Services.BotSession;
@@ -150,7 +151,8 @@ public class InjectionConfigurator
                  .AddScoped<BotContextAccessor>()
                  .AddScoped<IServerMetaService, ServerMetaService>()
                  .AddScoped<INachoService, NachoService>()
-                 .AddScoped<IChatSessionService, ChatSessionService>();
+                 .AddScoped<IChatSessionService, ChatSessionService>()
+                 .AddScoped<IActivitySessionService, ActivitySessionService>();
 
         // LLM-based chat services (new system)
         _services.AddScoped<LLMChatService>()

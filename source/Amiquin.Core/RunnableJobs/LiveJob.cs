@@ -2,6 +2,7 @@ using Amiquin.Core.Abstraction;
 using Amiquin.Core.IRepositories;
 using Amiquin.Core.Job;
 using Amiquin.Core.Job.Models;
+using Amiquin.Core.Services.ActivitySession;
 using Amiquin.Core.Services.Toggle;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -103,30 +104,29 @@ public class LiveJob : IRunnableJob
         try
         {
             var jobId = $"ActivitySession_{serverId}";
-
-            // Create the activity session job using the AmiquinJob model
-            var amiquinJob = new AmiquinJob
+            
+            // Create a tracked job that handles activity session for this server
+            var trackedJob = new TrackedAmiquinJob
             {
                 Id = jobId,
-                Name = $"ActivitySession",
+                Name = "ActivitySession",
                 Description = $"Activity session job for guild {serverId}",
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow,
                 GuildId = serverId,
-                Interval = TimeSpan.FromSeconds(8), // Start with fast frequency, will be adjusted by ActivitySessionJob
-                Task = async (scopeFactory, cancellationToken) =>
+                Interval = TimeSpan.FromSeconds(8), // Start with fast frequency
+                Task = async (scopeFactory, job, cancellationToken) =>
                 {
-                    // Create ActivitySessionJob instance and execute it
-                    using var scope = scopeFactory.CreateScope();
-                    var logger = scope.ServiceProvider.GetRequiredService<ILogger<ActivitySessionJob>>();
-                    var activitySession = new ActivitySessionJob(serverId, logger);
-                    await activitySession.ExecuteAsync(scopeFactory, cancellationToken);
-                }
+                    // Execute the activity session logic directly
+                    await ExecuteActivitySessionAsync(scopeFactory, job, cancellationToken);
+                },
+                AutoRestart = true,
+                MaxRetryAttempts = 3
             };
 
-            // Register the dynamic job with JobService
-            var isSuccess = _jobService.CreateDynamicJob(amiquinJob);
-
+            // Register the tracked job with JobService
+            var isSuccess = _jobService.CreateTrackedJob(trackedJob);
+            
             if (isSuccess)
             {
                 _logger.LogInformation("Successfully created ActivitySession job for guild {GuildId}", serverId);
@@ -142,6 +142,57 @@ public class LiveJob : IRunnableJob
         {
             _logger.LogError(ex, "Error creating ActivitySession job for guild {GuildId}", serverId);
             return null;
+        }
+    }
+
+    /// <summary>
+    /// Executes the activity session logic for a specific server
+    /// </summary>
+    private async Task ExecuteActivitySessionAsync(IServiceScopeFactory serviceScopeFactory, TrackedAmiquinJob job, CancellationToken cancellationToken)
+    {
+        try
+        {
+            _logger.LogDebug("Executing ActivitySession for guild {GuildId} (execution #{Count})", job.GuildId, job.ExecutionCount);
+
+            using var scope = serviceScopeFactory.CreateScope();
+            var activitySessionService = scope.ServiceProvider.GetRequiredService<IActivitySessionService>();
+
+            // Execute activity session with frequency adjustment callback
+            await activitySessionService.ExecuteActivitySessionAsync(job.GuildId, activityLevel =>
+            {
+                AdjustJobFrequency(job, activityLevel);
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error executing ActivitySession for guild {GuildId}", job.GuildId);
+            throw; // Re-throw to let JobService handle retries
+        }
+    }
+
+    /// <summary>
+    /// Adjusts the job's execution frequency based on activity level
+    /// </summary>
+    private void AdjustJobFrequency(TrackedAmiquinJob job, double activityLevel)
+    {
+        var newFrequencySeconds = activityLevel switch
+        {
+            <= 0.1 => 30,       // Very low activity: every 30 seconds
+            <= 0.3 => 20,       // Low activity: every 20 seconds  
+            <= 0.7 => 15,       // Normal activity: every 15 seconds
+            <= 1.3 => 10,       // High activity: every 10 seconds
+            <= 1.5 => 8,        // Very high activity: every 8 seconds
+            _ => 6              // Extreme activity: every 6 seconds
+        };
+
+        var newInterval = TimeSpan.FromSeconds(newFrequencySeconds);
+        if (job.Interval != newInterval)
+        {
+            var oldInterval = job.Interval;
+            job.Interval = newInterval;
+            job.UpdatedAt = DateTime.UtcNow;
+            _logger.LogDebug("Adjusted frequency for guild {GuildId}: {OldFreq}s → {NewFreq}s (activity: {Activity})", 
+                job.GuildId, oldInterval.TotalSeconds, newFrequencySeconds, activityLevel);
         }
     }
 

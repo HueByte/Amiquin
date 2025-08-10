@@ -1,6 +1,7 @@
 using Amiquin.Core;
 using Amiquin.Core.Job;
 using Amiquin.Core.Options;
+using Amiquin.Core.Services.ChatContext;
 using Amiquin.Core.Services.CommandHandler;
 using Amiquin.Core.Services.EventHandler;
 using Amiquin.Core.Utilities;
@@ -95,6 +96,9 @@ public class AmiquinHost : IHostedService
         await _interactionService.RegisterCommandsGloballyAsync();
         _jobService.StartRunnableJobs();
 
+        // Initialize activity context for all guilds
+        await InitializeActivityContextAsync();
+
         _isInitialized = true;
         DisplayData();
     }
@@ -173,5 +177,48 @@ public class AmiquinHost : IHostedService
         };
 
         Console.Writer.WriteDictionaryData("Bot Data", data);
+    }
+
+    private async Task InitializeActivityContextAsync()
+    {
+        try
+        {
+            _logger.LogInformation("Initializing activity context for all guilds");
+
+            using var scope = _serviceScopeFactory.CreateScope();
+            var chatContextService = scope.ServiceProvider.GetRequiredService<IChatContextService>();
+
+            var guilds = _client.Guilds.ToArray();
+            _logger.LogDebug("Found {Count} guilds to initialize", guilds.Length);
+
+            var initializationTasks = new List<Task>();
+            foreach (var guild in guilds)
+            {
+                // Run initializations concurrently but limit to avoid rate limits
+                initializationTasks.Add(chatContextService.InitializeActivityContextAsync(guild));
+                
+                // Process in batches of 3 to avoid overwhelming Discord API
+                if (initializationTasks.Count >= 3)
+                {
+                    await Task.WhenAll(initializationTasks);
+                    initializationTasks.Clear();
+                    
+                    // Small delay between batches to be respectful to Discord API
+                    await Task.Delay(500);
+                }
+            }
+
+            // Process any remaining tasks
+            if (initializationTasks.Count > 0)
+            {
+                await Task.WhenAll(initializationTasks);
+            }
+
+            _logger.LogInformation("Activity context initialization completed for {Count} guilds", guilds.Length);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error during activity context initialization");
+        }
     }
 }
