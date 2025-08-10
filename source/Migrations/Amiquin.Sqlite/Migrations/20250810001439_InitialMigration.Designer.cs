@@ -8,10 +8,10 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
 
-namespace Amiquin.Sqlite.Migrations
+namespace Amiquin.Sqlite.Migrations.Amiquin.Sqlite.Migrations
 {
     [DbContext(typeof(AmiquinContext))]
-    [Migration("20250809235315_InitialMigration")]
+    [Migration("20250810001439_InitialMigration")]
     partial class InitialMigration
     {
         /// <inheritdoc />

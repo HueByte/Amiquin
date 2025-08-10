@@ -158,12 +158,19 @@ public class CommandHandlerService : ICommandHandlerService
         ArgumentNullException.ThrowIfNull(result);
 
         var extendedContext = interactionContext as ExtendedShardedInteractionContext;
-        var scope = extendedContext?.AsyncScope ?? _serviceScopeFactory.CreateAsyncScope();
+        
+        if (extendedContext is null)
+        {
+            _logger.LogWarning("InteractionContext is not ExtendedShardedInteractionContext for command {commandName}", slashCommandInfo.Name);
+            return;
+        }
         
         try
         {
-            var commandLogRepository = scope.ServiceProvider.GetRequiredService<ICommandLogRepository>();
-            var botContextAccessor = scope.ServiceProvider.GetRequiredService<BotContextAccessor>();
+            var commandLogRepository = extendedContext.AsyncScope.ServiceProvider.GetRequiredService<ICommandLogRepository>();
+            var botContextAccessor = extendedContext.AsyncScope.ServiceProvider.GetRequiredService<BotContextAccessor>();
+            
+            // Mark context as finished
             botContextAccessor.Finish();
             
             await LogCommandAsync(commandLogRepository, botContextAccessor, slashCommandInfo, result);
@@ -179,20 +186,14 @@ public class CommandHandlerService : ICommandHandlerService
         }
         finally
         {
-            if (extendedContext is null)
+            // Dispose the extended context which will dispose the async scope
+            try
             {
-                scope.Dispose();
+                await extendedContext.DisposeAsync();
             }
-            else
+            catch (Exception ex)
             {
-                try
-                {
-                    await scope.DisposeAsync();
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Failed to dispose async scope for command {commandName}", slashCommandInfo.Name);
-                }
+                _logger.LogWarning(ex, "Failed to dispose extended context for command {commandName}", slashCommandInfo.Name);
             }
         }
     }

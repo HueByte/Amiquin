@@ -8,11 +8,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
 
-namespace Amiquin.Sqlite.Migrations
+namespace Amiquin.Sqlite.Migrations.Amiquin.Sqlite.Migrations
 {
     [DbContext(typeof(AmiquinContext))]
-    [Migration("20250809234544_TestMigrationFix")]
-    partial class TestMigrationFix
+    [Migration("20250810002544_ServerMetaModelCorrection")]
+    partial class ServerMetaModelCorrection
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -244,10 +244,6 @@ namespace Amiquin.Sqlite.Migrations
                     b.Property<ulong>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
-
-                    b.Property<string>("AIModel")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("TEXT");

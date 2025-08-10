@@ -14,8 +14,11 @@ public class BotContextAccessor : IDisposable
     private static readonly ConcurrentDictionary<string, object> _contextData = new();
     private readonly ILogger<BotContextAccessor>? _logger;
     private readonly object _lock = new();
+    private readonly Timer _timeoutTimer;
     private volatile bool _disposed;
     private volatile bool _isFinished;
+    
+    private static readonly TimeSpan DefaultTimeout = TimeSpan.FromMinutes(5); // 5 minute timeout
 
     /// <summary>
     /// Gets the bot name from configuration or uses default value.
@@ -93,7 +96,11 @@ public class BotContextAccessor : IDisposable
         CreatedAt = DateTime.UtcNow;
         _logger = logger;
         
-        _logger?.LogTrace("Created new BotContextAccessor with ID: {ContextId}", ContextId);
+        // Set up timeout timer to automatically finish context after timeout period
+        _timeoutTimer = new Timer(OnTimeout, null, DefaultTimeout, Timeout.InfiniteTimeSpan);
+        
+        _logger?.LogTrace("Created new BotContextAccessor with ID: {ContextId} with {Timeout}ms timeout", 
+            ContextId, DefaultTimeout.TotalMilliseconds);
     }
 
     /// <summary>
@@ -147,9 +154,31 @@ public class BotContextAccessor : IDisposable
 
             FinishedAt = DateTime.UtcNow;
             _isFinished = true;
+            
+            // Stop the timeout timer since we've finished normally
+            _timeoutTimer?.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
 
             _logger?.LogDebug("Finished BotContextAccessor {ContextId} execution in {ExecutionTime}ms", 
                 ContextId, ExecutionTimeMs);
+        }
+    }
+
+    /// <summary>
+    /// Timeout callback that automatically finishes the context if it hasn't been finished manually.
+    /// </summary>
+    private void OnTimeout(object? state)
+    {
+        if (_disposed || _isFinished) return;
+
+        lock (_lock)
+        {
+            if (_disposed || _isFinished) return;
+
+            FinishedAt = DateTime.UtcNow;
+            _isFinished = true;
+
+            _logger?.LogWarning("BotContextAccessor {ContextId} timed out after {Timeout}ms and was automatically finished", 
+                ContextId, DefaultTimeout.TotalMilliseconds);
         }
     }
 
@@ -257,6 +286,9 @@ public class BotContextAccessor : IDisposable
         lock (_lock)
         {
             if (_disposed) return;
+
+            // Dispose timer first
+            _timeoutTimer?.Dispose();
 
             // Clean up context-specific data
             var keysToRemove = _contextData.Keys.Where(k => k.StartsWith($"{ContextId}:")).ToList();

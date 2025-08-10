@@ -44,8 +44,14 @@ public static class Writer
             if (!Reflection.IsExtendedPrimitiveType(prop))
                 return;
 
+            // Only anonymize string properties - other types like booleans, numbers shouldn't be anonymized
+            if (prop.PropertyType != typeof(string) && Nullable.GetUnderlyingType(prop.PropertyType) != typeof(string))
+            {
+                continue;
+            }
+
             var anomifiedValue = StringModifier.Anomify(propValue?.ToString() ?? "", 20);
-            prop.SetValue(objectCopy, Reflection.ConvertTo(prop, anomifiedValue));
+            prop.SetValue(objectCopy, anomifiedValue);
         }
 
         var finalJson = JsonSerializer.Serialize(objectCopy, options);

@@ -229,7 +229,6 @@ public class ServerMetaService : IServerMetaService, IDisposable
             IsActive = true,
             ServerName = serverName,
             Persona = string.Empty,
-            AIModel = Constants.AI.Gpt4oMiniModel,
             Toggles = [],
             Messages = [],
             CommandLogs = [],
@@ -279,7 +278,6 @@ public class ServerMetaService : IServerMetaService, IDisposable
                 // Update basic properties
                 meta.ServerName = serverMeta.ServerName ?? meta.ServerName;
                 meta.Persona = serverMeta.Persona ?? meta.Persona;
-                meta.AIModel = serverMeta.AIModel ?? meta.AIModel;
                 meta.LastUpdated = DateTime.UtcNow;
                 meta.IsActive = serverMeta.IsActive;
 
@@ -568,7 +566,6 @@ public class ServerMetaService : IServerMetaService, IDisposable
             IsActive = true,
             ServerName = serverName,
             Persona = string.Empty,
-            AIModel = Constants.AI.Gpt4oMiniModel,
             Toggles = [],
             Messages = [],
             CommandLogs = [],
