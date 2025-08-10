@@ -31,9 +31,9 @@ public class JobManagerOptions
     public int MaxTimeoutMonitors { get; set; } = 50;
 
     /// <summary>
-    /// Default timeout for jobs in seconds. Default is 300 seconds (5 minutes).
+    /// Default timeout for jobs in seconds. Default is 60 seconds (1 minute).
     /// </summary>
-    public int DefaultTimeoutSeconds { get; set; } = 300;
+    public int DefaultTimeoutSeconds { get; set; } = 60;
 
     /// <summary>
     /// Maximum time to wait in the queue before timing out in seconds. Default is 60 seconds.

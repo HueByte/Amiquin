@@ -123,7 +123,6 @@ public class CommandHandlerService : ICommandHandlerService
         }
 
         ExtendedShardedInteractionContext? extendedContext = null;
-        BotContextAccessor? botContext = null;
 
         try
         {
@@ -133,7 +132,7 @@ public class CommandHandlerService : ICommandHandlerService
             var isEphemeral = IsEphemeralCommand(interaction);
             await interaction.DeferAsync(isEphemeral);
 
-            botContext = scope.ServiceProvider.GetRequiredService<BotContextAccessor>();
+            var botContext = scope.ServiceProvider.GetRequiredService<BotContextAccessor>();
             var serverMetaService = scope.ServiceProvider.GetRequiredService<IServerMetaService>();
             var configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>();
 
@@ -146,6 +145,8 @@ public class CommandHandlerService : ICommandHandlerService
                 GetCommandName(interaction), interaction.User.Id, guildId);
 
             await _interactionService.ExecuteCommandAsync(extendedContext, scope.ServiceProvider);
+            
+            // Command executed - BotContextAccessor will be finished in HandleSlashCommandExecuted regardless of success/failure
         }
         catch (Exception ex)
         {
@@ -154,11 +155,15 @@ public class CommandHandlerService : ICommandHandlerService
 
             await HandleCommandErrorAsync(interaction, ex);
 
-            // Clean up resources on error
+            // On exception in HandleCommandAsync, we need to clean up ourselves since HandleSlashCommandExecuted won't be called
             if (extendedContext is not null)
             {
                 try
                 {
+                    // Finish the BotContextAccessor before disposing the scope
+                    var botContext = extendedContext.AsyncScope.ServiceProvider.GetRequiredService<BotContextAccessor>();
+                    botContext.Finish();
+                    
                     await extendedContext.DisposeAsync();
                 }
                 catch (Exception disposeEx)
@@ -166,8 +171,6 @@ public class CommandHandlerService : ICommandHandlerService
                     _logger.LogWarning(disposeEx, "Failed to dispose extended context after error");
                 }
             }
-
-            botContext?.Finish();
         }
     }
 
@@ -186,13 +189,22 @@ public class CommandHandlerService : ICommandHandlerService
             return;
         }
 
+        BotContextAccessor? botContextAccessor = null;
+        
         try
         {
             var commandLogRepository = extendedContext.AsyncScope.ServiceProvider.GetRequiredService<ICommandLogRepository>();
-            var botContextAccessor = extendedContext.AsyncScope.ServiceProvider.GetRequiredService<BotContextAccessor>();
+            botContextAccessor = extendedContext.AsyncScope.ServiceProvider.GetRequiredService<BotContextAccessor>();
 
-            // Mark context as finished
-            botContextAccessor.Finish();
+            // Mark context as finished - this should only be called once per command
+            if (!botContextAccessor.IsFinished)
+            {
+                botContextAccessor.Finish();
+            }
+            else
+            {
+                _logger.LogWarning("BotContextAccessor for command {commandName} was already finished", slashCommandInfo.Name);
+            }
 
             await LogCommandAsync(commandLogRepository, botContextAccessor, slashCommandInfo, result);
 
@@ -204,6 +216,19 @@ public class CommandHandlerService : ICommandHandlerService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to handle slash command execution for {commandName}", slashCommandInfo.Name);
+            
+            // Ensure BotContextAccessor is finished even if there was an error
+            if (botContextAccessor is not null && !botContextAccessor.IsFinished)
+            {
+                try
+                {
+                    botContextAccessor.Finish();
+                }
+                catch (Exception finishEx)
+                {
+                    _logger.LogWarning(finishEx, "Failed to finish BotContextAccessor for command {commandName}", slashCommandInfo.Name);
+                }
+            }
         }
         finally
         {

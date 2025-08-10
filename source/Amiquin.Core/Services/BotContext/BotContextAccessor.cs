@@ -148,7 +148,7 @@ public class BotContextAccessor : IDisposable
         {
             if (_isFinished)
             {
-                _logger?.LogWarning("Context {ContextId} finish called multiple times", ContextId);
+                _logger?.LogDebug("Context {ContextId} finish called multiple times - ignoring duplicate call", ContextId);
                 return;
             }
 

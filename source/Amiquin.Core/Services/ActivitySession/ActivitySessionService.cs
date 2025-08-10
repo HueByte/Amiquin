@@ -30,11 +30,14 @@ public class ActivitySessionService : IActivitySessionService
     /// <summary>
     /// Executes activity session logic for a specific guild
     /// </summary>
-    public async Task<bool> ExecuteActivitySessionAsync(ulong guildId, Action<double>? adjustFrequencyCallback = null)
+    public async Task<bool> ExecuteActivitySessionAsync(ulong guildId, Action<double>? adjustFrequencyCallback = null, CancellationToken cancellationToken = default)
     {
         try
         {
             _logger.LogDebug("Executing ActivitySession for guild {GuildId}", guildId);
+
+            // Check cancellation token
+            cancellationToken.ThrowIfCancellationRequested();
 
             // Check if LiveJob is enabled for this server
             if (!await _toggleService.IsEnabledAsync(guildId, Constants.ToggleNames.EnableLiveJob))
@@ -42,6 +45,9 @@ public class ActivitySessionService : IActivitySessionService
                 _logger.LogDebug("LiveJob disabled for guild {GuildId}, skipping execution", guildId);
                 return false;
             }
+
+            // Check cancellation token before continuing
+            cancellationToken.ThrowIfCancellationRequested();
 
             // Get current activity level
             var currentActivity = _chatContextService.GetCurrentActivityLevel(guildId);
@@ -84,7 +90,7 @@ public class ActivitySessionService : IActivitySessionService
             }
             else
             {
-                adjustedChance = Math.Min(adjustedChance, 0.85); // Cap at 85%
+                adjustedChance = Math.Min(adjustedChance, 0.90); // Cap at 90% (increased from 85%)
             }
 
             // Random engagement check
@@ -107,6 +113,9 @@ public class ActivitySessionService : IActivitySessionService
                 _logger.LogWarning("Could not find guild {GuildId}", guildId);
                 return false;
             }
+
+            // Check cancellation token before engagement action
+            cancellationToken.ThrowIfCancellationRequested();
 
             // Select and execute appropriate engagement action
             var actionChoice = SelectEngagementAction(currentActivity, random);
@@ -137,11 +146,11 @@ public class ActivitySessionService : IActivitySessionService
     {
         return activityLevel switch
         {
-            <= 0.3 => 0.1,     // 10% base chance for low activity
-            <= 0.5 => 0.15,    // 15% base chance for below normal
-            <= 1.0 => 0.25,    // 25% base chance for normal activity
-            <= 1.5 => 0.35,    // 35% base chance for high activity
-            _ => 0.45           // 45% base chance for very high activity
+            <= 0.3 => 0.25,    // 25% base chance for low activity (increased from 10%)
+            <= 0.5 => 0.35,    // 35% base chance for below normal (increased from 15%)
+            <= 1.0 => 0.45,    // 45% base chance for normal activity (increased from 25%)
+            <= 1.5 => 0.55,    // 55% base chance for high activity (increased from 35%)
+            _ => 0.65           // 65% base chance for very high activity (increased from 45%)
         };
     }
 

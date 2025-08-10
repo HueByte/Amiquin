@@ -19,7 +19,7 @@ public class ActivitySessionJob
     public DateTime LastExecutedAt { get; private set; }
     public int ExecutionCount { get; private set; }
     public double LastActivityLevel { get; private set; }
-    public int CurrentFrequencySeconds { get; private set; } = 8; // Start with fast frequency
+    public int CurrentFrequencySeconds { get; private set; } = 6; // Start with faster frequency
 
     public ActivitySessionJob(ulong guildId, ILogger<ActivitySessionJob> logger)
     {
@@ -44,18 +44,30 @@ public class ActivitySessionJob
             using var scope = serviceScopeFactory.CreateScope();
             var activitySessionService = scope.ServiceProvider.GetRequiredService<IActivitySessionService>();
 
+            // Create a timeout for the execution to prevent TaskManager timeouts
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeoutCts.CancelAfter(TimeSpan.FromSeconds(30)); // 30-second timeout per execution
+
             // Execute activity session with frequency adjustment callback
             var wasEngaged = await activitySessionService.ExecuteActivitySessionAsync(_guildId, activityLevel =>
             {
                 LastActivityLevel = activityLevel;
                 AdjustFrequency(activityLevel);
-            });
+            }, timeoutCts.Token);
 
             // Log the result (already logged inside service, but keeping for consistency with old behavior)
             if (!wasEngaged)
             {
                 _logger.LogDebug("No engagement action was executed for guild {GuildId}", _guildId);
             }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            _logger.LogDebug("ActivitySession execution cancelled for guild {GuildId}", _guildId);
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.LogWarning("ActivitySession execution timed out for guild {GuildId} after 30 seconds", _guildId);
         }
         catch (Exception ex)
         {
@@ -70,12 +82,12 @@ public class ActivitySessionJob
     {
         var newFrequency = activityLevel switch
         {
-            <= 0.1 => 30,       // Very low activity: every 30 seconds
-            <= 0.3 => 20,       // Low activity: every 20 seconds  
-            <= 0.7 => 15,       // Normal activity: every 15 seconds
-            <= 1.3 => 10,       // High activity: every 10 seconds
-            <= 1.5 => 8,        // Very high activity: every 8 seconds
-            _ => 6              // Extreme activity: every 6 seconds
+            <= 0.1 => 15,       // Very low activity: every 15 seconds (reduced from 30s)
+            <= 0.3 => 12,       // Low activity: every 12 seconds (reduced from 20s)
+            <= 0.7 => 8,        // Normal activity: every 8 seconds (reduced from 15s)
+            <= 1.3 => 6,        // High activity: every 6 seconds (reduced from 10s)
+            <= 1.5 => 5,        // Very high activity: every 5 seconds (reduced from 8s)
+            _ => 4              // Extreme activity: every 4 seconds (reduced from 6s)
         };
 
         if (newFrequency != CurrentFrequencySeconds)

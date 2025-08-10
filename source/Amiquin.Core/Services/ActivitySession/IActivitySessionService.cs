@@ -10,6 +10,7 @@ public interface IActivitySessionService
     /// </summary>
     /// <param name="guildId">The guild ID to execute activity session for</param>
     /// <param name="adjustFrequencyCallback">Optional callback to adjust job frequency based on activity level</param>
+    /// <param name="cancellationToken">Cancellation token to cancel the operation</param>
     /// <returns>True if engagement action was executed, false otherwise</returns>
-    Task<bool> ExecuteActivitySessionAsync(ulong guildId, Action<double>? adjustFrequencyCallback = null);
+    Task<bool> ExecuteActivitySessionAsync(ulong guildId, Action<double>? adjustFrequencyCallback = null, CancellationToken cancellationToken = default);
 }
