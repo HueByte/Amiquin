@@ -25,7 +25,7 @@ public class LiveJob : IRunnableJob
         _jobService = jobService;
     }
 
-    public int FrequencyInSeconds { get; set; } = 1200;
+    public int FrequencyInSeconds { get; set; } = 30;
 
     public async Task RunAsync(IServiceScopeFactory serviceScopeFactory, CancellationToken cancellationToken)
     {

@@ -127,7 +127,10 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
 
     [SlashCommand("toggle", "Toggle a feature")]
     [Ephemeral]
-    public async Task ToggleAsync(string toggleName, bool isEnabled, string? description = null)
+    public async Task ToggleAsync(
+        [Summary("toggle", "The feature to toggle")][Autocomplete(typeof(ToggleAutoCompleteHandler))] string toggleName, 
+        bool isEnabled, 
+        string? description = null)
     {
         await _toggleService.SetServerToggleAsync(Context.Guild.Id, toggleName, isEnabled, description);
         await ModifyOriginalResponseAsync((msg) => msg.Content = $"Set {toggleName} to {isEnabled}");
@@ -225,6 +228,8 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
             var embedBuilder = new EmbedBuilder()
                 .WithTitle($"🔧 Server Configuration - {Context.Guild.Name}")
                 .WithColor(Color.Blue)
+                .WithThumbnailUrl(Context.Guild.IconUrl)
+                .WithImageUrl(Context.Guild.BannerUrl)
                 .WithCurrentTimestamp();
 
             // Server basic info
@@ -306,6 +311,7 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
             var embedBuilder = new EmbedBuilder()
                 .WithTitle("🤖 Current AI Model Configuration")
                 .WithColor(Color.Green)
+                .WithThumbnailUrl(Context.Guild.IconUrl)
                 .WithCurrentTimestamp();
 
             if (activeSession != null)
@@ -368,6 +374,7 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
             var embedBuilder = new EmbedBuilder()
                 .WithTitle("✅ AI Model Updated Successfully")
                 .WithColor(Color.Green)
+                .WithThumbnailUrl(Context.Guild.IconUrl)
                 .WithCurrentTimestamp();
 
             if (updatedCount > 0)
@@ -392,6 +399,282 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
         {
             _logger.LogError(ex, "Error setting model {Model} from {Provider} for server {ServerId}", model, provider, Context.Guild.Id);
             await ModifyOriginalResponseAsync(msg => msg.Content = "❌ An error occurred while updating the AI model.");
+        }
+    }
+
+    [Group("config", "Configure server settings")]
+    public class ConfigCommands : InteractionModuleBase<ExtendedShardedInteractionContext>
+    {
+        private readonly ILogger<ConfigCommands> _logger;
+        private readonly IServerMetaService _serverMetaService;
+        private readonly BotContextAccessor _botContextAccessor;
+
+        public ConfigCommands(ILogger<ConfigCommands> logger, IServerMetaService serverMetaService, BotContextAccessor botContextAccessor)
+        {
+            _logger = logger;
+            _serverMetaService = serverMetaService;
+            _botContextAccessor = botContextAccessor;
+        }
+
+        [SlashCommand("set", "Configure a server setting")]
+        public async Task SetConfigAsync(
+            [Summary("setting", "The setting to configure")][Autocomplete(typeof(AdminSettingAutoCompleteHandler))] string setting,
+            [Summary("value", "The value to set")] string value)
+        {
+            try
+            {
+                var serverMeta = _botContextAccessor.ServerMeta;
+                if (serverMeta == null)
+                {
+                    await ModifyOriginalResponseAsync(msg => msg.Content = "❌ Server metadata not found. Please try again later.");
+                    return;
+                }
+
+                var embedBuilder = new EmbedBuilder()
+                    .WithTitle("⚙️ Server Configuration Updated")
+                    .WithColor(Color.Blue)
+                    .WithThumbnailUrl(Context.Guild.IconUrl)
+                    .WithCurrentTimestamp();
+
+                switch (setting.ToLowerInvariant())
+                {
+                    case "main-channel":
+                    case "primary-channel":
+                        if (!ulong.TryParse(value, out var channelId))
+                        {
+                            await ModifyOriginalResponseAsync(msg => msg.Content = "❌ Invalid channel ID. Please provide a valid channel ID or use the autocomplete.");
+                            return;
+                        }
+
+                        var channel = Context.Guild.GetTextChannel(channelId);
+                        if (channel == null)
+                        {
+                            await ModifyOriginalResponseAsync(msg => msg.Content = "❌ Channel not found in this server.");
+                            return;
+                        }
+
+                        serverMeta.PrimaryChannelId = channelId;
+                        await _serverMetaService.UpdateServerMetaAsync(serverMeta);
+
+                        embedBuilder.WithDescription($"Primary channel has been set to {channel.Mention}");
+                        embedBuilder.AddField("Setting", "Primary Channel", inline: true);
+                        embedBuilder.AddField("New Value", channel.Mention, inline: true);
+                        embedBuilder.AddField("Channel ID", channelId.ToString(), inline: true);
+                        break;
+
+                    case "persona":
+                        if (string.IsNullOrWhiteSpace(value))
+                        {
+                            await ModifyOriginalResponseAsync(msg => msg.Content = "❌ Persona cannot be empty.");
+                            return;
+                        }
+
+                        serverMeta.Persona = value;
+                        await _serverMetaService.UpdateServerMetaAsync(serverMeta);
+
+                        var personaPreview = value.Length > 100 ? $"{value[..100]}..." : value;
+                        embedBuilder.WithDescription("Server persona has been updated");
+                        embedBuilder.AddField("Setting", "Server Persona", inline: false);
+                        embedBuilder.AddField("New Persona", personaPreview, inline: false);
+                        break;
+
+                    default:
+                        await ModifyOriginalResponseAsync(msg => msg.Content = $"❌ Unknown setting: **{setting}**. Use autocomplete to see available settings.");
+                        return;
+                }
+
+                await ModifyOriginalResponseAsync(msg => msg.Embed = embedBuilder.Build());
+                _logger.LogInformation("Admin {UserId} updated server setting {Setting} to {Value} for server {ServerId}",
+                    Context.User.Id, setting, value, Context.Guild.Id);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error setting config {Setting} to {Value} for server {ServerId}", 
+                    setting, value, Context.Guild.Id);
+                await ModifyOriginalResponseAsync(msg => msg.Content = "❌ An error occurred while updating the configuration.");
+            }
+        }
+
+        [SlashCommand("set-channel", "Configure a specific channel setting")]
+        public async Task SetChannelConfigAsync(
+            [Summary("type", "The type of channel to configure")][Autocomplete(typeof(AdminSettingAutoCompleteHandler))] string type,
+            [Summary("channel", "The channel to set")][Autocomplete(typeof(ChannelAutoCompleteHandler))] string channelIdStr)
+        {
+            try
+            {
+                if (!ulong.TryParse(channelIdStr, out var channelId))
+                {
+                    await ModifyOriginalResponseAsync(msg => msg.Content = "❌ Invalid channel ID format.");
+                    return;
+                }
+
+                var channel = Context.Guild.GetTextChannel(channelId);
+                if (channel == null)
+                {
+                    await ModifyOriginalResponseAsync(msg => msg.Content = "❌ Channel not found in this server.");
+                    return;
+                }
+
+                var serverMeta = _botContextAccessor.ServerMeta;
+                if (serverMeta == null)
+                {
+                    await ModifyOriginalResponseAsync(msg => msg.Content = "❌ Server metadata not found. Please try again later.");
+                    return;
+                }
+
+                var embedBuilder = new EmbedBuilder()
+                    .WithTitle("⚙️ Channel Configuration Updated")
+                    .WithColor(Color.Blue)
+                    .WithThumbnailUrl(Context.Guild.IconUrl)
+                    .WithCurrentTimestamp();
+
+                switch (type.ToLowerInvariant())
+                {
+                    case "main-channel":
+                    case "primary-channel":
+                        serverMeta.PrimaryChannelId = channelId;
+                        embedBuilder.WithDescription($"Primary channel has been set to {channel.Mention}");
+                        embedBuilder.AddField("Channel Type", "Primary Channel", inline: true);
+                        break;
+
+                    default:
+                        await ModifyOriginalResponseAsync(msg => msg.Content = $"❌ Unknown channel type: **{type}**");
+                        return;
+                }
+
+                await _serverMetaService.UpdateServerMetaAsync(serverMeta);
+
+                embedBuilder.AddField("Channel", channel.Mention, inline: true);
+                embedBuilder.AddField("Channel Name", $"#{channel.Name}", inline: true);
+                embedBuilder.AddField("Category", channel.Category?.Name ?? "No Category", inline: true);
+                embedBuilder.AddField("Channel ID", channelId.ToString(), inline: true);
+
+                await ModifyOriginalResponseAsync(msg => msg.Embed = embedBuilder.Build());
+                _logger.LogInformation("Admin {UserId} set {ChannelType} to {ChannelId} for server {ServerId}",
+                    Context.User.Id, type, channelId, Context.Guild.Id);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error setting channel config for server {ServerId}", Context.Guild.Id);
+                await ModifyOriginalResponseAsync(msg => msg.Content = "❌ An error occurred while updating the channel configuration.");
+            }
+        }
+
+        [SlashCommand("view", "View current server configuration")]
+        public async Task ViewConfigAsync()
+        {
+            try
+            {
+                var serverMeta = _botContextAccessor.ServerMeta;
+                if (serverMeta == null)
+                {
+                    await ModifyOriginalResponseAsync(msg => msg.Content = "❌ Server metadata not found.");
+                    return;
+                }
+
+                var embedBuilder = new EmbedBuilder()
+                    .WithTitle($"⚙️ Configuration for {Context.Guild.Name}")
+                    .WithColor(Color.Blue)
+                    .WithThumbnailUrl(Context.Guild.IconUrl)
+                    .WithImageUrl(Context.Guild.BannerUrl)
+                    .WithCurrentTimestamp();
+
+                // Primary Channel
+                if (serverMeta.PrimaryChannelId.HasValue)
+                {
+                    var channel = Context.Guild.GetTextChannel(serverMeta.PrimaryChannelId.Value);
+                    if (channel != null)
+                    {
+                        embedBuilder.AddField("Primary Channel", channel.Mention, inline: true);
+                    }
+                    else
+                    {
+                        embedBuilder.AddField("Primary Channel", "Channel not found (deleted?)", inline: true);
+                    }
+                }
+                else
+                {
+                    embedBuilder.AddField("Primary Channel", "Not configured", inline: true);
+                }
+
+                // Persona
+                if (!string.IsNullOrWhiteSpace(serverMeta.Persona))
+                {
+                    var personaText = serverMeta.Persona.Length > 1024
+                        ? $"{serverMeta.Persona[..1020]}..."
+                        : serverMeta.Persona;
+                    embedBuilder.AddField("Server Persona", personaText, inline: false);
+                }
+                else
+                {
+                    embedBuilder.AddField("Server Persona", "No custom persona configured", inline: false);
+                }
+
+                // Metadata
+                embedBuilder.AddField("Server ID", serverMeta.Id.ToString(), inline: true);
+                embedBuilder.AddField("Active", serverMeta.IsActive ? "✅ Yes" : "❌ No", inline: true);
+                embedBuilder.AddField("Created", serverMeta.CreatedAt.ToString("yyyy-MM-dd HH:mm UTC"), inline: true);
+                embedBuilder.AddField("Last Updated", serverMeta.LastUpdated.ToString("yyyy-MM-dd HH:mm UTC"), inline: true);
+
+                await ModifyOriginalResponseAsync(msg => msg.Embed = embedBuilder.Build());
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error viewing config for server {ServerId}", Context.Guild.Id);
+                await ModifyOriginalResponseAsync(msg => msg.Content = "❌ An error occurred while retrieving the configuration.");
+            }
+        }
+
+        [SlashCommand("reset", "Reset a specific configuration setting")]
+        public async Task ResetConfigAsync(
+            [Summary("setting", "The setting to reset")][Autocomplete(typeof(AdminSettingAutoCompleteHandler))] string setting)
+        {
+            try
+            {
+                var serverMeta = _botContextAccessor.ServerMeta;
+                if (serverMeta == null)
+                {
+                    await ModifyOriginalResponseAsync(msg => msg.Content = "❌ Server metadata not found.");
+                    return;
+                }
+
+                var embedBuilder = new EmbedBuilder()
+                    .WithTitle("🔄 Configuration Reset")
+                    .WithColor(Color.Orange)
+                    .WithThumbnailUrl(Context.Guild.IconUrl)
+                    .WithCurrentTimestamp();
+
+                switch (setting.ToLowerInvariant())
+                {
+                    case "main-channel":
+                    case "primary-channel":
+                        serverMeta.PrimaryChannelId = null;
+                        embedBuilder.WithDescription("Primary channel configuration has been reset");
+                        embedBuilder.AddField("Setting Reset", "Primary Channel", inline: true);
+                        break;
+
+                    case "persona":
+                        serverMeta.Persona = string.Empty;
+                        embedBuilder.WithDescription("Server persona has been reset to default");
+                        embedBuilder.AddField("Setting Reset", "Server Persona", inline: true);
+                        break;
+
+                    default:
+                        await ModifyOriginalResponseAsync(msg => msg.Content = $"❌ Unknown setting: **{setting}**");
+                        return;
+                }
+
+                await _serverMetaService.UpdateServerMetaAsync(serverMeta);
+                await ModifyOriginalResponseAsync(msg => msg.Embed = embedBuilder.Build());
+
+                _logger.LogInformation("Admin {UserId} reset {Setting} for server {ServerId}",
+                    Context.User.Id, setting, Context.Guild.Id);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error resetting config {Setting} for server {ServerId}", setting, Context.Guild.Id);
+                await ModifyOriginalResponseAsync(msg => msg.Content = "❌ An error occurred while resetting the configuration.");
+            }
         }
     }
 }
