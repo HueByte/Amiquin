@@ -2,6 +2,7 @@ using Amiquin.Bot.Preconditions;
 using Amiquin.Core;
 using Amiquin.Core.DiscordExtensions;
 using Amiquin.Core.Services.Chat;
+using Amiquin.Core.Services.ChatContext;
 using Amiquin.Core.Services.MessageCache;
 using Amiquin.Core.Utilities;
 using Discord;
@@ -13,14 +14,16 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
 {
     private readonly IPersonaChatService _chatService;
     private readonly IMessageCacheService _messageCacheService;
+    private readonly IChatContextService _chatContextService;
 
-    public MainCommands(IPersonaChatService chatService, IMessageCacheService messageCacheService)
+    public MainCommands(IPersonaChatService chatService, IMessageCacheService messageCacheService, IChatContextService chatContextService)
     {
         _chatService = chatService;
         _messageCacheService = messageCacheService;
+        _chatContextService = chatContextService;
     }
 
-    [SlashCommand("chat", "Chat with the bot")]
+    [SlashCommand("chat", "Chat with amiquin!")]
     [RequireToggle(Constants.ToggleNames.EnableChat)]
     public async Task ChatAsync(string message)
     {
@@ -28,6 +31,9 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
         var originalMessage = message;
         var response = await _chatService.ChatAsync(Context.Guild.Id, Context.User.Id, Context.Client.CurrentUser.Id, $"[{Context.User.GlobalName}]: {message}");
         int messageCount = _messageCacheService.GetChatMessageCount(Context.Guild.Id);
+
+        var chatContext = _chatContextService.GetContextMessages(Context.Guild.Id);
+
 
         // User Embed
         Embed userEmbed = new EmbedBuilder()
@@ -67,7 +73,7 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
     {
         // Get version from assembly
         var assemblyVersion = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "Unknown";
-
+        var amiquinBannerUrl = $"https://cdn.discordapp.com/banners/{Context.Client.CurrentUser.Id}/{Context.Client.CurrentUser.BannerId}?size=512";
         var embed = new EmbedBuilder()
             .WithTitle("☁️ Amiquin Bot Information")
             .WithDescription("A modular and extensible Discord bot")
@@ -81,6 +87,7 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
             .AddField("Shards", Context.Client.Shards.Count.ToString(), true)
             .WithFooter($"Requested by {Context.User.GlobalName ?? Context.User.Username}")
             .WithTimestamp(DateTimeOffset.Now)
+            .WithImageUrl(amiquinBannerUrl)
             .Build();
 
         await ModifyOriginalResponseAsync(msg => msg.Embed = embed);
@@ -90,18 +97,18 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
     private async Task RespondWithSplitMessageAsync(string message)
     {
         const int maxLength = 1950; // Leave some buffer for Discord's 2000 limit
-        
+
         if (message.Length <= maxLength)
         {
             await FollowupAsync(message);
             return;
         }
-        
+
         // Split message at word boundaries
         var parts = new List<string>();
         var currentPart = "";
         var words = message.Split(' ');
-        
+
         foreach (var word in words)
         {
             if (currentPart.Length + word.Length + 1 > maxLength)
@@ -114,15 +121,15 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
                 currentPart += " " + word;
             }
         }
-        
+
         if (!string.IsNullOrWhiteSpace(currentPart))
         {
             parts.Add(currentPart.Trim());
         }
-        
+
         // Send first part as followup, rest as new messages
         await FollowupAsync(parts[0]);
-        
+
         for (int i = 1; i < parts.Count; i++)
         {
             await Context.Channel.SendMessageAsync(parts[i]);

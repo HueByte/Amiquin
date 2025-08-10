@@ -1,7 +1,6 @@
-using Microsoft.Extensions.DependencyInjection;
+using Amiquin.Core.Options;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Amiquin.Core.Options;
 
 namespace Amiquin.Core.Services.Chat.Providers;
 
@@ -14,7 +13,7 @@ public class ChatProviderFactory : IChatProviderFactory
     private readonly ILogger<ChatProviderFactory> _logger;
     private readonly ChatOptions _chatOptions;
     private readonly Dictionary<string, Type> _providerTypes;
-    
+
     public ChatProviderFactory(
         IServiceProvider serviceProvider,
         ILogger<ChatProviderFactory> logger,
@@ -23,7 +22,7 @@ public class ChatProviderFactory : IChatProviderFactory
         _serviceProvider = serviceProvider;
         _logger = logger;
         _chatOptions = chatOptions.Value;
-        
+
         // Register provider types
         _providerTypes = new Dictionary<string, Type>(StringComparer.OrdinalIgnoreCase)
         {
@@ -32,37 +31,37 @@ public class ChatProviderFactory : IChatProviderFactory
             { "Grok", typeof(GrokProvider) }
         };
     }
-    
+
     public IChatProvider GetProvider(string providerName)
     {
         if (!_providerTypes.TryGetValue(providerName, out var providerType))
         {
             throw new NotSupportedException($"Provider '{providerName}' is not supported");
         }
-        
+
         var provider = _serviceProvider.GetService(providerType) as IChatProvider;
         if (provider == null)
         {
             throw new InvalidOperationException($"Provider '{providerName}' is not registered in DI container");
         }
-        
+
         return provider;
     }
-    
+
     public IChatProvider GetDefaultProvider()
     {
         // Get provider from configuration, default to OpenAI
         var providerName = _chatOptions.Model?.Split(':').FirstOrDefault() ?? "OpenAI";
-        
+
         _logger.LogDebug("Getting default provider: {Provider}", providerName);
         return GetProvider(providerName);
     }
-    
+
     public IEnumerable<string> GetAvailableProviders()
     {
         return _providerTypes.Keys;
     }
-    
+
     public bool IsProviderAvailable(string providerName)
     {
         try

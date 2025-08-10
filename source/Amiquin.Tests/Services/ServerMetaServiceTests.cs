@@ -1,8 +1,5 @@
-using Amiquin.Core.DiscordExtensions;
 using Amiquin.Core.IRepositories;
 using Amiquin.Core.Services.Meta;
-using Discord;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -131,7 +128,7 @@ public class ServerMetaServiceTests
 
         _serverMetaRepositoryMock.Setup(r => r.AddAsync(It.IsAny<Core.Models.ServerMeta>()))
             .ReturnsAsync(true);
-            
+
         _serverMetaRepositoryMock.Setup(r => r.SaveChangesAsync())
             .Returns(Task.CompletedTask);
 

@@ -41,8 +41,9 @@ public class TrackedAmiquinJob : TrackedObject
 
     /// <summary>
     /// Gets or sets the task function to execute.
+    /// The function receives the service scope factory, the containing job instance, and a cancellation token.
     /// </summary>
-    public Func<IServiceScopeFactory, CancellationToken, Task> Task { get; set; } = default!;
+    public Func<IServiceScopeFactory, TrackedAmiquinJob, CancellationToken, Task> Task { get; set; } = default!;
 
     /// <summary>
     /// Gets or sets the interval between job executions.

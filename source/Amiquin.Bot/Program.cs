@@ -1,13 +1,8 @@
 using Amiquin.Bot.Configurators;
-using Amiquin.Core;
 using Amiquin.Core.Exceptions;
-using Amiquin.Core.Options;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Options;
 using Serilog;
-using Serilog.Events;
-using Serilog.Sinks.SystemConsole.Themes;
 
 // DotNetEnv.Env.Load(); // Load environment variables from .env file
 

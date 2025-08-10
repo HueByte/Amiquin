@@ -7,7 +7,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Pomelo.EntityFrameworkCore.MySql.Infrastructure;
 using Serilog;
 
 namespace Amiquin.Infrastructure;
@@ -33,34 +32,34 @@ public static class Setup
         // Parse and resolve relative paths in SQLite connection string
         var dataSourcePrefix = "Data Source=";
         var pathStartIndex = connectionString.IndexOf(dataSourcePrefix, StringComparison.OrdinalIgnoreCase);
-        
+
         if (pathStartIndex >= 0)
         {
             var pathStart = pathStartIndex + dataSourcePrefix.Length;
             var pathEndIndex = connectionString.IndexOf(';', pathStart);
-            
+
             // If no semicolon found, assume the path extends to the end of the string
             if (pathEndIndex < 0)
                 pathEndIndex = connectionString.Length;
-            
+
             if (pathEndIndex > pathStart)
             {
                 var dbPath = connectionString.Substring(pathStart, pathEndIndex - pathStart).Trim();
-                
+
                 // Check if the path is relative (not rooted)
                 if (!Path.IsPathRooted(dbPath))
                 {
                     // Resolve relative path against AppContext.BaseDirectory and normalize
                     var combinedPath = Path.Combine(AppContext.BaseDirectory, dbPath);
                     var absolutePath = Path.GetFullPath(combinedPath);
-                    
+
                     // Ensure directory exists
                     var directory = Path.GetDirectoryName(absolutePath);
                     if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
                     {
                         Directory.CreateDirectory(directory);
                     }
-                    
+
                     // Rebuild connection string with absolute path
                     var beforePath = connectionString.Substring(0, pathStart);
                     var afterPath = pathEndIndex < connectionString.Length ? connectionString.Substring(pathEndIndex) : "";

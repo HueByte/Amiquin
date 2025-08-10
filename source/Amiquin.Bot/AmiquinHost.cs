@@ -81,6 +81,7 @@ public class AmiquinHost : IHostedService
         _client.ShardReady += OnShardReadyAsync;
         _client.ShardReady += _eventHandlerService.OnShardReadyAsync;
         _client.InteractionCreated += _eventHandlerService.OnCommandCreatedAsync;
+        _client.MessageReceived += _eventHandlerService.OnMessageReceivedAsync;
         _client.Log += _eventHandlerService.OnClientLogAsync;
         _client.JoinedGuild += _eventHandlerService.OnBotJoinedAsync;
         _interactionService.SlashCommandExecuted += _eventHandlerService.OnShashCommandExecutedAsync;

@@ -1,15 +1,14 @@
 using Amiquin.Core.IRepositories;
 using Amiquin.Core.Options;
-using Amiquin.Core.Services.Toggle;
+using Amiquin.Core.Services.ChatSession;
 using Amiquin.Core.Services.MessageCache;
 using Amiquin.Core.Services.Meta;
 using Amiquin.Core.Services.Nacho;
-using Amiquin.Core.Services.ChatSession;
+using Amiquin.Core.Services.Toggle;
 using Amiquin.Infrastructure;
 using Amiquin.Infrastructure.Repositories;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using Xunit;
 
 namespace Amiquin.IntegrationTests.Fixtures;
 
@@ -110,10 +109,10 @@ public class DatabaseFixture : IDisposable, IAsyncLifetime
             DbContext.ChatSessions.RemoveRange(DbContext.ChatSessions);
         if (DbContext.CommandLogs != null)
             DbContext.CommandLogs.RemoveRange(DbContext.CommandLogs);
-        
+
         // Remove parent entities last
         DbContext.ServerMetas.RemoveRange(DbContext.ServerMetas);
-        
+
         await DbContext.SaveChangesAsync();
     }
 

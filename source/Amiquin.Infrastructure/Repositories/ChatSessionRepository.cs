@@ -1,7 +1,6 @@
 using Amiquin.Core.Abstraction;
 using Amiquin.Core.IRepositories;
 using Amiquin.Core.Models;
-using Amiquin.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 
 namespace Amiquin.Infrastructure.Repositories;

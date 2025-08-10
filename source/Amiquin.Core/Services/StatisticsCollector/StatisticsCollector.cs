@@ -8,7 +8,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System.Diagnostics;
-using System.Text;
 
 namespace Amiquin.Core.Services.StatisticsCollector;
 
@@ -37,12 +36,12 @@ public class StatisticsCollector : IStatisticsCollector
         {
             using var scope = serviceScopeFactory.CreateScope();
             logger = scope.ServiceProvider.GetRequiredService<ILogger<StatisticsCollector>>();
-            
+
             logger.LogDebug("Starting statistics collection cycle");
 
             var services = ResolveServices(scope.ServiceProvider);
             var stats = await CollectBotStatisticsAsync(services, cancellationToken);
-            
+
             await PersistStatisticsAsync(services.StatisticsRepository, stats, cancellationToken);
             await LogPeriodicInformationAsync(services, logger, cancellationToken);
 
@@ -55,7 +54,7 @@ public class StatisticsCollector : IStatisticsCollector
         catch (Exception ex)
         {
             logger?.LogError(ex, "Error during statistics collection cycle");
-            
+
             // Try to log basic fallback statistics
             await LogFallbackStatisticsAsync(serviceScopeFactory, ex, cancellationToken);
         }
@@ -88,7 +87,7 @@ public class StatisticsCollector : IStatisticsCollector
     private async Task<BotStatistics> CollectBotStatisticsAsync(ServiceContainer services, CancellationToken cancellationToken)
     {
         var stopwatch = Stopwatch.StartNew();
-        
+
         try
         {
             var discordMetrics = await CollectDiscordMetricsAsync(services.DiscordClient, cancellationToken);
@@ -321,8 +320,8 @@ public class StatisticsCollector : IStatisticsCollector
         {
             Id = Guid.NewGuid().ToString(),
             CreatedDate = DateTime.UtcNow,
-            BotName = !string.IsNullOrEmpty(services.BotSessionService.BotName) 
-                ? services.BotSessionService.BotName 
+            BotName = !string.IsNullOrEmpty(services.BotSessionService.BotName)
+                ? services.BotSessionService.BotName
                 : FallbackBotName,
             Version = services.Configuration.GetValue<string>(Constants.Environment.BotVersion) ?? UnknownVersion,
             UpTimeInSeconds = (int)(DateTime.UtcNow - services.BotSessionService.StartedAt).TotalSeconds

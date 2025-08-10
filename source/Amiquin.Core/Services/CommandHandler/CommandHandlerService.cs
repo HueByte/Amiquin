@@ -25,7 +25,7 @@ public class CommandHandlerService : ICommandHandlerService
     private const string ServerMetaNullWarning = "ServerMeta is null for command [{command}]";
     private const string InitializingMessage = "Initializing Command Handler Service";
     private const string AddingModulesMessage = "Adding Modules";
-    
+
     private readonly ILogger _logger;
     private readonly IServiceScopeFactory _serviceScopeFactory;
     private readonly IServiceProvider _serviceProvider;
@@ -72,7 +72,7 @@ public class CommandHandlerService : ICommandHandlerService
             _logger.LogInformation(AddingModulesMessage);
 
             await _interactionService.AddModulesAsync(Assembly.GetEntryAssembly(), _serviceProvider);
-            
+
             var ephemeralCommands = Reflection.GetAllEphemeralCommands();
             foreach (var command in ephemeralCommands)
             {
@@ -101,14 +101,35 @@ public class CommandHandlerService : ICommandHandlerService
             return;
         }
 
+        // Handle autocomplete interactions separately - they don't support DeferAsync/RespondAsync like regular interactions
+        if (interaction is SocketAutocompleteInteraction)
+        {
+            try
+            {
+                var scope = _serviceScopeFactory.CreateAsyncScope();
+                var autocompleteContext = new ExtendedShardedInteractionContext(_discordClient, interaction, scope);
+
+                _logger.LogDebug("Executing autocomplete interaction for user {userId} in guild {guildId}",
+                    interaction.User.Id, GetGuildId(interaction));
+
+                await _interactionService.ExecuteCommandAsync(autocompleteContext, scope.ServiceProvider);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to execute autocomplete interaction for user {userId} in guild {guildId}",
+                    interaction.User.Id, GetGuildId(interaction));
+            }
+            return;
+        }
+
         ExtendedShardedInteractionContext? extendedContext = null;
         BotContextAccessor? botContext = null;
-        
+
         try
         {
             var scope = _serviceScopeFactory.CreateAsyncScope();
             extendedContext = new ExtendedShardedInteractionContext(_discordClient, interaction, scope);
-            
+
             var isEphemeral = IsEphemeralCommand(interaction);
             await interaction.DeferAsync(isEphemeral);
 
@@ -121,18 +142,18 @@ public class CommandHandlerService : ICommandHandlerService
             botContext.Initialize(extendedContext, serverMeta, configuration);
 
             var guildId = GetGuildId(interaction);
-            _logger.LogDebug("Executing command {commandName} for user {userId} in guild {guildId}", 
+            _logger.LogDebug("Executing command {commandName} for user {userId} in guild {guildId}",
                 GetCommandName(interaction), interaction.User.Id, guildId);
 
             await _interactionService.ExecuteCommandAsync(extendedContext, scope.ServiceProvider);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to execute command {commandName} for user {userId} in guild {guildId}", 
+            _logger.LogError(ex, "Failed to execute command {commandName} for user {userId} in guild {guildId}",
                 GetCommandName(interaction), interaction.User.Id, GetGuildId(interaction));
-                
+
             await HandleCommandErrorAsync(interaction, ex);
-            
+
             // Clean up resources on error
             if (extendedContext is not null)
             {
@@ -158,21 +179,21 @@ public class CommandHandlerService : ICommandHandlerService
         ArgumentNullException.ThrowIfNull(result);
 
         var extendedContext = interactionContext as ExtendedShardedInteractionContext;
-        
+
         if (extendedContext is null)
         {
             _logger.LogWarning("InteractionContext is not ExtendedShardedInteractionContext for command {commandName}", slashCommandInfo.Name);
             return;
         }
-        
+
         try
         {
             var commandLogRepository = extendedContext.AsyncScope.ServiceProvider.GetRequiredService<ICommandLogRepository>();
             var botContextAccessor = extendedContext.AsyncScope.ServiceProvider.GetRequiredService<BotContextAccessor>();
-            
+
             // Mark context as finished
             botContextAccessor.Finish();
-            
+
             await LogCommandAsync(commandLogRepository, botContextAccessor, slashCommandInfo, result);
 
             if (!result.IsSuccess)
@@ -245,11 +266,11 @@ public class CommandHandlerService : ICommandHandlerService
 
             await commandLogRepository.AddAsync(logEntry);
             await commandLogRepository.SaveChangesAsync();
-            
-            _logger.LogInformation(CommandExecutionLogTemplate, 
-                logEntry.Command, 
-                logEntry.Username, 
-                context.ServerMeta.ServerName, 
+
+            _logger.LogInformation(CommandExecutionLogTemplate,
+                logEntry.Command,
+                logEntry.Username,
+                context.ServerMeta.ServerName,
                 executionTime);
         }
         catch (Exception ex)
@@ -298,8 +319,8 @@ public class CommandHandlerService : ICommandHandlerService
 
             if (result.Error == InteractionCommandError.Exception && result is ExecuteResult execResult)
             {
-                _logger.LogError(execResult.Exception, CommandFailedLogTemplate, 
-                    slashCommandInfo.Name, 
+                _logger.LogError(execResult.Exception, CommandFailedLogTemplate,
+                    slashCommandInfo.Name,
                     interactionContext.Guild?.Name ?? "DM");
             }
 
@@ -354,6 +375,14 @@ public class CommandHandlerService : ICommandHandlerService
     {
         try
         {
+            // Autocomplete interactions don't support regular response methods
+            if (interaction is SocketAutocompleteInteraction autocomplete)
+            {
+                // For autocomplete interactions, we respond with empty results to indicate failure
+                await autocomplete.RespondAsync(Array.Empty<AutocompleteResult>());
+                return;
+            }
+
             if (interaction.HasResponded)
             {
                 await interaction.ModifyOriginalResponseAsync(msg => msg.Content = message);
@@ -381,6 +410,7 @@ public class CommandHandlerService : ICommandHandlerService
             SocketSlashCommand slashCommand => slashCommand.Data.Name,
             SocketMessageCommand messageCommand => messageCommand.Data.Name,
             SocketUserCommand userCommand => userCommand.Data.Name,
+            SocketAutocompleteInteraction autocompleteInteraction => autocompleteInteraction.Data.CommandName,
             _ => "Unknown"
         };
     }
@@ -397,6 +427,7 @@ public class CommandHandlerService : ICommandHandlerService
             SocketSlashCommand slashCommand => slashCommand.GuildId,
             SocketMessageCommand messageCommand => messageCommand.GuildId,
             SocketUserCommand userCommand => userCommand.GuildId,
+            SocketAutocompleteInteraction autocompleteInteraction => autocompleteInteraction.GuildId,
             _ => null
         };
     }

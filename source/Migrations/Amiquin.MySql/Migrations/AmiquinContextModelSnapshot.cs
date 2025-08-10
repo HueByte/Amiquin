@@ -272,6 +272,9 @@ namespace Amiquin.MySql.Migrations
                         .IsRequired()
                         .HasColumnType("longtext");
 
+                    b.Property<ulong?>("PrimaryChannelId")
+                        .HasColumnType("bigint unsigned");
+
                     b.Property<string>("ServerName")
                         .IsRequired()
                         .HasColumnType("longtext");

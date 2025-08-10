@@ -2,7 +2,6 @@ using Amiquin.Bot.Commands.AutoComplete;
 using Amiquin.Core;
 using Amiquin.Core.Attributes;
 using Amiquin.Core.DiscordExtensions;
-using Amiquin.Core.Models;
 using Amiquin.Core.Services.BotContext;
 using Amiquin.Core.Services.ChatSession;
 using Amiquin.Core.Services.Meta;
@@ -13,7 +12,6 @@ using Discord.Interactions;
 using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
 using System.Text;
-using ChatSessionModel = Amiquin.Core.Models.ChatSession;
 
 namespace Amiquin.Bot.Commands;
 
@@ -219,8 +217,6 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
     [SlashCommand("server-config", "Display server configuration and current settings")]
     public async Task ShowServerConfigAsync()
     {
-        await DeferAsync(ephemeral: true);
-
         try
         {
             var serverMeta = _botContextAccessor.ServerMeta;
@@ -302,8 +298,6 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
     [SlashCommand("current-model", "Show which AI model is currently being used")]
     public async Task ShowCurrentModelAsync()
     {
-        await DeferAsync(ephemeral: true);
-
         try
         {
             var serverId = Context.Guild.Id;
@@ -358,8 +352,6 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
         [Summary("model", "The AI model to use")][Autocomplete(typeof(ModelAutoCompleteHandler))] string model,
         [Summary("provider", "The AI provider")][Autocomplete(typeof(ProviderAutoCompleteHandler))] string provider)
     {
-        await DeferAsync(ephemeral: true);
-
         try
         {
             // Validate the model and provider combination

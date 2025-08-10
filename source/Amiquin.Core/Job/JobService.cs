@@ -36,8 +36,8 @@ public class JobService : IAsyncDisposable, IJobService
     public IReadOnlyDictionary<string, TrackedAmiquinJob> Jobs => _dynamicJobs.AsReadOnly();
 
     public JobService(
-        ILogger<JobService> logger, 
-        IServiceScopeFactory serviceScopeFactory, 
+        ILogger<JobService> logger,
+        IServiceScopeFactory serviceScopeFactory,
         ITaskManager taskManager,
         IOptions<JobManagerOptions> options)
     {
@@ -77,7 +77,7 @@ public class JobService : IAsyncDisposable, IJobService
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow,
                 GuildId = 0,
-                Task = runnableJob.RunAsync,
+                Task = (scopeFactory, job, cancellationToken) => runnableJob.RunAsync(scopeFactory, cancellationToken),
                 Interval = ValidateJobInterval(TimeSpan.FromSeconds(runnableJob.FrequencyInSeconds)),
                 Status = JobStatus.Pending,
                 AutoRestart = _options.EnableAutoRestart,
@@ -107,7 +107,7 @@ public class JobService : IAsyncDisposable, IJobService
         }
 
         _logger.LogInformation("Creating dynamic job {JobName} [{JobId}]", job.Name, job.Id);
-        
+
         if (string.IsNullOrEmpty(job.Id) || job.Task is null)
         {
             _logger.LogError("Job {JobName} does not have a valid task or ID", job.Name);
@@ -129,7 +129,7 @@ public class JobService : IAsyncDisposable, IJobService
             CreatedAt = job.CreatedAt,
             UpdatedAt = job.UpdatedAt,
             GuildId = job.GuildId,
-            Task = job.Task,
+            Task = (scopeFactory, trackedJob, cancellationToken) => job.Task(scopeFactory, cancellationToken),
             Interval = ValidateJobInterval(job.Interval),
             Status = JobStatus.Pending,
             AutoRestart = _options.EnableAutoRestart,
@@ -153,7 +153,7 @@ public class JobService : IAsyncDisposable, IJobService
         }
 
         _logger.LogInformation("Creating tracked job {JobName} [{JobId}]", trackedJob.Name, trackedJob.Id);
-        
+
         if (string.IsNullOrEmpty(trackedJob.Id) || trackedJob.Task is null)
         {
             _logger.LogError("Tracked job {JobName} does not have a valid task or ID", trackedJob.Name);
@@ -269,7 +269,7 @@ public class JobService : IAsyncDisposable, IJobService
             return;
 
         _disposed = true;
-        
+
         await _jobManagementLock.WaitAsync();
         try
         {
@@ -385,11 +385,11 @@ public class JobService : IAsyncDisposable, IJobService
             job.Status = JobStatus.Pending;
             job.NextExecutionAt = DateTime.UtcNow.Add(job.Interval);
             job.UpdatedAt = DateTime.UtcNow;
-            
+
             // Schedule the job execution
             ScheduleJobExecution(job);
 
-            _logger.LogInformation("Successfully registered job {JobName} [{JobId}] with {Interval}s interval", 
+            _logger.LogInformation("Successfully registered job {JobName} [{JobId}] with {Interval}s interval",
                 job.Name, job.Id, job.Interval.TotalSeconds);
             return true;
         }
@@ -434,7 +434,7 @@ public class JobService : IAsyncDisposable, IJobService
         }
 
         var requestId = $"{job.Id}-{Guid.NewGuid():N}";
-        
+
         try
         {
             job.Status = JobStatus.Running;
@@ -444,7 +444,7 @@ public class JobService : IAsyncDisposable, IJobService
             job.CurrentRetryAttempt = 0;
             job.LastError = null;
 
-            _logger.LogDebug("Executing job {JobName} [{JobId}] - execution #{ExecutionCount}", 
+            _logger.LogDebug("Executing job {JobName} [{JobId}] - execution #{ExecutionCount}",
                 job.Name, job.Id, job.ExecutionCount);
 
             // Execute the job using TaskManager for better resource management
@@ -461,7 +461,7 @@ public class JobService : IAsyncDisposable, IJobService
             job.Status = JobStatus.Completed;
             job.UpdatedAt = DateTime.UtcNow;
             job.NextExecutionAt = DateTime.UtcNow.Add(job.Interval);
-            
+
             _logger.LogDebug("Job {JobName} [{JobId}] completed successfully", job.Name, job.Id);
 
             // Schedule next execution if job is still active and not paused
@@ -483,19 +483,19 @@ public class JobService : IAsyncDisposable, IJobService
             job.UpdatedAt = DateTime.UtcNow;
             job.CurrentRetryAttempt++;
 
-            _logger.LogError(ex, "Job {JobName} [{JobId}] failed (attempt {RetryAttempt}/{MaxRetries}): {Error}", 
+            _logger.LogError(ex, "Job {JobName} [{JobId}] failed (attempt {RetryAttempt}/{MaxRetries}): {Error}",
                 job.Name, job.Id, job.CurrentRetryAttempt, job.MaxRetryAttempts, ex.Message);
 
             // Handle retry logic
             if (job.AutoRestart && job.CurrentRetryAttempt < job.MaxRetryAttempts && !cts.IsCancellationRequested)
             {
                 var retryDelay = CalculateRetryDelay(job.CurrentRetryAttempt);
-                _logger.LogInformation("Scheduling retry for job {JobName} [{JobId}] in {RetryDelay}s", 
+                _logger.LogInformation("Scheduling retry for job {JobName} [{JobId}] in {RetryDelay}s",
                     job.Name, job.Id, retryDelay.TotalSeconds);
-                
+
                 // Schedule retry with exponential backoff
                 var retryTimer = new Timer(async _ => await ExecuteJobSafely(job), null, retryDelay, Timeout.InfiniteTimeSpan);
-                
+
                 // Replace the existing timer
                 if (_jobTimers.TryGetValue(job.Id, out var oldTimer))
                 {
@@ -518,7 +518,7 @@ public class JobService : IAsyncDisposable, IJobService
     private async Task ExecuteJobTask(TrackedAmiquinJob job, CancellationToken cancellationToken)
     {
         using var scope = _serviceScopeFactory.CreateScope();
-        await job.Task(_serviceScopeFactory, cancellationToken);
+        await job.Task(_serviceScopeFactory, job, cancellationToken);
     }
 
     /// <summary>

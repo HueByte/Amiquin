@@ -8,7 +8,7 @@ using Amiquin.Core.Services.ApiClients;
 using Amiquin.Core.Services.BotContext;
 using Amiquin.Core.Services.BotSession;
 using Amiquin.Core.Services.Chat;
-using Amiquin.Core.Services.Chat.Providers;
+using Amiquin.Core.Services.ChatContext;
 using Amiquin.Core.Services.ChatSession;
 using Amiquin.Core.Services.CommandHandler;
 using Amiquin.Core.Services.EventHandler;
@@ -52,6 +52,8 @@ public class InjectionConfigurator
             LogLevel = LogSeverity.Info,
             MessageCacheSize = 100,
             GatewayIntents = GatewayIntents.Guilds
+                | GatewayIntents.GuildMessages
+                | GatewayIntents.MessageContent
                 | GatewayIntents.GuildBans
                 | GatewayIntents.GuildEmojis
                 | GatewayIntents.GuildIntegrations
@@ -76,6 +78,7 @@ public class InjectionConfigurator
         _services.AddHostedService<AmiquinHost>()
                  .AddSingleton(client)
                  .AddSingleton(interactionService)
+                 .AddSingleton<IChatContextService, ChatContextService>()
                  .AddSingleton<BotSessionService>()
                  .AddSingleton<ICommandHandlerService, CommandHandlerService>()
                  .AddSingleton<IEventHandlerService, EventHandlerService>()

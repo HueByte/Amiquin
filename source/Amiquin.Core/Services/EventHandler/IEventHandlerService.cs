@@ -23,6 +23,12 @@ public interface IEventHandlerService
     Task OnCommandCreatedAsync(SocketInteraction interaction);
 
     /// <summary>
+    /// Handles the event when a message is received.
+    /// </summary>
+    /// <param name="message">The received message.</param>
+    Task OnMessageReceivedAsync(SocketMessage message);
+
+    /// <summary>
     /// Handles the event when a slash command is executed.
     /// </summary>
     /// <param name="slashCommandInfo">Information about the executed slash command.</param>

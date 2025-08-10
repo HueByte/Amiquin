@@ -1,4 +1,3 @@
-using Amiquin.Core.Models;
 using Amiquin.Core.Services.Meta;
 using Amiquin.IntegrationTests.Fixtures;
 

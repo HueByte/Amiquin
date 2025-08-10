@@ -1,7 +1,8 @@
-using Amiquin.Core.Services.Toggle;
+using Amiquin.Core.Services.ChatContext;
 using Amiquin.Core.Services.CommandHandler;
 using Amiquin.Core.Services.Meta;
 using Amiquin.Core.Services.ServerInteraction;
+using Amiquin.Core.Services.Toggle;
 using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
@@ -19,6 +20,7 @@ public class EventHandlerService : IEventHandlerService
     private readonly ILogger _logger;
     private readonly ICommandHandlerService _commandHandlerService;
     private readonly IServiceScopeFactory _serviceScopeFactory;
+    private readonly IChatContextService _chatContextService;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="EventHandlerService"/> class.
@@ -26,11 +28,12 @@ public class EventHandlerService : IEventHandlerService
     /// <param name="logger">The logger for this service.</param>
     /// <param name="commandHandlerService">The service for handling commands.</param>
     /// <param name="serviceScopeFactory">The factory for creating service scopes.</param>
-    public EventHandlerService(ILogger<EventHandlerService> logger, ICommandHandlerService commandHandlerService, IServiceScopeFactory serviceScopeFactory)
+    public EventHandlerService(ILogger<EventHandlerService> logger, ICommandHandlerService commandHandlerService, IServiceScopeFactory serviceScopeFactory, IChatContextService chatContextService)
     {
         _logger = logger;
         _commandHandlerService = commandHandlerService;
         _serviceScopeFactory = serviceScopeFactory;
+        _chatContextService = chatContextService;
     }
 
     /// <inheritdoc/>
@@ -38,6 +41,15 @@ public class EventHandlerService : IEventHandlerService
     {
         _logger.LogInformation($"Shard {shard.ShardId} is ready");
         return Task.CompletedTask;
+    }
+
+    /// <inheritdoc/>
+    public async Task OnMessageReceivedAsync(SocketMessage message)
+    {
+        var guildId = (message.Channel as SocketGuildChannel)?.Guild.Id ?? 0;
+        await _chatContextService.HandleUserMessageAsync(guildId, message).ConfigureAwait(false);
+
+        _logger.LogInformation("Message received from [{user}] in [{channel}]: {content}", message.Author.Username, message.Channel.Name, message.Content);
     }
 
     /// <inheritdoc/>
