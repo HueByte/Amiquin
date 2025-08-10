@@ -93,6 +93,23 @@ public interface IChatContextService
     Task<string?> IncreaseEngagementAsync(ulong guildId, IMessageChannel? channel = null);
 
     /// <summary>
+    /// Shares an opinion or perspective on topics being discussed.
+    /// </summary>
+    /// <param name="guildId">The guild ID where opinion should be shared.</param>
+    /// <param name="channel">Optional specific channel, otherwise uses configured primary channel.</param>
+    /// <returns>The generated opinion content, or null if failed.</returns>
+    Task<string?> ShareOpinionAsync(ulong guildId, IMessageChannel? channel = null);
+
+    /// <summary>
+    /// Lets the LLM decide how to respond based on the current message content and context.
+    /// This gives the AI full autonomy to choose the most appropriate response type.
+    /// </summary>
+    /// <param name="guildId">The guild ID where the adaptive response should be sent.</param>
+    /// <param name="channel">Optional specific channel, otherwise uses configured primary channel.</param>
+    /// <returns>The generated adaptive content, or null if failed.</returns>
+    Task<string?> AdaptiveResponseAsync(ulong guildId, IMessageChannel? channel = null);
+
+    /// <summary>
     /// Gets the current engagement multiplier for a specific scope.
     /// Higher values indicate more engagement (e.g., after bot mentions).
     /// </summary>
@@ -101,10 +118,18 @@ public interface IChatContextService
     float GetEngagementMultiplier(ulong scopeId);
 
     /// <summary>
-    /// Formats context messages in the same format as the /chat command: [username]: message
+    /// Gets the current real-time activity level based on recent message timestamps.
+    /// </summary>
+    /// <param name="scopeId">The scope identifier to get the activity level for.</param>
+    /// <returns>The activity level (0.1 = very low, 2.0 = extremely high).</returns>
+    double GetCurrentActivityLevel(ulong scopeId);
+
+    /// <summary>
+    /// Formats context messages with user metadata: [username:userId] [message content]
+    /// This format enables user mentions via &lt;@userId&gt; syntax in AI responses
     /// </summary>
     /// <param name="scopeId">The scope identifier to format messages for.</param>
-    /// <returns>Formatted message context suitable for AI processing.</returns>
+    /// <returns>Formatted message context suitable for AI processing with user metadata.</returns>
     string FormatContextMessagesForAI(ulong scopeId);
 
     /// <summary>

@@ -44,12 +44,61 @@ public class EventHandlerService : IEventHandlerService
     }
 
     /// <inheritdoc/>
-    public async Task OnMessageReceivedAsync(SocketMessage message)
+    public Task OnMessageReceivedAsync(SocketMessage message)
     {
-        var guildId = (message.Channel as SocketGuildChannel)?.Guild.Id ?? 0;
-        await _chatContextService.HandleUserMessageAsync(guildId, message).ConfigureAwait(false);
+        _ = Task.Run(() => OnMessageReceivedInnerAsync(message).ConfigureAwait(false)).ConfigureAwait(false);
 
         _logger.LogInformation("Message received from [{user}] in [{channel}]: {content}", message.Author.Username, message.Channel.Name, message.Content);
+
+        return Task.CompletedTask;
+    }
+
+    public async Task OnMessageReceivedInnerAsync(SocketMessage message)
+    {
+        var guildId = (message.Channel as SocketGuildChannel)?.Guild.Id ?? 0;
+
+        // Handle the message for context tracking first
+        await _chatContextService.HandleUserMessageAsync(guildId, message).ConfigureAwait(false);
+
+        // Check if bot was mentioned and respond immediately
+        if (guildId > 0 && !message.Author.IsBot && !string.IsNullOrWhiteSpace(message.Content))
+        {
+            using var scope = _serviceScopeFactory.CreateScope();
+            var discordClient = scope.ServiceProvider.GetService<DiscordShardedClient>();
+            var toggleService = scope.ServiceProvider.GetService<IToggleService>();
+
+            if (discordClient?.CurrentUser != null && toggleService != null)
+            {
+                // Check if chat is enabled for this server
+                var isChatEnabled = await toggleService.IsEnabledAsync(guildId, Constants.ToggleNames.EnableChat);
+                if (!isChatEnabled)
+                {
+                    return; // Don't respond to mentions if chat is disabled
+                }
+
+                var botUserId = discordClient.CurrentUser.Id;
+                var isMentioned = message.MentionedUserIds.Contains(botUserId) ||
+                                 message.Content.Contains("@Amiquin", StringComparison.OrdinalIgnoreCase);
+
+                if (isMentioned)
+                {
+                    _logger.LogInformation("Bot was mentioned by {Username} in guild {GuildId}, responding immediately",
+                        message.Author.Username, guildId);
+
+                    // Use the AnswerMentionAsync method for immediate response
+                    var response = await _chatContextService.AnswerMentionAsync(guildId, message);
+
+                    if (string.IsNullOrEmpty(response))
+                    {
+                        _logger.LogWarning("Failed to generate mention response for guild {GuildId}", guildId);
+                    }
+                    else
+                    {
+                        _logger.LogInformation("Successfully responded to mention in guild {GuildId}", guildId);
+                    }
+                }
+            }
+        }
     }
 
     /// <inheritdoc/>

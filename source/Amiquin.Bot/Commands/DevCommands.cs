@@ -155,7 +155,7 @@ Streams: {voiceState.AudioClient?.GetStreams().ToDictionary(x => x.Key, x => x.V
 
         try
         {
-            var response = await _personaChatService.ChatAsync(Context.Guild.Id, Context.User.Id, Context.Client.CurrentUser.Id, $"{Context.User.GlobalName}: {input}");
+            var response = await _personaChatService.ChatAsync(Context.Guild.Id, Context.User.Id, Context.Client.CurrentUser.Id, $"[{Context.User.GlobalName}:{Context.User.Id}] {input}");
 
             await ModifyOriginalResponseAsync((msg) => msg.Content = response);
             await _voiceService.SpeakAsync(voiceChannel, $"Chat listen. {response}");

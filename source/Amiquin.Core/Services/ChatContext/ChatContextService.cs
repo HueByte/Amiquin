@@ -1,5 +1,6 @@
 using Amiquin.Core.Services.Chat;
 using Amiquin.Core.Services.Meta;
+using Amiquin.Core.Services.Toggle;
 using Discord;
 using Discord.WebSocket;
 using Microsoft.Extensions.DependencyInjection;
@@ -12,18 +13,21 @@ public class ChatContextService : IChatContextService
 {
     private readonly ILogger<ChatContextService> _logger;
     private readonly IServiceScopeFactory _serviceScopeFactory;
-    private readonly IChatCoreService _chatCoreService;
+    private readonly IPersonaChatService _personaChatService;
     private readonly IServerMetaService _serverMetaService;
     public readonly ConcurrentDictionary<ulong, ConcurrentBag<SocketMessage>> Messages = new();
 
     // Track engagement multipliers per guild (higher = more engagement)
     private readonly ConcurrentDictionary<ulong, float> _engagementMultipliers = new();
+    
+    // Track recent activity timestamps for real-time activity detection
+    private readonly ConcurrentDictionary<ulong, Queue<DateTime>> _activityTimestamps = new();
 
-    public ChatContextService(ILogger<ChatContextService> logger, IServiceScopeFactory serviceScopeFactory, IChatCoreService chatCoreService, IServerMetaService serverMetaService)
+    public ChatContextService(ILogger<ChatContextService> logger, IServiceScopeFactory serviceScopeFactory, IPersonaChatService personaChatService, IServerMetaService serverMetaService)
     {
         _logger = logger;
         _serviceScopeFactory = serviceScopeFactory;
-        _chatCoreService = chatCoreService;
+        _personaChatService = personaChatService;
         _serverMetaService = serverMetaService;
     }
 
@@ -39,8 +43,14 @@ public class ChatContextService : IChatContextService
         var username = socketMessage.Author.GlobalName ?? socketMessage.Author.Username;
         _logger.LogInformation("Received message from {Username} in scope {ScopeId}: {Message}", username, scopeId, message);
 
+        // Track activity timestamp for real-time detection
+        TrackActivityTimestamp(scopeId);
+
         // Check if bot was mentioned and increase engagement
         CheckForBotMentionAndIncreaseEngagement(scopeId, socketMessage);
+
+        // Check for sudden activity spike and potentially trigger immediate engagement
+        _ = Task.Run(() => CheckActivitySpikeAsync(scopeId, socketMessage));
 
         return AddMessageToContextAsync(scopeId, socketMessage);
     }
@@ -84,11 +94,15 @@ public class ChatContextService : IChatContextService
         {
             _logger.LogInformation("Starting random topic for guild {GuildId}", guildId);
 
-            var prompt = "Provide a fun, interesting, or thought-provoking conversation starter as Amiquin. " +
+            using var scope = _serviceScopeFactory.CreateScope();
+            var discordClient = scope.ServiceProvider.GetRequiredService<DiscordShardedClient>();
+            
+            var prompt = "[System]: Provide a fun, interesting, or thought-provoking conversation starter. " +
                         "Keep it casual and engaging, something that would naturally start a discussion in a Discord server. " +
                         "Don't use quotation marks. Just provide the message directly.";
 
-            var response = await _chatCoreService.ExchangeMessageAsync(prompt);
+            // Use session-based chat service like /chat command
+            var response = await _personaChatService.ChatAsync(guildId, discordClient.CurrentUser.Id, discordClient.CurrentUser.Id, prompt);
 
             if (!string.IsNullOrWhiteSpace(response))
             {
@@ -118,14 +132,21 @@ public class ChatContextService : IChatContextService
             _logger.LogInformation("Answering mention in guild {GuildId} from {Username}",
                 guildId, mentionMessage.Author.Username);
 
+            using var scope = _serviceScopeFactory.CreateScope();
+            var discordClient = scope.ServiceProvider.GetRequiredService<DiscordShardedClient>();
+            
             var context = FormatContextMessagesForAI(guildId);
             var username = mentionMessage.Author.GlobalName ?? mentionMessage.Author.Username;
+            var userId = mentionMessage.Author.Id;
             var mentionContent = mentionMessage.Content.Trim();
 
-            var prompt = $"You were mentioned by {username} who said: '{mentionContent}'. " +
-                        $"Respond naturally as Amiquin. Here's recent context if helpful:\n{context}";
+            // Format with user metadata: [username:userId] message, add context if available
+            var contextPrompt = !string.IsNullOrWhiteSpace(context) ? $"\nRecent context:\n{context}" : "";
+            var mentionGuidance = "\nNote: You can mention users using <@userId> syntax if relevant to your response.";
+            var prompt = $"[{username}:{userId}] {mentionContent}{contextPrompt}{mentionGuidance}";
 
-            var response = await _chatCoreService.ExchangeMessageAsync(prompt);
+            // Use session-based chat service like /chat command
+            var response = await _personaChatService.ChatAsync(guildId, mentionMessage.Author.Id, discordClient.CurrentUser.Id, prompt);
 
             if (!string.IsNullOrWhiteSpace(response))
             {
@@ -154,15 +175,33 @@ public class ChatContextService : IChatContextService
         {
             _logger.LogInformation("Asking engaging question for guild {GuildId}", guildId);
 
+            using var scope = _serviceScopeFactory.CreateScope();
+            var discordClient = scope.ServiceProvider.GetRequiredService<DiscordShardedClient>();
+            
             var context = FormatContextMessagesForAI(guildId);
-            var basePrompt = "Ask an engaging question as Amiquin that would spark discussion. " +
-                           "Make it fun, interesting, or thought-provoking. Don't use quotation marks.";
+            var hasActiveContext = !string.IsNullOrWhiteSpace(context);
+            
+            string basePrompt;
+            if (hasActiveContext)
+            {
+                // Active chat: ask follow-up or related questions
+                basePrompt = "[System]: Based on the ongoing conversation, ask a relevant follow-up question " +
+                           "or ask for others' opinions on what's being discussed. " +
+                           "Make it natural and engaging, like you're genuinely curious about the topic.";
+            }
+            else
+            {
+                // Low activity: ask broader engaging questions
+                basePrompt = "[System]: Ask an engaging question that would spark discussion. " +
+                           "Make it fun, interesting, or thought-provoking that the community would enjoy discussing.";
+            }
 
-            var prompt = !string.IsNullOrWhiteSpace(context)
-                ? $"{basePrompt} Here's recent conversation context for relevance:\n{context}"
+            var prompt = hasActiveContext
+                ? $"{basePrompt} Here's the current conversation:\n{context}"
                 : basePrompt;
 
-            var response = await _chatCoreService.ExchangeMessageAsync(prompt);
+            // Use session-based chat service like /chat command
+            var response = await _personaChatService.ChatAsync(guildId, discordClient.CurrentUser.Id, discordClient.CurrentUser.Id, prompt);
 
             if (!string.IsNullOrWhiteSpace(response))
             {
@@ -191,12 +230,16 @@ public class ChatContextService : IChatContextService
         {
             _logger.LogInformation("Sharing interesting content for guild {GuildId}", guildId);
 
-            var prompt = "Share something interesting, educational, or thought-provoking as Amiquin. " +
+            using var scope = _serviceScopeFactory.CreateScope();
+            var discordClient = scope.ServiceProvider.GetRequiredService<DiscordShardedClient>();
+            
+            var prompt = "[System]: Share something interesting, educational, or thought-provoking. " +
                         "It could be a fun fact, an interesting observation about technology/gaming/life, " +
                         "or something that would spark curiosity. Keep it engaging and conversational. " +
                         "Don't use quotation marks.";
 
-            var response = await _chatCoreService.ExchangeMessageAsync(prompt);
+            // Use session-based chat service like /chat command
+            var response = await _personaChatService.ChatAsync(guildId, discordClient.CurrentUser.Id, discordClient.CurrentUser.Id, prompt);
 
             if (!string.IsNullOrWhiteSpace(response))
             {
@@ -225,12 +268,16 @@ public class ChatContextService : IChatContextService
         {
             _logger.LogInformation("Sharing funny content for guild {GuildId}", guildId);
 
-            var prompt = "Provide a funny message, joke, or humorous observation as Amiquin. " +
+            using var scope = _serviceScopeFactory.CreateScope();
+            var discordClient = scope.ServiceProvider.GetRequiredService<DiscordShardedClient>();
+            
+            var prompt = "[System]: Provide a funny message, joke, or humorous observation. " +
                         "Keep it light-hearted, appropriate for Discord, and entertaining. " +
                         "It could be about gaming, tech, everyday life, or just a clever observation. " +
                         "Don't use quotation marks.";
 
-            var response = await _chatCoreService.ExchangeMessageAsync(prompt);
+            // Use session-based chat service like /chat command
+            var response = await _personaChatService.ChatAsync(guildId, discordClient.CurrentUser.Id, discordClient.CurrentUser.Id, prompt);
 
             if (!string.IsNullOrWhiteSpace(response))
             {
@@ -259,12 +306,16 @@ public class ChatContextService : IChatContextService
         {
             _logger.LogInformation("Sharing useful content for guild {GuildId}", guildId);
 
-            var prompt = "Share useful tips, advice, or helpful information as Amiquin. " +
+            using var scope = _serviceScopeFactory.CreateScope();
+            var discordClient = scope.ServiceProvider.GetRequiredService<DiscordShardedClient>();
+            
+            var prompt = "[System]: Share useful tips, advice, or helpful information. " +
                         "It could be about productivity, gaming tips, tech advice, Discord features, " +
                         "or general life hacks. Make it practical and valuable. " +
                         "Don't use quotation marks.";
 
-            var response = await _chatCoreService.ExchangeMessageAsync(prompt);
+            // Use session-based chat service like /chat command
+            var response = await _personaChatService.ChatAsync(guildId, discordClient.CurrentUser.Id, discordClient.CurrentUser.Id, prompt);
 
             if (!string.IsNullOrWhiteSpace(response))
             {
@@ -293,12 +344,16 @@ public class ChatContextService : IChatContextService
         {
             _logger.LogInformation("Sharing news for guild {GuildId}", guildId);
 
-            var prompt = "Share interesting tech news, gaming updates, or general interesting developments as Amiquin. " +
+            using var scope = _serviceScopeFactory.CreateScope();
+            var discordClient = scope.ServiceProvider.GetRequiredService<DiscordShardedClient>();
+            
+            var prompt = "[System]: Share interesting tech news, gaming updates, or general interesting developments. " +
                         "Keep it conversational and engaging, focusing on things that would interest a Discord community. " +
                         "Don't make up specific facts - keep it general and discussion-oriented. " +
                         "Don't use quotation marks.";
 
-            var response = await _chatCoreService.ExchangeMessageAsync(prompt);
+            // Use session-based chat service like /chat command
+            var response = await _personaChatService.ChatAsync(guildId, discordClient.CurrentUser.Id, discordClient.CurrentUser.Id, prompt);
 
             if (!string.IsNullOrWhiteSpace(response))
             {
@@ -327,17 +382,41 @@ public class ChatContextService : IChatContextService
         {
             _logger.LogInformation("Increasing engagement for guild {GuildId}", guildId);
 
+            using var scope = _serviceScopeFactory.CreateScope();
+            var discordClient = scope.ServiceProvider.GetRequiredService<DiscordShardedClient>();
+            
             var context = FormatContextMessagesForAI(guildId);
-            var basePrompt = "Create an engaging message as Amiquin to spark activity and conversation. " +
+            
+            // Different behavior based on whether there's active conversation or not
+            var hasActiveContext = !string.IsNullOrWhiteSpace(context);
+            
+            string basePrompt;
+            if (hasActiveContext)
+            {
+                // Active chat: participate in the ongoing conversation
+                basePrompt = "[System]: Join the ongoing conversation naturally. Give your opinion, ask a follow-up question, " +
+                           "share a related thought, or add something relevant to what's being discussed. " +
+                           "Be engaging and conversational, like you're part of the group chat. " +
+                           "Don't announce you're joining - just participate naturally.";
+            }
+            else
+            {
+                // Low activity: spark new conversation
+                basePrompt = "[System]: Create an engaging message to spark activity and conversation. " +
                            "This could be asking for opinions, starting a mini-game, creating a poll idea, " +
-                           "or encouraging community interaction. Make it fun and inviting. " +
-                           "Don't use quotation marks.";
+                           "or encouraging community interaction. Make it fun and inviting.";
+            }
 
-            var prompt = !string.IsNullOrWhiteSpace(context)
-                ? $"{basePrompt} Here's recent context for relevance:\n{context}"
-                : basePrompt;
+            var mentionGuidance = hasActiveContext 
+                ? "\nNote: You can mention specific users using <@userId> syntax when responding to their messages or asking them questions."
+                : "";
+                
+            var prompt = hasActiveContext
+                ? $"{basePrompt} Here's the current conversation:\n{context}{mentionGuidance}"
+                : $"{basePrompt}{mentionGuidance}";
 
-            var response = await _chatCoreService.ExchangeMessageAsync(prompt);
+            // Use session-based chat service like /chat command
+            var response = await _personaChatService.ChatAsync(guildId, discordClient.CurrentUser.Id, discordClient.CurrentUser.Id, prompt);
 
             if (!string.IsNullOrWhiteSpace(response))
             {
@@ -356,6 +435,123 @@ public class ChatContextService : IChatContextService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error increasing engagement for guild {GuildId}", guildId);
+            return null;
+        }
+    }
+
+    public async Task<string?> ShareOpinionAsync(ulong guildId, IMessageChannel? channel = null)
+    {
+        try
+        {
+            _logger.LogInformation("Sharing opinion for guild {GuildId}", guildId);
+
+            using var scope = _serviceScopeFactory.CreateScope();
+            var discordClient = scope.ServiceProvider.GetRequiredService<DiscordShardedClient>();
+            
+            var context = FormatContextMessagesForAI(guildId);
+            var hasActiveContext = !string.IsNullOrWhiteSpace(context);
+            
+            string basePrompt;
+            if (hasActiveContext)
+            {
+                // Active chat: share opinion on what's being discussed
+                basePrompt = "[System]: Based on the ongoing conversation, share your honest opinion or perspective on the topic. " +
+                           "Give a thoughtful take that adds to the discussion. Be genuine and conversational, " +
+                           "like you're sharing your view with friends. Don't be neutral - have a stance, but be respectful.";
+            }
+            else
+            {
+                // Low activity: share opinion on general topics
+                basePrompt = "[System]: Share an interesting opinion or perspective on a topic that might spark discussion. " +
+                           "This could be about gaming, technology, current trends, or life in general. " +
+                           "Make it thought-provoking and conversation-starting.";
+            }
+
+            var prompt = hasActiveContext
+                ? $"{basePrompt} Here's what's being discussed:\n{context}"
+                : basePrompt;
+
+            // Use session-based chat service like /chat command
+            var response = await _personaChatService.ChatAsync(guildId, discordClient.CurrentUser.Id, discordClient.CurrentUser.Id, prompt);
+
+            if (!string.IsNullOrWhiteSpace(response))
+            {
+                var targetChannel = await GetTargetChannelAsync(guildId, channel);
+                if (targetChannel != null)
+                {
+                    await targetChannel.SendMessageAsync(response);
+                    _logger.LogInformation("Shared opinion in guild {GuildId}: {Opinion}",
+                        guildId, response.Substring(0, Math.Min(response.Length, 100)) + "...");
+                }
+                return response;
+            }
+
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error sharing opinion for guild {GuildId}", guildId);
+            return null;
+        }
+    }
+
+    public async Task<string?> AdaptiveResponseAsync(ulong guildId, IMessageChannel? channel = null)
+    {
+        try
+        {
+            _logger.LogInformation("Generating adaptive response for guild {GuildId}", guildId);
+
+            using var scope = _serviceScopeFactory.CreateScope();
+            var discordClient = scope.ServiceProvider.GetRequiredService<DiscordShardedClient>();
+            
+            var context = FormatContextMessagesForAI(guildId);
+            var hasActiveContext = !string.IsNullOrWhiteSpace(context);
+            
+            string basePrompt;
+            if (hasActiveContext)
+            {
+                // Active chat: let AI decide best response based on context
+                basePrompt = "[System]: Analyze the current conversation and respond in the most appropriate way. " +
+                           "You could ask a follow-up question, share a related story, give advice, make a joke, " +
+                           "share an opinion, or contribute in whatever way feels most natural and engaging. " +
+                           "Choose your response style based on the tone and content of the conversation.";
+            }
+            else
+            {
+                // Low activity: let AI decide how to spark engagement
+                basePrompt = "[System]: The chat is quiet. Decide the best way to engage the community. " +
+                           "You could start a topic, ask a question, share something interesting, tell a joke, " +
+                           "or do whatever feels right to get people talking. Choose your approach freely.";
+            }
+
+            var mentionGuidance = hasActiveContext 
+                ? "\nNote: You can mention specific users using <@userId> syntax when responding to or asking questions to specific people."
+                : "";
+                
+            var prompt = hasActiveContext
+                ? $"{basePrompt} Here's the current conversation:\n{context}{mentionGuidance}"
+                : $"{basePrompt}{mentionGuidance}";
+
+            // Use session-based chat service like /chat command
+            var response = await _personaChatService.ChatAsync(guildId, discordClient.CurrentUser.Id, discordClient.CurrentUser.Id, prompt);
+
+            if (!string.IsNullOrWhiteSpace(response))
+            {
+                var targetChannel = await GetTargetChannelAsync(guildId, channel);
+                if (targetChannel != null)
+                {
+                    await targetChannel.SendMessageAsync(response);
+                    _logger.LogInformation("Sent adaptive response in guild {GuildId}: {Response}",
+                        guildId, response.Substring(0, Math.Min(response.Length, 100)) + "...");
+                }
+                return response;
+            }
+
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error generating adaptive response for guild {GuildId}", guildId);
             return null;
         }
     }
@@ -489,7 +685,8 @@ public class ChatContextService : IChatContextService
     }
 
     /// <summary>
-    /// Formats context messages in the same format as /chat command: [username]: message
+    /// Formats context messages with user metadata: [username:userId] [message content]
+    /// This format enables user mentions via &lt;@userId&gt; syntax in AI responses
     /// </summary>
     public string FormatContextMessagesForAI(ulong scopeId)
     {
@@ -508,11 +705,12 @@ public class ChatContextService : IChatContextService
                 if (msg.Author.IsBot) continue; // Skip bot messages
 
                 var username = msg.Author.GlobalName ?? msg.Author.Username;
+                var userId = msg.Author.Id;
                 var content = msg.Content.Trim();
 
                 if (!string.IsNullOrWhiteSpace(content))
                 {
-                    contextLines.Add($"[{username}]: {content}");
+                    contextLines.Add($"[{username}:{userId}] {content}");
                 }
             }
 
@@ -549,11 +747,11 @@ public class ChatContextService : IChatContextService
                 guild.Name, contextMessages.Length);
 
             // Create a prompt that encourages natural participation in the conversation
-            var prompt = $"Based on the recent conversation context below, engage naturally as if you're part of the discussion. " +
+            var prompt = $"[System]: Based on the recent conversation context below, engage naturally as if you're part of the discussion. " +
                         $"Don't announce that you're responding to context. Just participate naturally in the ongoing conversation:\n\n{contextMessages}";
 
-            // Get AI response using the persona chat service
-            var response = await personaChatService.ExchangeMessageAsync(guild.Id, prompt);
+            // Get AI response using the session-based chat service like /chat command
+            var response = await personaChatService.ChatAsync(guild.Id, discordClient.CurrentUser.Id, discordClient.CurrentUser.Id, prompt);
 
             if (!string.IsNullOrWhiteSpace(response))
             {
@@ -571,6 +769,141 @@ public class ChatContextService : IChatContextService
         {
             _logger.LogError(ex, "Error sending context-aware message to guild {GuildId}", guild.Id);
             return null;
+        }
+    }
+
+    /// <summary>
+    /// Tracks activity timestamp for real-time activity detection
+    /// </summary>
+    private void TrackActivityTimestamp(ulong scopeId)
+    {
+        var now = DateTime.UtcNow;
+        var timestamps = _activityTimestamps.GetOrAdd(scopeId, _ => new Queue<DateTime>());
+        
+        lock (timestamps)
+        {
+            timestamps.Enqueue(now);
+            
+            // Keep only last 2 minutes of activity
+            var cutoff = now.AddMinutes(-2);
+            while (timestamps.Count > 0 && timestamps.Peek() < cutoff)
+            {
+                timestamps.Dequeue();
+            }
+        }
+    }
+    
+    /// <summary>
+    /// Calculates current real-time activity level based on recent messages
+    /// </summary>
+    public double GetCurrentActivityLevel(ulong scopeId)
+    {
+        if (!_activityTimestamps.TryGetValue(scopeId, out var timestamps))
+            return 0.1;
+            
+        lock (timestamps)
+        {
+            var now = DateTime.UtcNow;
+            var cutoff = now.AddMinutes(-1); // Last 1 minute
+            var recentCount = timestamps.Count(t => t > cutoff);
+            
+            return recentCount switch
+            {
+                <= 0 => 0.1,        // Very low (handles negative values)
+                1 => 0.3,           // Low  
+                2 => 0.5,           // Below normal
+                3 => 0.7,           // Normal
+                4 => 1.0,           // Good
+                5 => 1.3,           // High
+                6 => 1.5,           // Very high
+                _ => 2.0            // Extremely high (7 or more)
+            };
+        }
+    }
+    
+    /// <summary>
+    /// Checks for sudden activity spikes and triggers immediate engagement
+    /// </summary>
+    private async Task CheckActivitySpikeAsync(ulong scopeId, SocketMessage socketMessage)
+    {
+        try
+        {
+            using var scope = _serviceScopeFactory.CreateScope();
+            var toggleService = scope.ServiceProvider.GetService<IToggleService>();
+            
+            if (toggleService == null || !await toggleService.IsEnabledAsync(scopeId, Constants.ToggleNames.EnableLiveJob))
+                return;
+                
+            var currentActivity = GetCurrentActivityLevel(scopeId);
+            var previousMultiplier = _engagementMultipliers.GetValueOrDefault(scopeId, 1.0f);
+            
+            // Detect activity spike (sudden jump to high activity)
+            var isActivitySpike = currentActivity >= 1.3 && previousMultiplier < 1.5f;
+            
+            // Random chance for immediate engagement on activity spikes (30% chance)
+            if (isActivitySpike && new Random().NextDouble() < 0.3)
+            {
+                _logger.LogInformation("Activity spike detected in scope {ScopeId}, triggering immediate engagement", scopeId);
+                
+                // Wait a short random delay to feel natural (2-8 seconds)
+                var delay = TimeSpan.FromSeconds(new Random().Next(2, 9));
+                await Task.Delay(delay);
+                
+                // Trigger engagement appropriate for high activity
+                var actionChoice = new Random().Next(3) switch
+                {
+                    0 => 5, // IncreaseEngagement - join the conversation
+                    1 => 1, // AskQuestion - ask about what's happening
+                    _ => 3  // ShareFunny - add humor to the active chat
+                };
+                
+                await ExecuteEngagementAction(scopeId, actionChoice);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error checking activity spike for scope {ScopeId}", scopeId);
+        }
+    }
+    
+    /// <summary>
+    /// Executes a specific engagement action
+    /// </summary>
+    private async Task ExecuteEngagementAction(ulong scopeId, int actionChoice)
+    {
+        try
+        {
+            switch (actionChoice)
+            {
+                case 0:
+                    await StartTopicAsync(scopeId);
+                    break;
+                case 1:
+                    await AskQuestionAsync(scopeId);
+                    break;
+                case 2:
+                    await ShareInterestingContentAsync(scopeId);
+                    break;
+                case 3:
+                    await ShareFunnyContentAsync(scopeId);
+                    break;
+                case 4:
+                    await ShareUsefulContentAsync(scopeId);
+                    break;
+                case 5:
+                    await IncreaseEngagementAsync(scopeId);
+                    break;
+                case 6:
+                    await ShareOpinionAsync(scopeId);
+                    break;
+                case 7:
+                    await AdaptiveResponseAsync(scopeId);
+                    break;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error executing engagement action {Action} for scope {ScopeId}", actionChoice, scopeId);
         }
     }
 

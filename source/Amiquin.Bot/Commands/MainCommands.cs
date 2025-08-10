@@ -29,7 +29,7 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
     {
         message = message.Trim();
         var originalMessage = message;
-        var response = await _chatService.ChatAsync(Context.Guild.Id, Context.User.Id, Context.Client.CurrentUser.Id, $"[{Context.User.GlobalName}]: {message}");
+        var response = await _chatService.ChatAsync(Context.Guild.Id, Context.User.Id, Context.Client.CurrentUser.Id, $"[{Context.User.GlobalName}:{Context.User.Id}] {message}");
         int messageCount = _messageCacheService.GetChatMessageCount(Context.Guild.Id);
 
         var chatContext = _chatContextService.GetContextMessages(Context.Guild.Id);
