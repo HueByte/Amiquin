@@ -9,7 +9,7 @@ using Amiquin.Core.Services.BotContext;
 using Amiquin.Core.Services.BotSession;
 using Amiquin.Core.Services.Chat;
 using Amiquin.Core.Services.Chat.Providers;
-using Amiquin.Core.Services.Toggle;
+using Amiquin.Core.Services.ChatSession;
 using Amiquin.Core.Services.CommandHandler;
 using Amiquin.Core.Services.EventHandler;
 using Amiquin.Core.Services.ExternalProcessRunner;
@@ -18,18 +18,19 @@ using Amiquin.Core.Services.Meta;
 using Amiquin.Core.Services.Nacho;
 using Amiquin.Core.Services.Persona;
 using Amiquin.Core.Services.ServerInteraction;
+using Amiquin.Core.Services.Toggle;
 using Amiquin.Core.Services.Voice;
 using Amiquin.Infrastructure;
 using Amiquin.Infrastructure.Repositories;
 using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
+using Jiro.Shared.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using OpenAI.Chat;
 using Serilog;
-using Jiro.Shared.Tasks;
 
 namespace Amiquin.Bot.Configurators;
 
@@ -145,7 +146,8 @@ public class InjectionConfigurator
                  .AddScoped<IToggleService, ToggleService>()
                  .AddScoped<BotContextAccessor>()
                  .AddScoped<IServerMetaService, ServerMetaService>()
-                 .AddScoped<INachoService, NachoService>();
+                 .AddScoped<INachoService, NachoService>()
+                 .AddScoped<IChatSessionService, ChatSessionService>();
 
         // LLM-based chat services (new system)
         _services.AddScoped<LLMChatService>()
@@ -163,6 +165,9 @@ public class InjectionConfigurator
             var openAIProvider = llmOptions.GetProvider("OpenAI");
             string openApiKey = openAIProvider?.ApiKey ?? throw new InvalidOperationException("OpenAI API key is not configured");
 
+            // TODO: Use model from configuration
+            //     string model = llmOptions.GetModel("OpenAI") ?? Constants.AI.Gpt4oMiniModel;
+            //     return new ChatClient(model, openApiKey);
             return new ChatClient(Constants.AI.Gpt4oMiniModel, openApiKey);
         });
 
@@ -233,7 +238,8 @@ public class InjectionConfigurator
                  .AddScoped<IServerMetaRepository, ServerMetaRepository>()
                  .AddScoped<INachoRepository, NachoRepository>()
                  .AddScoped<ICommandLogRepository, CommandLogRepository>()
-                 .AddScoped<IBotStatisticsRepository, BotStatisticsRepository>();
+                 .AddScoped<IBotStatisticsRepository, BotStatisticsRepository>()
+                 .AddScoped<IChatSessionRepository, ChatSessionRepository>();
 
         return this;
     }
@@ -251,10 +257,10 @@ public class InjectionConfigurator
         _services.Configure<DiscordOptions>(_configuration.GetSection(DiscordOptions.SectionName));
         _services.Configure<VoiceOptions>(_configuration.GetSection(VoiceOptions.SectionName));
         _services.Configure<JobManagerOptions>(_configuration.GetSection(JobManagerOptions.SectionName));
-        
+
         // TaskManager options (map from JobManager section for now)
         _services.Configure<TaskManagerOptions>(_configuration.GetSection(JobManagerOptions.SectionName));
-        
+
         // LLM configuration system
         _services.Configure<LLMOptions>(_configuration.GetSection(LLMOptions.SectionName));
 

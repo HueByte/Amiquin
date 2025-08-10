@@ -25,6 +25,7 @@ public class ServerMeta : DbModel<ulong>
 ```
 
 **Relationships:**
+
 - Has many `Toggle`s (feature flags)
 - Has many `Message`s (cached messages)
 - Has many `CommandLog`s (command usage history)
@@ -64,6 +65,7 @@ public class Toggle : DbModel<int>
 ```
 
 **Available Toggles:**
+
 - `EnableTTS` - Text-to-speech functionality
 - `EnableJoinMessage` - Welcome messages for new members
 - `EnableChat` - AI chat functionality
@@ -115,6 +117,7 @@ public class SessionMessage
 ```
 
 **Message Roles:**
+
 - `user` - User input messages
 - `assistant` - AI responses
 - `system` - System/persona messages
@@ -178,23 +181,54 @@ public class NachoPack : DbModel<int>
 
 ### Connection Strings
 
+Amiquin supports provider-specific connection strings for better configuration management.
+
 **SQLite (Default):**
+
 ```json
 {
   "ConnectionStrings": {
+    "Amiquin-Sqlite": "Data Source=Data/Database/amiquin.db",
     "AmiquinContext": "Data Source=Data/Database/amiquin.db"
   }
 }
 ```
 
+Environment Variables:
+
+```env
+AMQ_ConnectionStrings__Amiquin-Sqlite=Data Source=Data/Database/amiquin.db
+AMQ_ConnectionStrings__AmiquinContext=Data Source=Data/Database/amiquin.db
+```
+
 **MySQL:**
+
 ```json
 {
   "ConnectionStrings": {
-    "AmiquinContext": "Server=localhost;Database=amiquin;Uid=username;Pwd=password;"
+    "Amiquin-Mysql": "Server=localhost;Database=amiquin;Uid=amiquin;Pwd=password;Pooling=True;",
+    "AmiquinContext": "Server=localhost;Database=amiquin;Uid=amiquin;Pwd=password;Pooling=True;"
   }
 }
 ```
+
+Environment Variables:
+
+```env
+AMQ_ConnectionStrings__Amiquin-Mysql=Server=localhost;Database=amiquin;Uid=amiquin;Pwd=password;Pooling=True;
+AMQ_ConnectionStrings__AmiquinContext=Server=localhost;Database=amiquin;Uid=amiquin;Pwd=password;Pooling=True;
+```
+
+**Connection String Priority:**
+
+The setup methods use the following priority order:
+
+1. Provider-specific environment variable (`AMQ_ConnectionStrings__Amiquin-Sqlite` or `AMQ_ConnectionStrings__Amiquin-Mysql`)
+2. Legacy environment variables (`AMQ_SQLITE_PATH`, `AMQ_DB_CONNECTION_STRING`)
+3. Provider-specific configuration section (`ConnectionStrings:Amiquin-Sqlite` or `ConnectionStrings:Amiquin-Mysql`)
+4. Legacy configuration section (`ConnectionStrings:AmiquinContext`)
+5. Database options configuration section
+6. Default connection string
 
 ### Indexes
 
@@ -209,10 +243,12 @@ Performance indexes are automatically created for:
 ### Migrations
 
 Database migrations are stored in:
+
 - `Migrations/Amiquin.Sqlite/` - SQLite migrations
 - `Migrations/Amiquin.MySql/` - MySQL migrations
 
 **Generate New Migration:**
+
 ```bash
 ./scripts/generate-migrations.sh MigrationName
 ```

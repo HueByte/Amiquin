@@ -17,12 +17,33 @@ public class ToggleServiceIntegrationTests : IClassFixture<DatabaseFixture>
         _serverMetaService = _fixture.ServiceProvider.GetRequiredService<IServerMetaService>();
     }
 
+    private async Task SeedServerData(ulong serverId)
+    {
+        var serverMeta = new Core.Models.ServerMeta
+        {
+            Id = serverId,
+            ServerName = $"Test Server {serverId}",
+            IsActive = true,
+            Persona = "Test persona",
+            CreatedAt = DateTime.UtcNow,
+            LastUpdated = DateTime.UtcNow,
+            Toggles = new List<Core.Models.Toggle>(),
+            Messages = new List<Core.Models.Message>(),
+            CommandLogs = new List<Core.Models.CommandLog>(),
+            NachoPacks = new List<Core.Models.NachoPack>()
+        };
+
+        _fixture.DbContext.ServerMetas.Add(serverMeta);
+        await _fixture.DbContext.SaveChangesAsync();
+    }
+
     [Fact]
     public async Task SetServerToggleAsync_WithNewToggle_ShouldCreateToggle()
     {
         // Arrange
-        await _fixture.SeedTestDataAsync();
-        var serverId = 123456789UL;
+        await _fixture.CleanupAsync();
+        var serverId = (ulong)Random.Shared.Next(100000000, 999999999);
+        await SeedServerData(serverId);
         var toggleName = "NewToggle";
         var isEnabled = true;
         var description = "New toggle description";
@@ -43,8 +64,9 @@ public class ToggleServiceIntegrationTests : IClassFixture<DatabaseFixture>
     public async Task SetServerToggleAsync_WithExistingToggle_ShouldUpdateToggle()
     {
         // Arrange
-        await _fixture.SeedTestDataAsync();
-        var serverId = 123456789UL;
+        await _fixture.CleanupAsync();
+        var serverId = (ulong)Random.Shared.Next(100000000, 999999999);
+        await SeedServerData(serverId);
         var toggleName = "ExistingToggle";
 
         // Create initial toggle
@@ -70,8 +92,9 @@ public class ToggleServiceIntegrationTests : IClassFixture<DatabaseFixture>
     public async Task IsEnabledAsync_WithActiveServerAndEnabledToggle_ShouldReturnTrue()
     {
         // Arrange
-        await _fixture.SeedTestDataAsync();
-        var serverId = 123456789UL;
+        await _fixture.CleanupAsync();
+        var serverId = (ulong)Random.Shared.Next(100000000, 999999999);
+        await SeedServerData(serverId);
         var toggleName = "EnabledToggle";
 
         await _toggleService.SetServerToggleAsync(serverId, toggleName, true, "Enabled toggle");
@@ -87,8 +110,9 @@ public class ToggleServiceIntegrationTests : IClassFixture<DatabaseFixture>
     public async Task IsEnabledAsync_WithActiveServerAndDisabledToggle_ShouldReturnFalse()
     {
         // Arrange
-        await _fixture.SeedTestDataAsync();
-        var serverId = 123456789UL;
+        await _fixture.CleanupAsync();
+        var serverId = (ulong)Random.Shared.Next(100000000, 999999999);
+        await SeedServerData(serverId);
         var toggleName = "DisabledToggle";
 
         await _toggleService.SetServerToggleAsync(serverId, toggleName, false, "Disabled toggle");
@@ -105,7 +129,7 @@ public class ToggleServiceIntegrationTests : IClassFixture<DatabaseFixture>
     {
         // Arrange
         await _fixture.CleanupAsync();
-        var serverId = 123456789UL;
+        var serverId = (ulong)Random.Shared.Next(100000000, 999999999);
         var toggleName = "TestToggle";
 
         // Create server but set it as inactive
@@ -127,7 +151,7 @@ public class ToggleServiceIntegrationTests : IClassFixture<DatabaseFixture>
     {
         // Arrange
         await _fixture.CleanupAsync();
-        var serverId = 999999999UL;
+        var serverId = (ulong)Random.Shared.Next(100000000, 999999999);
         var toggleName = "NonExistentToggle";
 
         // Act
@@ -141,8 +165,9 @@ public class ToggleServiceIntegrationTests : IClassFixture<DatabaseFixture>
     public async Task GetTogglesByServerId_ShouldReturnAllServerToggles()
     {
         // Arrange
-        await _fixture.SeedTestDataAsync();
-        var serverId = 123456789UL;
+        await _fixture.CleanupAsync();
+        var serverId = (ulong)Random.Shared.Next(100000000, 999999999);
+        await SeedServerData(serverId);
 
         // Create multiple toggles
         await _toggleService.SetServerToggleAsync(serverId, "Toggle1", true, "Description 1");
@@ -164,8 +189,9 @@ public class ToggleServiceIntegrationTests : IClassFixture<DatabaseFixture>
     public async Task SetServerTogglesBulkAsync_ShouldCreateMultipleToggles()
     {
         // Arrange
-        await _fixture.SeedTestDataAsync();
-        var serverId = 123456789UL;
+        await _fixture.CleanupAsync();
+        var serverId = (ulong)Random.Shared.Next(100000000, 999999999);
+        await SeedServerData(serverId);
         var toggles = new Dictionary<string, (bool IsEnabled, string? Description)>
         {
             { "BulkToggle1", (true, "Bulk description 1") },
@@ -194,8 +220,9 @@ public class ToggleServiceIntegrationTests : IClassFixture<DatabaseFixture>
     public async Task CreateServerTogglesIfNotExistsAsync_WithExistingToggles_ShouldNotDuplicate()
     {
         // Arrange
-        await _fixture.SeedTestDataAsync();
-        var serverId = 123456789UL;
+        await _fixture.CleanupAsync();
+        var serverId = (ulong)Random.Shared.Next(100000000, 999999999);
+        await SeedServerData(serverId);
 
         // Create some initial toggles
         await _toggleService.SetServerToggleAsync(serverId, "ExistingToggle1", true, "Description 1");

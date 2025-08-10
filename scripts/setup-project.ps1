@@ -48,6 +48,13 @@ $config = @{
     DatabaseMode = 1  # SQLite by default
     DatabaseConnection = "Data Source=Data/Database/amiquin.db"
     
+    # Docker MySQL configuration (passwords will be generated later)
+    BotInstanceName = "amiquin-instance"
+    MySQLRootPassword = ""
+    MySQLDatabase = "amiquin_db"
+    MySQLUser = "amiquin_user"
+    MySQLUserPassword = ""
+    
     # Data paths
     LogsPath = "Data/Logs"
     MessagesPath = "Data/Messages"
@@ -80,6 +87,10 @@ function Ensure-Directory {
         Write-Host "Created directory: $Path" -ForegroundColor Green
     }
 }
+
+# Generate MySQL passwords by default for Docker compatibility
+$config.MySQLRootPassword = New-SecureString -Length 24
+$config.MySQLUserPassword = New-SecureString -Length 24
 
 if ($NonInteractive) {
     Write-Host "Running in non-interactive mode with default values" -ForegroundColor Yellow
@@ -120,16 +131,40 @@ if ($NonInteractive) {
     Write-Host "\n=== Database Configuration ===" -ForegroundColor Cyan
     if (!$Default) {
         Write-Host "Select Database Type:"
-        Write-Host "1. SQLite (default - recommended for most users)"
-        Write-Host "2. MySQL (for production/multi-instance setups)"
+        Write-Host "1. SQLite (default - recommended for development)"
+        Write-Host "2. MySQL (for production/Docker deployments)"
         $dbChoice = Read-Host "Enter choice [1]"
         
         if ($dbChoice -eq "2") {
             $config.DatabaseMode = 0
-            $mysqlConnection = Read-Host "Enter MySQL connection string [Server=localhost;Database=amiquin_db;Uid=amiquin_user;Pwd=amiquin_password;]"
-            if ($mysqlConnection) { $config.DatabaseConnection = $mysqlConnection }
+            
+            # MySQL passwords already generated in defaults
+            Write-Host "Using pre-generated secure MySQL passwords" -ForegroundColor Green
+            
+            # Ask for database details
+            $dbName = Read-Host "Enter database name [$($config.MySQLDatabase)]"
+            if ($dbName) { $config.MySQLDatabase = $dbName }
+            
+            $dbUser = Read-Host "Enter database user [$($config.MySQLUser)]"
+            if ($dbUser) { $config.MySQLUser = $dbUser }
+            
+            $instanceName = Read-Host "Enter bot instance name (for Docker containers) [$($config.BotInstanceName)]"
+            if ($instanceName) { $config.BotInstanceName = $instanceName }
+            
+            # Update MySQL connection string
+            $config.DatabaseConnection = "Server=localhost;Database=$($config.MySQLDatabase);Uid=$($config.MySQLUser);Pwd=$($config.MySQLUserPassword);Pooling=True;"
+            
+            Write-Host "MySQL configuration:"
+            Write-Host "  Database: $($config.MySQLDatabase)"
+            Write-Host "  User: $($config.MySQLUser)"
+            Write-Host "  Instance: $($config.BotInstanceName)"
+            Write-Host "  Passwords: Already generated securely"
         }
+    } else {
+        # In default mode, MySQL passwords are already generated in config defaults
+        Write-Host "MySQL passwords generated for Docker compatibility" -ForegroundColor Green
     }
+}
     
     # Model selection
     if (!$NonInteractive -and !$Default) {
@@ -145,7 +180,6 @@ if ($NonInteractive) {
             default { $config.DefaultModel = "gpt-4o-mini" }
         }
     }
-}
 
 # Create .env file
 Write-Host ""
@@ -159,32 +193,35 @@ $envContent = @"
 # ======================
 # Bot Configuration
 # ======================
-$(if ($config.BotToken) { "AMQ_Bot__Token=$($config.BotToken)" } else { "# AMQ_Bot__Token=your-discord-bot-token-here" })
-AMQ_Bot__Name=$($config.BotName)
+$(if ($config.BotToken) { "AMQ_Bot__Token=`"$($config.BotToken)`"" } else { "# AMQ_Bot__Token=`"your-discord-bot-token-here`"" })
+AMQ_Bot__Name=`"$($config.BotName)`"
 AMQ_Bot__PrintLogo=false
 AMQ_Bot__MessageFetchCount=40
 
 # ======================
 # LLM (AI Language Model) Configuration
 # ======================
-AMQ_LLM__DefaultProvider=$($config.LLMProvider)
+AMQ_LLM__DefaultProvider=`"$($config.LLMProvider)`"
 AMQ_LLM__EnableFallback=true
-AMQ_LLM__GlobalSystemMessage=$($config.SystemMessage)
+AMQ_LLM__FallbackOrder__0=`"OpenAI`"
+AMQ_LLM__FallbackOrder__1=`"Grok`"
+AMQ_LLM__FallbackOrder__2=`"Gemini`"
+AMQ_LLM__GlobalSystemMessage=`"$($config.SystemMessage)`"
 AMQ_LLM__GlobalTemperature=0.6
 AMQ_LLM__GlobalTimeout=120
 
 # OpenAI Provider Configuration
 AMQ_LLM__Providers__OpenAI__Enabled=true
-$(if ($config.OpenAIApiKey) { "AMQ_LLM__Providers__OpenAI__ApiKey=$($config.OpenAIApiKey)" } else { "# AMQ_LLM__Providers__OpenAI__ApiKey=sk-your-openai-api-key-here" })
-AMQ_LLM__Providers__OpenAI__BaseUrl=https://api.openai.com/v1/
-AMQ_LLM__Providers__OpenAI__DefaultModel=$($config.DefaultModel)
+$(if ($config.OpenAIApiKey) { "AMQ_LLM__Providers__OpenAI__ApiKey=`"$($config.OpenAIApiKey)`"" } else { "# AMQ_LLM__Providers__OpenAI__ApiKey=`"sk-your-openai-api-key-here`"" })
+AMQ_LLM__Providers__OpenAI__BaseUrl=`"https://api.openai.com/v1/`"
+AMQ_LLM__Providers__OpenAI__DefaultModel=`"$($config.DefaultModel)`"
 
 # OpenAI Model Configurations
-AMQ_LLM__Providers__OpenAI__Models__gpt-4o__Name=GPT-4 Omni
+AMQ_LLM__Providers__OpenAI__Models__gpt-4o__Name=`"GPT-4 Omni`"
 AMQ_LLM__Providers__OpenAI__Models__gpt-4o__MaxTokens=128000
 AMQ_LLM__Providers__OpenAI__Models__gpt-4o__MaxOutputTokens=4096
 
-AMQ_LLM__Providers__OpenAI__Models__gpt-4o-mini__Name=GPT-4 Omni Mini
+AMQ_LLM__Providers__OpenAI__Models__gpt-4o-mini__Name=`"GPT-4 Omni Mini`"
 AMQ_LLM__Providers__OpenAI__Models__gpt-4o-mini__MaxTokens=128000
 AMQ_LLM__Providers__OpenAI__Models__gpt-4o-mini__MaxOutputTokens=16384
 
@@ -192,42 +229,89 @@ AMQ_LLM__Providers__OpenAI__Models__gpt-4o-mini__MaxOutputTokens=16384
 # Database Configuration
 # ======================
 AMQ_Database__Mode=$($config.DatabaseMode)
-AMQ_ConnectionStrings__AmiquinContext=$($config.DatabaseConnection)
+
+# Provider-specific Connection Strings (Recommended)
+$(if ($config.DatabaseMode -eq 1) { 
+    "AMQ_ConnectionStrings__Amiquin-Sqlite=`"Data Source=Data/Database/amiquin.db`""
+    "# AMQ_ConnectionStrings__Amiquin-Mysql=`"Server=localhost;Database=amiquin_db;Uid=amiquin_user;Pwd=amiquin_password;Pooling=True;`""
+} else { 
+    "# AMQ_ConnectionStrings__Amiquin-Sqlite=`"Data Source=Data/Database/amiquin.db`""
+    "AMQ_ConnectionStrings__Amiquin-Mysql=`"$($config.DatabaseConnection)`""
+})
+
+# Legacy Connection String (for backward compatibility)
+$(if ($config.DatabaseMode -eq 1) { "AMQ_ConnectionStrings__AmiquinContext=`"Data Source=Data/Database/amiquin.db`"" } else { "AMQ_ConnectionStrings__AmiquinContext=`"$($config.DatabaseConnection)`"" })
+
+# ======================
+# Docker MySQL Configuration (for docker-compose)
+# ======================
+AMQ_BOT_NAME=`"$($config.BotInstanceName)`"
+AMQ_DB_ROOT_PASSWORD=`"$($config.MySQLRootPassword)`"
+AMQ_DB_NAME=`"$($config.MySQLDatabase)`"
+AMQ_DB_USER=`"$($config.MySQLUser)`"
+AMQ_DB_USER_PASSWORD=`"$($config.MySQLUserPassword)`"
 
 # ======================
 # Data Paths Configuration
 # ======================
-AMQ_DataPaths__Logs=$($config.LogsPath)
-AMQ_DataPaths__Messages=$($config.MessagesPath)
-AMQ_DataPaths__Sessions=$($config.SessionsPath)
-AMQ_DataPaths__Plugins=$($config.PluginsPath)
-AMQ_DataPaths__Configuration=$($config.ConfigurationPath)
+AMQ_DataPaths__Logs=`"$($config.LogsPath)`"
+AMQ_DataPaths__Messages=`"$($config.MessagesPath)`"
+AMQ_DataPaths__Sessions=`"$($config.SessionsPath)`"
+AMQ_DataPaths__Plugins=`"$($config.PluginsPath)`"
+AMQ_DataPaths__Configuration=`"$($config.ConfigurationPath)`"
 
 # ======================
 # Voice/TTS Configuration
 # ======================
-AMQ_Voice__TTSModelName=$($config.TTSModelName)
-AMQ_Voice__PiperCommand=/usr/local/bin/piper
+AMQ_Voice__TTSModelName=`"$($config.TTSModelName)`"
+AMQ_Voice__PiperCommand=`"/usr/local/bin/piper`"
 AMQ_Voice__Enabled=$($config.VoiceEnabled.ToString().ToLower())
 
 # ======================
 # Logging Configuration
 # ======================
-AMQ_Serilog__MinimumLevel__Default=Information
-AMQ_Serilog__MinimumLevel__Override__System=Warning
-AMQ_Serilog__MinimumLevel__Override__Microsoft=Warning
-AMQ_Serilog__MinimumLevel__Override__Discord=Information
+AMQ_Serilog__MinimumLevel__Default=`"Information`"
+AMQ_Serilog__MinimumLevel__Override__System=`"Warning`"
+AMQ_Serilog__MinimumLevel__Override__Microsoft=`"Warning`"
+AMQ_Serilog__MinimumLevel__Override__Discord=`"Information`"
 
 # ======================
 # Optional Providers (Disabled by default)
 # ======================
 # Grok Provider Configuration
 # AMQ_LLM__Providers__Grok__Enabled=false
-# AMQ_LLM__Providers__Grok__ApiKey=xai-your-grok-api-key-here
+# AMQ_LLM__Providers__Grok__ApiKey=`"xai-your-grok-api-key-here`"
+# AMQ_LLM__Providers__Grok__BaseUrl=`"https://api.x.ai/v1/`"
+# AMQ_LLM__Providers__Grok__DefaultModel=`"grok-3`"
+
+# Grok Model Configurations
+# AMQ_LLM__Providers__Grok__Models__grok-3__Name=`"Grok 3 Latest Stable`"
+# AMQ_LLM__Providers__Grok__Models__grok-3__MaxTokens=131072
+# AMQ_LLM__Providers__Grok__Models__grok-3__MaxOutputTokens=8192
+
+# AMQ_LLM__Providers__Grok__Models__grok-3-mini__Name=`"Grok 3 Mini`"
+# AMQ_LLM__Providers__Grok__Models__grok-3-mini__MaxTokens=131072
+# AMQ_LLM__Providers__Grok__Models__grok-3-mini__MaxOutputTokens=4096
+
+# AMQ_LLM__Providers__Grok__Models__grok-4-0709__Name=`"Grok 4 Advanced Reasoning`"
+# AMQ_LLM__Providers__Grok__Models__grok-4-0709__MaxTokens=131072
+# AMQ_LLM__Providers__Grok__Models__grok-4-0709__MaxOutputTokens=8192
 
 # Gemini Provider Configuration
 # AMQ_LLM__Providers__Gemini__Enabled=false
-# AMQ_LLM__Providers__Gemini__ApiKey=your-gemini-api-key-here
+# AMQ_LLM__Providers__Gemini__ApiKey=`"your-gemini-api-key-here`"
+# AMQ_LLM__Providers__Gemini__BaseUrl=`"https://generativelanguage.googleapis.com/`"
+# AMQ_LLM__Providers__Gemini__DefaultModel=`"gemini-1.5-flash`"
+# AMQ_LLM__Providers__Gemini__SafetyThreshold=`"BLOCK_NONE`"
+
+# Gemini Model Configurations
+# AMQ_LLM__Providers__Gemini__Models__gemini-1.5-pro__Name=`"Gemini 1.5 Pro`"
+# AMQ_LLM__Providers__Gemini__Models__gemini-1.5-pro__MaxTokens=2097152
+# AMQ_LLM__Providers__Gemini__Models__gemini-1.5-pro__MaxOutputTokens=8192
+
+# AMQ_LLM__Providers__Gemini__Models__gemini-1.5-flash__Name=`"Gemini 1.5 Flash`"
+# AMQ_LLM__Providers__Gemini__Models__gemini-1.5-flash__MaxTokens=1048576
+# AMQ_LLM__Providers__Gemini__Models__gemini-1.5-flash__MaxOutputTokens=8192
 "@
 
 $envPath = Join-Path $PSScriptRoot ".." ".env"
@@ -276,6 +360,8 @@ $appSettings = @{
     }
     ConnectionStrings = @{
         AmiquinContext = $config.DatabaseConnection
+        "Amiquin-Sqlite" = if ($config.DatabaseMode -eq 1) { "Data Source=Data/Database/amiquin.db" } else { "Data Source=Data/Database/amiquin.db" }
+        "Amiquin-Mysql" = if ($config.DatabaseMode -eq 0) { $config.DatabaseConnection } else { "Server=localhost;Database=amiquin;User=amiquin;Password=your_password;Pooling=True;" }
     }
     DataPaths = @{
         Logs = $config.LogsPath

@@ -1,6 +1,7 @@
 using Amiquin.Core;
 using Amiquin.Core.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace Amiquin.Infrastructure;
 
@@ -21,10 +22,18 @@ public class AmiquinContext : DbContext
         if (!optionsBuilder.IsConfigured)
         {
             var environment = Environment.GetEnvironmentVariable(Constants.DefaultValues.ContainerEnvironmentVariable);
-            if (environment == Constants.DefaultValues.ContainerEnvironmentValue)
+            var aspNetEnvironment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
+
+            if (environment == Constants.DefaultValues.ContainerEnvironmentValue || aspNetEnvironment == "Development")
             {
-                // Use a default SQLite configuration for design-time
+                // Use a default SQLite configuration for design-time and development
                 optionsBuilder.UseSqlite(Constants.DefaultValues.InMemoryDatabase);
+                optionsBuilder.EnableSensitiveDataLogging();
+                optionsBuilder.EnableDetailedErrors();
+
+                // Suppress the pending model changes warning in design-time scenarios
+                optionsBuilder.ConfigureWarnings(warnings =>
+                    warnings.Ignore(RelationalEventId.PendingModelChangesWarning));
             }
         }
     }

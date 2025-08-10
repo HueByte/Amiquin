@@ -34,14 +34,14 @@ public class AmiquinHost : IHostedService
     private bool _isInitialized = false;
 
     public AmiquinHost(
-        IEventHandlerService eventHandlerService, 
-        DiscordShardedClient discordClient, 
-        InteractionService interactionService, 
-        ILogger<AmiquinHost> logger, 
-        IOptions<BotOptions> botOptions, 
-        ICommandHandlerService commandHandlerService, 
-        IServiceScopeFactory serviceScopeFactory, 
-        IOptions<ExternalOptions> externalOptions, 
+        IEventHandlerService eventHandlerService,
+        DiscordShardedClient discordClient,
+        InteractionService interactionService,
+        ILogger<AmiquinHost> logger,
+        IOptions<BotOptions> botOptions,
+        ICommandHandlerService commandHandlerService,
+        IServiceScopeFactory serviceScopeFactory,
+        IOptions<ExternalOptions> externalOptions,
         IOptions<DiscordOptions> discordOptions,
         IOptions<VoiceOptions> voiceOptions,
         IOptions<DataPathOptions> dataPathOptions,

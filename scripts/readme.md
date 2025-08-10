@@ -1,72 +1,60 @@
-# Scripts Directory
+# Amiquin Scripts
 
 This directory contains utility scripts for the Amiquin project.
 
-## Available Scripts
+## Migration Scripts
 
-### 1. Generate Migrations Script (`generate-migrations.sh`)
+### generate-migration.ps1 ⭐ **RECOMMENDED**
 
-This script is used to generate Entity Framework Core migrations for multiple database contexts. It supports MySQL, SQLite, MSSQL, and PostgreSQL. The script iterates through different values of the `AMQ_DATABASE_MODE` environment variable and appends the mode to the migration name.
+**Unified migration generation script** - Generates Entity Framework migrations for all supported database providers without requiring live database connections.
 
-#### Prerequisites
+#### Features
 
-- Ensure you have the [.NET SDK](https://dotnet.microsoft.com/download) installed.
-- Install the `dotnet-ef` tool globally if not already installed:
-  
-  ```bash
-  dotnet tool install --global dotnet-ef
-  ```
-
-- Ensure you have the necessary database providers installed in your project.
+- ✅ **Design-time safe** - No database connection required
+- ✅ **Multi-provider support** - SQLite, MySQL, PostgreSQL, SQL Server
+- ✅ **Single script** - Replaces multiple provider-specific scripts
+- ✅ **Enhanced output** - Color-coded progress and detailed summaries
+- ✅ **Flexible targeting** - Generate for specific provider or all providers
 
 #### Usage
 
-##### On Linux/MacOS
+```powershell
+# Generate SQLite migration (default)
+.\generate-migration.ps1 AddChatSessionSupport
 
-1. Open a terminal and navigate to the `scripts` folder:
+# Generate MySQL migration only
+.\generate-migration.ps1 AddChatSessionSupport -Provider mysql
 
-   ```bash
-   cd /path/to/scripts
-   ```
+# Generate for all supported providers
+.\generate-migration.ps1 AddChatSessionSupport -Provider all
 
-2. Run the script with the desired migration name:
+# Enable verbose output for debugging
+.\generate-migration.ps1 AddChatSessionSupport -Provider all -Verbose
 
-   ```bash
-   ./generate-migrations.sh <MigrationName>
-   ```
-
-   Replace `<MigrationName>` with the name of your migration (e.g., `InitialMigration`).
-
-##### On Windows
-
-1. Open a Command Prompt or PowerShell and navigate to the `scripts` folder:
-
-   ```cmd
-   cd \path\to\scripts
-   ```
-
-2. Run the script using Git Bash or WSL (Windows Subsystem for Linux):
-
-   ```bash
-   ./generate-migrations.sh <MigrationName>
-   ```
-
-   Replace `<MigrationName>` with the name of your migration (e.g., `InitialMigration`).
-
-#### Example
-
-To generate migrations with the name `InitialMigration`, run:
-
-```bash
-./generate-migrations.sh InitialMigration
+# Show help
+.\generate-migration.ps1 -Help
 ```
 
-This will create migrations for all supported databases, appending the `AMQ_DATABASE_MODE` value to the migration name (e.g., `InitialMigration_MySql0`, `InitialMigration_SQLite1`, etc.).
+#### Supported Providers
 
-#### Notes
+- `sqlite` (default) - SQLite database
+- `mysql` - MySQL database  
+- `postgresql` - PostgreSQL database
+- `sqlserver` - SQL Server database
+- `all` - Generate migrations for all providers
 
-- The script automatically cleans up the `AMQ_DATABASE_MODE` environment variable after execution.
-- Ensure you have write permissions to the `Migrations` folder in the `source/Amiquin.Infrastructure` project.
+#### Prerequisites
+
+- [.NET 9.0 SDK](https://dotnet.microsoft.com/download)
+- Entity Framework Core Tools:
+
+  ```powershell
+  dotnet tool install --global dotnet-ef
+  ```
+
+### generate-migrations.ps1 / generate-migrations.sh
+
+**Legacy multi-provider scripts** - Original scripts for generating migrations. The new unified `generate-migration.ps1` script is recommended for all new development.
 
 ### 2. Markdownlint Scripts
 

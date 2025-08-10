@@ -23,17 +23,17 @@ public class ServerMetaService : IServerMetaService, IDisposable
     private const string CacheHitMetric = "ServerMeta cache hit";
     private const string CacheMissMetric = "ServerMeta cache miss";
     private const string DatabaseQueryMetric = "ServerMeta database query";
-    
+
     private readonly ILogger<IServerMetaService> _logger;
     private readonly IMemoryCache _memoryCache;
     private readonly IServerMetaRepository _serverMetaRepository;
 
     // Semaphore dictionary to manage access to ServerMeta objects with automatic cleanup
     private readonly ConcurrentDictionary<ulong, SemaphoreEntry> _serverMetaSemaphores = new();
-    
+
     // Performance tracking
     private readonly ConcurrentDictionary<string, long> _operationMetrics = new();
-    
+
     // Disposal tracking
     private volatile bool _disposed;
     private readonly Timer _cleanupTimer;
@@ -49,10 +49,10 @@ public class ServerMetaService : IServerMetaService, IDisposable
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _memoryCache = memoryCache ?? throw new ArgumentNullException(nameof(memoryCache));
         _serverMetaRepository = serverMetaRepository ?? throw new ArgumentNullException(nameof(serverMetaRepository));
-        
+
         // Set up automatic semaphore cleanup every hour
-        _cleanupTimer = new Timer(CleanupUnusedSemaphores, null, 
-            TimeSpan.FromMinutes(SemaphoreCleanupIntervalMinutes), 
+        _cleanupTimer = new Timer(CleanupUnusedSemaphores, null,
+            TimeSpan.FromMinutes(SemaphoreCleanupIntervalMinutes),
             TimeSpan.FromMinutes(SemaphoreCleanupIntervalMinutes));
 
         _logger.LogDebug("ServerMetaService initialized with cleanup timer interval: {minutes} minutes", SemaphoreCleanupIntervalMinutes);
@@ -84,7 +84,7 @@ public class ServerMetaService : IServerMetaService, IDisposable
     public async Task<Models.ServerMeta?> GetServerMetaAsync(ulong serverId, bool includeToggles)
     {
         ThrowIfDisposed();
-        
+
         var stopwatch = Stopwatch.StartNew();
         try
         {
@@ -109,7 +109,7 @@ public class ServerMetaService : IServerMetaService, IDisposable
     {
         ThrowIfDisposed();
         ArgumentNullException.ThrowIfNull(context);
-        
+
         var serverId = context.Guild?.Id ?? 0;
         if (serverId == 0)
         {
@@ -120,7 +120,7 @@ public class ServerMetaService : IServerMetaService, IDisposable
         try
         {
             var cacheKey = GetServerMetaCacheKey(serverId);
-            
+
             // Check cache first
             if (_memoryCache.TryGetValue(cacheKey, out Models.ServerMeta? serverMeta) && serverMeta is not null)
             {
@@ -159,8 +159,8 @@ public class ServerMetaService : IServerMetaService, IDisposable
                 {
                     // Create new ServerMeta
                     serverMeta = CreateNewServerMeta(serverId, context.Guild?.Name ?? Constants.DefaultValues.UnknownServer);
-                    
-                    _logger.LogInformation("Creating new ServerMeta for serverId {serverId} with name {serverName}", 
+
+                    _logger.LogInformation("Creating new ServerMeta for serverId {serverId} with name {serverName}",
                         serverId, serverMeta.ServerName);
 
                     await _serverMetaRepository.AddAsync(serverMeta);
@@ -229,6 +229,7 @@ public class ServerMetaService : IServerMetaService, IDisposable
             IsActive = true,
             ServerName = serverName,
             Persona = string.Empty,
+            AIModel = Constants.AI.Gpt4oMiniModel,
             Toggles = [],
             Messages = [],
             CommandLogs = [],
@@ -249,7 +250,7 @@ public class ServerMetaService : IServerMetaService, IDisposable
     {
         ThrowIfDisposed();
         ArgumentNullException.ThrowIfNull(serverMeta);
-        
+
         if (serverMeta.Id == 0)
         {
             throw new ArgumentException("ServerId must be set before updating ServerMeta.", nameof(serverMeta));
@@ -278,6 +279,7 @@ public class ServerMetaService : IServerMetaService, IDisposable
                 // Update basic properties
                 meta.ServerName = serverMeta.ServerName ?? meta.ServerName;
                 meta.Persona = serverMeta.Persona ?? meta.Persona;
+                meta.AIModel = serverMeta.AIModel ?? meta.AIModel;
                 meta.LastUpdated = DateTime.UtcNow;
                 meta.IsActive = serverMeta.IsActive;
 
@@ -298,10 +300,10 @@ public class ServerMetaService : IServerMetaService, IDisposable
                 };
 
                 _memoryCache.Set(GetServerMetaCacheKey(serverMeta.Id), meta, cacheOptions);
-                
+
                 // Invalidate related caches
                 InvalidateRelatedCaches(serverMeta.Id);
-                
+
                 _logger.LogDebug("Updated ServerMeta for serverId {serverId}", serverMeta.Id);
             }
             finally
@@ -321,7 +323,7 @@ public class ServerMetaService : IServerMetaService, IDisposable
     public async Task DeleteServerMetaAsync(ulong serverId)
     {
         ThrowIfDisposed();
-        
+
         if (serverId == 0)
         {
             throw new ArgumentException("ServerId cannot be zero.", nameof(serverId));
@@ -342,22 +344,22 @@ public class ServerMetaService : IServerMetaService, IDisposable
 
             try
             {
-                var serverMeta = await GetServerMetaAsync(serverId) 
+                var serverMeta = await GetServerMetaAsync(serverId)
                     ?? throw new InvalidOperationException($"ServerMeta not found for serverId {serverId}");
 
                 await _serverMetaRepository.RemoveAsync(serverMeta);
                 await _serverMetaRepository.SaveChangesAsync();
-                
+
                 // Remove from cache and invalidate related caches
                 _memoryCache.Remove(GetServerMetaCacheKey(serverId));
                 InvalidateRelatedCaches(serverId);
-                
+
                 _logger.LogInformation("Successfully deleted ServerMeta for serverId {serverId}", serverId);
             }
             finally
             {
                 semaphoreEntry.Semaphore.Release();
-                
+
                 // Clean up semaphore for deleted server
                 if (_serverMetaSemaphores.TryRemove(serverId, out var removedEntry))
                 {
@@ -381,7 +383,7 @@ public class ServerMetaService : IServerMetaService, IDisposable
         try
         {
             _logger.LogInformation("Fetching all ServerMetas from repository");
-            
+
             var serverMetas = await _serverMetaRepository.AsQueryable()
                 .OrderBy(x => x.ServerName)
                 .ToListAsync();
@@ -407,7 +409,7 @@ public class ServerMetaService : IServerMetaService, IDisposable
     private async Task<Models.ServerMeta?> GetServerMetaInternalAsync(ulong serverId)
     {
         var cacheKey = GetServerMetaCacheKey(serverId);
-        
+
         // Check cache first
         if (_memoryCache.TryGetValue(cacheKey, out Models.ServerMeta? serverMeta) && serverMeta is not null)
         {
@@ -416,7 +418,7 @@ public class ServerMetaService : IServerMetaService, IDisposable
         }
 
         RecordMetric(CacheMissMetric, 1);
-        
+
         var queryStopwatch = Stopwatch.StartNew();
         try
         {
@@ -566,6 +568,7 @@ public class ServerMetaService : IServerMetaService, IDisposable
             IsActive = true,
             ServerName = serverName,
             Persona = string.Empty,
+            AIModel = Constants.AI.Gpt4oMiniModel,
             Toggles = [],
             Messages = [],
             CommandLogs = [],
@@ -631,7 +634,7 @@ public class ServerMetaService : IServerMetaService, IDisposable
     private void RecordMetric(string operationName, long value)
     {
         _operationMetrics.AddOrUpdate(operationName, value, (key, oldValue) => oldValue + value);
-        
+
         // Log significant operations for monitoring
         if (value > Constants.Limits.SlowOperationThresholdMs) // Log operations taking more than 1 second
         {
@@ -703,13 +706,13 @@ public class ServerMetaService : IServerMetaService, IDisposable
     public void ClearAllCache()
     {
         ThrowIfDisposed();
-        
+
         // This is a simplified approach - in a real implementation you might want to track cache keys
         if (_memoryCache is MemoryCache memoryCache)
         {
             memoryCache.Compact(1.0); // Remove all entries
         }
-        
+
         _logger.LogInformation("Cleared all ServerMeta cache entries");
     }
 
@@ -724,7 +727,7 @@ public class ServerMetaService : IServerMetaService, IDisposable
         if (!_disposed && disposing)
         {
             _cleanupTimer?.Dispose();
-            
+
             // Dispose all semaphores
             foreach (var entry in _serverMetaSemaphores.Values)
             {

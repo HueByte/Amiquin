@@ -122,19 +122,10 @@ async Task RunAsync(string[] args)
         })
         .UseSerilog((context, services, config) =>
         {
-            var dataPathOptions = services.GetService(typeof(IOptions<DataPathOptions>)) as IOptions<DataPathOptions>;
-            var logsPath = dataPathOptions?.Value?.Logs ?? Constants.DefaultValues.DefaultLogsPath;
-            var fullLogsPath = Path.IsPathRooted(logsPath) ? logsPath : Path.Combine(AppContext.BaseDirectory, logsPath);
-
-            // This replaces the bootstrap logger and configures the final logger
-            config.WriteTo.Console(restrictedToMinimumLevel: LogEventLevel.Information, theme: AnsiConsoleTheme.Code)
-                .WriteTo.File(Path.Combine(fullLogsPath, "log.log"), rollingInterval: RollingInterval.Day)
-                .Enrich.FromLogContext()
-                .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
-                .MinimumLevel.Override("Microsoft.EntityFrameworkCore", LogEventLevel.Information)
-                .ReadFrom.Configuration(context.Configuration)
-                .ReadFrom.Services(services);
-        }, writeToProviders: false) // Important: don't write to default providers to avoid duplication
+            // Configure Serilog from appsettings.json only
+            config.ReadFrom.Configuration(context.Configuration)
+                  .ReadFrom.Services(services);
+        }, writeToProviders: false)
         .Build();
 
     await host.RunAsync(_restartBotTokenSource.Token);

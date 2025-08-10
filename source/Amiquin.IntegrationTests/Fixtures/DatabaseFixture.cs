@@ -4,25 +4,29 @@ using Amiquin.Core.Services.Toggle;
 using Amiquin.Core.Services.MessageCache;
 using Amiquin.Core.Services.Meta;
 using Amiquin.Core.Services.Nacho;
+using Amiquin.Core.Services.ChatSession;
 using Amiquin.Infrastructure;
 using Amiquin.Infrastructure.Repositories;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Xunit;
 
 namespace Amiquin.IntegrationTests.Fixtures;
 
-public class DatabaseFixture : IDisposable
+public class DatabaseFixture : IDisposable, IAsyncLifetime
 {
     public IServiceProvider ServiceProvider { get; private set; }
     public AmiquinContext DbContext { get; private set; }
+    private readonly string _databaseName;
 
     public DatabaseFixture()
     {
+        _databaseName = $"TestDb_{Guid.NewGuid()}";
         var services = new ServiceCollection();
 
-        // Configure in-memory database for testing
+        // Configure in-memory database for testing with unique name per fixture
         services.AddDbContext<AmiquinContext>(options =>
-            options.UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString()));
+            options.UseInMemoryDatabase(databaseName: _databaseName));
 
         // Add logging
         services.AddLogging(builder => builder.AddConsole().SetMinimumLevel(LogLevel.Warning));
@@ -52,12 +56,14 @@ public class DatabaseFixture : IDisposable
         services.AddScoped<IToggleRepository, ToggleRepository>();
         services.AddScoped<INachoRepository, NachoRepository>();
         services.AddScoped<IMessageRepository, MessageRepository>();
+        services.AddScoped<IChatSessionRepository, ChatSessionRepository>();
 
         // Register services
         services.AddScoped<IServerMetaService, ServerMetaService>();
         services.AddScoped<IToggleService, ToggleService>();
         services.AddScoped<INachoService, NachoService>();
         services.AddScoped<IMessageCacheService, MessageCacheService>();
+        services.AddScoped<IChatSessionService, ChatSessionService>();
 
         ServiceProvider = services.BuildServiceProvider();
 
@@ -96,11 +102,31 @@ public class DatabaseFixture : IDisposable
 
     public async Task CleanupAsync()
     {
-        DbContext.ServerMetas.RemoveRange(DbContext.ServerMetas);
+        // Remove child entities first to avoid cascade delete issues
+        DbContext.Messages.RemoveRange(DbContext.Messages);
         DbContext.Toggles.RemoveRange(DbContext.Toggles);
         DbContext.NachoPacks.RemoveRange(DbContext.NachoPacks);
-        DbContext.Messages.RemoveRange(DbContext.Messages);
+        if (DbContext.ChatSessions != null)
+            DbContext.ChatSessions.RemoveRange(DbContext.ChatSessions);
+        if (DbContext.CommandLogs != null)
+            DbContext.CommandLogs.RemoveRange(DbContext.CommandLogs);
+        
+        // Remove parent entities last
+        DbContext.ServerMetas.RemoveRange(DbContext.ServerMetas);
+        
         await DbContext.SaveChangesAsync();
+    }
+
+    public async Task InitializeAsync()
+    {
+        // Clean database on initialization
+        await CleanupAsync();
+    }
+
+    public async Task DisposeAsync()
+    {
+        // Clean up database before disposal
+        await CleanupAsync();
     }
 
     public void Dispose()

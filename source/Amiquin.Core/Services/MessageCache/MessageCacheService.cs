@@ -73,9 +73,12 @@ public class MessageCacheService : IMessageCacheService
             entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromDays(Constants.MessageCacheDefaults.MemoryCacheExpirationDays);
             var messages = await _messageRepository.AsQueryable()
                 .Where(x => x.ServerId == serverId)
-                .OrderBy(x => x.CreatedAt)
-                .TakeLast(_messageFetchCount) // Get the most recent messages
+                .OrderByDescending(x => x.CreatedAt)
+                .Take(_messageFetchCount) // Get the most recent messages
                 .ToListAsync();
+
+            // Reverse to get chronological order (oldest first)
+            messages.Reverse();
 
             return messages.Select(x =>
                     x.IsUser

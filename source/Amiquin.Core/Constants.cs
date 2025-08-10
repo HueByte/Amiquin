@@ -14,7 +14,7 @@ public class Constants
         public const string EnableJoinMessage = "EnableJoinMessage";
         public const string EnableChat = "EnableChat";
 
-        public static List<string> SystemExlusiveToggles = new()
+        public static List<string> SystemExclusiveTogglesList = new()
         {
             SystemExclusiveToggles.EnableNews
         };
@@ -53,6 +53,10 @@ public class Constants
         public const string DbRootPassword = "AMQ_DB_ROOT_PASSWORD";
         public const string DbUserName = "AMQ_DB_USER";
         public const string DbUserPassword = "AMQ_DB_USER_PASSWORD";
+
+        // Provider-specific connection strings
+        public const string AmiquinSqliteConnectionString = "AMQ_ConnectionStrings__Amiquin-Sqlite";
+        public const string AmiquinMysqlConnectionString = "AMQ_ConnectionStrings__Amiquin-Mysql";
         #endregion
     }
 
@@ -75,7 +79,21 @@ public class Constants
         public const string Gpt3Model = "gpt-3.5-turbo";
         public const string Gpt4Model = "gpt-4-turbo";
         public const string Gpt4oMiniModel = "gpt-4o-mini";
-        public const string Gpt4oModel = "gpt-4o-turbo";
+        public const string Gpt4oModel = "gpt-4o";
+        public const string GrokBetaModel = "grok-beta";
+        public const string Grok2Model = "grok-2-1212";
+        public const string Grok2VisionModel = "grok-2-vision-1212";
+
+        public static readonly List<string> SupportedModels = new()
+        {
+            Gpt4oMiniModel,
+            Gpt4oModel,
+            Gpt4Model,
+            Gpt3Model,
+            GrokBetaModel,
+            Grok2Model,
+            Grok2VisionModel
+        };
         #endregion
     }
 
@@ -135,7 +153,8 @@ public class Constants
         public const string UnknownUser = "Unknown";
         public const string NoneActivity = "None";
         public const string DefaultSQLiteDatabase = "data.db";
-        public const string DefaultMySQLConnectionString = "Server=localhost;Database=Amiquin;User=root;Password=;";
+        public const string DefaultSQLiteConnectionString = "Data Source=Data/Database/amiquin.db";
+        public const string DefaultMySQLConnectionString = "Server=localhost;Database=amiquin;User=root;Password=;";
         public const string InMemoryDatabase = "Data Source=:memory:";
         public const string ContainerEnvironmentVariable = "DOTNET_RUNNING_IN_CONTAINER";
         public const string ContainerEnvironmentValue = "true";

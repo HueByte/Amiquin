@@ -164,6 +164,11 @@ AMIQUIN_Chat__Model=$CHAT_MODEL
 # ======================
 # Database Configuration (SQLite default)
 # ======================
+# Provider-specific Connection Strings (Recommended)
+AMIQUIN_ConnectionStrings__Amiquin-Sqlite=$DATABASE_CONNECTION
+# AMIQUIN_ConnectionStrings__Amiquin-Mysql=Server=localhost;Database=amiquin_db;Uid=amiquin_user;Pwd=amiquin_password;Pooling=True;
+
+# Legacy Connection String (for backward compatibility)
 AMIQUIN_ConnectionStrings__AmiquinContext=$DATABASE_CONNECTION
 
 # ======================
@@ -229,7 +234,9 @@ cat > "$APPSETTINGS_PATH" << EOF
     "Model": "$CHAT_MODEL"
   },
   "ConnectionStrings": {
-    "AmiquinContext": "$DATABASE_CONNECTION"
+    "AmiquinContext": "$DATABASE_CONNECTION",
+    "Amiquin-Sqlite": "Data Source=Data/Database/amiquin.db",
+    "Amiquin-Mysql": "Server=localhost;Database=amiquin;User=amiquin;Password=your_password;Pooling=True;"
   },
   "DataPaths": {
     "Logs": "$LOGS_PATH",

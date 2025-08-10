@@ -15,12 +15,33 @@ public class ServerMetaServiceIntegrationTests : IClassFixture<DatabaseFixture>
         _serverMetaService = _fixture.ServiceProvider.GetRequiredService<IServerMetaService>();
     }
 
+    private async Task SeedServerData(ulong serverId)
+    {
+        var serverMeta = new Core.Models.ServerMeta
+        {
+            Id = serverId,
+            ServerName = $"Test Server {serverId}",
+            IsActive = true,
+            Persona = "Test persona",
+            CreatedAt = DateTime.UtcNow,
+            LastUpdated = DateTime.UtcNow,
+            Toggles = new List<Core.Models.Toggle>(),
+            Messages = new List<Core.Models.Message>(),
+            CommandLogs = new List<Core.Models.CommandLog>(),
+            NachoPacks = new List<Core.Models.NachoPack>()
+        };
+
+        _fixture.DbContext.ServerMetas.Add(serverMeta);
+        await _fixture.DbContext.SaveChangesAsync();
+    }
+
     [Fact]
     public async Task GetServerMetaAsync_WithExistingServer_ShouldReturnServerMeta()
     {
         // Arrange
-        await _fixture.SeedTestDataAsync();
-        var serverId = 123456789UL;
+        await _fixture.CleanupAsync();
+        var serverId = (ulong)Random.Shared.Next(100000000, 999999999);
+        await SeedServerData(serverId);
 
         // Act
         var result = await _serverMetaService.GetServerMetaAsync(serverId);
@@ -28,7 +49,7 @@ public class ServerMetaServiceIntegrationTests : IClassFixture<DatabaseFixture>
         // Assert
         Assert.NotNull(result);
         Assert.Equal(serverId, result.Id);
-        Assert.Equal("Test Server", result.ServerName);
+        Assert.Equal($"Test Server {serverId}", result.ServerName);
         Assert.True(result.IsActive);
     }
 
@@ -37,7 +58,7 @@ public class ServerMetaServiceIntegrationTests : IClassFixture<DatabaseFixture>
     {
         // Arrange
         await _fixture.CleanupAsync();
-        var Id = 999999999UL;
+        var Id = (ulong)Random.Shared.Next(100000000, 999999999);
 
         // Act
         var result = await _serverMetaService.GetServerMetaAsync(Id);
@@ -73,8 +94,9 @@ public class ServerMetaServiceIntegrationTests : IClassFixture<DatabaseFixture>
     public async Task UpdateServerMetaAsync_ShouldUpdateExistingServerMeta()
     {
         // Arrange
-        await _fixture.SeedTestDataAsync();
-        var Id = 123456789UL;
+        await _fixture.CleanupAsync();
+        var Id = (ulong)Random.Shared.Next(100000000, 999999999);
+        await SeedServerData(Id);
         var serverMeta = await _serverMetaService.GetServerMetaAsync(Id);
         Assert.NotNull(serverMeta);
 
@@ -95,8 +117,9 @@ public class ServerMetaServiceIntegrationTests : IClassFixture<DatabaseFixture>
     public async Task DeleteServerMetaAsync_ShouldRemoveServerMeta()
     {
         // Arrange
-        await _fixture.SeedTestDataAsync();
-        var Id = 123456789UL;
+        await _fixture.CleanupAsync();
+        var Id = (ulong)Random.Shared.Next(100000000, 999999999);
+        await SeedServerData(Id);
 
         // Verify it exists first
         var serverMeta = await _serverMetaService.GetServerMetaAsync(Id);
@@ -136,8 +159,9 @@ public class ServerMetaServiceIntegrationTests : IClassFixture<DatabaseFixture>
     public async Task GetServerMetaAsync_WithIncludeToggles_ShouldLoadToggles()
     {
         // Arrange
-        await _fixture.SeedTestDataAsync();
-        var Id = 123456789UL;
+        await _fixture.CleanupAsync();
+        var Id = (ulong)Random.Shared.Next(100000000, 999999999);
+        await SeedServerData(Id);
 
         // Add some toggles first
         var toggleService = _fixture.ServiceProvider.GetRequiredService<Core.Services.Toggle.IToggleService>();

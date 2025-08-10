@@ -1,15 +1,19 @@
+using Amiquin.Bot.Commands.AutoComplete;
 using Amiquin.Core;
 using Amiquin.Core.Attributes;
 using Amiquin.Core.DiscordExtensions;
+using Amiquin.Core.Models;
 using Amiquin.Core.Services.BotContext;
-using Amiquin.Core.Services.Toggle;
+using Amiquin.Core.Services.ChatSession;
 using Amiquin.Core.Services.Meta;
+using Amiquin.Core.Services.Toggle;
 using Amiquin.Core.Utilities;
 using Discord;
 using Discord.Interactions;
 using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
 using System.Text;
+using ChatSessionModel = Amiquin.Core.Models.ChatSession;
 
 namespace Amiquin.Bot.Commands;
 
@@ -20,17 +24,19 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
     private readonly ILogger<AdminCommands> _logger;
     private readonly IServerMetaService _serverMetaService;
     private readonly IToggleService _toggleService;
+    private readonly IChatSessionService _chatSessionService;
     private readonly BotContextAccessor _botContextAccessor;
     private const int WORKER_COUNT = 1;
     private const int DELETE_THROTTLE_MS = 500;
     private const int UPDATE_THROTTLE_MS = 1500;
     private const int BAR_WIDTH = 40;
 
-    public AdminCommands(ILogger<AdminCommands> logger, IServerMetaService serverMetaService, IToggleService toggleService, BotContextAccessor botContextAccessor)
+    public AdminCommands(ILogger<AdminCommands> logger, IServerMetaService serverMetaService, IToggleService toggleService, IChatSessionService chatSessionService, BotContextAccessor botContextAccessor)
     {
         _logger = logger;
         _serverMetaService = serverMetaService;
         _toggleService = toggleService;
+        _chatSessionService = chatSessionService;
         _botContextAccessor = botContextAccessor;
     }
 
@@ -207,6 +213,193 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Failed to delete message {MessageId}", message.Id);
+        }
+    }
+
+    [SlashCommand("server-config", "Display server configuration and current settings")]
+    public async Task ShowServerConfigAsync()
+    {
+        await DeferAsync(ephemeral: true);
+
+        try
+        {
+            var serverMeta = _botContextAccessor.ServerMeta;
+            var serverId = Context.Guild.Id;
+
+            var embedBuilder = new EmbedBuilder()
+                .WithTitle($"🔧 Server Configuration - {Context.Guild.Name}")
+                .WithColor(Color.Blue)
+                .WithCurrentTimestamp();
+
+            // Server basic info
+            embedBuilder.AddField("Server ID", serverId.ToString(), inline: true);
+            embedBuilder.AddField("Server Name", Context.Guild.Name, inline: true);
+            embedBuilder.AddField("Member Count", Context.Guild.MemberCount.ToString(), inline: true);
+
+            // Server Meta information
+            if (serverMeta != null)
+            {
+                embedBuilder.AddField("Server Created", serverMeta.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss UTC"), inline: true);
+                embedBuilder.AddField("Last Updated", serverMeta.LastUpdated.ToString("yyyy-MM-dd HH:mm:ss UTC"), inline: true);
+
+                // Persona information
+                if (!string.IsNullOrWhiteSpace(serverMeta.Persona))
+                {
+                    var personaText = serverMeta.Persona.Length > 1024
+                        ? $"{serverMeta.Persona[..1020]}..."
+                        : serverMeta.Persona;
+                    embedBuilder.AddField("Current Persona", personaText, inline: false);
+                }
+                else
+                {
+                    embedBuilder.AddField("Current Persona", "No custom persona set", inline: false);
+                }
+            }
+            else
+            {
+                embedBuilder.AddField("Server Meta", "Not configured", inline: true);
+            }
+
+            // Current AI Model
+            var activeSession = await _chatSessionService.GetActiveServerSessionAsync(serverId);
+            if (activeSession != null)
+            {
+                embedBuilder.AddField("Current AI Model", activeSession.Model, inline: true);
+                embedBuilder.AddField("Current Provider", activeSession.Provider, inline: true);
+                embedBuilder.AddField("Session Active Since", activeSession.LastActivityAt.ToString("yyyy-MM-dd HH:mm:ss UTC"), inline: true);
+            }
+            else
+            {
+                embedBuilder.AddField("Current AI Model", "No active session", inline: true);
+            }
+
+            // Toggle states
+            var serverToggles = await _toggleService.GetTogglesByServerId(serverId);
+            if (serverToggles.Any())
+            {
+                var togglesText = new StringBuilder();
+                foreach (var toggle in serverToggles)
+                {
+                    var status = toggle.IsEnabled ? "✅ Enabled" : "❌ Disabled";
+                    togglesText.AppendLine($"**{toggle.Name}**: {status}");
+                }
+                embedBuilder.AddField("Feature Toggles", togglesText.ToString().Trim(), inline: false);
+            }
+            else
+            {
+                embedBuilder.AddField("Feature Toggles", "No toggles configured", inline: false);
+            }
+
+            await ModifyOriginalResponseAsync(msg => msg.Embed = embedBuilder.Build());
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving server configuration for server {ServerId}", Context.Guild.Id);
+            await ModifyOriginalResponseAsync(msg => msg.Content = "❌ An error occurred while retrieving server configuration.");
+        }
+    }
+
+    [SlashCommand("current-model", "Show which AI model is currently being used")]
+    public async Task ShowCurrentModelAsync()
+    {
+        await DeferAsync(ephemeral: true);
+
+        try
+        {
+            var serverId = Context.Guild.Id;
+            var activeSession = await _chatSessionService.GetActiveServerSessionAsync(serverId);
+
+            var embedBuilder = new EmbedBuilder()
+                .WithTitle("🤖 Current AI Model Configuration")
+                .WithColor(Color.Green)
+                .WithCurrentTimestamp();
+
+            if (activeSession != null)
+            {
+                embedBuilder.AddField("Current Model", activeSession.Model, inline: true);
+                embedBuilder.AddField("Current Provider", activeSession.Provider, inline: true);
+                embedBuilder.AddField("Session Created", activeSession.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss UTC"), inline: true);
+                embedBuilder.AddField("Last Activity", activeSession.LastActivityAt.ToString("yyyy-MM-dd HH:mm:ss UTC"), inline: true);
+                embedBuilder.AddField("Messages Count", activeSession.MessageCount.ToString(), inline: true);
+                embedBuilder.AddField("Estimated Tokens", activeSession.EstimatedTokens.ToString(), inline: true);
+
+                embedBuilder.WithDescription($"Server **{Context.Guild.Name}** is currently using **{activeSession.Model}** from **{activeSession.Provider}**");
+            }
+            else
+            {
+                embedBuilder.WithDescription("No active chat session found for this server. A new session will be created when the first chat command is used.");
+                embedBuilder.AddField("Default Model", "gpt-4o-mini", inline: true);
+                embedBuilder.AddField("Default Provider", "OpenAI", inline: true);
+            }
+
+            // Show available models
+            var availableModels = await _chatSessionService.GetAvailableModelsAsync();
+            if (availableModels.Any())
+            {
+                var modelsText = new StringBuilder();
+                foreach (var provider in availableModels)
+                {
+                    modelsText.AppendLine($"**{provider.Key}**: {string.Join(", ", provider.Value)}");
+                }
+                embedBuilder.AddField("Available Models", modelsText.ToString().Trim(), inline: false);
+            }
+
+            await ModifyOriginalResponseAsync(msg => msg.Embed = embedBuilder.Build());
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving current model for server {ServerId}", Context.Guild.Id);
+            await ModifyOriginalResponseAsync(msg => msg.Content = "❌ An error occurred while retrieving current model information.");
+        }
+    }
+
+    [SlashCommand("set-model", "Set the AI model for this server")]
+    public async Task SetModelAsync(
+        [Summary("model", "The AI model to use")][Autocomplete(typeof(ModelAutoCompleteHandler))] string model,
+        [Summary("provider", "The AI provider")][Autocomplete(typeof(ProviderAutoCompleteHandler))] string provider)
+    {
+        await DeferAsync(ephemeral: true);
+
+        try
+        {
+            // Validate the model and provider combination
+            var isValid = await _chatSessionService.ValidateModelProviderAsync(model, provider);
+            if (!isValid)
+            {
+                await ModifyOriginalResponseAsync(msg => msg.Content = $"❌ Invalid model/provider combination: **{model}** from **{provider}**. Use `/admin current-model` to see available options.");
+                return;
+            }
+
+            var serverId = Context.Guild.Id;
+            var updatedCount = await _chatSessionService.UpdateServerSessionModelAsync(serverId, model, provider);
+
+            var embedBuilder = new EmbedBuilder()
+                .WithTitle("✅ AI Model Updated Successfully")
+                .WithColor(Color.Green)
+                .WithCurrentTimestamp();
+
+            if (updatedCount > 0)
+            {
+                embedBuilder.WithDescription($"Updated **{updatedCount}** active session(s) for server **{Context.Guild.Name}** to use **{model}** from **{provider}**");
+            }
+            else
+            {
+                embedBuilder.WithDescription($"Server **{Context.Guild.Name}** will now use **{model}** from **{provider}** for new chat sessions");
+            }
+
+            embedBuilder.AddField("New Model", model, inline: true);
+            embedBuilder.AddField("New Provider", provider, inline: true);
+            embedBuilder.AddField("Server", Context.Guild.Name, inline: true);
+
+            await ModifyOriginalResponseAsync(msg => msg.Embed = embedBuilder.Build());
+
+            _logger.LogInformation("Admin {UserId} updated AI model for server {ServerId} to {Model} from {Provider}",
+                Context.User.Id, serverId, model, provider);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error setting model {Model} from {Provider} for server {ServerId}", model, provider, Context.Guild.Id);
+            await ModifyOriginalResponseAsync(msg => msg.Content = "❌ An error occurred while updating the AI model.");
         }
     }
 }

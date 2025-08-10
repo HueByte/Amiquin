@@ -22,13 +22,18 @@ public class MessageCacheServiceIntegrationTests : IClassFixture<DatabaseFixture
     {
         // Arrange
         await _fixture.CleanupAsync();
-        var serverId = 123456789UL;
+        var serverId = (ulong)Random.Shared.Next(100000000, 999999999);
+        
+        // Create server meta first
+        var serverMetaService = _fixture.ServiceProvider.GetRequiredService<Core.Services.Meta.IServerMetaService>();
+        await serverMetaService.CreateServerMetaAsync(serverId, "Test Server for Messages");
 
         // Add messages directly to database
         var messages = new List<Message>
         {
             new Message
             {
+                Id = Guid.NewGuid().ToString(),
                 ServerId = serverId,
                 Content = "Hello from user",
                 IsUser = true,
@@ -36,6 +41,7 @@ public class MessageCacheServiceIntegrationTests : IClassFixture<DatabaseFixture
             },
             new Message
             {
+                Id = Guid.NewGuid().ToString(),
                 ServerId = serverId,
                 Content = "Hello from assistant",
                 IsUser = false,
@@ -43,6 +49,7 @@ public class MessageCacheServiceIntegrationTests : IClassFixture<DatabaseFixture
             },
             new Message
             {
+                Id = Guid.NewGuid().ToString(),
                 ServerId = serverId,
                 Content = "Another user message",
                 IsUser = true,
@@ -105,6 +112,7 @@ public class MessageCacheServiceIntegrationTests : IClassFixture<DatabaseFixture
         {
             new Message
             {
+                Id = Guid.NewGuid().ToString(),
                 ServerId = instanceId,
                 Content = "User question",
                 IsUser = true,
@@ -112,6 +120,7 @@ public class MessageCacheServiceIntegrationTests : IClassFixture<DatabaseFixture
             },
             new Message
             {
+                Id = Guid.NewGuid().ToString(),
                 ServerId = instanceId,
                 Content = "Assistant response",
                 IsUser = false,
@@ -222,10 +231,13 @@ public class MessageCacheServiceIntegrationTests : IClassFixture<DatabaseFixture
         // Arrange
         var memoryCache = _fixture.ServiceProvider.GetRequiredService<IMemoryCache>();
 
-        // Add some test data to cache
-        memoryCache.Set("computed_persona_message", "test persona", TimeSpan.FromHours(1));
-        memoryCache.Set("core_persona_message", "test core", TimeSpan.FromHours(1));
-        memoryCache.Set("join_message", "test join", TimeSpan.FromHours(1));
+        // First clear any existing cache entries that might interfere with the test
+        _messageCacheService.ClearMessageCache();
+
+        // Add some test data to cache using correct constant keys
+        memoryCache.Set(Core.Constants.CacheKeys.ComputedPersonaMessageKey, "test persona", TimeSpan.FromHours(1));
+        memoryCache.Set(Core.Constants.CacheKeys.CorePersonaMessageKey, "test core", TimeSpan.FromHours(1));
+        memoryCache.Set(Core.Constants.CacheKeys.JoinMessageKey, "test join", TimeSpan.FromHours(1));
         memoryCache.Set("other_cache_key", "should remain", TimeSpan.FromHours(1));
 
         // Act
@@ -233,9 +245,9 @@ public class MessageCacheServiceIntegrationTests : IClassFixture<DatabaseFixture
 
         // Assert
         // The specific keys should be removed
-        Assert.False(memoryCache.TryGetValue("computed_persona_message", out _));
-        Assert.False(memoryCache.TryGetValue("core_persona_message", out _));
-        Assert.False(memoryCache.TryGetValue("join_message", out _));
+        Assert.False(memoryCache.TryGetValue(Core.Constants.CacheKeys.ComputedPersonaMessageKey, out _));
+        Assert.False(memoryCache.TryGetValue(Core.Constants.CacheKeys.CorePersonaMessageKey, out _));
+        Assert.False(memoryCache.TryGetValue(Core.Constants.CacheKeys.JoinMessageKey, out _));
 
         // Other keys should remain
         Assert.True(memoryCache.TryGetValue("other_cache_key", out var value));
@@ -265,13 +277,18 @@ public class MessageCacheServiceIntegrationTests : IClassFixture<DatabaseFixture
     {
         // Arrange
         await _fixture.CleanupAsync();
-        var serverId = 123456789UL;
+        var serverId = (ulong)Random.Shared.Next(100000000, 999999999);
+        
+        // Create server meta first
+        var serverMetaService = _fixture.ServiceProvider.GetRequiredService<Core.Services.Meta.IServerMetaService>();
+        await serverMetaService.CreateServerMetaAsync(serverId, "Test Server for Persistence");
 
         // Add messages using first service instance
         var modelMessages = new List<Message>
         {
             new Message
             {
+                Id = Guid.NewGuid().ToString(),
                 ServerId = serverId,
                 Content = "Persistent message",
                 IsUser = true,
@@ -281,7 +298,14 @@ public class MessageCacheServiceIntegrationTests : IClassFixture<DatabaseFixture
 
         await _messageCacheService.AddChatExchangeAsync(serverId, new List<ChatMessage>(), modelMessages);
 
-        // Act - Create new service instance and retrieve messages
+        // Ensure database context is saved and changes are committed
+        await _fixture.DbContext.SaveChangesAsync();
+
+        // Act - Clear cache to force database retrieval and test persistence
+        var memoryCache = _fixture.ServiceProvider.GetRequiredService<IMemoryCache>();
+        memoryCache.Remove(serverId);
+        
+        // Create new service instance and retrieve messages from database
         var newServiceInstance = _fixture.ServiceProvider.GetRequiredService<IMessageCacheService>();
         var retrievedMessages = await newServiceInstance.GetOrCreateChatMessagesAsync(serverId);
 

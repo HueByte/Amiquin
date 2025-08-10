@@ -1,5 +1,8 @@
 services:
   mysql:
+    profiles:
+      - database
+      - full
     container_name: mysql-${AMQ_BOT_NAME}
     image: mysql:latest
     restart: always
@@ -21,6 +24,9 @@ services:
       retries: 5
 
   amiquinbot:
+    profiles:
+      - bot
+      - full
     container_name: bot-${AMQ_BOT_NAME}
     build:
       context: ./source

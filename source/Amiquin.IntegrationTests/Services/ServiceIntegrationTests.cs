@@ -25,7 +25,7 @@ public class ServiceIntegrationTests : IClassFixture<DatabaseFixture>
     {
         // Arrange
         await _fixture.CleanupAsync();
-        var serverId = 123456789UL;
+        var serverId = (ulong)Random.Shared.Next(100000000, 999999999);
         var serverName = "Integration Test Server";
         var userId1 = 111111111UL;
         var userId2 = 222222222UL;
@@ -139,7 +139,7 @@ public class ServiceIntegrationTests : IClassFixture<DatabaseFixture>
     {
         // Arrange
         await _fixture.CleanupAsync();
-        var serverId = 123456789UL;
+        var serverId = (ulong)Random.Shared.Next(100000000, 999999999);
 
         // Create and configure server
         var serverMeta = await _serverMetaService.CreateServerMetaAsync(serverId, "Test Server");
@@ -168,7 +168,7 @@ public class ServiceIntegrationTests : IClassFixture<DatabaseFixture>
     {
         // Arrange
         await _fixture.CleanupAsync();
-        var serverId = 123456789UL;
+        var serverId = (ulong)Random.Shared.Next(100000000, 999999999);
 
         await _serverMetaService.CreateServerMetaAsync(serverId, "Bulk Test Server");
 

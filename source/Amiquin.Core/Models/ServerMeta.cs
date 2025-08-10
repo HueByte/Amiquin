@@ -6,6 +6,7 @@ public class ServerMeta : DbModel<ulong>
 {
     public string ServerName { get; set; } = string.Empty;
     public string Persona { get; set; } = string.Empty;
+    public string AIModel { get; set; } = Constants.AI.Gpt4oMiniModel;
     public DateTime CreatedAt { get; set; }
     public DateTime LastUpdated { get; set; }
     public bool IsActive { get; set; } = true;

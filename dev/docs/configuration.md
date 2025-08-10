@@ -151,13 +151,29 @@ Configure what events to log:
 
 ### Database Configuration
 
+Amiquin supports provider-specific connection strings for better configuration management. The setup methods use proper connection strings with fallback to legacy configurations for backward compatibility.
+
 #### SQLite (Default)
 
-SQLite requires no additional setup:
+SQLite requires no additional setup. Use the provider-specific connection string:
 
 ```env
-DATABASE_TYPE=sqlite
-DATABASE_CONNECTION=Data Source=amiquin.db
+# Provider-specific (Recommended)
+AMQ_ConnectionStrings__Amiquin-Sqlite=Data Source=Data/Database/amiquin.db
+
+# Legacy format (still supported)
+AMQ_ConnectionStrings__AmiquinContext=Data Source=Data/Database/amiquin.db
+```
+
+Or in appsettings.json:
+
+```json
+{
+  "ConnectionStrings": {
+    "Amiquin-Sqlite": "Data Source=Data/Database/amiquin.db",
+    "AmiquinContext": "Data Source=Data/Database/amiquin.db"
+  }
+}
 ```
 
 #### MySQL
@@ -171,12 +187,37 @@ GRANT ALL PRIVILEGES ON amiquin.* TO 'amiquin'@'%';
 FLUSH PRIVILEGES;
 ```
 
-Then configure:
+Then configure using the provider-specific connection string:
 
 ```env
-DATABASE_TYPE=mysql
-DATABASE_CONNECTION=Server=localhost;Database=amiquin;User=amiquin;Password=your_password;
+# Provider-specific (Recommended)
+AMQ_ConnectionStrings__Amiquin-Mysql=Server=localhost;Database=amiquin;User=amiquin;Password=your_password;Pooling=True;
+
+# Legacy format (still supported)
+AMQ_ConnectionStrings__AmiquinContext=Server=localhost;Database=amiquin;User=amiquin;Password=your_password;Pooling=True;
 ```
+
+Or in appsettings.json:
+
+```json
+{
+  "ConnectionStrings": {
+    "Amiquin-Mysql": "Server=localhost;Database=amiquin;User=amiquin;Password=your_password;Pooling=True;",
+    "AmiquinContext": "Server=localhost;Database=amiquin;User=amiquin;Password=your_password;Pooling=True;"
+  }
+}
+```
+
+#### Connection String Priority
+
+The setup methods use the following priority order for connection strings:
+
+1. Provider-specific environment variable (`AMQ_ConnectionStrings__Amiquin-Sqlite` or `AMQ_ConnectionStrings__Amiquin-Mysql`)
+2. Legacy environment variables (`AMQ_SQLITE_PATH`, `AMQ_DB_CONNECTION_STRING`)
+3. Provider-specific configuration section (`ConnectionStrings:Amiquin-Sqlite` or `ConnectionStrings:Amiquin-Mysql`)
+4. Legacy configuration section (`ConnectionStrings:AmiquinContext`)
+5. Database options configuration section
+6. Default connection string
 
 ### Custom Commands
 

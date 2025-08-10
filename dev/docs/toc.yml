@@ -24,6 +24,8 @@
   href: scripts-reference.md
 - name: Database Schema
   href: database-schema.md
+- name: Database Provider Connections
+  href: database-provider-connections.md
 - name: Changelog
   href: changelog/
 - name: API Reference

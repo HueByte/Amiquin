@@ -421,3 +421,4 @@ FodyWeavers.xsd
 .claude/settings.local.json
 CLAUDE.md
 nul
+source/Amiquin.Bot/Configuration/appsettings.backup.json
