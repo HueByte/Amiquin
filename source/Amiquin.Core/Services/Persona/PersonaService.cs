@@ -25,7 +25,7 @@ public class PersonaService : IPersonaService
     private readonly IMemoryCache _memoryCache;
     private readonly IChatSemaphoreManager _chatSemaphoreManager;
     private readonly IServerMetaService _serverMetaService;
-    private readonly BotContextAccessor _botContextAccessor;
+    private readonly BotContextAccessor? _botContextAccessor;
     private readonly BotOptions _botOptions;
 
     /// <summary>
@@ -110,10 +110,22 @@ public class PersonaService : IPersonaService
             }
         }
 
-        personaMessage = (await _serverMetaService.GetServerMetaAsync(serverId))?.Persona;
-        if (string.IsNullOrEmpty(personaMessage))
+        // Load base persona from Persona.md file
+        string basePersona = await LoadBasePersonaAsync();
+        
+        // Get server-specific persona from metadata
+        string? serverPersona = (await _serverMetaService.GetServerMetaAsync(serverId))?.Persona;
+        
+        // Combine base persona with server-specific persona
+        if (!string.IsNullOrEmpty(serverPersona))
         {
-            personaMessage = Constants.PersonaDefaults.DefaultPersonaTemplate;
+            // Server persona exists - append it to base persona
+            personaMessage = $"{basePersona}\n\n## Server-Specific Instructions\n{serverPersona}";
+        }
+        else
+        {
+            // No server persona - use base persona with default template
+            personaMessage = $"{basePersona}\n\n{Constants.PersonaDefaults.DefaultPersonaTemplate}";
         }
 
         var computedMood = await GetComputedMoodAsync();
@@ -123,6 +135,43 @@ public class PersonaService : IPersonaService
         _logger.LogInformation("Computed persona message: {personaMessage}", personaMessage);
 
         return personaMessage;
+    }
+    
+    private async Task<string> LoadBasePersonaAsync()
+    {
+        const string basePersonaCacheKey = "BasePersona";
+        
+        // Check cache first
+        if (_memoryCache.TryGetValue(basePersonaCacheKey, out string? cachedBasePersona))
+        {
+            if (!string.IsNullOrEmpty(cachedBasePersona))
+            {
+                return cachedBasePersona;
+            }
+        }
+        
+        try
+        {
+            // Try to load from Messages/Persona.md file
+            string personaFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Messages", "Persona.md");
+            if (File.Exists(personaFilePath))
+            {
+                string basePersona = await File.ReadAllTextAsync(personaFilePath);
+                _memoryCache.Set(basePersonaCacheKey, basePersona, TimeSpan.FromDays(7)); // Cache for 7 days
+                _logger.LogDebug("Loaded base persona from file: {Path}", personaFilePath);
+                return basePersona;
+            }
+            else
+            {
+                _logger.LogWarning("Base persona file not found at {Path}, using default", personaFilePath);
+                return "# System Message — Amiquin\n\nYou are Amiquin, a virtual clanmate AI assistant for Discord.";
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error loading base persona file");
+            return "# System Message — Amiquin\n\nYou are Amiquin, a virtual clanmate AI assistant for Discord.";
+        }
     }
 
     private async Task<string> GetComputedMoodAsync()
@@ -152,7 +201,8 @@ public class PersonaService : IPersonaService
                 return Constants.PersonaDefaults.NewsMoodNotAvailableMessage;
             }
 
-            sb.AppendLine($"{_botContextAccessor.BotName} just received some juicy news and is bursting with snarky curiosity. Express {_botContextAccessor.BotName}’s thoughts in the third person—never say “I,” only “Amiquin.” Keep the playful, sarcastic edge, but don’t let it overshadow the message. Reflect how {_botContextAccessor.BotName} feels about the latest updates and respond accordingly.");
+            var botName = GetBotName();
+            sb.AppendLine($"{botName} just received some juicy news and is bursting with snarky curiosity. Express {botName}'s thoughts in the third person—never say \"I,\" only \"Amiquin.\" Keep the playful, sarcastic edge, but don't let it overshadow the message. Reflect how {botName} feels about the latest updates and respond accordingly.");
             foreach (var newsObj in news.Data.NewsList)
             {
                 if (newsObj.NewsObj is null || string.IsNullOrEmpty(newsObj.NewsObj.Content))
@@ -175,6 +225,29 @@ public class PersonaService : IPersonaService
             _logger.LogError(ex, "Error while computing mood in GetInfoFromNewsAsync.");
             return Constants.PersonaDefaults.NewsProcessingErrorMessage;
         }
+    }
+
+    /// <summary>
+    /// Gets the bot name, preferring BotContextAccessor if available and initialized, falling back to BotOptions
+    /// </summary>
+    /// <returns>The bot name to use</returns>
+    private string GetBotName()
+    {
+        try
+        {
+            // Try to get name from BotContextAccessor if it's initialized
+            if (_botContextAccessor?.IsInitialized == true)
+            {
+                return _botContextAccessor.BotName;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Could not get bot name from BotContextAccessor, using fallback");
+        }
+
+        // Fall back to BotOptions name
+        return _botOptions.Name;
     }
 
     /// <summary>

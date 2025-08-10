@@ -17,6 +17,7 @@ using Amiquin.Core.Services.ExternalProcessRunner;
 using Amiquin.Core.Services.MessageCache;
 using Amiquin.Core.Services.Meta;
 using Amiquin.Core.Services.Nacho;
+using Amiquin.Core.Services.Pagination;
 using Amiquin.Core.Services.Persona;
 using Amiquin.Core.Services.ServerInteraction;
 using Amiquin.Core.Services.Toggle;
@@ -87,6 +88,7 @@ public class InjectionConfigurator
                  .AddSingleton<IVoiceStateManager, VoiceStateManager>()
                  .AddSingleton<IJobService, JobService>()
                  .AddSingleton<ITaskManager, TaskManager>()
+                 .AddScoped<IPaginationService, PaginationService>()
                  .AddMemoryCache();
 
         var dbOptions = _configuration.GetSection(DatabaseOptions.Database).Get<DatabaseOptions>();
@@ -244,7 +246,8 @@ public class InjectionConfigurator
                  .AddScoped<INachoRepository, NachoRepository>()
                  .AddScoped<ICommandLogRepository, CommandLogRepository>()
                  .AddScoped<IBotStatisticsRepository, BotStatisticsRepository>()
-                 .AddScoped<IChatSessionRepository, ChatSessionRepository>();
+                 .AddScoped<IChatSessionRepository, ChatSessionRepository>()
+                 .AddScoped<IPaginationSessionRepository, PaginationSessionRepository>();
 
         return this;
     }

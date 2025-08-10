@@ -2,10 +2,14 @@ using Amiquin.Bot.Preconditions;
 using Amiquin.Core;
 using Amiquin.Core.Attributes;
 using Amiquin.Core.DiscordExtensions;
+using Amiquin.Core.IRepositories;
+using Amiquin.Core.Models;
 using Amiquin.Core.Services.Chat;
-using Amiquin.Core.Services.Toggle;
+using Amiquin.Core.Services.ChatContext;
 using Amiquin.Core.Services.MessageCache;
+using Amiquin.Core.Services.Pagination;
 using Amiquin.Core.Services.Persona;
+using Amiquin.Core.Services.Toggle;
 using Amiquin.Core.Services.Voice;
 using Amiquin.Core.Utilities;
 using Discord;
@@ -27,8 +31,11 @@ public class DevCommands : InteractionModuleBase<ExtendedShardedInteractionConte
     private readonly IVoiceStateManager _voiceStateManager;
     private readonly IPersonaChatService _personaChatService;
     private readonly IToggleService _toggleService;
+    private readonly IChatContextService _chatContextService;
+    private readonly IPaginationService _paginationService;
+    private readonly IChatSessionRepository _chatSessionRepository;
 
-    public DevCommands(IChatCoreService chatService, IMessageCacheService messageCacheService, IPersonaService personaService, DiscordShardedClient client, IVoiceService voiceService, IVoiceStateManager voiceStateManager, IPersonaChatService personaChatService, IToggleService toggleService)
+    public DevCommands(IChatCoreService chatService, IMessageCacheService messageCacheService, IPersonaService personaService, DiscordShardedClient client, IVoiceService voiceService, IVoiceStateManager voiceStateManager, IPersonaChatService personaChatService, IToggleService toggleService, IChatContextService chatContextService, IPaginationService paginationService, IChatSessionRepository chatSessionRepository)
     {
         _chatService = chatService;
         _messageCacheService = messageCacheService;
@@ -38,6 +45,9 @@ public class DevCommands : InteractionModuleBase<ExtendedShardedInteractionConte
         _voiceStateManager = voiceStateManager;
         _personaChatService = personaChatService;
         _toggleService = toggleService;
+        _chatContextService = chatContextService;
+        _paginationService = paginationService;
+        _chatSessionRepository = chatSessionRepository;
     }
 
     [SlashCommand("toggle-feature", "Toggle a feature")]
@@ -222,6 +232,243 @@ Streams: {voiceState.AudioClient?.GetStreams().ToDictionary(x => x.Key, x => x.V
     public async Task PingAsync()
     {
         await ModifyOriginalResponseAsync((msg) => msg.Content = "Pong!");
+    }
+
+    [SlashCommand("debug-conversation", "View current conversation context and session messages")]
+    public async Task DebugConversationAsync()
+    {
+        await ModifyOriginalResponseAsync((msg) => msg.Content = "Loading conversation debug data...");
+
+        try
+        {
+            var guildId = Context.Guild.Id;
+            var embeds = await CreateDebugEmbedsAsync(guildId);
+
+            if (embeds.Count == 0)
+            {
+                await ModifyOriginalResponseAsync((msg) => msg.Content = "No conversation data available for this server.");
+                return;
+            }
+
+            var (embed, component) = await _paginationService.CreatePaginatedMessageAsync(embeds, Context.User.Id);
+
+            await ModifyOriginalResponseAsync((msg) =>
+            {
+                msg.Content = null;
+                msg.Embed = embed;
+                msg.Components = component;
+            });
+        }
+        catch (Exception ex)
+        {
+            await ModifyOriginalResponseAsync((msg) => msg.Content = $"Error loading conversation debug data: {ex.Message}");
+        }
+    }
+
+    private async Task<List<Embed>> CreateDebugEmbedsAsync(ulong guildId)
+    {
+        var embeds = new List<Embed>();
+
+        // Get context messages from ChatContextService
+        var contextMessages = _chatContextService.GetContextMessages(guildId);
+        var formattedContext = _chatContextService.FormatContextMessagesForAI(guildId);
+        var currentActivity = _chatContextService.GetCurrentActivityLevel(guildId);
+        var engagementMultiplier = _chatContextService.GetEngagementMultiplier(guildId);
+
+        // Get conversation session data
+        var serverSession = await _chatSessionRepository.GetActiveSessionAsync(SessionScope.Server, serverId: guildId);
+        var userSession = await _chatSessionRepository.GetActiveSessionAsync(SessionScope.User, userId: Context.User.Id);
+        var channelSession = await _chatSessionRepository.GetActiveSessionAsync(SessionScope.Channel, channelId: Context.Channel.Id);
+
+        // Page 1: Server Information and Statistics
+        var serverInfoEmbed = new EmbedBuilder()
+            .WithTitle("🔍 Conversation Debug - Server Information")
+            .WithColor(Color.Blue)
+            .WithThumbnailUrl(Context.Guild.IconUrl)
+            .AddField("Server Name", Context.Guild.Name, true)
+            .AddField("Server ID", Context.Guild.Id, true)
+            .AddField("Member Count", Context.Guild.MemberCount, true)
+            .AddField("Current Activity Level", $"{currentActivity:F2}", true)
+            .AddField("Engagement Multiplier", $"{engagementMultiplier:F2}", true)
+            .AddField("Context Messages Count", contextMessages.Length, true)
+            .AddField("Server Session", serverSession != null ? $"{serverSession.Model} ({serverSession.Provider})" : "None", true)
+            .AddField("User Session", userSession != null ? $"{userSession.Model} ({userSession.Provider})" : "None", true)
+            .AddField("Channel Session", channelSession != null ? $"{channelSession.Model} ({channelSession.Provider})" : "None", true)
+            .WithTimestamp(DateTimeOffset.UtcNow)
+            .Build();
+
+        embeds.Add(serverInfoEmbed);
+
+        // Page 2: Raw Context Messages
+        if (contextMessages.Length > 0)
+        {
+            var rawMessagesContent = string.Join("\n", contextMessages.Select((msg, i) => $"{i + 1}. {msg}"));
+
+            if (rawMessagesContent.Length > 4096)
+            {
+                var chunks = ChunkText(rawMessagesContent, 4000);
+                for (int i = 0; i < chunks.Count; i++)
+                {
+                    var embed = new EmbedBuilder()
+                        .WithTitle($"📝 Raw Context Messages (Part {i + 1}/{chunks.Count})")
+                        .WithColor(Color.Green)
+                        .WithDescription($"```\n{chunks[i]}\n```")
+                        .WithTimestamp(DateTimeOffset.UtcNow)
+                        .Build();
+                    embeds.Add(embed);
+                }
+            }
+            else
+            {
+                var embed = new EmbedBuilder()
+                    .WithTitle("📝 Raw Context Messages")
+                    .WithColor(Color.Green)
+                    .WithDescription($"```\n{rawMessagesContent}\n```")
+                    .WithTimestamp(DateTimeOffset.UtcNow)
+                    .Build();
+                embeds.Add(embed);
+            }
+        }
+        else
+        {
+            var embed = new EmbedBuilder()
+                .WithTitle("📝 Raw Context Messages")
+                .WithColor(Color.Orange)
+                .WithDescription("No context messages available.")
+                .WithTimestamp(DateTimeOffset.UtcNow)
+                .Build();
+            embeds.Add(embed);
+        }
+
+        // Page 3: Formatted AI Context
+        if (!string.IsNullOrEmpty(formattedContext))
+        {
+            if (formattedContext.Length > 4096)
+            {
+                var chunks = ChunkText(formattedContext, 4000);
+                for (int i = 0; i < chunks.Count; i++)
+                {
+                    var embed = new EmbedBuilder()
+                        .WithTitle($"🤖 Formatted AI Context (Part {i + 1}/{chunks.Count})")
+                        .WithColor(Color.Purple)
+                        .WithDescription($"```\n{chunks[i]}\n```")
+                        .WithTimestamp(DateTimeOffset.UtcNow)
+                        .Build();
+                    embeds.Add(embed);
+                }
+            }
+            else
+            {
+                var embed = new EmbedBuilder()
+                    .WithTitle("🤖 Formatted AI Context")
+                    .WithColor(Color.Purple)
+                    .WithDescription($"```\n{formattedContext}\n```")
+                    .WithTimestamp(DateTimeOffset.UtcNow)
+                    .Build();
+                embeds.Add(embed);
+            }
+        }
+        else
+        {
+            var embed = new EmbedBuilder()
+                .WithTitle("🤖 Formatted AI Context")
+                .WithColor(Color.Orange)
+                .WithDescription("No formatted context available.")
+                .WithTimestamp(DateTimeOffset.UtcNow)
+                .Build();
+            embeds.Add(embed);
+        }
+
+        // Page 4: Conversation Session Messages
+        if (serverSession != null && serverSession.Messages.Any())
+        {
+            var sessionMessages = serverSession.Messages
+                .OrderBy(m => m.CreatedAt)
+                .Take(20) // Limit to last 20 messages
+                .Select((msg, i) => $"{i + 1}. [{msg.Role}] {msg.Content}")
+                .ToList();
+
+            var sessionMessagesContent = string.Join("\n", sessionMessages);
+
+            if (sessionMessagesContent.Length > 4096)
+            {
+                var chunks = ChunkText(sessionMessagesContent, 4000);
+                for (int i = 0; i < chunks.Count; i++)
+                {
+                    var embed = new EmbedBuilder()
+                        .WithTitle($"💬 Session Messages (Part {i + 1}/{chunks.Count})")
+                        .WithColor(Color.Orange)
+                        .WithDescription($"```\n{chunks[i]}\n```")
+                        .WithTimestamp(DateTimeOffset.UtcNow)
+                        .Build();
+                    embeds.Add(embed);
+                }
+            }
+            else
+            {
+                var embed = new EmbedBuilder()
+                    .WithTitle("💬 Session Messages")
+                    .WithColor(Color.Orange)
+                    .WithDescription($"```\n{sessionMessagesContent}\n```")
+                    .WithTimestamp(DateTimeOffset.UtcNow)
+                    .Build();
+                embeds.Add(embed);
+            }
+        }
+        else
+        {
+            var embed = new EmbedBuilder()
+                .WithTitle("💬 Session Messages")
+                .WithColor(Color.Orange)
+                .WithDescription("No active server session or messages found.")
+                .WithTimestamp(DateTimeOffset.UtcNow)
+                .Build();
+            embeds.Add(embed);
+        }
+
+        return embeds;
+    }
+
+    private List<string> ChunkText(string text, int maxLength)
+    {
+        var chunks = new List<string>();
+        var currentChunk = "";
+        var lines = text.Split('\n');
+
+        foreach (var line in lines)
+        {
+            if (currentChunk.Length + line.Length + 1 > maxLength)
+            {
+                if (!string.IsNullOrEmpty(currentChunk))
+                {
+                    chunks.Add(currentChunk);
+                    currentChunk = "";
+                }
+
+                // If a single line is too long, truncate it
+                if (line.Length > maxLength)
+                {
+                    chunks.Add(line.Substring(0, maxLength - 3) + "...");
+                }
+                else
+                {
+                    currentChunk = line;
+                }
+            }
+            else
+            {
+                if (!string.IsNullOrEmpty(currentChunk))
+                    currentChunk += "\n";
+                currentChunk += line;
+            }
+        }
+
+        if (!string.IsNullOrEmpty(currentChunk))
+        {
+            chunks.Add(currentChunk);
+        }
+
+        return chunks;
     }
 
     private Embed[] ChunkMessage(string message, string title)

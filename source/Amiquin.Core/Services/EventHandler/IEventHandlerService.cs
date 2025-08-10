@@ -47,4 +47,10 @@ public interface IEventHandlerService
     /// </summary>
     /// <param name="guild">The guild that the bot joined.</param>
     Task OnBotJoinedAsync(SocketGuild guild);
+
+    /// <summary>
+    /// Handles message component interactions (buttons, select menus, etc.).
+    /// </summary>
+    /// <param name="component">The message component interaction.</param>
+    Task OnComponentInteractionAsync(SocketMessageComponent component);
 }

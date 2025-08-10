@@ -447,22 +447,39 @@ public class JobService : IAsyncDisposable, IJobService
             _logger.LogDebug("Executing job {JobName} [{JobId}] - execution #{ExecutionCount}",
                 job.Name, job.Id, job.ExecutionCount);
 
-            // Execute the job using TaskManager for better resource management
-            var result = await _taskManager.ExternalExecuteAsync<TrackedAmiquinJob>(
-                instanceId: "job-service",
-                requestId: requestId,
-                task: () => ExecuteJobTask(job, cts.Token),
-                cancellationToken: cts.Token);
+            // Create a shorter timeout for job execution (60 seconds max)
+            var jobTimeout = TimeSpan.FromSeconds(Math.Min(60, Math.Max(30, job.Interval.TotalSeconds)));
+            using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cts.Token);
+            timeoutCts.CancelAfter(jobTimeout);
 
-            // Set the result to complete the TaskManager tracking
-            job.RequestId = requestId;
-            _taskManager.SetTaskResult(requestId, job);
+            try
+            {
+                // Execute the job using TaskManager with proper completion signaling
+                var taskResult = _taskManager.ExternalExecuteAsync<TrackedAmiquinJob>(
+                    instanceId: "job-service",
+                    requestId: requestId,
+                    task: async () => {
+                        // Execute the actual job task
+                        await ExecuteJobTask(job, timeoutCts.Token);
+                        // Signal completion by setting the result
+                        _taskManager.SetTaskResult(requestId, job);
+                    },
+                    cancellationToken: timeoutCts.Token);
 
-            job.Status = JobStatus.Completed;
-            job.UpdatedAt = DateTime.UtcNow;
-            job.NextExecutionAt = DateTime.UtcNow.Add(job.Interval);
+                // Wait for the task completion
+                var result = await taskResult;
 
-            _logger.LogDebug("Job {JobName} [{JobId}] completed successfully", job.Name, job.Id);
+                job.Status = JobStatus.Completed;
+                job.UpdatedAt = DateTime.UtcNow;
+                job.NextExecutionAt = DateTime.UtcNow.Add(job.Interval);
+
+                _logger.LogDebug("Job {JobName} [{JobId}] completed successfully", job.Name, job.Id);
+            }
+            catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested && !cts.IsCancellationRequested)
+            {
+                // Job execution timed out
+                throw new TimeoutException($"Job execution timed out after {jobTimeout.TotalSeconds}s");
+            }
 
             // Schedule next execution if job is still active and not paused
             if (!cts.IsCancellationRequested && _dynamicJobs.ContainsKey(job.Id))
@@ -475,6 +492,44 @@ public class JobService : IAsyncDisposable, IJobService
             job.Status = JobStatus.Cancelled;
             job.UpdatedAt = DateTime.UtcNow;
             _logger.LogInformation("Job {JobName} [{JobId}] was cancelled", job.Name, job.Id);
+        }
+        catch (TimeoutException tex)
+        {
+            job.Status = JobStatus.Failed;
+            job.LastError = tex.Message;
+            job.UpdatedAt = DateTime.UtcNow;
+            job.CurrentRetryAttempt++;
+
+            _logger.LogWarning("Job {JobName} [{JobId}] timed out (attempt {RetryAttempt}/{MaxRetries}): {Error}",
+                job.Name, job.Id, job.CurrentRetryAttempt, job.MaxRetryAttempts, tex.Message);
+
+            // Handle retry logic for timeouts with shorter delay
+            if (job.AutoRestart && job.CurrentRetryAttempt < job.MaxRetryAttempts && !cts.IsCancellationRequested)
+            {
+                var retryDelay = TimeSpan.FromSeconds(Math.Min(10 * job.CurrentRetryAttempt, 30)); // Max 30s delay
+                _logger.LogInformation("Scheduling retry for job {JobName} [{JobId}] in {RetryDelay}s",
+                    job.Name, job.Id, retryDelay.TotalSeconds);
+
+                // Schedule retry
+                var retryTimer = new Timer(async _ => await ExecuteJobSafely(job), null, retryDelay, Timeout.InfiniteTimeSpan);
+
+                // Replace the existing timer
+                if (_jobTimers.TryGetValue(job.Id, out var oldTimer))
+                {
+                    oldTimer.Dispose();
+                }
+                _jobTimers.TryAdd(job.Id, retryTimer);
+            }
+            else
+            {
+                _logger.LogError("Job {JobName} [{JobId}] exceeded maximum retry attempts or auto-restart is disabled", job.Name, job.Id);
+                
+                // Schedule next regular execution even after timeout failure
+                if (!cts.IsCancellationRequested && _dynamicJobs.ContainsKey(job.Id))
+                {
+                    ScheduleJobExecution(job);
+                }
+            }
         }
         catch (Exception ex)
         {

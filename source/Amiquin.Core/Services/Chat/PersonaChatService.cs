@@ -1,13 +1,13 @@
+using Amiquin.Core.IRepositories;
 using Amiquin.Core.Models;
 using Amiquin.Core.Options;
+using Amiquin.Core.Services.ChatSession;
 using Amiquin.Core.Services.MessageCache;
 using Amiquin.Core.Services.Persona;
-using Amiquin.Core.Services.ChatSession;
-using Amiquin.Core.IRepositories;
 using Amiquin.Core.Utilities;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Microsoft.Extensions.DependencyInjection;
 using OpenAI.Chat;
 
 namespace Amiquin.Core.Services.Chat;
@@ -46,7 +46,7 @@ public class PersonaChatService : IPersonaChatService
 
         // Create system message with context appended if it exists
         var systemMessage = CreateSystemMessageWithContext(persona, session.Context);
-        
+
         var conversationHistory = await PrepareMessageHistory(instanceId, message);
 
         // Pass conversation history to ChatCoreService, which will handle system message internally
@@ -73,18 +73,18 @@ public class PersonaChatService : IPersonaChatService
 
         // For optimization, we need the full conversation with the assistant response added
         var fullConversationWithResponse = new List<ChatMessage>(conversationHistory) { amiquinMessage };
-        
+
         if (_historyOptimizerService.ShouldOptimizeMessageHistory(tokenUsage))
         {
             var optimizationResult = await _historyOptimizerService.OptimizeMessageHistory(tokenUsage.TotalTokenCount, fullConversationWithResponse, systemMessage);
 
             // Clear old messages from cache (they stay in DB)
             _messageCacheService.ClearOldMessages(instanceId, optimizationResult.RemovedMessages);
-            
+
             // Update session context with the summary
             var chatSessionRepository = _serviceProvider.GetRequiredService<IChatSessionRepository>();
             var contextTokens = await Tokenizer.CountTokensAsync(optimizationResult.MessagesSummary);
-            
+
             // Check if context itself is getting too big and needs self-summarization
             if (session.ContextTokens + contextTokens > _botOptions.MaxTokens / 4) // 25% of max tokens
             {
@@ -95,8 +95,8 @@ public class PersonaChatService : IPersonaChatService
             else
             {
                 // Append new summary to existing context
-                var newContext = string.IsNullOrEmpty(session.Context) 
-                    ? optimizationResult.MessagesSummary 
+                var newContext = string.IsNullOrEmpty(session.Context)
+                    ? optimizationResult.MessagesSummary
                     : $"{session.Context}\n\n{optimizationResult.MessagesSummary}";
                 await chatSessionRepository.UpdateSessionContextAsync(session.Id, newContext, session.ContextTokens + contextTokens);
             }
@@ -176,12 +176,12 @@ public class PersonaChatService : IPersonaChatService
     private static ChatMessage CreateSystemMessageWithContext(string persona, string? context)
     {
         var systemContent = persona;
-        
+
         if (!string.IsNullOrEmpty(context))
         {
             systemContent += $"\n\nPrevious conversation context:\n{context}";
         }
-        
+
         return ChatMessage.CreateSystemMessage(systemContent);
     }
 
@@ -190,12 +190,12 @@ public class PersonaChatService : IPersonaChatService
     /// </summary>
     private async Task<string> SelfSummarizeContext(string? existingContext, string newSummary, string persona)
     {
-        var contextToSummarize = string.IsNullOrEmpty(existingContext) 
-            ? newSummary 
+        var contextToSummarize = string.IsNullOrEmpty(existingContext)
+            ? newSummary
             : $"{existingContext}\n\n{newSummary}";
 
-        var summarizationPrompt = $"You're managing a conversation context that's getting too long. Consolidate the following context summaries into one concise summary that captures the most important points, relationships, and ongoing themes. Keep it under 200 tokens:\n\n{contextToSummarize}";
-        
+        var summarizationPrompt = $"You're managing a conversation context that's getting too long. Consolidate the following context summaries into one concise summary that captures the most important points, relationships, and ongoing themes. Keep it under 400 tokens:\n\n{contextToSummarize}";
+
         return await _chatCoreService.ExchangeMessageAsync(summarizationPrompt, ChatMessage.CreateSystemMessage(persona), tokenLimit: 300);
     }
 }

@@ -19,12 +19,19 @@ public interface IChatContextService
     Task HandleUserMessageAsync(ulong scopeId, SocketMessage socketMessage);
 
     /// <summary>
-    /// Retrieves and clears the context messages for a specific scope.
+    /// Retrieves the context messages for a specific scope without clearing them.
     /// This is typically called when the bot needs to process accumulated messages for AI interaction.
     /// </summary>
     /// <param name="scopeId">The scope identifier to retrieve messages for.</param>
     /// <returns>An array of message content strings from the context.</returns>
     string[] GetContextMessages(ulong scopeId);
+
+    /// <summary>
+    /// Clears the context messages for a scope after successful engagement.
+    /// This should be called only when the bot actually engages, not during the decision process.
+    /// </summary>
+    /// <param name="scopeId">The scope identifier to clear messages for.</param>
+    void ClearContextMessages(ulong scopeId);
 
     #region AI Engagement Actions
     /// <summary>

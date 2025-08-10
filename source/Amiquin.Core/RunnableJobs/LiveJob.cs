@@ -45,70 +45,82 @@ public class LiveJob : IRunnableJob
             var sessionsCreated = 0;
             var sessionsRemoved = 0;
 
-            // Check toggle status for all servers at once to avoid potential hanging
-            var serverToggleStatus = new Dictionary<ulong, bool>();
-            foreach (var serverId in serverIds)
+            // Process servers in batches to avoid timeout issues
+            const int batchSize = 10;
+            for (int i = 0; i < serverIds.Count; i += batchSize)
             {
                 if (cancellationToken.IsCancellationRequested) break;
+
+                var batch = serverIds.Skip(i).Take(batchSize).ToList();
                 
+                // Process batch in parallel for efficiency
+                var tasks = batch.Select(async serverId =>
+                {
+                    try
+                    {
+                        // Check toggle status with timeout
+                        bool isLiveJobEnabled = false;
+                        try
+                        {
+                            using var toggleCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                            toggleCts.CancelAfter(TimeSpan.FromSeconds(2)); // 2 second timeout per toggle check
+                            
+                            isLiveJobEnabled = await toggleService.IsEnabledAsync(serverId, Constants.ToggleNames.EnableLiveJob);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex, "Error checking toggle for server {ServerId}, assuming disabled", serverId);
+                        }
+
+                        var currentlyHasSession = _activeSessionJobs.ContainsKey(serverId);
+
+                        if (isLiveJobEnabled && !currentlyHasSession)
+                        {
+                            // Create new activity session for this server
+                            var sessionJobId = CreateActivitySessionJob(serverId, serviceScopeFactory);
+                            if (!string.IsNullOrEmpty(sessionJobId))
+                            {
+                                _activeSessionJobs[serverId] = sessionJobId;
+                                Interlocked.Increment(ref sessionsCreated);
+                                _logger.LogInformation("Created ActivitySession for guild {GuildId}", serverId);
+                            }
+                        }
+                        else if (!isLiveJobEnabled && currentlyHasSession)
+                        {
+                            // Remove activity session for this server
+                            if (_activeSessionJobs.TryRemove(serverId, out var jobId))
+                            {
+                                _jobService.CancelJob(jobId);
+                                Interlocked.Increment(ref sessionsRemoved);
+                                _logger.LogInformation("Removed ActivitySession for guild {GuildId}", serverId);
+                            }
+                        }
+
+                        Interlocked.Increment(ref serversProcessed);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Error processing server {ServerId} for activity session management", serverId);
+                    }
+                });
+
+                // Wait for batch to complete with overall timeout
                 try
                 {
-                    // Set a reasonable timeout for toggle checks
-                    using var toggleCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                    toggleCts.CancelAfter(TimeSpan.FromSeconds(5)); // 5 second timeout per toggle check
+                    using var batchCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                    batchCts.CancelAfter(TimeSpan.FromSeconds(15)); // 15 seconds max per batch
                     
-                    var isEnabled = await toggleService.IsEnabledAsync(serverId, Constants.ToggleNames.EnableLiveJob);
-                    serverToggleStatus[serverId] = isEnabled;
+                    await Task.WhenAll(tasks).WaitAsync(batchCts.Token);
                 }
                 catch (OperationCanceledException)
                 {
-                    _logger.LogWarning("Toggle check timed out for server {ServerId}, assuming disabled", serverId);
-                    serverToggleStatus[serverId] = false;
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Error checking toggle for server {ServerId}, assuming disabled", serverId);
-                    serverToggleStatus[serverId] = false;
-                }
-            }
-
-            // Process each server quickly using cached toggle status
-            foreach (var serverId in serverIds)
-            {
-                if (cancellationToken.IsCancellationRequested) break;
-
-                try
-                {
-                    var isLiveJobEnabled = serverToggleStatus.GetValueOrDefault(serverId, false);
-                    var currentlyHasSession = _activeSessionJobs.ContainsKey(serverId);
-
-                    if (isLiveJobEnabled && !currentlyHasSession)
+                    _logger.LogWarning("Batch processing timed out or was cancelled");
+                    if (!cancellationToken.IsCancellationRequested)
                     {
-                        // Create new activity session for this server
-                        var sessionJobId = CreateActivitySessionJob(serverId, serviceScopeFactory);
-                        if (!string.IsNullOrEmpty(sessionJobId))
-                        {
-                            _activeSessionJobs[serverId] = sessionJobId;
-                            sessionsCreated++;
-                            _logger.LogInformation("Created ActivitySession for guild {GuildId}", serverId);
-                        }
+                        // If it was a timeout (not general cancellation), continue to next batch
+                        continue;
                     }
-                    else if (!isLiveJobEnabled && currentlyHasSession)
-                    {
-                        // Remove activity session for this server
-                        if (_activeSessionJobs.TryRemove(serverId, out var jobId))
-                        {
-                            _jobService.CancelJob(jobId);
-                            sessionsRemoved++;
-                            _logger.LogInformation("Removed ActivitySession for guild {GuildId}", serverId);
-                        }
-                    }
-
-                    serversProcessed++;
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Error processing server {ServerId} for activity session management", serverId);
+                    break;
                 }
             }
 

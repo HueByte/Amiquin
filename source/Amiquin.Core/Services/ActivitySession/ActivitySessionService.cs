@@ -2,6 +2,7 @@ using Amiquin.Core.Services.ChatContext;
 using Amiquin.Core.Services.Toggle;
 using Discord.WebSocket;
 using Microsoft.Extensions.Logging;
+using System.Collections.Concurrent;
 
 namespace Amiquin.Core.Services.ActivitySession;
 
@@ -14,6 +15,9 @@ public class ActivitySessionService : IActivitySessionService
     private readonly IChatContextService _chatContextService;
     private readonly IToggleService _toggleService;
     private readonly DiscordShardedClient _discordClient;
+    
+    // Semaphores to prevent concurrent executions per guild
+    private readonly ConcurrentDictionary<ulong, SemaphoreSlim> _guildSemaphores = new();
 
     public ActivitySessionService(
         ILogger<ActivitySessionService> logger,
@@ -31,6 +35,31 @@ public class ActivitySessionService : IActivitySessionService
     /// Executes activity session logic for a specific guild
     /// </summary>
     public async Task<bool> ExecuteActivitySessionAsync(ulong guildId, Action<double>? adjustFrequencyCallback = null, CancellationToken cancellationToken = default)
+    {
+        // Get or create semaphore for this guild to prevent concurrent executions
+        var semaphore = _guildSemaphores.GetOrAdd(guildId, _ => new SemaphoreSlim(1, 1));
+        
+        // Try to acquire the semaphore - if another execution is running, skip this one
+        if (!await semaphore.WaitAsync(100, cancellationToken)) // 100ms timeout
+        {
+            _logger.LogDebug("Activity session already running for guild {GuildId}, skipping", guildId);
+            return false;
+        }
+        
+        try
+        {
+            return await ExecuteActivitySessionInternalAsync(guildId, adjustFrequencyCallback, cancellationToken);
+        }
+        finally
+        {
+            semaphore.Release();
+        }
+    }
+    
+    /// <summary>
+    /// Internal implementation of activity session execution
+    /// </summary>
+    private async Task<bool> ExecuteActivitySessionInternalAsync(ulong guildId, Action<double>? adjustFrequencyCallback = null, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -78,9 +107,15 @@ public class ActivitySessionService : IActivitySessionService
             // Get engagement multiplier
             var engagementMultiplier = _chatContextService.GetEngagementMultiplier(guildId);
 
-            // Calculate engagement probability
+            // Calculate engagement probability with activity dampening for high activity
             var baseChance = CalculateBaseChance(currentActivity);
-            var adjustedChance = baseChance * engagementMultiplier * currentActivity;
+            
+            // Reduce the impact of activity multiplier in high-activity scenarios to prevent over-engagement
+            var activityMultiplier = currentActivity >= 1.5 
+                ? Math.Min(currentActivity * 0.5, 1.0) // Dampen high activity impact
+                : currentActivity;
+            
+            var adjustedChance = baseChance * engagementMultiplier * activityMultiplier;
 
             // Force engagement for mentions
             if (botMentioned)
@@ -117,20 +152,68 @@ public class ActivitySessionService : IActivitySessionService
             // Check cancellation token before engagement action
             cancellationToken.ThrowIfCancellationRequested();
 
-            // Select and execute appropriate engagement action
-            var actionChoice = SelectEngagementAction(currentActivity, random);
-            var response = await ExecuteEngagementAction(_chatContextService, guildId, actionChoice);
+            // Select and execute appropriate engagement action with retry mechanism
+            var maxRetries = 3;
+            for (int retryAttempt = 0; retryAttempt < maxRetries; retryAttempt++)
+            {
+                try
+                {
+                    var actionChoice = SelectEngagementAction(currentActivity, random, botMentioned);
+                    _logger.LogDebug("Attempting action {Action} for guild {GuildName} (attempt {Attempt}/{MaxRetries})", 
+                        actionChoice, guild.Name, retryAttempt + 1, maxRetries);
 
-            if (!string.IsNullOrEmpty(response))
-            {
-                _logger.LogInformation("ActivitySession executed action {Action} for guild {GuildName}: success", actionChoice, guild.Name);
-                return true;
+                    var response = await ExecuteEngagementAction(_chatContextService, guildId, actionChoice);
+
+                    if (!string.IsNullOrEmpty(response))
+                    {
+                        _logger.LogInformation("ActivitySession executed action {Action} for guild {GuildName}: success", 
+                            actionChoice, guild.Name);
+                        
+                        // Clear context messages after successful engagement
+                        _chatContextService.ClearContextMessages(guildId);
+                        
+                        return true;
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Action {Action} returned empty response for guild {GuildId} (attempt {Attempt}/{MaxRetries})", 
+                            actionChoice, guildId, retryAttempt + 1, maxRetries);
+                        
+                        // If this was the last attempt, exit the loop
+                        if (retryAttempt == maxRetries - 1)
+                        {
+                            break;
+                        }
+
+                        // Wait before retry (100ms * attempt number)
+                        await Task.Delay(100 * (retryAttempt + 1), cancellationToken);
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    _logger.LogDebug("ActivitySession cancelled for guild {GuildId}", guildId);
+                    throw; // Re-throw cancellation to maintain proper cancellation behavior
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Error executing engagement action for guild {GuildId} (attempt {Attempt}/{MaxRetries}): {Error}", 
+                        guildId, retryAttempt + 1, maxRetries, ex.Message);
+                    
+                    // If this was the last attempt, continue to return false
+                    if (retryAttempt == maxRetries - 1)
+                    {
+                        break;
+                    }
+
+                    // Wait before retry with exponential backoff
+                    var delayMs = (int)Math.Pow(2, retryAttempt) * 200; // 200ms, 400ms, 800ms
+                    await Task.Delay(delayMs, cancellationToken);
+                }
             }
-            else
-            {
-                _logger.LogWarning("ActivitySession failed to generate content for guild {GuildId} using action {Action}", guildId, actionChoice);
-                return false;
-            }
+
+            _logger.LogWarning("ActivitySession failed to generate content for guild {GuildId} after {MaxRetries} attempts", 
+                guildId, maxRetries);
+            return false;
         }
         catch (Exception ex)
         {
@@ -146,42 +229,49 @@ public class ActivitySessionService : IActivitySessionService
     {
         return activityLevel switch
         {
-            <= 0.3 => 0.25,    // 25% base chance for low activity (increased from 10%)
-            <= 0.5 => 0.35,    // 35% base chance for below normal (increased from 15%)
-            <= 1.0 => 0.45,    // 45% base chance for normal activity (increased from 25%)
-            <= 1.5 => 0.55,    // 55% base chance for high activity (increased from 35%)
-            _ => 0.65           // 65% base chance for very high activity (increased from 45%)
+            <= 0.3 => 0.25,    // 25% base chance for low activity
+            <= 0.5 => 0.35,    // 35% base chance for below normal
+            <= 1.0 => 0.40,    // 40% base chance for normal activity (reduced from 45%)
+            <= 1.5 => 0.25,    // 25% base chance for high activity (reduced from 55% to prevent over-engagement)
+            _ => 0.15           // 15% base chance for very high activity (reduced from 65% to prevent spam)
         };
     }
 
     /// <summary>
     /// Selects engagement action based on activity level
     /// </summary>
-    private static int SelectEngagementAction(double activityLevel, Random random)
+    private static int SelectEngagementAction(double activityLevel, Random random, bool botMentioned = false)
     {
-        // HIGH ACTIVITY (>=1.5): Chat is very active - participate in conversations
+        // When bot is mentioned in context, 90% chance of adaptive response
+        if (botMentioned)
+        {
+            var mentionActions = new[] { 7, 7, 7, 7, 7, 7, 7, 7, 7, 5 }; // 90% adaptive response, 10% increase engagement
+            return mentionActions[random.Next(mentionActions.Length)];
+        }
+
+        // HIGH ACTIVITY (>=1.5): Chat is very active - heavily favor adaptive responses
         if (activityLevel >= 1.5)
         {
-            var highActivityActions = new[] { 5, 5, 6, 6, 7, 1, 1, 3 }; // Heavily favor participation + opinions + adaptive + questions + humor
+            var highActivityActions = new[] { 7, 7, 7, 7, 7, 7, 7, 7, 5, 6, 1, 7 }; // 75% adaptive response, 25% other actions
             return highActivityActions[random.Next(highActivityActions.Length)];
         }
 
-        // MODERATE-HIGH ACTIVITY (>=1.0): Good activity - mix of participation and questions
+        // MODERATE-HIGH ACTIVITY (>=1.0): Good activity - favor adaptive with some variety
         if (activityLevel >= 1.0)
         {
-            var moderateHighActions = new[] { 5, 6, 7, 1, 1, 3, 2 }; // More questions + opinions + adaptive + some participation
+            var moderateHighActions = new[] { 7, 7, 7, 7, 7, 7, 7, 5, 6, 1, 3, 7 }; // 66% adaptive, 34% other
             return moderateHighActions[random.Next(moderateHighActions.Length)];
         }
 
-        // MODERATE ACTIVITY (>=0.7): Normal activity - balanced approach
+        // MODERATE ACTIVITY (>=0.7): Normal activity - balanced but adaptive-heavy
         if (activityLevel >= 0.7)
         {
-            var moderateActions = new[] { 1, 3, 5, 6, 7, 2, 4, 0 }; // Balanced mix with new actions
+            var moderateActions = new[] { 7, 7, 7, 7, 7, 7, 1, 5, 6, 0, 3, 7 }; // 58% adaptive, 42% other
             return moderateActions[random.Next(moderateActions.Length)];
         }
 
-        // LOW ACTIVITY (<0.7): Chat is quiet - start topics and share content
-        var lowActivityActions = new[] { 0, 0, 7, 7, 2, 2, 4, 6, 1 }; // Heavy topic starters + adaptive responses + content sharing + opinions
+        // LOW ACTIVITY (<0.7): Chat is quiet - still favor adaptive but mix with topic starters
+        var lowActivityActions = new[] { 7, 7, 7, 7, 7, 0, 0, 2, 6, 1, 4, 7 }; // 50% adaptive, 50% topic starters and engagement
         return lowActivityActions[random.Next(lowActivityActions.Length)];
     }
 

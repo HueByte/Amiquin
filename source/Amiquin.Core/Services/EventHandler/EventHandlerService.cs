@@ -1,6 +1,7 @@
 using Amiquin.Core.Services.ChatContext;
 using Amiquin.Core.Services.CommandHandler;
 using Amiquin.Core.Services.Meta;
+using Amiquin.Core.Services.Pagination;
 using Amiquin.Core.Services.ServerInteraction;
 using Amiquin.Core.Services.Toggle;
 using Discord;
@@ -104,6 +105,14 @@ public class EventHandlerService : IEventHandlerService
     /// <inheritdoc/>
     public async Task OnCommandCreatedAsync(SocketInteraction interaction)
     {
+        // Handle component interactions (buttons, select menus, etc.)
+        if (interaction is SocketMessageComponent component)
+        {
+            await OnComponentInteractionAsync(component);
+            return;
+        }
+
+        // Handle other interactions (slash commands, etc.)
         await _commandHandlerService.HandleCommandAsync(interaction);
     }
 
@@ -159,6 +168,34 @@ public class EventHandlerService : IEventHandlerService
         if (await toggleService.IsEnabledAsync(guild.Id, Constants.ToggleNames.EnableJoinMessage))
         {
             await serverInteractionService.SendJoinMessageAsync(guild);
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task OnComponentInteractionAsync(SocketMessageComponent component)
+    {
+        try
+        {
+            using var scope = _serviceScopeFactory.CreateScope();
+            var paginationService = scope.ServiceProvider.GetRequiredService<IPaginationService>();
+            
+            var handled = await paginationService.HandleInteractionAsync(component);
+            if (!handled)
+            {
+                _logger.LogDebug("Component interaction {CustomId} not handled by any service", component.Data.CustomId);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error handling component interaction {CustomId}", component.Data.CustomId);
+            try
+            {
+                await component.RespondAsync("An error occurred while processing your interaction.", ephemeral: true);
+            }
+            catch
+            {
+                // Ignore errors when responding to the user about errors
+            }
         }
     }
 }

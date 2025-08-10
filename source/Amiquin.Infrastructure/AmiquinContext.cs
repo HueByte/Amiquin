@@ -98,6 +98,17 @@ public class AmiquinContext : DbContext
         builder.Entity<SessionMessage>()
             .HasIndex(sm => sm.CreatedAt);
 
+        // Configure Pagination Sessions
+        builder.Entity<PaginationSession>()
+            .HasIndex(ps => new { ps.UserId, ps.IsActive })
+            .HasDatabaseName("IX_PaginationSessions_UserActive");
+
+        builder.Entity<PaginationSession>()
+            .HasIndex(ps => ps.MessageId);
+
+        builder.Entity<PaginationSession>()
+            .HasIndex(ps => ps.ExpiresAt);
+
         #region ServerMeta Configuration
 
         builder.Entity<ServerMeta>()
@@ -140,4 +151,5 @@ public class AmiquinContext : DbContext
     public DbSet<BotStatistics> BotStatistics { get; set; } = default!;
     public DbSet<ChatSession> ChatSessions { get; set; } = default!;
     public DbSet<SessionMessage> SessionMessages { get; set; } = default!;
+    public DbSet<PaginationSession> PaginationSessions { get; set; } = default!;
 }

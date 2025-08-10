@@ -4,6 +4,7 @@ using Amiquin.Core.Options;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using OpenAI.Chat;
 
@@ -16,20 +17,20 @@ namespace Amiquin.Core.Services.MessageCache;
 public class MessageCacheService : IMessageCacheService
 {
     private readonly IMemoryCache _memoryCache;
-    private readonly IMessageRepository _messageRepository;
+    private readonly IServiceScopeFactory _serviceScopeFactory;
     private readonly int _messageFetchCount = Constants.MessageCacheDefaults.DefaultMessageFetchCount;
 
     /// <summary>
     /// Initializes a new instance of the MessageCacheService.
     /// </summary>
     /// <param name="memoryCache">Memory cache for storing messages temporarily.</param>
-    /// <param name="messageRepository">Repository for database operations on messages.</param>
+    /// <param name="serviceScopeFactory">Service scope factory for creating isolated database contexts.</param>
     /// <param name="botOptions">Bot configuration options.</param>
     /// <param name="configuration">Application configuration.</param>
-    public MessageCacheService(IMemoryCache memoryCache, IMessageRepository messageRepository, IOptions<BotOptions> botOptions, IConfiguration configuration)
+    public MessageCacheService(IMemoryCache memoryCache, IServiceScopeFactory serviceScopeFactory, IOptions<BotOptions> botOptions, IConfiguration configuration)
     {
         _memoryCache = memoryCache;
-        _messageRepository = messageRepository;
+        _serviceScopeFactory = serviceScopeFactory;
         int messageFetchCount = configuration.GetValue<int>(Constants.Environment.MessageFetchCount);
         _messageFetchCount = messageFetchCount is not 0 ? messageFetchCount : botOptions.Value.MessageFetchCount;
     }
@@ -71,7 +72,12 @@ public class MessageCacheService : IMessageCacheService
         return await _memoryCache.GetOrCreateAsync<List<ChatMessage>?>(serverId, async entry =>
         {
             entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromDays(Constants.MessageCacheDefaults.MemoryCacheExpirationDays);
-            var messages = await _messageRepository.AsQueryable()
+            
+            // Create a new scope to avoid DbContext concurrency issues
+            using var scope = _serviceScopeFactory.CreateScope();
+            var messageRepository = scope.ServiceProvider.GetRequiredService<IMessageRepository>();
+            
+            var messages = await messageRepository.AsQueryable()
                 .Where(x => x.ServerId == serverId)
                 .OrderByDescending(x => x.CreatedAt)
                 .Take(_messageFetchCount) // Get the most recent messages
@@ -108,9 +114,11 @@ public class MessageCacheService : IMessageCacheService
         // Update cache with the complete message list
         _memoryCache.Set(instanceId, chatMessages, TimeSpan.FromDays(Constants.MessageCacheDefaults.MemoryCacheExpirationDays));
 
-        // Persist to database
-        await _messageRepository.AddRangeAsync(modelMessages);
-        await _messageRepository.SaveChangesAsync();
+        // Persist to database using a new scope to avoid concurrency issues
+        using var scope = _serviceScopeFactory.CreateScope();
+        var messageRepository = scope.ServiceProvider.GetRequiredService<IMessageRepository>();
+        await messageRepository.AddRangeAsync(modelMessages);
+        await messageRepository.SaveChangesAsync();
     }
 
     /// <inheritdoc/>

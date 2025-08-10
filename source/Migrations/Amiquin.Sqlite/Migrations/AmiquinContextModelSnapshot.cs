@@ -242,6 +242,58 @@ namespace Amiquin.Sqlite.Migrations
                     b.ToTable("NachoPacks");
                 });
 
+            modelBuilder.Entity("Amiquin.Core.Models.PaginationSession", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("TEXT");
+
+                    b.Property<ulong>("ChannelId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ContentType")
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("CurrentPage")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("EmbedData")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<ulong?>("GuildId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<ulong>("MessageId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("TotalPages")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<ulong>("UserId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExpiresAt");
+
+                    b.HasIndex("MessageId");
+
+                    b.HasIndex("UserId", "IsActive")
+                        .HasDatabaseName("IX_PaginationSessions_UserActive");
+
+                    b.ToTable("PaginationSessions");
+                });
+
             modelBuilder.Entity("Amiquin.Core.Models.ServerMeta", b =>
                 {
                     b.Property<ulong>("Id")
