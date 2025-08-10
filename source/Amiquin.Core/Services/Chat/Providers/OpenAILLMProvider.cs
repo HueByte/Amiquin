@@ -17,7 +17,7 @@ public class OpenAILLMProvider : LLMProviderBase
     public override string ProviderName => "OpenAI";
     
     public OpenAILLMProvider(
-        ILogger logger,
+        ILogger<OpenAILLMProvider> logger,
         IHttpClientFactory httpClientFactory,
         LLMProviderOptions config,
         LLMOptions globalConfig)

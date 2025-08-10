@@ -1,4 +1,5 @@
-using OpenAI.Chat;
+using Amiquin.Core.Models;
+using Amiquin.Core.Services.Chat.Providers;
 
 namespace Amiquin.Core.Services.Chat;
 
@@ -9,21 +10,46 @@ namespace Amiquin.Core.Services.Chat;
 public interface IChatCoreService
 {
     /// <summary>
-    /// Performs a chat completion using the specified message history and optional persona.
+    /// Core request - sends only system message + prompt to LLM without conversation history
     /// </summary>
-    /// <param name="instanceId">The unique identifier for the chat instance.</param>
-    /// <param name="messageHistory">The list of chat messages representing the conversation history.</param>
-    /// <param name="personaMessage">Optional persona message to influence the AI's behavior.</param>
-    /// <returns>The chat completion response from the AI model.</returns>
-    Task<ChatCompletion> ChatAsync(ulong instanceId, List<ChatMessage> messageHistory, ChatMessage? personaMessage = null);
+    /// <param name="prompt">The prompt/message to send</param>
+    /// <param name="customPersona">Optional custom persona to append to base persona</param>
+    /// <param name="tokenLimit">Maximum tokens for response</param>
+    /// <param name="provider">Optional provider override</param>
+    /// <returns>The LLM response</returns>
+    Task<ChatCompletionResponse> CoreRequestAsync(
+        string prompt,
+        string? customPersona = null,
+        int tokenLimit = 1200,
+        string? provider = null);
 
     /// <summary>
-    /// Exchanges a message with the AI model and returns the response.
+    /// Chat request - calls LLM with conversation history
     /// </summary>
-    /// <param name="message">The message to send to the AI model.</param>
-    /// <param name="developerPersonaChatMessage">Optional developer persona message for context.</param>
-    /// <param name="tokenLimit">The maximum number of tokens for the response. Default is 1200.</param>
-    /// <param name="instanceId">Optional instance ID for semaphore management. Use null for generic exchanges.</param>
-    /// <returns>The AI model's response as a string.</returns>
-    Task<string> ExchangeMessageAsync(string message, ChatMessage? developerPersonaChatMessage = null, int tokenLimit = 1200, ulong? instanceId = null);
+    /// <param name="instanceId">Instance/channel ID for semaphore management</param>
+    /// <param name="messages">List of conversation messages</param>
+    /// <param name="customPersona">Optional custom persona to append to base persona</param>
+    /// <param name="provider">Optional provider override</param>
+    /// <returns>The LLM response</returns>
+    Task<ChatCompletionResponse> ChatAsync(
+        ulong instanceId,
+        List<SessionMessage> messages,
+        string? customPersona = null,
+        string? provider = null);
+
+    /// <summary>
+    /// Chat request - calls LLM with conversation history and session context
+    /// </summary>
+    /// <param name="instanceId">Instance/channel ID for semaphore management</param>
+    /// <param name="messages">List of conversation messages</param>
+    /// <param name="customPersona">Optional custom persona to append to base persona</param>
+    /// <param name="sessionContext">Optional session context (conversation summary)</param>
+    /// <param name="provider">Optional provider override</param>
+    /// <returns>The LLM response</returns>
+    Task<ChatCompletionResponse> ChatAsync(
+        ulong instanceId,
+        List<SessionMessage> messages,
+        string? customPersona = null,
+        string? sessionContext = null,
+        string? provider = null);
 }

@@ -26,9 +26,9 @@ public class ChatProviderFactory : IChatProviderFactory
         // Register provider types
         _providerTypes = new Dictionary<string, Type>(StringComparer.OrdinalIgnoreCase)
         {
-            { "OpenAI", typeof(OpenAIProvider) },
-            { "Gemini", typeof(GeminiProvider) },
-            { "Grok", typeof(GrokProvider) }
+            { "OpenAI", typeof(OpenAILLMProvider) },
+            { "Gemini", typeof(GeminiLLMProvider) },
+            { "Grok", typeof(GrokLLMProvider) }
         };
     }
 

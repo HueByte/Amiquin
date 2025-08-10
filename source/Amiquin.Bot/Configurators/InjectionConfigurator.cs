@@ -9,6 +9,7 @@ using Amiquin.Core.Services.ApiClients;
 using Amiquin.Core.Services.BotContext;
 using Amiquin.Core.Services.BotSession;
 using Amiquin.Core.Services.Chat;
+using Amiquin.Core.Services.Chat.Providers;
 using Amiquin.Core.Services.ChatContext;
 using Amiquin.Core.Services.ChatSession;
 using Amiquin.Core.Services.CommandHandler;
@@ -30,6 +31,7 @@ using Discord.WebSocket;
 using Jiro.Shared.Tasks;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using OpenAI.Chat;
 using Serilog;
@@ -143,12 +145,11 @@ public class InjectionConfigurator
     {
         _services.AddScoped<IMessageCacheService, MessageCacheService>()
                  .AddScoped<IServerInteractionService, ServerInteractionService>()
-                 .AddScoped<IChatCoreService, ChatCoreService>()
+                 .AddScoped<IChatCoreService, CoreChatService>()
                  .AddScoped<IPersonaService, PersonaService>()
                  .AddScoped<IPersonaChatService, PersonaChatService>()
                  .AddScoped<IVoiceService, VoiceService>()
                  .AddScoped<INewsApiClient, NewsApiClient>()
-                 .AddScoped<IHistoryOptimizerService, HistoryOptimizerService>()
                  .AddScoped<IToggleService, ToggleService>()
                  .AddScoped<BotContextAccessor>()
                  .AddScoped<IServerMetaService, ServerMetaService>()
@@ -156,13 +157,35 @@ public class InjectionConfigurator
                  .AddScoped<IChatSessionService, ChatSessionService>()
                  .AddScoped<IActivitySessionService, ActivitySessionService>();
 
-        // LLM-based chat services (new system)
-        _services.AddScoped<LLMChatService>()
-                 .AddScoped<IMultiProviderChatService>(provider => provider.GetRequiredService<LLMChatService>());
+        // Provider factory and providers for managing LLM providers
+        _services.AddScoped<IChatProviderFactory, ChatProviderFactory>()
+                 .AddScoped<OpenAILLMProvider>(services =>
+                 {
+                     var logger = services.GetRequiredService<ILogger<OpenAILLMProvider>>();
+                     var httpClientFactory = services.GetRequiredService<IHttpClientFactory>();
+                     var llmOptions = services.GetRequiredService<IOptions<LLMOptions>>().Value;
+                     var providerConfig = llmOptions.GetProvider("OpenAI") ?? new LLMProviderOptions();
+                     return new OpenAILLMProvider(logger, httpClientFactory, providerConfig, llmOptions);
+                 })
+                 .AddScoped<GeminiLLMProvider>(services =>
+                 {
+                     var logger = services.GetRequiredService<ILogger<GeminiLLMProvider>>();
+                     var httpClientFactory = services.GetRequiredService<IHttpClientFactory>();
+                     var llmOptions = services.GetRequiredService<IOptions<LLMOptions>>().Value;
+                     var providerConfig = llmOptions.GetProvider("Gemini") ?? new LLMProviderOptions();
+                     return new GeminiLLMProvider(logger, httpClientFactory, providerConfig, llmOptions);
+                 })
+                 .AddScoped<GrokLLMProvider>(services =>
+                 {
+                     var logger = services.GetRequiredService<ILogger<GrokLLMProvider>>();
+                     var httpClientFactory = services.GetRequiredService<IHttpClientFactory>();
+                     var llmOptions = services.GetRequiredService<IOptions<LLMOptions>>().Value;
+                     var providerConfig = llmOptions.GetProvider("Grok") ?? new LLMProviderOptions();
+                     return new GrokLLMProvider(logger, httpClientFactory, providerConfig, llmOptions);
+                 });
 
         // Discord bot chat services
-        _services.AddSingleton<ISemaphoreManager, SemaphoreManager>()
-                 .AddScoped<IMessageManager, MessageManager>();
+        _services.AddSingleton<ISemaphoreManager, SemaphoreManager>();
 
         _services.AddTransient<IExternalProcessRunnerService, ExternalProcessRunnerService>();
 

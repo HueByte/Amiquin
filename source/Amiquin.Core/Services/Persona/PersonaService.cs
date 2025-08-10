@@ -215,7 +215,10 @@ public class PersonaService : IPersonaService
                 sb.AppendLine(newsObj.NewsObj.Content);
             }
 
-            var personaOpinion = await _coreChatService.ExchangeMessageAsync(sb.ToString(), tokenLimit: Constants.PersonaDefaults.NewsPersonaTokenLimit, instanceId: 0); // Generic instance for news processing
+            var response = await _coreChatService.CoreRequestAsync(
+                sb.ToString(), 
+                tokenLimit: Constants.PersonaDefaults.NewsPersonaTokenLimit);
+            var personaOpinion = response.Content;
             _logger.LogInformation("Persona Opinion: {personaOpinion}", personaOpinion);
 
             return personaOpinion;

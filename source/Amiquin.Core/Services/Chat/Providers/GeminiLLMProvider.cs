@@ -17,7 +17,7 @@ public class GeminiLLMProvider : LLMProviderBase
     public override string ProviderName => "Gemini";
     
     public GeminiLLMProvider(
-        ILogger logger,
+        ILogger<GeminiLLMProvider> logger,
         IHttpClientFactory httpClientFactory,
         LLMProviderOptions config,
         LLMOptions globalConfig)

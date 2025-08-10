@@ -3,6 +3,7 @@ using Amiquin.Core.Options;
 using Amiquin.Core.Services.ApiClients;
 using Amiquin.Core.Services.BotContext;
 using Amiquin.Core.Services.Chat;
+using Amiquin.Core.Services.Chat.Providers;
 using Amiquin.Core.Services.MessageCache;
 using Amiquin.Core.Services.Meta;
 using Amiquin.Core.Services.Persona;
@@ -85,8 +86,8 @@ public class PersonaServiceTests : IDisposable
             .ReturnsAsync(serverMeta);
 
         _mockCoreChatService
-            .Setup(c => c.ExchangeMessageAsync(It.IsAny<string>(), It.IsAny<OpenAI.Chat.ChatMessage>(), It.IsAny<int>(), It.IsAny<ulong?>()))
-            .ReturnsAsync("Mood-based persona addition");
+            .Setup(c => c.CoreRequestAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string>()))
+            .ReturnsAsync(new ChatCompletionResponse { Content = "Mood-based persona addition" });
 
         // Act
         var result = await _personaService.GetPersonaAsync(serverId);
@@ -117,8 +118,8 @@ public class PersonaServiceTests : IDisposable
             .ReturnsAsync(serverMeta);
 
         _mockCoreChatService
-            .Setup(c => c.ExchangeMessageAsync(It.IsAny<string>(), It.IsAny<OpenAI.Chat.ChatMessage>(), It.IsAny<int>(), It.IsAny<ulong?>()))
-            .ReturnsAsync("Mood-based persona addition");
+            .Setup(c => c.CoreRequestAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string>()))
+            .ReturnsAsync(new ChatCompletionResponse { Content = "Mood-based persona addition" });
 
         // Act
         var result = await _personaService.GetPersonaAsync(serverId);
@@ -171,8 +172,8 @@ public class PersonaServiceTests : IDisposable
             .ReturnsAsync(serverMeta);
 
         _mockCoreChatService
-            .Setup(c => c.ExchangeMessageAsync(It.IsAny<string>(), It.IsAny<OpenAI.Chat.ChatMessage>(), It.IsAny<int>(), It.IsAny<ulong?>()))
-            .ReturnsAsync("Mood content");
+            .Setup(c => c.CoreRequestAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string>()))
+            .ReturnsAsync(new ChatCompletionResponse { Content = "Mood content" });
 
         // Act
         var result = await _personaService.GetPersonaAsync(serverId);
@@ -198,8 +199,8 @@ public class PersonaServiceTests : IDisposable
         _mockServerMetaService.Setup(s => s.GetServerMetaAsync(serverId)).ReturnsAsync(serverMeta);
 
         _mockCoreChatService
-            .Setup(c => c.ExchangeMessageAsync(It.IsAny<string>(), It.IsAny<OpenAI.Chat.ChatMessage>(), It.IsAny<int>(), It.IsAny<ulong?>()))
-            .ReturnsAsync($"{contextBotName} just received some news...");
+            .Setup(c => c.CoreRequestAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string>()))
+            .ReturnsAsync(new ChatCompletionResponse { Content = $"{contextBotName} just received some news..." });
 
         // Act
         var result = await _personaService.GetPersonaAsync(serverId);
@@ -221,8 +222,8 @@ public class PersonaServiceTests : IDisposable
         _mockServerMetaService.Setup(s => s.GetServerMetaAsync(serverId)).ReturnsAsync(serverMeta);
 
         _mockCoreChatService
-            .Setup(c => c.ExchangeMessageAsync(It.IsAny<string>(), It.IsAny<OpenAI.Chat.ChatMessage>(), It.IsAny<int>(), It.IsAny<ulong?>()))
-            .ReturnsAsync($"{_botOptions.Name} fallback news content...");
+            .Setup(c => c.CoreRequestAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string>()))
+            .ReturnsAsync(new ChatCompletionResponse { Content = $"{_botOptions.Name} fallback news content..." });
 
         // Act
         var result = await _personaService.GetPersonaAsync(serverId);
@@ -264,8 +265,8 @@ public class PersonaServiceTests : IDisposable
         _mockServerMetaService.Setup(s => s.GetServerMetaAsync(serverId)).ReturnsAsync(serverMeta);
 
         _mockCoreChatService
-            .Setup(c => c.ExchangeMessageAsync(It.IsAny<string>(), It.IsAny<OpenAI.Chat.ChatMessage>(), It.IsAny<int>(), It.IsAny<ulong?>()))
-            .ReturnsAsync("Generated mood content");
+            .Setup(c => c.CoreRequestAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string>()))
+            .ReturnsAsync(new ChatCompletionResponse { Content = "Generated mood content" });
 
         // Act
         await _personaService.AddSummaryAsync(serverId, summaryMessage);
@@ -294,8 +295,8 @@ public class PersonaServiceTests : IDisposable
         _mockServerMetaService.Setup(s => s.GetServerMetaAsync(serverId)).ReturnsAsync(serverMeta);
 
         _mockCoreChatService
-            .Setup(c => c.ExchangeMessageAsync(It.IsAny<string>(), It.IsAny<OpenAI.Chat.ChatMessage>(), It.IsAny<int>(), It.IsAny<ulong?>()))
-            .ReturnsAsync("Test mood content");
+            .Setup(c => c.CoreRequestAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string>()))
+            .ReturnsAsync(new ChatCompletionResponse { Content = "Test mood content" });
 
         // Act
         await _personaService.GetPersonaAsync(serverId);
@@ -340,8 +341,8 @@ public class PersonaServiceTests : IDisposable
 
         var moodContent = "Happy and energetic today";
         _mockCoreChatService
-            .Setup(c => c.ExchangeMessageAsync(It.IsAny<string>(), It.IsAny<OpenAI.Chat.ChatMessage>(), It.IsAny<int>(), It.IsAny<ulong?>()))
-            .ReturnsAsync(moodContent);
+            .Setup(c => c.CoreRequestAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string>()))
+            .ReturnsAsync(new ChatCompletionResponse { Content = moodContent });
 
         // Act
         var result = await _personaService.GetPersonaAsync(serverId);
