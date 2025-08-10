@@ -106,4 +106,19 @@ public class ChatSessionRepository : QueryableBaseRepository<string, ChatSession
 
         return sessionsToDeactivate.Count;
     }
+
+    /// <inheritdoc/>
+    public async Task<ChatSession?> UpdateSessionContextAsync(string sessionId, string context, int contextTokens)
+    {
+        var session = await GetAsync(sessionId);
+        if (session == null)
+            return null;
+
+        session.Context = context;
+        session.ContextTokens = contextTokens;
+        session.LastActivityAt = DateTime.UtcNow;
+
+        await SaveChangesAsync();
+        return session;
+    }
 }

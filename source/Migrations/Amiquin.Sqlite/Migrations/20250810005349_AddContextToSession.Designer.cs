@@ -3,16 +3,19 @@ using System;
 using Amiquin.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
 
-namespace Amiquin.Sqlite.Migrations
+namespace Amiquin.Sqlite.Migrations.Amiquin.Sqlite.Migrations
 {
     [DbContext(typeof(AmiquinContext))]
-    partial class AmiquinContextModelSnapshot : ModelSnapshot
+    [Migration("20250810005349_AddContextToSession")]
+    partial class AddContextToSession
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "9.0.8");

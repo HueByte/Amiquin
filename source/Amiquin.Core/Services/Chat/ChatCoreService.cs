@@ -44,7 +44,10 @@ public class ChatCoreService : IChatCoreService
                 personaMessage = await GetCorePersonaAsync();
             }
 
-            messageHistory.Insert(0, personaMessage);
+            // Create a new list for LLM request with system message at the beginning
+            // Don't modify the original messageHistory to avoid affecting cached conversation
+            var messagesForLLM = new List<ChatMessage> { personaMessage };
+            messagesForLLM.AddRange(messageHistory);
 
             // Set up chat options.
             var options = new ChatCompletionOptions
@@ -54,7 +57,7 @@ public class ChatCoreService : IChatCoreService
             };
 
             // Call the chat API.
-            return await _openAIClient.CompleteChatAsync(messageHistory, options);
+            return await _openAIClient.CompleteChatAsync(messagesForLLM, options);
         }
         finally
         {

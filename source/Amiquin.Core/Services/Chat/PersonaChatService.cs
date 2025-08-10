@@ -2,8 +2,12 @@ using Amiquin.Core.Models;
 using Amiquin.Core.Options;
 using Amiquin.Core.Services.MessageCache;
 using Amiquin.Core.Services.Persona;
+using Amiquin.Core.Services.ChatSession;
+using Amiquin.Core.IRepositories;
+using Amiquin.Core.Utilities;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.DependencyInjection;
 using OpenAI.Chat;
 
 namespace Amiquin.Core.Services.Chat;
@@ -15,29 +19,38 @@ public class PersonaChatService : IPersonaChatService
     private readonly IPersonaService _personaService;
     private readonly IMessageCacheService _messageCacheService;
     private readonly IHistoryOptimizerService _historyOptimizerService;
+    private readonly IServiceProvider _serviceProvider;
     private readonly BotOptions _botOptions;
     private const float PRICING_OUTPUT = 0.600f;
     private const float PRICING_INPUT = 0.150f;
     private const float PRICING_INPUT_CACHED = 0.075f;
     private const float ONE_MILLION = 1_000_000;
 
-    public PersonaChatService(ILogger<PersonaChatService> logger, IChatCoreService chatCoreService, IPersonaService personaService, IMessageCacheService messageCacheService, IHistoryOptimizerService historyOptimizerService, IOptions<BotOptions> botOptions)
+    public PersonaChatService(ILogger<PersonaChatService> logger, IChatCoreService chatCoreService, IPersonaService personaService, IMessageCacheService messageCacheService, IHistoryOptimizerService historyOptimizerService, IServiceProvider serviceProvider, IOptions<BotOptions> botOptions)
     {
         _logger = logger;
         _chatCoreService = chatCoreService;
         _personaService = personaService;
         _messageCacheService = messageCacheService;
         _historyOptimizerService = historyOptimizerService;
+        _serviceProvider = serviceProvider;
         _botOptions = botOptions.Value;
     }
 
     public async Task<string> ChatAsync(ulong instanceId, ulong userId, ulong botId, string message)
     {
-        // The conversationForChat contains persona message
+        // Get session and persona 
+        var chatSessionService = _serviceProvider.GetRequiredService<IChatSessionService>();
+        var session = await chatSessionService.GetOrCreateServerSessionAsync(instanceId);
         var persona = await _personaService.GetPersonaAsync(instanceId);
-        var (conversationForChat, conversationHistory) = await PrepareMessageHistory(instanceId, message);
 
-        var response = await _chatCoreService.ChatAsync(instanceId, conversationForChat, ChatMessage.CreateSystemMessage(persona));
+        // Create system message with context appended if it exists
+        var systemMessage = CreateSystemMessageWithContext(persona, session.Context);
+        
+        var conversationHistory = await PrepareMessageHistory(instanceId, message);
+
+        // Pass conversation history to ChatCoreService, which will handle system message internally
+        var response = await _chatCoreService.ChatAsync(instanceId, conversationHistory, systemMessage);
         var assistantMessages = response.Content;
         var assistantResponse = assistantMessages.FirstOrDefault()?.Text;
 
@@ -49,24 +62,44 @@ public class PersonaChatService : IPersonaChatService
         var tokenUsage = response.Usage;
         LogTokenUsage(tokenUsage);
 
-        var userMessage = conversationForChat.Last();
+        var userMessage = conversationHistory.Last();
         var amiquinMessage = ChatMessage.CreateAssistantMessage(assistantResponse);
-
-        conversationForChat.Add(amiquinMessage);
-        conversationHistory.Add(amiquinMessage);
 
         var models = CreateMessageModels(instanceId, botId, userId, userMessage, amiquinMessage);
 
-        await _messageCacheService.AddChatExchangeAsync(instanceId, conversationHistory, models);
+        // Only add the new message exchange (user + assistant), not the entire conversation history
+        var newMessageExchange = new List<ChatMessage> { userMessage, amiquinMessage };
+        await _messageCacheService.AddChatExchangeAsync(instanceId, newMessageExchange, models);
 
+        // For optimization, we need the full conversation with the assistant response added
+        var fullConversationWithResponse = new List<ChatMessage>(conversationHistory) { amiquinMessage };
+        
         if (_historyOptimizerService.ShouldOptimizeMessageHistory(tokenUsage))
         {
-            var optimizationResult = await _historyOptimizerService.OptimizeMessageHistory(tokenUsage.TotalTokenCount, conversationForChat, persona);
+            var optimizationResult = await _historyOptimizerService.OptimizeMessageHistory(tokenUsage.TotalTokenCount, fullConversationWithResponse, systemMessage);
 
-            // Subtract one from the removed messages as optimization was performed with Persona messagee
-            // We ensure with that, that user-assistant message pair is removed.
-            _messageCacheService.ClearOldMessages(instanceId, optimizationResult.RemovedMessages - 1);
-            await _personaService.AddSummaryAsync(instanceId, optimizationResult.MessagesSummary);
+            // Clear old messages from cache (they stay in DB)
+            _messageCacheService.ClearOldMessages(instanceId, optimizationResult.RemovedMessages);
+            
+            // Update session context with the summary
+            var chatSessionRepository = _serviceProvider.GetRequiredService<IChatSessionRepository>();
+            var contextTokens = await Tokenizer.CountTokensAsync(optimizationResult.MessagesSummary);
+            
+            // Check if context itself is getting too big and needs self-summarization
+            if (session.ContextTokens + contextTokens > _botOptions.MaxTokens / 4) // 25% of max tokens
+            {
+                var selfSummarizedContext = await SelfSummarizeContext(session.Context, optimizationResult.MessagesSummary, persona);
+                var selfSummarizedTokens = await Tokenizer.CountTokensAsync(selfSummarizedContext);
+                await chatSessionRepository.UpdateSessionContextAsync(session.Id, selfSummarizedContext, selfSummarizedTokens);
+            }
+            else
+            {
+                // Append new summary to existing context
+                var newContext = string.IsNullOrEmpty(session.Context) 
+                    ? optimizationResult.MessagesSummary 
+                    : $"{session.Context}\n\n{optimizationResult.MessagesSummary}";
+                await chatSessionRepository.UpdateSessionContextAsync(session.Id, newContext, session.ContextTokens + contextTokens);
+            }
         }
 
         return assistantResponse;
@@ -86,24 +119,18 @@ public class PersonaChatService : IPersonaChatService
         _logger.LogInformation("Estimated message price: {messagePrice}$", CalculateMessagePrice(usage));
     }
 
-    private async Task<(List<ChatMessage>, List<ChatMessage>)> PrepareMessageHistory(ulong instanceId, string message)
+    private async Task<List<ChatMessage>> PrepareMessageHistory(ulong instanceId, string message)
     {
         var cachedMessages = await _messageCacheService.GetOrCreateChatMessagesAsync(instanceId)
                              ?? [];
 
         var conversationHistory = new List<ChatMessage>(cachedMessages);
 
-        var conversationForChat = new List<ChatMessage>();
-        conversationForChat.AddRange(conversationHistory);
-
-        // Create the user message.
+        // Create the user message and add it to the conversation
         var userChatMessage = ChatMessage.CreateUserMessage(message);
-        conversationForChat.Add(userChatMessage);
-
-        // Also add the user message to the conversation history for persistence.
         conversationHistory.Add(userChatMessage);
 
-        return (conversationForChat, conversationHistory);
+        return conversationHistory;
     }
 
     private float CalculateMessagePrice(ChatTokenUsage tokenUsage)
@@ -141,5 +168,34 @@ public class PersonaChatService : IPersonaChatService
             };
 
         return modelMessages;
+    }
+
+    /// <summary>
+    /// Creates a system message with context appended if it exists
+    /// </summary>
+    private static ChatMessage CreateSystemMessageWithContext(string persona, string? context)
+    {
+        var systemContent = persona;
+        
+        if (!string.IsNullOrEmpty(context))
+        {
+            systemContent += $"\n\nPrevious conversation context:\n{context}";
+        }
+        
+        return ChatMessage.CreateSystemMessage(systemContent);
+    }
+
+    /// <summary>
+    /// Self-summarizes the context when it gets too big
+    /// </summary>
+    private async Task<string> SelfSummarizeContext(string? existingContext, string newSummary, string persona)
+    {
+        var contextToSummarize = string.IsNullOrEmpty(existingContext) 
+            ? newSummary 
+            : $"{existingContext}\n\n{newSummary}";
+
+        var summarizationPrompt = $"You're managing a conversation context that's getting too long. Consolidate the following context summaries into one concise summary that captures the most important points, relationships, and ongoing themes. Keep it under 200 tokens:\n\n{contextToSummarize}";
+        
+        return await _chatCoreService.ExchangeMessageAsync(summarizationPrompt, ChatMessage.CreateSystemMessage(persona), tokenLimit: 300);
     }
 }

@@ -32,9 +32,19 @@ public class HistoryOptimizerService : IHistoryOptimizerService
         int messagesToRemoveCount = 0;
 
         _logger.LogInformation("Starting message history optimization | Current token count: {currentTokenCount} | Target token count: {targetTokenCount}", currentTokenCount, targetTokenCount);
-        if (messages.Count % 2 == 0)
+        
+        // Account for persona message token count in optimization
+        if (personaMessage != null)
         {
-            _logger.LogWarning("Even number of messages in the conversation history. Probably missing a persona message.");
+            var personaText = personaMessage.Content.First().Text;
+            int personaTokenCount = await Tokenizer.CountTokensAsync(personaText);
+            currentTokenCount += personaTokenCount; // Add persona tokens to current count
+        }
+
+        // Messages should be user-assistant pairs (even number)
+        if (messages.Count % 2 != 0)
+        {
+            _logger.LogWarning("Odd number of messages in the conversation history. Expected user-assistant pairs.");
         }
 
         foreach (var message in messages)
@@ -42,8 +52,8 @@ public class HistoryOptimizerService : IHistoryOptimizerService
             var text = message.Content.First().Text;
             int tokenCount = await Tokenizer.CountTokensAsync(text);
 
-            // messagesToRemoveCount should be odd, since we include the persona message and user - assistant pair messages.
-            if (currentTokenCount < targetTokenCount && messagesToRemoveCount % 2 != 0)
+            // Remove complete user-assistant pairs (even messagesToRemoveCount)
+            if (currentTokenCount < targetTokenCount && messagesToRemoveCount % 2 == 0 && messagesToRemoveCount > 0)
             {
                 break;
             }
@@ -52,9 +62,14 @@ public class HistoryOptimizerService : IHistoryOptimizerService
             messagesToRemoveCount++;
         }
 
-        // Skip the persona message as its developer message.
-        var messagesToRemove = messages.Skip(1).Take(messagesToRemoveCount).ToList();
-        var summary = await SummarizeMessagesAsync(messagesToRemove);
+        // Ensure we remove complete pairs
+        if (messagesToRemoveCount % 2 != 0)
+        {
+            messagesToRemoveCount--;
+        }
+
+        var messagesToRemove = messages.Take(messagesToRemoveCount).ToList();
+        var summary = await SummarizeMessagesAsync(messagesToRemove, personaMessage);
 
         _logger.LogInformation("Message history optimization completed | Messages removed: {messagesToRemoveCount} | New token count: {currentTokenCount}\nPerformed summary {summary}", messagesToRemoveCount, currentTokenCount, summary);
 
@@ -69,13 +84,19 @@ public class HistoryOptimizerService : IHistoryOptimizerService
     {
         StringBuilder sb = new();
 
-        sb.AppendLine("Amiquin, you’re nearing your memory limit. Summarize the following messages from your perspective—focus on key points, user requests, and relevant context, so you can carry on the conversation seamlessly. Keep the recap concise and in your own notes-style format.");
+        sb.AppendLine("Summarize the following conversation messages into a concise context summary. Focus on key points, user requests, decisions made, and important information that would be needed to continue the conversation naturally. Keep it objective and factual:");
+        
         foreach (var message in messages)
         {
-            sb.AppendLine(message.Content.First().Text);
+            var text = message.Content.First().Text;
+            // Determine role based on message content patterns or add role tracking
+            var role = message.Content.First().Kind.ToString() == "User" ? "User" : "Assistant";
+            sb.AppendLine($"{role}: {text}");
         }
 
-        var response = await _chatCoreService.ExchangeMessageAsync(sb.ToString(), personaMessage, _botOptions.MaxTokens / 4);
+        // Use pure summarization without persona for context generation
+        var neutralSystemMessage = ChatMessage.CreateSystemMessage("You are a helpful assistant that creates concise, objective summaries of conversations.");
+        var response = await _chatCoreService.ExchangeMessageAsync(sb.ToString(), neutralSystemMessage, _botOptions.MaxTokens / 4);
 
         return response;
     }

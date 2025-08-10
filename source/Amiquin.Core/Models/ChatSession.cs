@@ -84,6 +84,16 @@ public class ChatSession : DbModel<string>
     public SessionScope Scope { get; set; } = SessionScope.Server;
 
     /// <summary>
+    /// Conversation context summary that gets appended to system message
+    /// </summary>
+    public string? Context { get; set; }
+
+    /// <summary>
+    /// Estimated token count for the context message
+    /// </summary>
+    public int ContextTokens { get; set; } = 0;
+
+    /// <summary>
     /// JSON metadata for additional session data
     /// </summary>
     public string? Metadata { get; set; }

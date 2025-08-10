@@ -59,4 +59,13 @@ public interface IChatSessionRepository : IQueryableRepository<string, ChatSessi
     /// <param name="keepCount">Number of recent sessions to keep active</param>
     /// <returns>Number of sessions deactivated</returns>
     Task<int> DeactivateOldSessionsAsync(SessionScope scope, ulong owningEntityId, int keepCount = 5);
+
+    /// <summary>
+    /// Updates the context summary for a chat session
+    /// </summary>
+    /// <param name="sessionId">Session ID</param>
+    /// <param name="context">New context summary</param>
+    /// <param name="contextTokens">Estimated token count for the context</param>
+    /// <returns>Updated session if found, null otherwise</returns>
+    Task<ChatSession?> UpdateSessionContextAsync(string sessionId, string context, int contextTokens);
 }
