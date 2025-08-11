@@ -148,6 +148,11 @@ COPY --from=build --chown=amiquin:amiquin ${MAIN_WORK_DIR}/build ${MAIN_WORK_DIR
 # Set working directory to application
 WORKDIR ${MAIN_WORK_DIR}/build
 
+# Ensure appsettings.json exists (copy from example if not present)
+RUN if [ ! -f Configuration/appsettings.json ] && [ -f Configuration/appsettings.example.json ]; then \
+        cp Configuration/appsettings.example.json Configuration/appsettings.json; \
+    fi
+
 # Set environment variables for data paths
 ENV AMQ_DataPaths__Logs=${MAIN_WORK_DIR}/Data/Logs
 ENV AMQ_DataPaths__Database=${MAIN_WORK_DIR}/Data/Database
@@ -157,9 +162,9 @@ ENV AMQ_Database__Mode=1
 ENV AMQ_ConnectionStrings__AmiquinContext="Data Source=${MAIN_WORK_DIR}/Data/Database/amiquin.db"
 ENV PATH="${PATH}:/home/amiquin/.local/bin"
 
-# Add health check
+# Health check for console application - just check if process is running
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:8080/health || exit 1
+    CMD pgrep -f "dotnet.*Amiquin.Bot.dll" || exit 1
 
 # Run the application
 ENTRYPOINT ["dotnet", "Amiquin.Bot.dll"]
