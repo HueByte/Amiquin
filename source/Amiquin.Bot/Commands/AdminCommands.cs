@@ -368,10 +368,19 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
         {
             try
             {
+                // Ensure server metadata exists first
+                var serverMeta = await _serverMetaService.GetServerMetaAsync(Context.Guild.Id);
+                if (serverMeta == null)
+                {
+                    // Create server metadata if it doesn't exist
+                    serverMeta = await _serverMetaService.CreateServerMetaAsync(Context.Guild.Id, Context.Guild.Name);
+                }
+                
                 // Ensure all toggles are created for this server
                 await _toggleService.CreateServerTogglesIfNotExistsAsync(Context.Guild.Id);
                 
-                var serverMeta = _botContextAccessor.ServerMeta;
+                // Refresh serverMeta after toggle creation
+                serverMeta = await _serverMetaService.GetServerMetaAsync(Context.Guild.Id);
                 var toggles = await _toggleService.GetTogglesByServerId(Context.Guild.Id);
 
                 var embed = new EmbedBuilder()
@@ -474,6 +483,7 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
                         break;
 
                     case "primary-channel":
+                    case "main-channel":
                     case "channel":
                         if (!ulong.TryParse(value, out var channelId))
                         {
@@ -574,6 +584,7 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
                         break;
 
                     case "primary-channel":
+                    case "main-channel":
                     case "channel":
                         serverMeta.PrimaryChannelId = null;
                         embed.WithDescription("Primary channel has been reset.");

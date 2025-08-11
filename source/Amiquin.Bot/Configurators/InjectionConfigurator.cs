@@ -18,6 +18,7 @@ using Amiquin.Core.Services.ComponentHandler;
 using Amiquin.Core.Services.Configuration;
 using Amiquin.Core.Services.EventHandler;
 using Amiquin.Core.Services.ExternalProcessRunner;
+using Amiquin.Core.Services.Fun;
 using Amiquin.Core.Services.MessageCache;
 using Amiquin.Core.Services.Meta;
 using Amiquin.Core.Services.Modal;
@@ -157,6 +158,7 @@ public class InjectionConfigurator
                  .AddScoped<IChatCoreService, CoreChatService>()
                  .AddScoped<IPersonaService, PersonaService>()
                  .AddScoped<IPersonaChatService, PersonaChatService>()
+                 .AddScoped<IFunService, FunService>()
                  .AddScoped<IVoiceService, VoiceService>()
                  .AddScoped<INewsApiClient, NewsApiClient>()
                  .AddScoped<IToggleService, ToggleService>()
@@ -279,7 +281,8 @@ public class InjectionConfigurator
                  .AddScoped<ICommandLogRepository, CommandLogRepository>()
                  .AddScoped<IBotStatisticsRepository, BotStatisticsRepository>()
                  .AddScoped<IChatSessionRepository, ChatSessionRepository>()
-                 .AddScoped<IPaginationSessionRepository, PaginationSessionRepository>();
+                 .AddScoped<IPaginationSessionRepository, PaginationSessionRepository>()
+                 .AddScoped<IUserStatsRepository, UserStatsRepository>();
 
         return this;
     }

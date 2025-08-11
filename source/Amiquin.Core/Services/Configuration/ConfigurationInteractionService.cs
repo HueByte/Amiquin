@@ -77,14 +77,17 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
 
     public async Task<(Embed embed, MessageComponent components)> CreateConfigurationInterfaceAsync(ulong guildId, SocketGuild guild)
     {
-        // Ensure all toggles are created for this server
-        await _toggleService.CreateServerTogglesIfNotExistsAsync(guildId);
-        
+        // Ensure server metadata exists first
         var serverMeta = await _serverMetaService.GetServerMetaAsync(guildId);
         if (serverMeta == null)
         {
-            throw new InvalidOperationException($"Server metadata not found for guild {guildId}");
+            // Create server metadata if it doesn't exist
+            serverMeta = await _serverMetaService.CreateServerMetaAsync(guildId, guild.Name);
+            _logger.LogInformation("Created server metadata for new server {ServerName} ({ServerId})", guild.Name, guildId);
         }
+        
+        // Now ensure all toggles are created for this server
+        await _toggleService.CreateServerTogglesIfNotExistsAsync(guildId);
 
         var embed = await BuildConfigurationEmbedAsync(serverMeta, guild);
         var components = await BuildConfigurationComponentsAsync(serverMeta, guild);

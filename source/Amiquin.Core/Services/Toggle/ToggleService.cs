@@ -47,7 +47,7 @@ public class ToggleService : IToggleService
             var missingToggles = expectedToggles.Except(serverMeta.Toggles.Select(t => t.Name)).ToList();
             if (missingToggles.Any())
             {
-                await SetServerTogglesBulkAsync(serverId, missingToggles.ToDictionary(x => x, x => (true, (string?)string.Empty)));
+                await SetServerTogglesBulkAsync(serverId, missingToggles.ToDictionary(x => x, x => (false, (string?)string.Empty)));
                 _logger.LogInformation("Added missing toggles for serverId {serverId}", serverId);
             }
 
@@ -55,7 +55,7 @@ public class ToggleService : IToggleService
         }
 
         var serverToggles = serverMeta.Toggles ?? [];
-        await SetServerTogglesBulkAsync(serverId, expectedToggles.ToDictionary(x => x, x => (true, (string?)string.Empty)));
+        await SetServerTogglesBulkAsync(serverId, expectedToggles.ToDictionary(x => x, x => (false, (string?)string.Empty)));
     }
 
     /// <inheritdoc/>

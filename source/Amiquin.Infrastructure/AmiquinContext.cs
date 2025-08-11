@@ -139,6 +139,11 @@ public class AmiquinContext : DbContext
             .HasKey(s => s.Id);
 
         #endregion
+        
+        // Configure UserStats unique constraint
+        builder.Entity<UserStats>()
+            .HasIndex(u => new { u.UserId, u.ServerId })
+            .IsUnique();
 
         base.OnModelCreating(builder);
     }
@@ -152,4 +157,5 @@ public class AmiquinContext : DbContext
     public DbSet<ChatSession> ChatSessions { get; set; } = default!;
     public DbSet<SessionMessage> SessionMessages { get; set; } = default!;
     public DbSet<PaginationSession> PaginationSessions { get; set; } = default!;
+    public DbSet<UserStats> UserStats { get; set; } = default!;
 }
