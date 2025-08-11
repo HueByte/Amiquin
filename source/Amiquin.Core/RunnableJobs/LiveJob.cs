@@ -33,12 +33,13 @@ public class LiveJob : IRunnableJob
         {
             _logger.LogDebug("LiveJob Coordinator starting - managing activity session jobs");
 
-            using var scope = serviceScopeFactory.CreateScope();
-            var serverRepository = scope.ServiceProvider.GetRequiredService<IServerMetaRepository>();
-            var toggleService = scope.ServiceProvider.GetRequiredService<IToggleService>();
-
             // Get all servers from database - this should be fast
-            var serverIds = serverRepository.AsQueryable().Select(s => s.Id).ToList();
+            List<ulong> serverIds;
+            using (var scope = serviceScopeFactory.CreateScope())
+            {
+                var serverRepository = scope.ServiceProvider.GetRequiredService<IServerMetaRepository>();
+                serverIds = serverRepository.AsQueryable().Select(s => s.Id).ToList();
+            }
             _logger.LogDebug("Found {Count} servers to check for activity sessions", serverIds.Count);
 
             var serversProcessed = 0;
@@ -58,13 +59,16 @@ public class LiveJob : IRunnableJob
                 {
                     try
                     {
-                        // Check toggle status with timeout
+                        // Check toggle status with timeout - each task gets its own scope to prevent DbContext concurrency issues
                         bool isLiveJobEnabled = false;
                         try
                         {
                             using var toggleCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                             toggleCts.CancelAfter(TimeSpan.FromSeconds(2)); // 2 second timeout per toggle check
                             
+                            // Create a separate scope for this parallel task to avoid DbContext concurrency issues
+                            using var toggleScope = serviceScopeFactory.CreateScope();
+                            var toggleService = toggleScope.ServiceProvider.GetRequiredService<IToggleService>();
                             isLiveJobEnabled = await toggleService.IsEnabledAsync(serverId, Constants.ToggleNames.EnableLiveJob);
                         }
                         catch (Exception ex)
