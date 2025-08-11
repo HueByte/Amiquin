@@ -229,6 +229,7 @@ public class ServerMetaService : IServerMetaService, IDisposable
             IsActive = true,
             ServerName = serverName,
             Persona = string.Empty,
+            PreferredProvider = null, // Will use global default
             Toggles = [],
             Messages = [],
             CommandLogs = [],
@@ -278,6 +279,13 @@ public class ServerMetaService : IServerMetaService, IDisposable
                 // Update basic properties
                 meta.ServerName = serverMeta.ServerName ?? meta.ServerName;
                 meta.Persona = serverMeta.Persona ?? meta.Persona;
+                
+                // Only update PreferredProvider if it's explicitly provided (not null)
+                if (serverMeta.PreferredProvider != null)
+                {
+                    meta.PreferredProvider = serverMeta.PreferredProvider;
+                }
+                
                 meta.LastUpdated = DateTime.UtcNow;
                 meta.IsActive = serverMeta.IsActive;
 
@@ -566,6 +574,7 @@ public class ServerMetaService : IServerMetaService, IDisposable
             IsActive = true,
             ServerName = serverName,
             Persona = string.Empty,
+            PreferredProvider = null, // Will use global default
             Toggles = [],
             Messages = [],
             CommandLogs = [],

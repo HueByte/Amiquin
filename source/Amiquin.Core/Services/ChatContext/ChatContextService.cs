@@ -18,7 +18,7 @@ public class ChatContextService : IChatContextService
 
     // Track engagement multipliers per guild (higher = more engagement)
     private readonly ConcurrentDictionary<ulong, float> _engagementMultipliers = new();
-    
+
     // Track recent activity timestamps for real-time activity detection
     private readonly ConcurrentDictionary<ulong, Queue<DateTime>> _activityTimestamps = new();
 
@@ -95,7 +95,7 @@ public class ChatContextService : IChatContextService
             using var scope = _serviceScopeFactory.CreateScope();
             var discordClient = scope.ServiceProvider.GetRequiredService<DiscordShardedClient>();
             var personaChatService = scope.ServiceProvider.GetRequiredService<IPersonaChatService>();
-            
+
             var prompt = "[System]: Provide a fun, interesting, or thought-provoking conversation starter. " +
                         "Keep it casual and engaging, something that would naturally start a discussion in a Discord server. " +
                         "Don't use quotation marks. Just provide the message directly.";
@@ -108,9 +108,26 @@ public class ChatContextService : IChatContextService
                 var targetChannel = await GetTargetChannelAsync(guildId, channel);
                 if (targetChannel != null)
                 {
-                    await targetChannel.SendMessageAsync(response);
-                    _logger.LogInformation("Started topic in guild {GuildId}: {Topic}",
-                        guildId, response.Substring(0, Math.Min(response.Length, 100)) + "...");
+                    var chunks = Utilities.DiscordUtilities.ChunkMessage(response);
+
+                    for (int i = 0; i < chunks.Count; i++)
+                    {
+                        var chunk = chunks[i];
+                        if (chunks.Count > 1)
+                        {
+                            chunk += $" `({i + 1}/{chunks.Count})`";
+                        }
+
+                        await targetChannel.SendMessageAsync(chunk);
+
+                        if (i < chunks.Count - 1)
+                        {
+                            await Task.Delay(500);
+                        }
+                    }
+
+                    _logger.LogInformation("Started topic in guild {GuildId} with {ChunkCount} message(s): {Topic}",
+                        guildId, chunks.Count, response.Substring(0, Math.Min(response.Length, 100)) + "...");
                 }
                 return response;
             }
@@ -126,6 +143,8 @@ public class ChatContextService : IChatContextService
 
     public async Task<string?> AnswerMentionAsync(ulong guildId, SocketMessage mentionMessage, IMessageChannel? channel = null)
     {
+        IUserMessage? typingMessage = null;
+
         try
         {
             _logger.LogInformation("Answering mention in guild {GuildId} from {Username}",
@@ -134,7 +153,7 @@ public class ChatContextService : IChatContextService
             using var scope = _serviceScopeFactory.CreateScope();
             var discordClient = scope.ServiceProvider.GetRequiredService<DiscordShardedClient>();
             var personaChatService = scope.ServiceProvider.GetRequiredService<IPersonaChatService>();
-            
+
             var context = FormatContextMessagesForAI(guildId);
             var username = mentionMessage.Author.GlobalName ?? mentionMessage.Author.Username;
             var userId = mentionMessage.Author.Id;
@@ -147,20 +166,59 @@ public class ChatContextService : IChatContextService
                                   "For other users in context, use their userId from [username:userId] format.";
             var prompt = $"[{username}:{userId}] {mentionContent}{contextPrompt}{mentionGuidance}";
 
+            // Send typing indicator
+            var targetChannel = channel ?? mentionMessage.Channel as IMessageChannel;
+            if (targetChannel != null)
+            {
+                typingMessage = await targetChannel.SendMessageAsync("*Typing...*", messageReference: new Discord.MessageReference(mentionMessage.Id));
+            }
+
             // Use session-based chat service like /chat command
             var response = await personaChatService.ChatAsync(guildId, mentionMessage.Author.Id, discordClient.CurrentUser.Id, prompt);
 
             if (!string.IsNullOrWhiteSpace(response))
             {
-                var targetChannel = channel ?? mentionMessage.Channel as IMessageChannel;
                 if (targetChannel != null)
                 {
-                    // Use Discord's reply functionality when responding to mentions
-                    await targetChannel.SendMessageAsync(response, messageReference: new Discord.MessageReference(mentionMessage.Id));
-                    _logger.LogInformation("Replied to mention from {Username} in guild {GuildId}: {Response}",
-                        username, guildId, response.Substring(0, Math.Min(response.Length, 100)) + "...");
+                    // Use simple text chunking to handle long responses
+                    var chunks = Utilities.DiscordUtilities.ChunkMessage(response, 1000);
+
+                    for (int i = 0; i < chunks.Count; i++)
+                    {
+                        var chunk = chunks[i];
+                        // Add part indicator if multiple chunks
+                        if (chunks.Count > 1)
+                        {
+                            chunk += $" `({i + 1}/{chunks.Count})`";
+                        }
+
+                        if (i == 0 && typingMessage != null)
+                        {
+                            // Update the typing message with the first chunk
+                            await typingMessage.ModifyAsync(msg => msg.Content = chunk);
+                        }
+                        else
+                        {
+                            // Send subsequent chunks as new messages
+                            await targetChannel.SendMessageAsync(chunk);
+                        }
+
+                        // Small delay between chunks
+                        if (i < chunks.Count - 1)
+                        {
+                            await Task.Delay(500);
+                        }
+                    }
+
+                    _logger.LogInformation("Replied to mention from {Username} in guild {GuildId} with {ChunkCount} message(s): {Response}",
+                        username, guildId, chunks.Count, response.Substring(0, Math.Min(response.Length, 100)) + "...");
                 }
                 return response;
+            }
+            else if (typingMessage != null)
+            {
+                // If no response, update typing message to indicate failure
+                await typingMessage.ModifyAsync(msg => msg.Content = "*No response generated*");
             }
 
             return null;
@@ -168,6 +226,20 @@ public class ChatContextService : IChatContextService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error answering mention for guild {GuildId}", guildId);
+
+            // Update typing message to show error if it exists
+            if (typingMessage != null)
+            {
+                try
+                {
+                    await typingMessage.ModifyAsync(msg => msg.Content = "*Error processing request*");
+                }
+                catch
+                {
+                    // Ignore errors when trying to update typing message
+                }
+            }
+
             return null;
         }
     }
@@ -181,10 +253,10 @@ public class ChatContextService : IChatContextService
             using var scope = _serviceScopeFactory.CreateScope();
             var discordClient = scope.ServiceProvider.GetRequiredService<DiscordShardedClient>();
             var personaChatService = scope.ServiceProvider.GetRequiredService<IPersonaChatService>();
-            
+
             var context = FormatContextMessagesForAI(guildId);
             var hasActiveContext = !string.IsNullOrWhiteSpace(context);
-            
+
             string basePrompt;
             if (hasActiveContext)
             {
@@ -205,7 +277,7 @@ public class ChatContextService : IChatContextService
                   "Messages are formatted as [username:userId] content, so use the userId for mentions. " +
                   "For example: if message shows [John:123456789] hello, respond with 'Hey <@123456789>, ...' NOT 'Hey John, ...'"
                 : "\n\nIMPORTANT: When you want to address users in your message, use Discord mention format <@userId>.";
-                  
+
             var prompt = hasActiveContext
                 ? $"{basePrompt} Here's the current conversation:\n{context}{mentionGuidance}"
                 : $"{basePrompt}{mentionGuidance}";
@@ -218,9 +290,26 @@ public class ChatContextService : IChatContextService
                 var targetChannel = await GetTargetChannelAsync(guildId, channel);
                 if (targetChannel != null)
                 {
-                    await targetChannel.SendMessageAsync(response);
-                    _logger.LogInformation("Asked question in guild {GuildId}: {Question}",
-                        guildId, response.Substring(0, Math.Min(response.Length, 100)) + "...");
+                    var chunks = Utilities.DiscordUtilities.ChunkMessage(response);
+
+                    for (int i = 0; i < chunks.Count; i++)
+                    {
+                        var chunk = chunks[i];
+                        if (chunks.Count > 1)
+                        {
+                            chunk += $" `({i + 1}/{chunks.Count})`";
+                        }
+
+                        await targetChannel.SendMessageAsync(chunk);
+
+                        if (i < chunks.Count - 1)
+                        {
+                            await Task.Delay(500);
+                        }
+                    }
+
+                    _logger.LogInformation("Asked question in guild {GuildId} with {ChunkCount} message(s): {Question}",
+                        guildId, chunks.Count, response.Substring(0, Math.Min(response.Length, 100)) + "...");
                 }
                 return response;
             }
@@ -243,7 +332,7 @@ public class ChatContextService : IChatContextService
             using var scope = _serviceScopeFactory.CreateScope();
             var discordClient = scope.ServiceProvider.GetRequiredService<DiscordShardedClient>();
             var personaChatService = scope.ServiceProvider.GetRequiredService<IPersonaChatService>();
-            
+
             var prompt = "[System]: Share something interesting, educational, or thought-provoking. " +
                         "It could be a fun fact, an interesting observation about technology/gaming/life, " +
                         "or something that would spark curiosity. Keep it engaging and conversational. " +
@@ -257,9 +346,26 @@ public class ChatContextService : IChatContextService
                 var targetChannel = await GetTargetChannelAsync(guildId, channel);
                 if (targetChannel != null)
                 {
-                    await targetChannel.SendMessageAsync(response);
-                    _logger.LogInformation("Shared interesting content in guild {GuildId}: {Content}",
-                        guildId, response.Substring(0, Math.Min(response.Length, 100)) + "...");
+                    var chunks = Utilities.DiscordUtilities.ChunkMessage(response);
+
+                    for (int i = 0; i < chunks.Count; i++)
+                    {
+                        var chunk = chunks[i];
+                        if (chunks.Count > 1)
+                        {
+                            chunk += $" `({i + 1}/{chunks.Count})`";
+                        }
+
+                        await targetChannel.SendMessageAsync(chunk);
+
+                        if (i < chunks.Count - 1)
+                        {
+                            await Task.Delay(500);
+                        }
+                    }
+
+                    _logger.LogInformation("Shared interesting content in guild {GuildId} with {ChunkCount} message(s): {Content}",
+                        guildId, chunks.Count, response.Substring(0, Math.Min(response.Length, 100)) + "...");
                 }
                 return response;
             }
@@ -283,7 +389,7 @@ public class ChatContextService : IChatContextService
             var discordClient = scope.ServiceProvider.GetRequiredService<DiscordShardedClient>();
             var personaChatService = scope.ServiceProvider.GetRequiredService<IPersonaChatService>();
             var botContextAccessor = scope.ServiceProvider.GetRequiredService<BotContextAccessor>();
-            
+
             var prompt = "[System]: Provide a funny message, joke, or humorous observation. " +
                         "Keep it light-hearted, appropriate for Discord, and entertaining. " +
                         "It could be about gaming, tech, everyday life, or just a clever observation. " +
@@ -299,9 +405,26 @@ public class ChatContextService : IChatContextService
                     var targetChannel = await GetTargetChannelAsync(guildId, channel);
                     if (targetChannel != null)
                     {
-                        await targetChannel.SendMessageAsync(response);
-                        _logger.LogInformation("Shared funny content in guild {GuildId}: {Content}",
-                            guildId, response.Substring(0, Math.Min(response.Length, 100)) + "...");
+                        var chunks = Utilities.DiscordUtilities.ChunkMessage(response);
+
+                        for (int i = 0; i < chunks.Count; i++)
+                        {
+                            var chunk = chunks[i];
+                            if (chunks.Count > 1)
+                            {
+                                chunk += $" `({i + 1}/{chunks.Count})`";
+                            }
+
+                            await targetChannel.SendMessageAsync(chunk);
+
+                            if (i < chunks.Count - 1)
+                            {
+                                await Task.Delay(500);
+                            }
+                        }
+
+                        _logger.LogInformation("Shared funny content in guild {GuildId} with {ChunkCount} message(s): {Content}",
+                            guildId, chunks.Count, response.Substring(0, Math.Min(response.Length, 100)) + "...");
                     }
                     return response;
                 }
@@ -331,7 +454,7 @@ public class ChatContextService : IChatContextService
             var discordClient = scope.ServiceProvider.GetRequiredService<DiscordShardedClient>();
             var personaChatService = scope.ServiceProvider.GetRequiredService<IPersonaChatService>();
             var botContextAccessor = scope.ServiceProvider.GetRequiredService<BotContextAccessor>();
-            
+
             try
             {
                 var prompt = "[System]: Share useful tips, advice, or helpful information. " +
@@ -378,7 +501,7 @@ public class ChatContextService : IChatContextService
             using var scope = _serviceScopeFactory.CreateScope();
             var discordClient = scope.ServiceProvider.GetRequiredService<DiscordShardedClient>();
             var personaChatService = scope.ServiceProvider.GetRequiredService<IPersonaChatService>();
-            
+
             var prompt = "[System]: Share interesting tech news, gaming updates, or general interesting developments. " +
                         "Keep it conversational and engaging, focusing on things that would interest a Discord community. " +
                         "Don't make up specific facts - keep it general and discussion-oriented. " +
@@ -417,12 +540,12 @@ public class ChatContextService : IChatContextService
             using var scope = _serviceScopeFactory.CreateScope();
             var discordClient = scope.ServiceProvider.GetRequiredService<DiscordShardedClient>();
             var personaChatService = scope.ServiceProvider.GetRequiredService<IPersonaChatService>();
-            
+
             var context = FormatContextMessagesForAI(guildId);
-            
+
             // Different behavior based on whether there's active conversation or not
             var hasActiveContext = !string.IsNullOrWhiteSpace(context);
-            
+
             string basePrompt;
             if (hasActiveContext)
             {
@@ -440,12 +563,12 @@ public class ChatContextService : IChatContextService
                            "or encouraging community interaction. Make it fun and inviting.";
             }
 
-            var mentionGuidance = hasActiveContext 
+            var mentionGuidance = hasActiveContext
                 ? "\n\nIMPORTANT: When referring to users, ALWAYS use Discord mention format <@userId>. " +
                   "Messages are formatted as [username:userId] content, so use the userId for mentions. " +
                   "For example: if message shows [John:123456789] hello, respond with 'Hey <@123456789>, ...' NOT 'Hey John, ...'"
                 : "\n\nIMPORTANT: When you want to address users in your message, use Discord mention format <@userId>.";
-                
+
             var prompt = hasActiveContext
                 ? $"{basePrompt} Here's the current conversation:\n{context}{mentionGuidance}"
                 : $"{basePrompt}{mentionGuidance}";
@@ -483,10 +606,10 @@ public class ChatContextService : IChatContextService
             using var scope = _serviceScopeFactory.CreateScope();
             var discordClient = scope.ServiceProvider.GetRequiredService<DiscordShardedClient>();
             var personaChatService = scope.ServiceProvider.GetRequiredService<IPersonaChatService>();
-            
+
             var context = FormatContextMessagesForAI(guildId);
             var hasActiveContext = !string.IsNullOrWhiteSpace(context);
-            
+
             string basePrompt;
             if (hasActiveContext)
             {
@@ -540,10 +663,10 @@ public class ChatContextService : IChatContextService
             using var scope = _serviceScopeFactory.CreateScope();
             var discordClient = scope.ServiceProvider.GetRequiredService<DiscordShardedClient>();
             var personaChatService = scope.ServiceProvider.GetRequiredService<IPersonaChatService>();
-            
+
             var context = FormatContextMessagesForAI(guildId);
             var hasActiveContext = !string.IsNullOrWhiteSpace(context);
-            
+
             string basePrompt;
             if (hasActiveContext)
             {
@@ -561,12 +684,12 @@ public class ChatContextService : IChatContextService
                            "or do whatever feels right to get people talking. Choose your approach freely.";
             }
 
-            var mentionGuidance = hasActiveContext 
+            var mentionGuidance = hasActiveContext
                 ? "\n\nIMPORTANT: When referring to users, ALWAYS use Discord mention format <@userId>. " +
                   "Messages are formatted as [username:userId] content, so use the userId for mentions. " +
                   "For example: if message shows [John:123456789] hello, respond with 'Hey <@123456789>, ...' NOT 'Hey John, ...'"
                 : "\n\nIMPORTANT: When you want to address users in your message, use Discord mention format <@userId>.";
-                
+
             var prompt = hasActiveContext
                 ? $"{basePrompt} Here's the current conversation:\n{context}{mentionGuidance}"
                 : $"{basePrompt}{mentionGuidance}";
@@ -627,7 +750,7 @@ public class ChatContextService : IChatContextService
                 }
             }
 
-            _logger.LogInformation("Initialized activity context for guild {GuildName} with {Count} messages from #{ChannelName}", 
+            _logger.LogInformation("Initialized activity context for guild {GuildName} with {Count} messages from #{ChannelName}",
                 guild.Name, processedCount, generalChannel.Name);
         }
         catch (Exception ex)
@@ -661,7 +784,7 @@ public class ChatContextService : IChatContextService
 
         // Fallback to the first text channel the bot can read from
         return guild.TextChannels
-            .Where(c => guild.CurrentUser.GetPermissions(c).ReadMessageHistory && 
+            .Where(c => guild.CurrentUser.GetPermissions(c).ReadMessageHistory &&
                        guild.CurrentUser.GetPermissions(c).ViewChannel)
             .OrderBy(c => c.Position)
             .FirstOrDefault();
@@ -890,11 +1013,11 @@ public class ChatContextService : IChatContextService
     {
         var now = DateTime.UtcNow;
         var timestamps = _activityTimestamps.GetOrAdd(scopeId, _ => new Queue<DateTime>());
-        
+
         lock (timestamps)
         {
             timestamps.Enqueue(now);
-            
+
             // Keep only last 2 minutes of activity
             var cutoff = now.AddMinutes(-2);
             while (timestamps.Count > 0 && timestamps.Peek() < cutoff)
@@ -903,7 +1026,7 @@ public class ChatContextService : IChatContextService
             }
         }
     }
-    
+
     /// <summary>
     /// Calculates current real-time activity level based on recent messages
     /// </summary>
@@ -911,13 +1034,13 @@ public class ChatContextService : IChatContextService
     {
         if (!_activityTimestamps.TryGetValue(scopeId, out var timestamps))
             return 0.1;
-            
+
         lock (timestamps)
         {
             var now = DateTime.UtcNow;
             var cutoff = now.AddMinutes(-1); // Last 1 minute
             var recentCount = timestamps.Count(t => t > cutoff);
-            
+
             return recentCount switch
             {
                 <= 0 => 0.1,        // Very low (handles negative values)
@@ -931,7 +1054,7 @@ public class ChatContextService : IChatContextService
             };
         }
     }
-    
+
     /// <summary>
     /// Checks for sudden activity spikes and triggers immediate engagement
     /// </summary>
@@ -941,25 +1064,25 @@ public class ChatContextService : IChatContextService
         {
             using var scope = _serviceScopeFactory.CreateScope();
             var toggleService = scope.ServiceProvider.GetService<IToggleService>();
-            
+
             if (toggleService == null || !await toggleService.IsEnabledAsync(scopeId, Constants.ToggleNames.EnableLiveJob))
                 return;
-                
+
             var currentActivity = GetCurrentActivityLevel(scopeId);
             var previousMultiplier = _engagementMultipliers.GetValueOrDefault(scopeId, 1.0f);
-            
+
             // Detect activity spike (sudden jump to high activity)
             var isActivitySpike = currentActivity >= 1.3 && previousMultiplier < 1.5f;
-            
+
             // Random chance for immediate engagement on activity spikes (30% chance)
             if (isActivitySpike && new Random().NextDouble() < 0.3)
             {
                 _logger.LogInformation("Activity spike detected in scope {ScopeId}, triggering immediate engagement", scopeId);
-                
+
                 // Wait a short random delay to feel natural (2-8 seconds)
                 var delay = TimeSpan.FromSeconds(new Random().Next(2, 9));
                 await Task.Delay(delay);
-                
+
                 // Trigger engagement appropriate for high activity
                 var actionChoice = new Random().Next(3) switch
                 {
@@ -967,7 +1090,7 @@ public class ChatContextService : IChatContextService
                     1 => 1, // AskQuestion - ask about what's happening
                     _ => 3  // ShareFunny - add humor to the active chat
                 };
-                
+
                 await ExecuteEngagementAction(scopeId, actionChoice);
             }
         }
@@ -976,7 +1099,7 @@ public class ChatContextService : IChatContextService
             _logger.LogError(ex, "Error checking activity spike for scope {ScopeId}", scopeId);
         }
     }
-    
+
     /// <summary>
     /// Executes a specific engagement action
     /// </summary>
@@ -985,7 +1108,7 @@ public class ChatContextService : IChatContextService
         try
         {
             string? response = null;
-            
+
             switch (actionChoice)
             {
                 case 0:
@@ -1013,13 +1136,13 @@ public class ChatContextService : IChatContextService
                     response = await AdaptiveResponseAsync(scopeId);
                     break;
             }
-            
+
             // Clear context messages on successful engagement
             if (!string.IsNullOrEmpty(response))
             {
                 ClearContextMessages(scopeId);
             }
-            
+
             return response;
         }
         catch (Exception ex)

@@ -42,7 +42,7 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
             .WithColor(Color.Teal)
             .Build();
 
-        var botEmbeds = DiscordUtilities.ChunkMessage(response, (chunk, chunkIndex, chunkCount) =>
+        var botEmbeds = DiscordUtilities.ChunkMessageAsEmbeds(response, (chunk, chunkIndex, chunkCount) =>
         {
             return new EmbedBuilder()
                 .WithDescription(chunk)
@@ -55,12 +55,12 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
 
         if (botEmbeds.Count == 1)
         {
-            await ModifyOriginalResponseAsync((msg) => { msg.Embeds = new[] { userEmbed, botEmbeds.First() }; });
+            await ModifyOriginalResponseAsync((msg) => { msg.Embeds = new Embed[] { userEmbed, botEmbeds.First() }; });
             return;
         }
         else
         {
-            await ModifyOriginalResponseAsync((msg) => { msg.Embeds = new[] { userEmbed }; });
+            await ModifyOriginalResponseAsync((msg) => { msg.Embeds = new Embed[] { userEmbed }; });
             foreach (var botEmbed in botEmbeds)
             {
                 await Context.Channel.SendMessageAsync(embed: botEmbed);

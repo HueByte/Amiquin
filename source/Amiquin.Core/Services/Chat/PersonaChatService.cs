@@ -9,6 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using OpenAI.Chat;
+using System.Text;
 
 namespace Amiquin.Core.Services.Chat;
 
@@ -48,10 +49,10 @@ public class PersonaChatService : IPersonaChatService
 
             // 1. Get message history from cache/database
             var messages = await GetMessageHistoryAsync(instanceId);
-            
+
             // 2. Get server-specific persona and session context
             var (serverPersona, sessionContext) = await GetServerContextAsync(instanceId);
-            
+
             // 3. Add the new user message to history
             var userMessage = new SessionMessage
             {
@@ -65,7 +66,8 @@ public class PersonaChatService : IPersonaChatService
 
             // 4. Select provider based on server configuration
             var provider = await GetServerProviderAsync(instanceId);
-            
+            _logger.LogInformation("Using provider {Provider} for instance {InstanceId}", provider ?? "default", instanceId);
+
             // 5. Send to LLM with fallback support
             var response = await _coreChatService.ChatAsync(
                 instanceId,
@@ -77,7 +79,10 @@ public class PersonaChatService : IPersonaChatService
             // 6. Store the exchange
             await StoreMessageExchangeAsync(instanceId, userId, botId, message, response.Content);
 
-            // 7. Check if optimization is needed
+            // 7. Log comprehensive token usage
+            LogTokenUsage(instanceId, response, provider);
+
+            // 8. Check if optimization is needed
             if (response.TotalTokens.HasValue && response.TotalTokens > _botOptions.MaxTokens * 0.8)
             {
                 _logger.LogInformation("Token limit approaching for instance {InstanceId}, triggering optimization", instanceId);
@@ -85,7 +90,7 @@ public class PersonaChatService : IPersonaChatService
             }
 
             _logger.LogInformation("Chat completed for instance {InstanceId}", instanceId);
-            
+
             return response.Content;
         }
         catch (Exception ex)
@@ -102,13 +107,13 @@ public class PersonaChatService : IPersonaChatService
             // Get server persona for one-off exchanges
             var serverMeta = await _serverMetaService.GetServerMetaAsync(instanceId);
             var serverPersona = serverMeta?.Persona;
-            
+
             // Use core request for stateless exchange
             var response = await _coreChatService.CoreRequestAsync(
                 message,
                 customPersona: serverPersona,
                 tokenLimit: 1200);
-                
+
             return response.Content;
         }
         catch (Exception ex)
@@ -122,7 +127,7 @@ public class PersonaChatService : IPersonaChatService
     {
         // Try to get from cache first
         var cachedMessages = await _messageCache.GetOrCreateChatMessagesAsync(instanceId);
-        
+
         if (cachedMessages != null && cachedMessages.Any())
         {
             // Convert ChatMessage to SessionMessage
@@ -139,7 +144,7 @@ public class PersonaChatService : IPersonaChatService
         // If no cache, get from database
         var chatSessionService = _serviceProvider.GetRequiredService<IChatSessionService>();
         var session = await chatSessionService.GetOrCreateServerSessionAsync(instanceId);
-        
+
         return session.Messages
             .Where(m => m.IncludeInContext)
             .OrderBy(m => m.CreatedAt)
@@ -155,7 +160,7 @@ public class PersonaChatService : IPersonaChatService
         // Get session context (conversation summary)
         var chatSessionService = _serviceProvider.GetRequiredService<IChatSessionService>();
         var session = await chatSessionService.GetOrCreateServerSessionAsync(instanceId);
-        
+
         return (serverPersona, session.Context);
     }
 
@@ -167,10 +172,10 @@ public class PersonaChatService : IPersonaChatService
     }
 
     private async Task StoreMessageExchangeAsync(
-        ulong instanceId, 
-        ulong userId, 
-        ulong botId, 
-        string userMessage, 
+        ulong instanceId,
+        ulong userId,
+        ulong botId,
+        string userMessage,
         string assistantMessage)
     {
         // Create ChatMessage objects
@@ -200,20 +205,15 @@ public class PersonaChatService : IPersonaChatService
             }
         };
 
-        // Store in cache
+        // Store in cache and database (MessageCacheService handles both)
         await _messageCache.AddChatExchangeAsync(
-            instanceId, 
+            instanceId,
             new List<OpenAI.Chat.ChatMessage> { userChatMessage, assistantChatMessage },
             messages);
-
-        // Store in database
-        var messageRepository = _serviceProvider.GetRequiredService<IMessageRepository>();
-        await messageRepository.AddRangeAsync(messages);
-        await messageRepository.SaveChangesAsync();
     }
 
     private async Task OptimizeHistoryAsync(
-        ulong instanceId, 
+        ulong instanceId,
         List<SessionMessage> messages,
         string? existingContext)
     {
@@ -222,6 +222,9 @@ public class PersonaChatService : IPersonaChatService
             var messagesToKeep = 10; // Keep last 10 exchanges
             var messagesToSummarize = messages.Take(Math.Max(0, messages.Count - messagesToKeep)).ToList();
 
+            _logger.LogInformation("Starting history optimization for instance {InstanceId} - Total messages: {TotalMessages}, Messages to summarize: {MessagesToSummarize}, Messages to keep: {MessagesToKeep}",
+                instanceId, messages.Count, messagesToSummarize.Count, messagesToKeep);
+
             if (!messagesToSummarize.Any())
             {
                 _logger.LogDebug("No messages to summarize for instance {InstanceId}", instanceId);
@@ -229,15 +232,21 @@ public class PersonaChatService : IPersonaChatService
             }
 
             // Create summary prompt
-            var conversationText = string.Join("\n", 
+            var conversationText = string.Join("\n",
                 messagesToSummarize.Select(m => $"[{m.Role}]: {m.Content}"));
-            
+
             var summaryPrompt = "Summarize this conversation history concisely, preserving key context and topics (max 400 tokens):\n\n" + conversationText;
 
             // Get summary using core request
+            _logger.LogDebug("Requesting summary for instance {InstanceId} with {CharacterCount} characters of conversation history", 
+                instanceId, conversationText.Length);
+            
             var summaryResponse = await _coreChatService.CoreRequestAsync(
                 summaryPrompt,
                 tokenLimit: 400);
+
+            _logger.LogInformation("Generated summary for instance {InstanceId} - Summary length: {SummaryLength} characters, Tokens used: {TokensUsed}",
+                instanceId, summaryResponse.Content.Length, summaryResponse.TotalTokens ?? 0);
 
             // Update session context
             var newContext = string.IsNullOrWhiteSpace(existingContext)
@@ -247,10 +256,17 @@ public class PersonaChatService : IPersonaChatService
             // Check if context needs self-summarization
             if (newContext.Length > 2000) // Rough check
             {
+                _logger.LogInformation("Context too long for instance {InstanceId} ({ContextLength} chars), consolidating summaries", 
+                    instanceId, newContext.Length);
+                    
                 var consolidatePrompt = $"Consolidate these conversation summaries into one concise summary (max 400 tokens):\n\n{newContext}";
                 var consolidatedResponse = await _coreChatService.CoreRequestAsync(
                     consolidatePrompt,
                     tokenLimit: 400);
+                    
+                _logger.LogInformation("Consolidated context for instance {InstanceId} - Old length: {OldLength}, New length: {NewLength}, Tokens used: {TokensUsed}",
+                    instanceId, newContext.Length, consolidatedResponse.Content.Length, consolidatedResponse.TotalTokens ?? 0);
+                    
                 newContext = consolidatedResponse.Content;
             }
 
@@ -258,16 +274,16 @@ public class PersonaChatService : IPersonaChatService
             var chatSessionRepository = _serviceProvider.GetRequiredService<IChatSessionRepository>();
             var chatSessionService = _serviceProvider.GetRequiredService<IChatSessionService>();
             var session = await chatSessionService.GetOrCreateServerSessionAsync(instanceId);
-            
+
             await chatSessionRepository.UpdateSessionContextAsync(
-                session.Id, 
-                newContext, 
+                session.Id,
+                newContext,
                 newContext.Length / 4); // Rough token estimate
 
             // Clear old messages from cache
             _messageCache.ClearOldMessages(instanceId, messagesToKeep);
 
-            _logger.LogInformation("Optimized history for instance {InstanceId}, summarized {Count} messages", 
+            _logger.LogInformation("Optimized history for instance {InstanceId}, summarized {Count} messages",
                 instanceId, messagesToSummarize.Count);
         }
         catch (Exception ex)
@@ -282,18 +298,76 @@ public class PersonaChatService : IPersonaChatService
         // Since ChatMessage doesn't expose Role directly, we need to infer it
         // from the message content or type
         var content = message.Content?.FirstOrDefault()?.Text ?? "";
-        
+
         // Check if it's a system message (usually starts with specific patterns)
         if (message.Content?.Any() == true)
         {
             var firstContent = message.Content.First();
             var kind = firstContent.Kind.ToString();
-            
+
             // Try to determine from Kind or other properties
             // Default to "user" if uncertain
             return "user";
         }
-        
+
         return "user";
+    }
+
+    /// <summary>
+    /// Logs comprehensive token usage statistics for monitoring and cost tracking
+    /// </summary>
+    private void LogTokenUsage(ulong instanceId, ChatCompletionResponse response, string? provider)
+    {
+        try
+        {
+            var providerName = provider ?? "unknown";
+            var model = response.Model ?? "unknown";
+            
+            // Basic token information
+            var promptTokens = response.PromptTokens ?? 0;
+            var completionTokens = response.CompletionTokens ?? 0;
+            var totalTokens = response.TotalTokens ?? (promptTokens + completionTokens);
+
+            // Log detailed token usage
+            _logger.LogInformation("Token Usage - Instance: {InstanceId}, Provider: {Provider}, Model: {Model}, " +
+                                 "Prompt: {PromptTokens}, Completion: {CompletionTokens}, Total: {TotalTokens}",
+                instanceId, providerName, model, promptTokens, completionTokens, totalTokens);
+
+            // Log additional metadata if available
+            if (response.Metadata?.Count > 0)
+            {
+                var metadataLog = new StringBuilder();
+                metadataLog.Append("Token Metadata - ");
+                
+                foreach (var kvp in response.Metadata)
+                {
+                    // Look for cached tokens or other relevant metadata
+                    if (kvp.Key.ToLowerInvariant().Contains("cached") || 
+                        kvp.Key.ToLowerInvariant().Contains("token") ||
+                        kvp.Key.ToLowerInvariant().Contains("cost"))
+                    {
+                        metadataLog.Append($"{kvp.Key}: {kvp.Value}, ");
+                    }
+                }
+                
+                var metadataString = metadataLog.ToString().TrimEnd(' ', ',');
+                if (metadataString.Length > "Token Metadata - ".Length)
+                {
+                    _logger.LogInformation(metadataString);
+                }
+            }
+
+            // Warning for high token usage
+            if (totalTokens > 3000)
+            {
+                _logger.LogWarning("High token usage detected - Instance: {InstanceId}, Tokens: {TotalTokens}, " +
+                                 "Consider optimizing context or implementing earlier summarization",
+                    instanceId, totalTokens);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to log token usage for instance {InstanceId}", instanceId);
+        }
     }
 }

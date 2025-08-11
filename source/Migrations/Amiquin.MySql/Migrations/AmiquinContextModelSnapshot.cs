@@ -324,6 +324,9 @@ namespace Amiquin.MySql.Migrations
                         .IsRequired()
                         .HasColumnType("longtext");
 
+                    b.Property<string>("PreferredProvider")
+                        .HasColumnType("longtext");
+
                     b.Property<ulong?>("PrimaryChannelId")
                         .HasColumnType("bigint unsigned");
 

@@ -12,6 +12,7 @@ public class AdminSettingAutoCompleteHandler : AutocompleteHandler
     {
         { "main-channel", "Set the primary channel for bot operations" },
         { "persona", "Configure server-wide AI persona" },
+        { "provider", "Set the preferred LLM provider (OpenAI, Gemini, Grok)" },
         { "welcome-channel", "Set the welcome messages channel" },
         { "log-channel", "Set the logging channel" },
         { "voice-channel", "Set the default voice channel" },
@@ -46,7 +47,8 @@ public class AdminSettingAutoCompleteHandler : AutocompleteHandler
             var fallbackSuggestions = new List<AutocompleteResult>
             {
                 new("main-channel - Set the primary channel", "main-channel"),
-                new("persona - Configure server AI persona", "persona")
+                new("persona - Configure server AI persona", "persona"),
+                new("provider - Set the preferred LLM provider", "provider")
             };
             return Task.FromResult(AutocompletionResult.FromSuccess(fallbackSuggestions));
         }

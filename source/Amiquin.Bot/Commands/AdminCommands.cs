@@ -370,6 +370,15 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
 
             var serverId = Context.Guild.Id;
             var updatedCount = await _chatSessionService.UpdateServerSessionModelAsync(serverId, model, provider);
+            
+            // Also update the server's preferred provider in ServerMeta
+            var serverMeta = await _serverMetaService.GetServerMetaAsync(serverId);
+            if (serverMeta != null)
+            {
+                serverMeta.PreferredProvider = provider;
+                await _serverMetaService.UpdateServerMetaAsync(serverMeta);
+                _logger.LogInformation("Updated server {ServerId} preferred provider to {Provider}", serverId, provider);
+            }
 
             var embedBuilder = new EmbedBuilder()
                 .WithTitle("✅ AI Model Updated Successfully")
@@ -476,6 +485,30 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
                         embedBuilder.WithDescription("Server persona has been updated");
                         embedBuilder.AddField("Setting", "Server Persona", inline: false);
                         embedBuilder.AddField("New Persona", personaPreview, inline: false);
+                        break;
+
+                    case "provider":
+                        var validProviders = new[] { "OpenAI", "Gemini", "Grok" };
+                        var normalizedProvider = value.Trim();
+                        
+                        // Case-insensitive matching
+                        var matchedProvider = validProviders.FirstOrDefault(p => 
+                            string.Equals(p, normalizedProvider, StringComparison.OrdinalIgnoreCase));
+                        
+                        if (matchedProvider == null)
+                        {
+                            await ModifyOriginalResponseAsync(msg => msg.Content = 
+                                $"❌ Invalid provider: **{value}**. Valid providers are: {string.Join(", ", validProviders)}");
+                            return;
+                        }
+
+                        serverMeta.PreferredProvider = matchedProvider;
+                        await _serverMetaService.UpdateServerMetaAsync(serverMeta);
+
+                        embedBuilder.WithDescription("Server preferred provider has been updated");
+                        embedBuilder.AddField("Setting", "Preferred Provider", inline: true);
+                        embedBuilder.AddField("New Provider", matchedProvider, inline: true);
+                        embedBuilder.AddField("Status", "✅ Active", inline: true);
                         break;
 
                     default:
