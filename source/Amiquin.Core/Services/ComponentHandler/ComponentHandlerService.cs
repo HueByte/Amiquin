@@ -11,6 +11,7 @@ public class ComponentHandlerService : IComponentHandlerService
 {
     private readonly ILogger<ComponentHandlerService> _logger;
     private readonly ConcurrentDictionary<string, Func<SocketMessageComponent, ComponentContext, Task<bool>>> _handlers = new();
+    private readonly HashSet<string> _modalTriggers = new();
 
     /// <summary>
     /// The separator used in custom IDs to separate prefix and parameters.
@@ -103,6 +104,33 @@ public class ComponentHandlerService : IComponentHandlerService
         }
 
         return customId;
+    }
+    
+    /// <inheritdoc/>
+    public bool WillTriggerModal(string customId)
+    {
+        var context = ParseCustomId(customId);
+        if (context == null) return false;
+        
+        // Check if the entire prefix is registered as a modal trigger
+        if (_modalTriggers.Contains(context.Prefix)) return true;
+        
+        // Check for specific parameter-based modal triggers
+        // Format: "prefix:param1" where param1 determines if it's a modal
+        if (context.Parameters.Length > 0)
+        {
+            var specificTrigger = $"{context.Prefix}:{context.Parameters[0]}";
+            return _modalTriggers.Contains(specificTrigger);
+        }
+        
+        return false;
+    }
+    
+    /// <inheritdoc/>
+    public void RegisterModalTrigger(string prefix)
+    {
+        _modalTriggers.Add(prefix);
+        _logger.LogDebug("Registered modal trigger for prefix: {Prefix}", prefix);
     }
 
     /// <inheritdoc/>

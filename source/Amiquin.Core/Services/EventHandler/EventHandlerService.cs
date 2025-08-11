@@ -1,3 +1,4 @@
+using Amiquin.Core.Services.Chat;
 using Amiquin.Core.Services.ChatContext;
 using Amiquin.Core.Services.CommandHandler;
 using Amiquin.Core.Services.ComponentHandler;
@@ -197,8 +198,7 @@ public class EventHandlerService : IEventHandlerService
     {
         // Check if this interaction will trigger a modal (which cannot be deferred)
         var customId = component.Data.CustomId;
-        bool isModalTrigger = customId.Contains("config_action_persona") || 
-                             customId.Contains("config_quick_persona");
+        bool isModalTrigger = _componentHandlerService.WillTriggerModal(customId);
 
         // Only defer if this is not a modal trigger interaction
         if (!isModalTrigger)
@@ -234,7 +234,7 @@ public class EventHandlerService : IEventHandlerService
             {
                 if (component.HasResponded)
                     await component.ModifyOriginalResponseAsync(msg => msg.Content = "An error occurred while processing your interaction.");
-                else if (!isModalTrigger)
+                else if (component.HasResponded)
                     await component.ModifyOriginalResponseAsync(msg => msg.Content = "An error occurred while processing your interaction.");
                 else
                     await component.RespondAsync("An error occurred while processing your interaction.", ephemeral: true);
@@ -287,6 +287,87 @@ public class EventHandlerService : IEventHandlerService
             {
                 // Ignore errors when responding to the user about errors
             }
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task OnUserJoinedAsync(SocketGuildUser user)
+    {
+        try
+        {
+            _logger.LogInformation("User {Username} ({UserId}) joined guild {GuildName} ({GuildId})",
+                user.Username, user.Id, user.Guild.Name, user.Guild.Id);
+
+            using var scope = _serviceScopeFactory.CreateScope();
+            var toggleService = scope.ServiceProvider.GetRequiredService<IToggleService>();
+            var personaChatService = scope.ServiceProvider.GetRequiredService<IPersonaChatService>();
+            var serverMetaService = scope.ServiceProvider.GetRequiredService<IServerMetaService>();
+
+            // Check if AI welcome is enabled for this server
+            var isAIWelcomeEnabled = await toggleService.IsEnabledAsync(user.Guild.Id, Constants.ToggleNames.EnableAIWelcome);
+            if (!isAIWelcomeEnabled)
+            {
+                _logger.LogDebug("AI welcome disabled for guild {GuildId}", user.Guild.Id);
+                return;
+            }
+
+            // Get the primary channel for the guild
+            var serverMeta = await serverMetaService.GetServerMetaAsync(user.Guild.Id);
+            IMessageChannel? welcomeChannel = null;
+
+            if (serverMeta?.PrimaryChannelId.HasValue == true)
+            {
+                welcomeChannel = user.Guild.GetTextChannel(serverMeta.PrimaryChannelId.Value);
+            }
+
+            // Fall back to the first general/welcome channel if no primary channel set
+            if (welcomeChannel == null)
+            {
+                var generalChannel = user.Guild.TextChannels
+                    .Where(c => user.Guild.CurrentUser.GetPermissions(c).SendMessages &&
+                               user.Guild.CurrentUser.GetPermissions(c).ViewChannel)
+                    .Where(c => c.Name.Contains("general") || c.Name.Contains("welcome") || c.Name.Contains("chat"))
+                    .OrderBy(c => c.Position)
+                    .FirstOrDefault();
+
+                welcomeChannel = generalChannel ?? user.Guild.TextChannels
+                    .Where(c => user.Guild.CurrentUser.GetPermissions(c).SendMessages &&
+                               user.Guild.CurrentUser.GetPermissions(c).ViewChannel)
+                    .OrderBy(c => c.Position)
+                    .FirstOrDefault();
+            }
+
+            if (welcomeChannel == null)
+            {
+                _logger.LogWarning("No suitable welcome channel found for guild {GuildId}", user.Guild.Id);
+                return;
+            }
+
+            // Create AI-powered welcome message using the chat service
+            var welcomePrompt = $"[System]: A new user named {user.DisplayName} (username: {user.Username}) just joined the server '{user.Guild.Name}'. " +
+                               $"Generate a warm, friendly welcome message for them. Keep it conversational and welcoming, " +
+                               $"and mention their name. Make it feel like a genuine community welcome from the server's AI assistant.";
+
+            var welcomeMessage = await personaChatService.ChatAsync(
+                user.Guild.Id, 
+                user.Guild.CurrentUser.Id, 
+                user.Guild.CurrentUser.Id, 
+                welcomePrompt);
+
+            if (!string.IsNullOrWhiteSpace(welcomeMessage))
+            {
+                // Send the AI-generated welcome message
+                await welcomeChannel.SendMessageAsync(welcomeMessage);
+                _logger.LogInformation("Sent AI welcome message for user {UserId} in guild {GuildId}", user.Id, user.Guild.Id);
+            }
+            else
+            {
+                _logger.LogWarning("Failed to generate AI welcome message for user {UserId} in guild {GuildId}", user.Id, user.Guild.Id);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error handling user join event for user {UserId} in guild {GuildId}", user.Id, user.Guild.Id);
         }
     }
 }

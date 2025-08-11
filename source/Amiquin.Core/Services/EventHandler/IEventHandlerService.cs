@@ -53,4 +53,10 @@ public interface IEventHandlerService
     /// </summary>
     /// <param name="component">The message component interaction.</param>
     Task OnComponentInteractionAsync(SocketMessageComponent component);
+    
+    /// <summary>
+    /// Handles the event when a user joins a guild.
+    /// </summary>
+    /// <param name="user">The user that joined the guild.</param>
+    Task OnUserJoinedAsync(SocketGuildUser user);
 }

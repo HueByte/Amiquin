@@ -67,6 +67,10 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
 
         // Register modal handlers
         _modalService.RegisterHandler(ModalPrefix, HandleModalSubmissionAsync);
+        
+        // Register modal triggers (specific interactions that will respond with modals)
+        _componentHandler.RegisterModalTrigger($"{QuickSetupPrefix}:persona"); // Quick setup persona
+        _componentHandler.RegisterModalTrigger($"{ConfigActionPrefix}:persona"); // Config action persona (if needed)
 
         _logger.LogInformation("Configuration interaction handlers registered successfully");
     }

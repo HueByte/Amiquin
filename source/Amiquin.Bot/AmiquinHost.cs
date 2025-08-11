@@ -95,6 +95,7 @@ public class AmiquinHost : IHostedService
 
         _client.Log += _eventHandlerService.OnClientLogAsync;
         _client.JoinedGuild += _eventHandlerService.OnBotJoinedAsync;
+        _client.UserJoined += _eventHandlerService.OnUserJoinedAsync;
     }
 
     private async Task OnShardReadyAsync(DiscordSocketClient shard)

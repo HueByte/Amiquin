@@ -63,6 +63,7 @@ public class ToggleAutoCompleteHandler : AutocompleteHandler
             Constants.ToggleNames.EnableTTS => "EnableTTS - Enable text-to-speech",
             Constants.ToggleNames.EnableJoinMessage => "EnableJoinMessage - Enable welcome messages",
             Constants.ToggleNames.EnableLiveJob => "EnableLiveJob - Enable background jobs",
+            Constants.ToggleNames.EnableAIWelcome => "EnableAIWelcome - Enable AI-powered welcome messages",
             Constants.ToggleNames.SystemExclusiveToggles.EnableNews => "EnableNews - Enable news updates",
             _ => toggleName
         };
