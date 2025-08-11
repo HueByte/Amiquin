@@ -82,6 +82,25 @@ public class Reflection
         return ephemeralCommandsNames.ToHashSet();
     }
 
+    public static HashSet<string> GetAllModalCommands()
+    {
+        var assemblies = AppDomain.CurrentDomain.GetAssemblies()
+            .Where(asm => !string.IsNullOrEmpty(asm.FullName) && asm.FullName.StartsWith("Amiquin"))
+            .ToList();
+
+        // Modal command must have both SlashCommandAttribute and IsModalAttribute and live inside Amiquin assembly family.
+        var modalCommandsNames = assemblies.SelectMany(a => a.GetTypes())
+            .SelectMany(type => type.GetMethods())
+            .Where(method => method.GetCustomAttributes(typeof(IsModalAttribute), false).Length > 0
+                && method.GetCustomAttributes(typeof(SlashCommandAttribute), false).Length > 0)
+            .Select(m => m.GetCustomAttribute<SlashCommandAttribute>(false)?.Name)
+            .Where(name => name is not null)
+            .Select(name => name!) // Ensure the value is treated as non-nullable.
+            .ToList();
+
+        return modalCommandsNames.ToHashSet();
+    }
+
     public static Type[] GetOptionTypes()
     {
         var assemblies = AppDomain.CurrentDomain.GetAssemblies()

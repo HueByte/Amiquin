@@ -14,10 +14,13 @@ using Amiquin.Core.Services.Chat.Providers;
 using Amiquin.Core.Services.ChatContext;
 using Amiquin.Core.Services.ChatSession;
 using Amiquin.Core.Services.CommandHandler;
+using Amiquin.Core.Services.ComponentHandler;
+using Amiquin.Core.Services.Configuration;
 using Amiquin.Core.Services.EventHandler;
 using Amiquin.Core.Services.ExternalProcessRunner;
 using Amiquin.Core.Services.MessageCache;
 using Amiquin.Core.Services.Meta;
+using Amiquin.Core.Services.Modal;
 using Amiquin.Core.Services.Nacho;
 using Amiquin.Core.Services.Pagination;
 using Amiquin.Core.Services.Persona;
@@ -54,6 +57,7 @@ public class InjectionConfigurator
     {
         DiscordShardedClient client = new(new DiscordSocketConfig
         {
+            UseInteractionSnowflakeDate = false,
             LogLevel = LogSeverity.Info,
             MessageCacheSize = 100,
             GatewayIntents = GatewayIntents.Guilds
@@ -92,6 +96,9 @@ public class InjectionConfigurator
                  .AddSingleton<IVoiceStateManager, VoiceStateManager>()
                  .AddSingleton<IJobService, JobService>()
                  .AddSingleton<ITaskManager, TaskManager>()
+                 .AddSingleton<IComponentHandlerService, ComponentHandlerService>()
+                 .AddSingleton<IModalService, ModalService>()
+                 .AddSingleton<IConfigurationInteractionService, ConfigurationInteractionService>()
                  .AddScoped<IPaginationService, PaginationService>()
                  .AddMemoryCache();
 

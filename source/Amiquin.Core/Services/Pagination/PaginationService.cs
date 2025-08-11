@@ -1,5 +1,6 @@
 using Amiquin.Core.IRepositories;
 using Amiquin.Core.Models;
+using Amiquin.Core.Services.ComponentHandler;
 using Discord;
 using Discord.WebSocket;
 using Microsoft.Extensions.Logging;
@@ -14,11 +15,21 @@ public class PaginationService : IPaginationService
 {
     private readonly ILogger<PaginationService> _logger;
     private readonly IPaginationSessionRepository _paginationRepository;
+    private readonly IComponentHandlerService _componentHandlerService;
 
-    public PaginationService(ILogger<PaginationService> logger, IPaginationSessionRepository paginationRepository)
+    /// <summary>
+    /// The component prefix used for pagination components.
+    /// </summary>
+    public const string ComponentPrefix = "page";
+
+    public PaginationService(ILogger<PaginationService> logger, IPaginationSessionRepository paginationRepository, IComponentHandlerService componentHandlerService)
     {
         _logger = logger;
         _paginationRepository = paginationRepository;
+        _componentHandlerService = componentHandlerService;
+        
+        // Register this service as the handler for pagination components
+        _componentHandlerService.RegisterHandler(ComponentPrefix, HandlePaginationInteractionAsync);
     }
 
     public async Task<(Embed Embed, MessageComponent Component)> CreatePaginatedMessageAsync(
@@ -75,19 +86,38 @@ public class PaginationService : IPaginationService
 
     public async Task<bool> HandleInteractionAsync(SocketMessageComponent component)
     {
-        var customId = component.Data.CustomId;
-
-        // Check if this is a pagination interaction
-        if (!customId.StartsWith("page_"))
+        // This method is now handled through the component handler service
+        // but we keep it for backward compatibility
+        var context = _componentHandlerService.ParseCustomId(component.Data.CustomId);
+        if (context?.Prefix != ComponentPrefix)
             return false;
 
-        var parts = customId.Split('_');
-        if (parts.Length < 4)
-            return false;
+        return await HandlePaginationInteractionAsync(component, context);
+    }
 
-        // Session ID format: {userId}_{ticks}, so parts[1] and parts[2]
-        var sessionId = $"{parts[1]}_{parts[2]}";
-        var action = parts[3];
+    /// <summary>
+    /// Handles pagination component interactions through the new component handler system.
+    /// </summary>
+    /// <param name="component">The component interaction.</param>
+    /// <param name="context">The parsed component context.</param>
+    /// <returns>True if the interaction was handled.</returns>
+    private async Task<bool> HandlePaginationInteractionAsync(SocketMessageComponent component, ComponentContext context)
+    {
+        // Parse parameters: sessionId and action
+        if (context.Parameters.Length < 2)
+        {
+            _logger.LogDebug("Invalid pagination parameters: expected sessionId and action");
+            return false;
+        }
+
+        var sessionId = context.GetParameter(0);
+        var action = context.GetParameter(1);
+
+        if (sessionId == null || action == null)
+        {
+            _logger.LogDebug("Missing sessionId or action in pagination interaction");
+            return false;
+        }
 
         var session = await _paginationRepository.GetByIdAsync(sessionId);
 
@@ -176,28 +206,28 @@ public class PaginationService : IPaginationService
 
         // First page button
         buttons.Add(new ButtonBuilder()
-            .WithCustomId($"page_{sessionId}_first")
+            .WithCustomId(_componentHandlerService.GenerateCustomId(ComponentPrefix, sessionId, "first"))
             .WithLabel("⏪")
             .WithStyle(ButtonStyle.Secondary)
             .WithDisabled(currentPage == 0));
 
         // Previous page button
         buttons.Add(new ButtonBuilder()
-            .WithCustomId($"page_{sessionId}_prev")
+            .WithCustomId(_componentHandlerService.GenerateCustomId(ComponentPrefix, sessionId, "prev"))
             .WithLabel("◀️")
             .WithStyle(ButtonStyle.Primary)
             .WithDisabled(currentPage == 0));
 
         // Next page button
         buttons.Add(new ButtonBuilder()
-            .WithCustomId($"page_{sessionId}_next")
+            .WithCustomId(_componentHandlerService.GenerateCustomId(ComponentPrefix, sessionId, "next"))
             .WithLabel("▶️")
             .WithStyle(ButtonStyle.Primary)
             .WithDisabled(currentPage == totalPages - 1));
 
         // Last page button
         buttons.Add(new ButtonBuilder()
-            .WithCustomId($"page_{sessionId}_last")
+            .WithCustomId(_componentHandlerService.GenerateCustomId(ComponentPrefix, sessionId, "last"))
             .WithLabel("⏩")
             .WithStyle(ButtonStyle.Secondary)
             .WithDisabled(currentPage == totalPages - 1));
@@ -218,12 +248,18 @@ public class PaginationService : IPaginationService
         var embedsData = JsonSerializer.Deserialize<JsonElement[]>(session.EmbedData);
         var embeds = new List<Embed>();
 
+        if (embedsData == null) return embeds;
+
         foreach (var embedData in embedsData)
         {
             var builder = new EmbedBuilder();
 
             if (embedData.TryGetProperty("Title", out var titleProp) && titleProp.ValueKind == JsonValueKind.String)
-                builder.WithTitle(titleProp.GetString());
+            {
+                var title = titleProp.GetString();
+                if (!string.IsNullOrEmpty(title))
+                    builder.WithTitle(title);
+            }
 
             if (embedData.TryGetProperty("Description", out var descProp) && descProp.ValueKind == JsonValueKind.String)
                 builder.WithDescription(descProp.GetString());

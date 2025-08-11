@@ -32,6 +32,7 @@ public class CommandHandlerService : ICommandHandlerService
     private readonly DiscordShardedClient _discordClient;
     private readonly InteractionService _interactionService;
     private readonly HashSet<string> _ephemeralCommands = [];
+    private readonly HashSet<string> _modalCommands = [];
     private volatile bool _isInitialized;
 
     /// <inheritdoc/>
@@ -79,8 +80,14 @@ public class CommandHandlerService : ICommandHandlerService
                 _ephemeralCommands.Add(command);
             }
 
+            var modalCommands = Reflection.GetAllModalCommands();
+            foreach (var command in modalCommands)
+            {
+                _modalCommands.Add(command);
+            }
+
             _isInitialized = true;
-            _logger.LogInformation("Command Handler Service initialized successfully with {commandCount} ephemeral commands", _ephemeralCommands.Count);
+            _logger.LogInformation("Command Handler Service initialized successfully with {ephemeralCommandCount} ephemeral commands and {modalCommandCount} modal commands", _ephemeralCommands.Count, _modalCommands.Count);
         }
         catch (Exception ex)
         {
@@ -100,6 +107,9 @@ public class CommandHandlerService : ICommandHandlerService
             await RespondWithErrorAsync(interaction, "Service is not ready. Please try again later.");
             return;
         }
+
+        bool isModal = IsModalCommand(interaction);
+        bool isModalSubmission = interaction is SocketModal;
 
         // Handle autocomplete interactions separately - they don't support DeferAsync/RespondAsync like regular interactions
         if (interaction is SocketAutocompleteInteraction)
@@ -121,25 +131,11 @@ public class CommandHandlerService : ICommandHandlerService
             }
             return;
         }
-
-        // Defer immediately for slash commands to avoid 3-second timeout
-        var isEphemeral = IsEphemeralCommand(interaction);
-        if (interaction is SocketSlashCommand)
+        // Don't defer modal commands or modal submissions - they need to respond immediately
+        else if (!isModal && !isModalSubmission)
         {
-            try
-            {
-                await interaction.DeferAsync(isEphemeral);
-            }
-            catch (Discord.Net.HttpException ex) when (ex.DiscordCode == DiscordErrorCode.UnknownInteraction)
-            {
-                _logger.LogWarning("Interaction {InteractionId} expired before defer (10062)", interaction.Id);
-                return;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to defer interaction {InteractionId}", interaction.Id);
-                return;
-            }
+            bool isEphemeral = IsEphemeralCommand(interaction);
+            await interaction.DeferAsync(isEphemeral);
         }
 
         ExtendedShardedInteractionContext? extendedContext = null;
@@ -161,7 +157,9 @@ public class CommandHandlerService : ICommandHandlerService
             _logger.LogDebug("Executing command {commandName} for user {userId} in guild {guildId}",
                 GetCommandName(interaction), interaction.User.Id, guildId);
 
-            await _interactionService.ExecuteCommandAsync(extendedContext, scope.ServiceProvider);
+            var result = await _interactionService.ExecuteCommandAsync(extendedContext, scope.ServiceProvider);
+            _logger.LogDebug("Interaction execution result: Success={IsSuccess}, Error={Error}, ErrorReason={ErrorReason}", 
+                result.IsSuccess, result.Error, result.ErrorReason);
 
             // Command executed - BotContextAccessor will be finished in HandleSlashCommandExecuted regardless of success/failure
         }
@@ -277,6 +275,47 @@ public class CommandHandlerService : ICommandHandlerService
     }
 
     /// <summary>
+    /// Determines if the interaction is a modal command that should not be deferred.
+    /// Modal commands need to respond immediately with the modal, not defer first.
+    /// Uses the IsModal attribute system to detect commands marked with [IsModal].
+    /// </summary>
+    /// <param name="interaction">The socket interaction to check.</param>
+    /// <returns>True if this is a modal command that should not be deferred.</returns>
+    private bool IsModalCommand(SocketInteraction interaction)
+    {
+        if (interaction.Type != InteractionType.ApplicationCommand || interaction is not SocketSlashCommand command)
+            return false;
+
+        // Get the actual command name - need to handle nested subcommand groups properly
+        string commandName;
+        
+        // Check if there's a subcommand group (like "admin config setup")
+        var firstOption = command.Data.Options?.FirstOrDefault();
+        if (firstOption?.Type == ApplicationCommandOptionType.SubCommandGroup)
+        {
+            // This is a subcommand group - get the actual subcommand within it
+            var subCommand = firstOption.Options?.FirstOrDefault(op => op.Type == ApplicationCommandOptionType.SubCommand);
+            commandName = subCommand?.Name ?? firstOption.Name;
+        }
+        else if (firstOption?.Type == ApplicationCommandOptionType.SubCommand)
+        {
+            // This is a direct subcommand
+            commandName = firstOption.Name;
+        }
+        else
+        {
+            // This is a top-level command
+            commandName = command.Data.Name;
+        }
+        
+        var isModal = !string.IsNullOrEmpty(commandName) && _modalCommands.Contains(commandName);
+        
+        _logger.LogDebug("Checking modal command: '{CommandName}' -> IsModal: {IsModal} (Full structure: {FullCommand})", 
+            commandName, isModal, GetFullSlashCommandName(command));
+        return isModal;
+    }
+
+    /// <summary>
     /// Logs command execution information to the database.
     /// </summary>
     /// <param name="commandLogRepository">The repository for command logs.</param>
@@ -330,6 +369,16 @@ public class CommandHandlerService : ICommandHandlerService
     {
         try
         {
+            // Special handling for modal-related errors
+            if (exception is InvalidOperationException invalidOp &&
+                invalidOp.Message.Contains("Cannot respond twice to the same interaction"))
+            {
+                _logger.LogDebug("Command appears to be a modal command that was incorrectly deferred. " +
+                                "Interaction {InteractionId} - this is expected behavior for modal commands.",
+                                interaction.Id);
+                return; // Don't try to respond, the modal should have been shown successfully
+            }
+
             var errorMessage = exception switch
             {
                 TimeoutException => "The command timed out. Please try again.",
@@ -449,12 +498,43 @@ public class CommandHandlerService : ICommandHandlerService
     {
         return interaction switch
         {
-            SocketSlashCommand slashCommand => slashCommand.Data.Name,
+            SocketSlashCommand slashCommand => GetFullSlashCommandName(slashCommand),
             SocketMessageCommand messageCommand => messageCommand.Data.Name,
             SocketUserCommand userCommand => userCommand.Data.Name,
             SocketAutocompleteInteraction autocompleteInteraction => autocompleteInteraction.Data.CommandName,
+            SocketModal modal => $"modal:{modal.Data.CustomId}",
             _ => "Unknown"
         };
+    }
+
+    /// <summary>
+    /// Gets the full slash command name including subcommands and subcommand groups.
+    /// </summary>
+    /// <param name="slashCommand">The slash command interaction.</param>
+    /// <returns>The full command name (e.g., "admin config setup").</returns>
+    private static string GetFullSlashCommandName(SocketSlashCommand slashCommand)
+    {
+        var parts = new List<string> { slashCommand.Data.Name };
+
+        // Add subcommand group if present
+        if (slashCommand.Data.Options?.FirstOrDefault()?.Type == ApplicationCommandOptionType.SubCommandGroup)
+        {
+            var subCommandGroup = slashCommand.Data.Options.First();
+            parts.Add(subCommandGroup.Name);
+
+            // Add subcommand within the group
+            if (subCommandGroup.Options?.FirstOrDefault()?.Type == ApplicationCommandOptionType.SubCommand)
+            {
+                parts.Add(subCommandGroup.Options.First().Name);
+            }
+        }
+        // Add subcommand if present (not in a group)
+        else if (slashCommand.Data.Options?.FirstOrDefault()?.Type == ApplicationCommandOptionType.SubCommand)
+        {
+            parts.Add(slashCommand.Data.Options.First().Name);
+        }
+
+        return string.Join(" ", parts);
     }
 
     /// <summary>
@@ -470,6 +550,7 @@ public class CommandHandlerService : ICommandHandlerService
             SocketMessageCommand messageCommand => messageCommand.GuildId,
             SocketUserCommand userCommand => userCommand.GuildId,
             SocketAutocompleteInteraction autocompleteInteraction => autocompleteInteraction.GuildId,
+            SocketModal modal => modal.GuildId,
             _ => null
         };
     }

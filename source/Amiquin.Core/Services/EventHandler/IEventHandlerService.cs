@@ -34,7 +34,7 @@ public interface IEventHandlerService
     /// <param name="slashCommandInfo">Information about the executed slash command.</param>
     /// <param name="interactionContext">The context of the interaction.</param>
     /// <param name="result">The result of the command execution.</param>
-    Task OnShashCommandExecutedAsync(SlashCommandInfo slashCommandInfo, IInteractionContext interactionContext, IResult result);
+    Task OnSlashCommandExecutedAsync(SlashCommandInfo slashCommandInfo, IInteractionContext interactionContext, IResult result);
 
     /// <summary>
     /// Handles Discord client log messages.

@@ -141,9 +141,11 @@ public class ToggleService : IToggleService
             }
             else
             {
+                // Use a deterministic ID to prevent duplicates
+                var deterministicId = $"{serverId}_{toggleName}";
                 toggle = new Models.Toggle
                 {
-                    Id = Guid.NewGuid().ToString(),
+                    Id = deterministicId,
                     Name = toggleName,
                     IsEnabled = isEnabled,
                     Description = description ?? string.Empty,

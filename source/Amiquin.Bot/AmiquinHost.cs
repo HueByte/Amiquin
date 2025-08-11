@@ -3,6 +3,7 @@ using Amiquin.Core.Job;
 using Amiquin.Core.Options;
 using Amiquin.Core.Services.ChatContext;
 using Amiquin.Core.Services.CommandHandler;
+using Amiquin.Core.Services.Configuration;
 using Amiquin.Core.Services.EventHandler;
 using Amiquin.Core.Utilities;
 using Amiquin.Infrastructure;
@@ -32,6 +33,7 @@ public class AmiquinHost : IHostedService
     private readonly VoiceOptions _voiceOptions;
     private readonly DataPathOptions _dataPathOptions;
     private readonly IJobService _jobService;
+    private readonly IConfigurationInteractionService _configurationService;
     private bool _isInitialized = false;
 
     public AmiquinHost(
@@ -46,7 +48,8 @@ public class AmiquinHost : IHostedService
         IOptions<DiscordOptions> discordOptions,
         IOptions<VoiceOptions> voiceOptions,
         IOptions<DataPathOptions> dataPathOptions,
-        IJobService jobService)
+        IJobService jobService,
+        IConfigurationInteractionService configurationService)
     {
         _eventHandlerService = eventHandlerService;
         _client = discordClient;
@@ -60,12 +63,16 @@ public class AmiquinHost : IHostedService
         _voiceOptions = voiceOptions.Value;
         _dataPathOptions = dataPathOptions.Value;
         _jobService = jobService;
+        _configurationService = configurationService;
     }
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         await CreateDatabaseAsync();
         await _commandHandlerService.InitializeAsync();
+
+        // Initialize configuration interaction handlers
+        _configurationService.Initialize();
 
         AttachEvents();
         await CreateBotAsync();
@@ -81,11 +88,13 @@ public class AmiquinHost : IHostedService
     {
         _client.ShardReady += OnShardReadyAsync;
         _client.ShardReady += _eventHandlerService.OnShardReadyAsync;
+
         _client.InteractionCreated += _eventHandlerService.OnCommandCreatedAsync;
         _client.MessageReceived += _eventHandlerService.OnMessageReceivedAsync;
+        _interactionService.SlashCommandExecuted += _eventHandlerService.OnSlashCommandExecutedAsync;
+
         _client.Log += _eventHandlerService.OnClientLogAsync;
         _client.JoinedGuild += _eventHandlerService.OnBotJoinedAsync;
-        _interactionService.SlashCommandExecuted += _eventHandlerService.OnShashCommandExecutedAsync;
     }
 
     private async Task OnShardReadyAsync(DiscordSocketClient shard)
@@ -196,13 +205,13 @@ public class AmiquinHost : IHostedService
             {
                 // Run initializations concurrently but limit to avoid rate limits
                 initializationTasks.Add(chatContextService.InitializeActivityContextAsync(guild));
-                
+
                 // Process in batches of 3 to avoid overwhelming Discord API
                 if (initializationTasks.Count >= 3)
                 {
                     await Task.WhenAll(initializationTasks);
                     initializationTasks.Clear();
-                    
+
                     // Small delay between batches to be respectful to Discord API
                     await Task.Delay(500);
                 }

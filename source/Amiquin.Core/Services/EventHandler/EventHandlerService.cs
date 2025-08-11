@@ -1,7 +1,8 @@
 using Amiquin.Core.Services.ChatContext;
 using Amiquin.Core.Services.CommandHandler;
+using Amiquin.Core.Services.ComponentHandler;
 using Amiquin.Core.Services.Meta;
-using Amiquin.Core.Services.Pagination;
+using Amiquin.Core.Services.Modal;
 using Amiquin.Core.Services.ServerInteraction;
 using Amiquin.Core.Services.Toggle;
 using Discord;
@@ -22,6 +23,8 @@ public class EventHandlerService : IEventHandlerService
     private readonly ICommandHandlerService _commandHandlerService;
     private readonly IServiceScopeFactory _serviceScopeFactory;
     private readonly IChatContextService _chatContextService;
+    private readonly IComponentHandlerService _componentHandlerService;
+    private readonly IModalService _modalService;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="EventHandlerService"/> class.
@@ -29,12 +32,17 @@ public class EventHandlerService : IEventHandlerService
     /// <param name="logger">The logger for this service.</param>
     /// <param name="commandHandlerService">The service for handling commands.</param>
     /// <param name="serviceScopeFactory">The factory for creating service scopes.</param>
-    public EventHandlerService(ILogger<EventHandlerService> logger, ICommandHandlerService commandHandlerService, IServiceScopeFactory serviceScopeFactory, IChatContextService chatContextService)
+    /// <param name="chatContextService">The service for handling chat context.</param>
+    /// <param name="componentHandlerService">The service for handling component interactions.</param>
+    /// <param name="modalService">The service for handling modal interactions.</param>
+    public EventHandlerService(ILogger<EventHandlerService> logger, ICommandHandlerService commandHandlerService, IServiceScopeFactory serviceScopeFactory, IChatContextService chatContextService, IComponentHandlerService componentHandlerService, IModalService modalService)
     {
         _logger = logger;
         _commandHandlerService = commandHandlerService;
         _serviceScopeFactory = serviceScopeFactory;
         _chatContextService = chatContextService;
+        _componentHandlerService = componentHandlerService;
+        _modalService = modalService;
     }
 
     /// <inheritdoc/>
@@ -105,10 +113,23 @@ public class EventHandlerService : IEventHandlerService
     /// <inheritdoc/>
     public async Task OnCommandCreatedAsync(SocketInteraction interaction)
     {
+        _logger.LogInformation("Received interaction of type {InteractionType} with ID {InteractionId}", interaction.Type, interaction.Id);
+        _logger.LogInformation("Is SocketMessageComponent: {IsMessageComponent}, Is SocketModal: {IsModal}",
+            interaction is SocketMessageComponent, interaction is SocketModal);
+
         // Handle component interactions (buttons, select menus, etc.)
         if (interaction is SocketMessageComponent component)
         {
             await OnComponentInteractionAsync(component);
+            return;
+        }
+
+        // Handle modal interactions
+        if (interaction is SocketModal modal)
+        {
+            // Modal submissions should be handled directly by the command handler
+            // which will process [ModalInteraction] attributes through Discord.Net's system
+            await _commandHandlerService.HandleCommandAsync(interaction);
             return;
         }
 
@@ -117,7 +138,7 @@ public class EventHandlerService : IEventHandlerService
     }
 
     /// <inheritdoc/>
-    public async Task OnShashCommandExecutedAsync(SlashCommandInfo slashCommandInfo, IInteractionContext interactionContext, IResult result)
+    public async Task OnSlashCommandExecutedAsync(SlashCommandInfo slashCommandInfo, IInteractionContext interactionContext, IResult result)
     {
         _logger.LogInformation("Command [{name}] created by [{user}] in [{server_name}]", slashCommandInfo.Name, interactionContext.User.Username, interactionContext.Guild.Name);
         await _commandHandlerService.HandleSlashCommandExecutedAsync(slashCommandInfo, interactionContext, result);
@@ -192,13 +213,10 @@ public class EventHandlerService : IEventHandlerService
 
         try
         {
-            using var scope = _serviceScopeFactory.CreateScope();
-            var paginationService = scope.ServiceProvider.GetRequiredService<IPaginationService>();
-            
-            var handled = await paginationService.HandleInteractionAsync(component);
+            var handled = await _componentHandlerService.HandleInteractionAsync(component);
             if (!handled)
             {
-                _logger.LogDebug("Component interaction {CustomId} not handled by any service", component.Data.CustomId);
+                _logger.LogDebug("Component interaction {CustomId} not handled by any registered service", component.Data.CustomId);
             }
         }
         catch (Exception ex)
@@ -207,6 +225,50 @@ public class EventHandlerService : IEventHandlerService
             try
             {
                 await component.ModifyOriginalResponseAsync(msg => msg.Content = "An error occurred while processing your interaction.");
+            }
+            catch
+            {
+                // Ignore errors when responding to the user about errors
+            }
+        }
+    }
+
+    /// <summary>
+    /// Handles modal submissions by routing them to the appropriate service.
+    /// </summary>
+    /// <param name="modal">The modal submission to handle.</param>
+    public async Task OnModalSubmissionAsync(SocketModal modal)
+    {
+        // Defer immediately to avoid 3-second timeout
+        try
+        {
+            await modal.DeferAsync();
+        }
+        catch (Discord.Net.HttpException ex) when (ex.DiscordCode == DiscordErrorCode.UnknownInteraction)
+        {
+            _logger.LogWarning("Modal submission {InteractionId} expired before defer (10062)", modal.Id);
+            return;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to defer modal submission {InteractionId}", modal.Id);
+            return;
+        }
+
+        try
+        {
+            var handled = await _modalService.HandleModalSubmissionAsync(modal);
+            if (!handled)
+            {
+                _logger.LogDebug("Modal submission {CustomId} not handled by any registered service", modal.Data.CustomId);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error handling modal submission {CustomId}", modal.Data.CustomId);
+            try
+            {
+                await modal.ModifyOriginalResponseAsync(msg => msg.Content = "An error occurred while processing your submission.");
             }
             catch
             {
