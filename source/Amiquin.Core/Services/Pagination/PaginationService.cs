@@ -82,25 +82,26 @@ public class PaginationService : IPaginationService
             return false;
 
         var parts = customId.Split('_');
-        if (parts.Length < 3)
+        if (parts.Length < 4)
             return false;
 
-        var sessionId = parts[1];
-        var action = parts[2];
+        // Session ID format: {userId}_{ticks}, so parts[1] and parts[2]
+        var sessionId = $"{parts[1]}_{parts[2]}";
+        var action = parts[3];
 
         var session = await _paginationRepository.GetByIdAsync(sessionId);
+
+        _logger.LogInformation("User {UserId} interacted with pagination session {SessionId}", component.User.Id, sessionId);
+        _logger.LogInformation("Pagination action: {Action}", action);
+        _logger.LogInformation("Session details: {Session}", JsonSerializer.Serialize(session));
+
         if (session == null || session.IsExpired)
         {
-            await component.RespondAsync("This pagination session has expired.", ephemeral: true);
+            await component.ModifyOriginalResponseAsync(msg => msg.Content = "This pagination session has expired.");
             return true;
         }
 
-        // Check if the user is authorized to interact with this pagination
-        if (component.User.Id != session.UserId)
-        {
-            await component.RespondAsync("You are not authorized to interact with this pagination.", ephemeral: true);
-            return true;
-        }
+        // Note: Removed user authorization check as requested - buttons are not user-scoped
 
         var oldPage = session.CurrentPage;
         var newPage = action switch
@@ -126,7 +127,7 @@ public class PaginationService : IPaginationService
         var embed = CreateEmbedWithPageInfo(embeds[newPage], newPage + 1, session.TotalPages);
         var newComponent = CreateNavigationComponent(sessionId, newPage, session.TotalPages);
 
-        await component.UpdateAsync(properties =>
+        await component.ModifyOriginalResponseAsync(properties =>
         {
             properties.Embed = embed;
             properties.Components = newComponent;

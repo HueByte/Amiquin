@@ -122,15 +122,32 @@ public class CommandHandlerService : ICommandHandlerService
             return;
         }
 
+        // Defer immediately for slash commands to avoid 3-second timeout
+        var isEphemeral = IsEphemeralCommand(interaction);
+        if (interaction is SocketSlashCommand)
+        {
+            try
+            {
+                await interaction.DeferAsync(isEphemeral);
+            }
+            catch (Discord.Net.HttpException ex) when (ex.DiscordCode == DiscordErrorCode.UnknownInteraction)
+            {
+                _logger.LogWarning("Interaction {InteractionId} expired before defer (10062)", interaction.Id);
+                return;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to defer interaction {InteractionId}", interaction.Id);
+                return;
+            }
+        }
+
         ExtendedShardedInteractionContext? extendedContext = null;
 
         try
         {
             var scope = _serviceScopeFactory.CreateAsyncScope();
             extendedContext = new ExtendedShardedInteractionContext(_discordClient, interaction, scope);
-
-            var isEphemeral = IsEphemeralCommand(interaction);
-            await interaction.DeferAsync(isEphemeral);
 
             var botContext = scope.ServiceProvider.GetRequiredService<BotContextAccessor>();
             var serverMetaService = scope.ServiceProvider.GetRequiredService<IServerMetaService>();
@@ -145,7 +162,7 @@ public class CommandHandlerService : ICommandHandlerService
                 GetCommandName(interaction), interaction.User.Id, guildId);
 
             await _interactionService.ExecuteCommandAsync(extendedContext, scope.ServiceProvider);
-            
+
             // Command executed - BotContextAccessor will be finished in HandleSlashCommandExecuted regardless of success/failure
         }
         catch (Exception ex)
@@ -163,7 +180,7 @@ public class CommandHandlerService : ICommandHandlerService
                     // Finish the BotContextAccessor before disposing the scope
                     var botContext = extendedContext.AsyncScope.ServiceProvider.GetRequiredService<BotContextAccessor>();
                     botContext.Finish();
-                    
+
                     await extendedContext.DisposeAsync();
                 }
                 catch (Exception disposeEx)
@@ -190,7 +207,7 @@ public class CommandHandlerService : ICommandHandlerService
         }
 
         BotContextAccessor? botContextAccessor = null;
-        
+
         try
         {
             var commandLogRepository = extendedContext.AsyncScope.ServiceProvider.GetRequiredService<ICommandLogRepository>();
@@ -216,7 +233,7 @@ public class CommandHandlerService : ICommandHandlerService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to handle slash command execution for {commandName}", slashCommandInfo.Name);
-            
+
             // Ensure BotContextAccessor is finished even if there was an error
             if (botContextAccessor is not null && !botContextAccessor.IsFinished)
             {

@@ -174,6 +174,22 @@ public class EventHandlerService : IEventHandlerService
     /// <inheritdoc/>
     public async Task OnComponentInteractionAsync(SocketMessageComponent component)
     {
+        // Defer immediately to avoid 3-second timeout
+        try
+        {
+            await component.DeferAsync();
+        }
+        catch (Discord.Net.HttpException ex) when (ex.DiscordCode == DiscordErrorCode.UnknownInteraction)
+        {
+            _logger.LogWarning("Component interaction {InteractionId} expired before defer (10062)", component.Id);
+            return;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to defer component interaction {InteractionId}", component.Id);
+            return;
+        }
+
         try
         {
             using var scope = _serviceScopeFactory.CreateScope();
@@ -190,7 +206,7 @@ public class EventHandlerService : IEventHandlerService
             _logger.LogError(ex, "Error handling component interaction {CustomId}", component.Data.CustomId);
             try
             {
-                await component.RespondAsync("An error occurred while processing your interaction.", ephemeral: true);
+                await component.ModifyOriginalResponseAsync(msg => msg.Content = "An error occurred while processing your interaction.");
             }
             catch
             {
