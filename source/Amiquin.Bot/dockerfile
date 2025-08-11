@@ -1,6 +1,8 @@
-FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
+# =============================================================================
+# Stage 0: Base dependencies layer for caching external dependencies
+# =============================================================================
+FROM mcr.microsoft.com/dotnet/sdk:9.0 AS dependencies-base
 ARG MAIN_WORK_DIR=/home/app/amiquin
-WORKDIR ${MAIN_WORK_DIR}
 
 # Install build dependencies in a single layer
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -15,24 +17,51 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Build and install libsodium and libopus in optimized layers
-RUN curl -L https://download.libsodium.org/libsodium/releases/LATEST.tar.gz | tar xz \
-    && cd libsodium-* \
-    && ./configure --enable-minimal \
-    && make -j$(nproc) \
-    && make install \
-    && ldconfig \
-    && cd .. \
-    && rm -rf libsodium-*
+# =============================================================================
+# Stage 1: libsodium build layer (cached independently)
+# =============================================================================
+FROM dependencies-base AS libsodium-build
+ARG LIBSODIUM_VERSION=1.0.20
 
-RUN curl -L https://ftp.osuosl.org/pub/xiph/releases/opus/opus-1.5.tar.gz | tar xz \
-    && cd opus-1.5 \
-    && ./configure --disable-doc --disable-extra-programs \
+# Build and install libsodium with specific version for better caching
+RUN curl -L "https://download.libsodium.org/libsodium/releases/libsodium-${LIBSODIUM_VERSION}.tar.gz" | tar xz \
+    && cd "libsodium-${LIBSODIUM_VERSION}" \
+    && ./configure --enable-minimal --prefix=/opt/libsodium \
     && make -j$(nproc) \
     && make install \
-    && ldconfig \
     && cd .. \
-    && rm -rf opus-1.5
+    && rm -rf "libsodium-${LIBSODIUM_VERSION}"
+
+# =============================================================================
+# Stage 2: opus build layer (cached independently)
+# =============================================================================
+FROM dependencies-base AS opus-build
+ARG OPUS_VERSION=1.5.2
+
+# Build and install libopus with specific version for better caching
+RUN curl -L "https://ftp.osuosl.org/pub/xiph/releases/opus/opus-${OPUS_VERSION}.tar.gz" | tar xz \
+    && cd "opus-${OPUS_VERSION}" \
+    && ./configure --disable-doc --disable-extra-programs --prefix=/opt/opus \
+    && make -j$(nproc) \
+    && make install \
+    && cd .. \
+    && rm -rf "opus-${OPUS_VERSION}"
+
+# =============================================================================
+# Stage 3: .NET build layer with native dependencies
+# =============================================================================
+FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
+ARG MAIN_WORK_DIR=/home/app/amiquin
+WORKDIR ${MAIN_WORK_DIR}
+
+# Copy native libraries from dedicated build stages
+COPY --from=libsodium-build /opt/libsodium/lib /usr/local/lib
+COPY --from=libsodium-build /opt/libsodium/include /usr/local/include
+COPY --from=opus-build /opt/opus/lib /usr/local/lib
+COPY --from=opus-build /opt/opus/include /usr/local/include
+
+# Update linker cache
+RUN ldconfig
 
 # Copy solution and project files for better dependency caching
 COPY source.sln ./ 
@@ -41,6 +70,8 @@ COPY Amiquin.Core/Amiquin.Core.csproj ./Amiquin.Core/
 COPY Amiquin.Infrastructure/Amiquin.Infrastructure.csproj ./Amiquin.Infrastructure/
 COPY Migrations/Amiquin.Sqlite/Amiquin.Sqlite.csproj ./Migrations/Amiquin.Sqlite/
 COPY Migrations/Amiquin.MySql/Amiquin.MySql.csproj ./Migrations/Amiquin.MySql/
+COPY Amiquin.Tests/Amiquin.Tests.csproj ./Amiquin.Tests/
+COPY Amiquin.IntegrationTests/Amiquin.IntegrationTests.csproj ./Amiquin.IntegrationTests/
 
 # Restore dependencies (this layer will be cached if project files don't change)
 RUN dotnet restore source.sln --runtime linux-x64
@@ -54,12 +85,13 @@ RUN dotnet publish Amiquin.Bot/Amiquin.Bot.csproj \
     --self-contained false \
     --no-restore
 
-# Stage 2: Runtime image
-FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
-ARG MAIN_WORK_DIR=/home/app/amiquin
-WORKDIR ${MAIN_WORK_DIR}
+# =============================================================================
+# Stage 4: Runtime dependencies layer for caching Python/Piper dependencies
+# =============================================================================
+FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime-deps
+ARG PIPER_VERSION=1.2.0
 
-# Install runtime dependencies in optimized layers
+# Install system runtime dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     python3-full \
@@ -69,6 +101,33 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
+# Create temporary user for pipx installation (pipx requires non-root)
+RUN useradd -m temp_user
+
+# Install Piper TTS with specific version for better caching
+USER temp_user
+RUN pipx install piper-tts==${PIPER_VERSION} && pipx ensurepath
+
+# =============================================================================
+# Stage 5: Final runtime image
+# =============================================================================
+FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
+ARG MAIN_WORK_DIR=/home/app/amiquin
+WORKDIR ${MAIN_WORK_DIR}
+
+# Copy runtime dependencies from cached layer
+COPY --from=runtime-deps /usr/bin/ffmpeg /usr/bin/ffmpeg
+COPY --from=runtime-deps /usr/lib /usr/lib
+COPY --from=runtime-deps /lib /lib
+COPY --from=runtime-deps /home/temp_user/.local /tmp/.local
+
+# Copy native libraries from build stages
+COPY --from=libsodium-build /opt/libsodium/lib /usr/local/lib
+COPY --from=opus-build /opt/opus/lib /usr/local/lib
+
+# Update linker cache
+RUN ldconfig
+
 # Create non-root user with proper setup
 RUN useradd -ms /bin/bash -u 1000 amiquin \
     && mkdir -p ${MAIN_WORK_DIR}/Data/Logs \
@@ -77,17 +136,14 @@ RUN useradd -ms /bin/bash -u 1000 amiquin \
     && mkdir -p ${MAIN_WORK_DIR}/Data/Sessions \
     && chown -R amiquin:amiquin ${MAIN_WORK_DIR}
 
-# Install Piper TTS as amiquin user
+# Copy Piper TTS installation to amiquin user
 USER amiquin
-RUN pipx install piper-tts && pipx ensurepath
+RUN mkdir -p /home/amiquin/.local \
+    && cp -r /tmp/.local/* /home/amiquin/.local/ \
+    && echo 'export PATH="$PATH:/home/amiquin/.local/bin"' >> /home/amiquin/.bashrc
 
-# Copy application and libraries from build stage
+# Copy application from build stage
 COPY --from=build --chown=amiquin:amiquin ${MAIN_WORK_DIR}/build ${MAIN_WORK_DIR}/build
-
-# Switch back to root temporarily to copy system libraries and update linker
-USER root
-COPY --from=build /usr/local/lib /usr/local/lib
-RUN ldconfig
 
 # Set working directory to application
 WORKDIR ${MAIN_WORK_DIR}/build
@@ -99,9 +155,7 @@ ENV AMQ_DataPaths__Messages=${MAIN_WORK_DIR}/Data/Messages
 ENV AMQ_DataPaths__Sessions=${MAIN_WORK_DIR}/Data/Sessions
 ENV AMQ_Database__Mode=1
 ENV AMQ_ConnectionStrings__AmiquinContext="Data Source=${MAIN_WORK_DIR}/Data/Database/amiquin.db"
-
-# Switch to non-root user for security
-USER amiquin
+ENV PATH="${PATH}:/home/amiquin/.local/bin"
 
 # Add health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \

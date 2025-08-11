@@ -1,76 +1,116 @@
-# Build outputs
+# =============================================================================
+# .dockerignore - Optimized for Docker build context and layer caching
+# =============================================================================
+
+# Build outputs and temporary files
 **/bin/
 **/obj/
 **/build/
 **/publish/
+**/dist/
+**/out/
 
-# IDE files
+# IDE and editor files
 **/.vs/
 **/.vscode/
 **/*.user
 **/*.suo
 **/*.userosscache
 **/*.sln.docstates
+**/.idea/
+*.swp
+*.swo
+*~
 
-# Test results
+# Test results and coverage
 **/TestResults/
+**/coverage/
 **/coverage.xml
 **/coverage.json
+**/.coverage
+**/.nyc_output/
 
-# NuGet packages
+# NuGet packages (except repositories.config)
 **/packages/
 !**/packages/repositories.config
+*.nupkg
 
-# Logs
+# Runtime data directories (created in container)
+**/Data/
+**/Database/
+**/Logs/
 **/logs/
-**/Data/Logs/
 **/*.log
-
-# Database files
-**/Data/Database/
 **/*.db
 **/*.db-*
 
-# Temporary files
+# Temporary and cache files
 **/temp/
 **/tmp/
 **/.tmp/
 **/*.tmp
 **/*.temp
+**/*.cache
 
-# OS files
+# OS generated files
 **/Thumbs.db
+**/thumbs.db
 **/.DS_Store
+**/.DS_Store?
+**/._*
+**/.Spotlight-V100
+**/.Trashes
+**/ehthumbs.db
+**/Desktop.ini
 
-# Git
+# Git and version control
 **/.git/
 **/.gitignore
+**/.gitattributes
+**/.gitmodules
 
-# Documentation
+# Documentation and non-essential files
 **/docs/
 **/README.md
 **/CHANGELOG.md
+**/LICENSE
+**/CONTRIBUTING.md
+**/*.md
+!**/Messages/**/*.md
 
-# Docker files (avoid recursion)
+# Docker files (prevent infinite recursion)
 **/Dockerfile*
 **/docker-compose*
 **/.dockerignore
 
-# Environment files
+# Environment and configuration files
 **/.env*
 !**/.env.example
+**/appsettings.Development.json
+**/appsettings.Local.json
+**/Configuration/appsettings.json
+!**/Configuration/appsettings.example.json
 
-# Development tools
-**/node_modules/
-**/coverage/
-**/.nyc_output/
-
-# JetBrains Rider
-**/.idea/
-
-# Visual Studio Code
-**/.vscode/
-
-# Local development
+# Development and external tools
 **/dev-local/
-**/scripts/
+**/scripts/dev-*
+**/scripts/local-*
+**/node_modules/
+**/ExternalTools/
+
+# Backup and archive files
+**/*.bak
+**/*.backup
+**/*.old
+**/*.orig
+
+# Audio and media files (exclude large assets not needed for build)
+**/*.wav
+**/*.mp3
+**/*.mp4
+!**/TTS/*.onnx
+!**/TTS/*.json
+
+# Platform-specific libraries (will be built in container)
+**/libsodium.dll
+**/opus.dll
