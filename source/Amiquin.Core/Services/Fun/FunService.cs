@@ -1,6 +1,11 @@
-using System.Drawing;
-using System.Drawing.Imaging;
 using System.Text.Json;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Drawing.Processing;
+using SixLabors.ImageSharp.Formats.Png;
+using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp.Processing;
+using SixLabors.Fonts;
+using Color = SixLabors.ImageSharp.Color;
 using Amiquin.Core.IRepositories;
 using Discord;
 using Microsoft.Extensions.Logging;
@@ -78,34 +83,37 @@ public class FunService : IFunService
             }
 
             // Parse the hex color
-            var color = ColorTranslator.FromHtml($"#{hexColor}");
+            if (!Rgba32.TryParseHex($"#{hexColor}", out var color))
+            {
+                throw new ArgumentException($"Invalid hex color: #{hexColor}");
+            }
             
             // Create a 300x100 image with the color
-            using var bitmap = new Bitmap(300, 100);
-            using var graphics = Graphics.FromImage(bitmap);
+            using var image = new Image<Rgba32>(300, 100);
             
-            // Fill with the color
-            graphics.Clear(color);
-            
-            // Add a border
-            using var pen = new Pen(System.Drawing.Color.Black, 2);
-            graphics.DrawRectangle(pen, 1, 1, bitmap.Width - 2, bitmap.Height - 2);
+            // Fill with the color and add border
+            image.Mutate(ctx => ctx
+                .BackgroundColor(color)
+                .Draw(Color.Black, 2f, new RectangleF(1, 1, 298, 98)));
             
             // Add text with color info
             var textColor = GetContrastColor(color);
-            using var font = new Font("Arial", 12, FontStyle.Bold);
-            using var brush = new SolidBrush(textColor);
-            
             var text = $"#{hexColor.ToUpper()}";
-            var textSize = graphics.MeasureString(text, font);
-            var x = (bitmap.Width - textSize.Width) / 2;
-            var y = (bitmap.Height - textSize.Height) / 2;
             
-            graphics.DrawString(text, font, brush, x, y);
+            var font = SystemFonts.CreateFont("Arial", 12, FontStyle.Bold);
+            var textOptions = new RichTextOptions(font)
+            {
+                Origin = new PointF(150, 50),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            
+            image.Mutate(ctx => ctx
+                .DrawText(textOptions, text, textColor));
             
             // Convert to stream
             var stream = new MemoryStream();
-            bitmap.Save(stream, System.Drawing.Imaging.ImageFormat.Png);
+            await image.SaveAsPngAsync(stream);
             stream.Position = 0;
             
             return stream;
@@ -214,12 +222,12 @@ public class FunService : IFunService
     /// <summary>
     /// Gets a contrasting text color for better readability.
     /// </summary>
-    private static System.Drawing.Color GetContrastColor(System.Drawing.Color backgroundColor)
+    private static Color GetContrastColor(Rgba32 backgroundColor)
     {
         // Calculate luminance
         var luminance = (0.299 * backgroundColor.R + 0.587 * backgroundColor.G + 0.114 * backgroundColor.B) / 255;
         
         // Return black for light backgrounds, white for dark backgrounds
-        return luminance > 0.5 ? System.Drawing.Color.Black : System.Drawing.Color.White;
+        return luminance > 0.5 ? Color.Black : Color.White;
     }
 }
