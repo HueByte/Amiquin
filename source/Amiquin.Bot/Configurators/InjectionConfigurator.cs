@@ -100,7 +100,7 @@ public class InjectionConfigurator
                  .AddSingleton<IComponentHandlerService, ComponentHandlerService>()
                  .AddSingleton<IModalService, ModalService>()
                  .AddScoped<IConfigurationInteractionService, ConfigurationInteractionService>()
-                 .AddScoped<IPaginationService, PaginationService>()
+                 .AddSingleton<IPaginationService, PaginationService>()
                  .AddMemoryCache();
 
         var dbOptions = _configuration.GetSection(DatabaseOptions.Database).Get<DatabaseOptions>();

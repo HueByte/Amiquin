@@ -3,6 +3,7 @@ using Amiquin.Core.Models;
 using Amiquin.Core.Services.ComponentHandler;
 using Discord;
 using Discord.WebSocket;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
 
@@ -14,7 +15,7 @@ namespace Amiquin.Core.Services.Pagination;
 public class PaginationService : IPaginationService
 {
     private readonly ILogger<PaginationService> _logger;
-    private readonly IPaginationSessionRepository _paginationRepository;
+    private readonly IServiceScopeFactory _serviceScopeFactory;
     private readonly IComponentHandlerService _componentHandlerService;
 
     /// <summary>
@@ -22,10 +23,10 @@ public class PaginationService : IPaginationService
     /// </summary>
     public const string ComponentPrefix = "page";
 
-    public PaginationService(ILogger<PaginationService> logger, IPaginationSessionRepository paginationRepository, IComponentHandlerService componentHandlerService)
+    public PaginationService(ILogger<PaginationService> logger, IServiceScopeFactory serviceScopeFactory, IComponentHandlerService componentHandlerService)
     {
         _logger = logger;
-        _paginationRepository = paginationRepository;
+        _serviceScopeFactory = serviceScopeFactory;
         _componentHandlerService = componentHandlerService;
         
         // Register this service as the handler for pagination components
@@ -73,7 +74,9 @@ public class PaginationService : IPaginationService
         );
         dbSession.Id = sessionId;
 
-        await _paginationRepository.CreateAsync(dbSession);
+        using var scope = _serviceScopeFactory.CreateScope();
+        var paginationRepository = scope.ServiceProvider.GetRequiredService<IPaginationSessionRepository>();
+        await paginationRepository.CreateAsync(dbSession);
 
         var embed = CreateEmbedWithPageInfo(embeds[0], 1, embeds.Count);
         var component = CreateNavigationComponent(sessionId, 0, embeds.Count);
@@ -119,7 +122,9 @@ public class PaginationService : IPaginationService
             return false;
         }
 
-        var session = await _paginationRepository.GetByIdAsync(sessionId);
+        using var scope = _serviceScopeFactory.CreateScope();
+        var paginationRepository = scope.ServiceProvider.GetRequiredService<IPaginationSessionRepository>();
+        var session = await paginationRepository.GetByIdAsync(sessionId);
 
         _logger.LogInformation("User {UserId} interacted with pagination session {SessionId}", component.User.Id, sessionId);
         _logger.LogInformation("Pagination action: {Action}", action);
@@ -150,7 +155,7 @@ public class PaginationService : IPaginationService
 
         // Update the session in the database
         session.UpdatePage(newPage);
-        await _paginationRepository.UpdateAsync(session);
+        await paginationRepository.UpdateAsync(session);
 
         // Deserialize embeds from the database
         var embeds = await DeserializeEmbedsFromSession(session);
@@ -322,7 +327,9 @@ public class PaginationService : IPaginationService
     {
         try
         {
-            var cleanedCount = await _paginationRepository.CleanupExpiredAsync();
+            using var scope = _serviceScopeFactory.CreateScope();
+            var paginationRepository = scope.ServiceProvider.GetRequiredService<IPaginationSessionRepository>();
+            var cleanedCount = await paginationRepository.CleanupExpiredAsync();
             if (cleanedCount > 0)
             {
                 _logger.LogDebug("Cleaned up {Count} expired pagination sessions", cleanedCount);

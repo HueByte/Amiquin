@@ -73,7 +73,7 @@ public class InteractionCommands : InteractionModuleBase<ExtendedShardedInteract
     {
         if (targetUser.Id == Context.User.Id)
         {
-            await RespondAsync($"You can't {interactionType} yourself! {emoji}", ephemeral: true);
+            await ModifyOriginalResponseAsync(msg => msg.Content = $"You can't {interactionType} yourself! {emoji}");
             return;
         }
 
@@ -90,11 +90,11 @@ public class InteractionCommands : InteractionModuleBase<ExtendedShardedInteract
                 embed.WithImageUrl(gifUrl);
             }
 
-            await RespondAsync(embed: embed.Build());
+            await ModifyOriginalResponseAsync(msg => msg.Embed = embed.Build());
         }
         catch (Exception ex)
         {
-            await RespondAsync($"❌ Failed to {interactionType} {targetUser.Mention}. Try again later!", ephemeral: true);
+            await ModifyOriginalResponseAsync(msg => msg.Content = $"❌ Failed to {interactionType} {targetUser.Mention}. Try again later!");
         }
     }
 }
