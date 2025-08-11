@@ -279,13 +279,13 @@ public class ServerMetaService : IServerMetaService, IDisposable
                 // Update basic properties
                 meta.ServerName = serverMeta.ServerName ?? meta.ServerName;
                 meta.Persona = serverMeta.Persona ?? meta.Persona;
-                
+
                 // Only update PreferredProvider if it's explicitly provided (not null)
                 if (serverMeta.PreferredProvider != null)
                 {
                     meta.PreferredProvider = serverMeta.PreferredProvider;
                 }
-                
+
                 meta.LastUpdated = DateTime.UtcNow;
                 meta.IsActive = serverMeta.IsActive;
 
@@ -713,6 +713,7 @@ public class ServerMetaService : IServerMetaService, IDisposable
     {
         ThrowIfDisposed();
 
+        // TODO: Implement a more sophisticated cache clearing strategy if needed
         // This is a simplified approach - in a real implementation you might want to track cache keys
         if (_memoryCache is MemoryCache memoryCache)
         {

@@ -25,13 +25,13 @@ public class PersonaChatService : IPersonaChatService
     private readonly IServerMetaService _serverMetaService;
     private readonly IServiceProvider _serviceProvider;
     private readonly BotOptions _botOptions;
-    
+
     // Semaphores to prevent duplicate requests per instance
     private static readonly ConcurrentDictionary<ulong, SemaphoreSlim> _instanceSemaphores = new();
-    
+
     // Track pending requests to provide better user feedback
     private static readonly ConcurrentDictionary<ulong, PendingRequestInfo> _pendingRequests = new();
-    
+
     private class PendingRequestInfo
     {
         public DateTime StartTime { get; set; } = DateTime.UtcNow;
@@ -60,12 +60,12 @@ public class PersonaChatService : IPersonaChatService
     {
         // Get or create semaphore for this instance
         var semaphore = _instanceSemaphores.GetOrAdd(instanceId, _ => new SemaphoreSlim(1, 1));
-        
+
         // Check if there's already a pending request for this instance
         if (_pendingRequests.TryGetValue(instanceId, out var existingRequest))
         {
             var timeSinceStart = DateTime.UtcNow - existingRequest.StartTime;
-            
+
             // If request is very recent (< 2 seconds), wait for it to complete
             if (timeSinceStart.TotalSeconds < 2 && existingRequest.CompletionSource != null)
             {
@@ -76,7 +76,7 @@ public class PersonaChatService : IPersonaChatService
                     var waitTask = existingRequest.CompletionSource.Task;
                     var timeoutTask = Task.Delay(TimeSpan.FromSeconds(10));
                     var completedTask = await Task.WhenAny(waitTask, timeoutTask);
-                    
+
                     if (completedTask == waitTask)
                     {
                         return await waitTask;
@@ -153,7 +153,7 @@ public class PersonaChatService : IPersonaChatService
             LogTokenUsage(instanceId, response, provider);
 
             // 8. Check if optimization is needed
-            if (response.TotalTokens.HasValue && response.TotalTokens > _botOptions.MaxTokens * 0.8)
+            if (response.TotalTokens.HasValue && response.TotalTokens > _botOptions.MaxTokens * 0.4)
             {
                 _logger.LogInformation("Token limit approaching for instance {InstanceId}, triggering optimization", instanceId);
                 await OptimizeHistoryAsync(instanceId, messages, sessionContext);
@@ -163,24 +163,24 @@ public class PersonaChatService : IPersonaChatService
 
             // Signal completion to any waiting requests
             completionSource.SetResult(response.Content);
-            
+
             return response.Content;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error processing chat for instance {InstanceId}", instanceId);
             var errorMessage = "I'm sorry, I encountered an error processing your message. Please try again.";
-            
+
             // Signal completion with error
             completionSource.SetResult(errorMessage);
-            
+
             return errorMessage;
         }
         finally
         {
             // Clean up pending request tracking
             _pendingRequests.TryRemove(instanceId, out _);
-            
+
             // Release the semaphore
             semaphore.Release();
         }
@@ -324,9 +324,9 @@ public class PersonaChatService : IPersonaChatService
             var summaryPrompt = "Summarize this conversation history concisely, preserving key context and topics (max 400 tokens):\n\n" + conversationText;
 
             // Get summary using core request
-            _logger.LogDebug("Requesting summary for instance {InstanceId} with {CharacterCount} characters of conversation history", 
+            _logger.LogDebug("Requesting summary for instance {InstanceId} with {CharacterCount} characters of conversation history",
                 instanceId, conversationText.Length);
-            
+
             var summaryResponse = await _coreChatService.CoreRequestAsync(
                 summaryPrompt,
                 tokenLimit: 400);
@@ -342,17 +342,20 @@ public class PersonaChatService : IPersonaChatService
             // Check if context needs self-summarization
             if (newContext.Length > 2000) // Rough check
             {
-                _logger.LogInformation("Context too long for instance {InstanceId} ({ContextLength} chars), consolidating summaries", 
+                _logger.LogInformation("Context too long for instance {InstanceId} ({ContextLength} chars), consolidating summaries",
                     instanceId, newContext.Length);
-                    
+
                 var consolidatePrompt = $"Consolidate these conversation summaries into one concise summary (max 400 tokens):\n\n{newContext}";
                 var consolidatedResponse = await _coreChatService.CoreRequestAsync(
                     consolidatePrompt,
                     tokenLimit: 400);
-                    
+
                 _logger.LogInformation("Consolidated context for instance {InstanceId} - Old length: {OldLength}, New length: {NewLength}, Tokens used: {TokensUsed}",
                     instanceId, newContext.Length, consolidatedResponse.Content.Length, consolidatedResponse.TotalTokens ?? 0);
-                    
+
+                _logger.LogInformation("Final context for instance {InstanceId} - Length: {Length} characters",
+                    instanceId, consolidatedResponse.Content.Length);
+
                 newContext = consolidatedResponse.Content;
             }
 
@@ -408,7 +411,7 @@ public class PersonaChatService : IPersonaChatService
         {
             var providerName = provider ?? "unknown";
             var model = response.Model ?? "unknown";
-            
+
             // Basic token information
             var promptTokens = response.PromptTokens ?? 0;
             var completionTokens = response.CompletionTokens ?? 0;
@@ -424,18 +427,18 @@ public class PersonaChatService : IPersonaChatService
             {
                 var metadataLog = new StringBuilder();
                 metadataLog.Append("Token Metadata - ");
-                
+
                 foreach (var kvp in response.Metadata)
                 {
                     // Look for cached tokens or other relevant metadata
-                    if (kvp.Key.ToLowerInvariant().Contains("cached") || 
+                    if (kvp.Key.ToLowerInvariant().Contains("cached") ||
                         kvp.Key.ToLowerInvariant().Contains("token") ||
                         kvp.Key.ToLowerInvariant().Contains("cost"))
                     {
                         metadataLog.Append($"{kvp.Key}: {kvp.Value}, ");
                     }
                 }
-                
+
                 var metadataString = metadataLog.ToString().TrimEnd(' ', ',');
                 if (metadataString.Length > "Token Metadata - ".Length)
                 {
