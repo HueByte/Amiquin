@@ -33,7 +33,6 @@ public class AmiquinHost : IHostedService
     private readonly VoiceOptions _voiceOptions;
     private readonly DataPathOptions _dataPathOptions;
     private readonly IJobService _jobService;
-    private readonly IConfigurationInteractionService _configurationService;
     private bool _isInitialized = false;
 
     public AmiquinHost(
@@ -48,8 +47,7 @@ public class AmiquinHost : IHostedService
         IOptions<DiscordOptions> discordOptions,
         IOptions<VoiceOptions> voiceOptions,
         IOptions<DataPathOptions> dataPathOptions,
-        IJobService jobService,
-        IConfigurationInteractionService configurationService)
+        IJobService jobService)
     {
         _eventHandlerService = eventHandlerService;
         _client = discordClient;
@@ -63,7 +61,6 @@ public class AmiquinHost : IHostedService
         _voiceOptions = voiceOptions.Value;
         _dataPathOptions = dataPathOptions.Value;
         _jobService = jobService;
-        _configurationService = configurationService;
     }
 
     public async Task StartAsync(CancellationToken cancellationToken)
@@ -71,8 +68,12 @@ public class AmiquinHost : IHostedService
         await CreateDatabaseAsync();
         await _commandHandlerService.InitializeAsync();
 
-        // Initialize configuration interaction handlers
-        _configurationService.Initialize();
+        // Initialize configuration interaction handlers with scoped service
+        using (var scope = _serviceScopeFactory.CreateScope())
+        {
+            var configurationService = scope.ServiceProvider.GetRequiredService<IConfigurationInteractionService>();
+            configurationService.Initialize();
+        }
 
         AttachEvents();
         await CreateBotAsync();

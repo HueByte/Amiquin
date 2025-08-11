@@ -56,6 +56,7 @@ public class DatabaseFixture : IDisposable, IAsyncLifetime
         services.AddScoped<INachoRepository, NachoRepository>();
         services.AddScoped<IMessageRepository, MessageRepository>();
         services.AddScoped<IChatSessionRepository, ChatSessionRepository>();
+        services.AddScoped<IUserStatsRepository, UserStatsRepository>();
 
         // Register services
         services.AddScoped<IServerMetaService, ServerMetaService>();

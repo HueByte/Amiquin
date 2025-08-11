@@ -413,6 +413,44 @@ namespace Amiquin.MySql.Migrations
                     b.ToTable("Toggles");
                 });
 
+            modelBuilder.Entity("Amiquin.Infrastructure.Entities.UserStats", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("FunStatsJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT")
+                        .HasColumnName("fun_stats");
+
+                    b.Property<ulong>("ServerId")
+                        .HasColumnType("bigint unsigned")
+                        .HasColumnName("server_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("updated_at");
+
+                    b.Property<ulong>("UserId")
+                        .HasColumnType("bigint unsigned")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "ServerId")
+                        .IsUnique();
+
+                    b.ToTable("user_stats");
+                });
+
             modelBuilder.Entity("Amiquin.Core.Models.ChatSession", b =>
                 {
                     b.HasOne("Amiquin.Core.Models.ServerMeta", "Server")

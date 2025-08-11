@@ -2,6 +2,7 @@ using Amiquin.Core;
 using Amiquin.Core.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using InfraUserStats = Amiquin.Infrastructure.Entities.UserStats;
 
 namespace Amiquin.Infrastructure;
 
@@ -140,8 +141,8 @@ public class AmiquinContext : DbContext
 
         #endregion
         
-        // Configure UserStats unique constraint
-        builder.Entity<UserStats>()
+        // Configure UserStats unique constraint  
+        builder.Entity<InfraUserStats>()
             .HasIndex(u => new { u.UserId, u.ServerId })
             .IsUnique();
 
@@ -157,5 +158,5 @@ public class AmiquinContext : DbContext
     public DbSet<ChatSession> ChatSessions { get; set; } = default!;
     public DbSet<SessionMessage> SessionMessages { get; set; } = default!;
     public DbSet<PaginationSession> PaginationSessions { get; set; } = default!;
-    public DbSet<UserStats> UserStats { get; set; } = default!;
+    public DbSet<InfraUserStats> UserStats { get; set; } = default!;
 }

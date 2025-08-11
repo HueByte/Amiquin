@@ -1,9 +1,10 @@
 using Amiquin.Core.Abstraction;
+using System.Text.Json;
 
 namespace Amiquin.Core.Models;
 
 /// <summary>
-/// Core domain model for user statistics.
+/// Core domain model for user statistics with dynamic JSON-based stats storage.
 /// </summary>
 public class UserStats : DbModel<int>
 {
@@ -28,6 +29,46 @@ public class UserStats : DbModel<int>
     public virtual DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
     /// <summary>
+    /// Gets the JSON representation of fun statistics.
+    /// This is implemented in the Infrastructure layer.
+    /// </summary>
+    protected virtual string GetStatsJson() => "{}";
+    
+    /// <summary>
+    /// Sets the JSON representation of fun statistics.
+    /// This is implemented in the Infrastructure layer.
+    /// </summary>
+    protected virtual void SetStatsJson(string json) { }
+
+    /// <summary>
+    /// In-memory cache of fun statistics.
+    /// </summary>
+    private Dictionary<string, object>? _statsCache;
+
+    /// <summary>
+    /// Gets the stats dictionary, loading from JSON if needed.
+    /// </summary>
+    protected Dictionary<string, object> Stats
+    {
+        get
+        {
+            if (_statsCache == null)
+            {
+                try
+                {
+                    _statsCache = JsonSerializer.Deserialize<Dictionary<string, object>>(GetStatsJson()) 
+                                  ?? new Dictionary<string, object>();
+                }
+                catch
+                {
+                    _statsCache = new Dictionary<string, object>();
+                }
+            }
+            return _statsCache;
+        }
+    }
+
+    /// <summary>
     /// Gets a fun stat value of a specific type.
     /// </summary>
     /// <typeparam name="T">The type to cast the value to.</typeparam>
@@ -36,8 +77,22 @@ public class UserStats : DbModel<int>
     /// <returns>The stat value or default value.</returns>
     public virtual T GetStat<T>(string statName, T defaultValue = default!)
     {
-        // This will be implemented by the Infrastructure layer
-        throw new NotImplementedException("This method should be overridden by the Infrastructure layer");
+        if (!Stats.TryGetValue(statName, out var value))
+            return defaultValue;
+
+        try
+        {
+            if (value is JsonElement jsonElement)
+            {
+                return jsonElement.Deserialize<T>() ?? defaultValue;
+            }
+            
+            return (T)Convert.ChangeType(value, typeof(T)) ?? defaultValue;
+        }
+        catch
+        {
+            return defaultValue;
+        }
     }
 
     /// <summary>
@@ -47,8 +102,10 @@ public class UserStats : DbModel<int>
     /// <param name="value">The value to set.</param>
     public virtual void SetStat(string statName, object value)
     {
-        // This will be implemented by the Infrastructure layer
-        throw new NotImplementedException("This method should be overridden by the Infrastructure layer");
+        Stats[statName] = value;
+        var newJson = JsonSerializer.Serialize(Stats);
+        SetStatsJson(newJson);
+        UpdatedAt = DateTime.UtcNow;
     }
 
     /// <summary>
@@ -59,8 +116,10 @@ public class UserStats : DbModel<int>
     /// <returns>The new value after increment.</returns>
     public virtual int IncrementStat(string statName, int increment = 1)
     {
-        // This will be implemented by the Infrastructure layer
-        throw new NotImplementedException("This method should be overridden by the Infrastructure layer");
+        var currentValue = GetStat<int>(statName, 0);
+        var newValue = currentValue + increment;
+        SetStat(statName, newValue);
+        return newValue;
     }
 
     /// <summary>
@@ -70,7 +129,6 @@ public class UserStats : DbModel<int>
     /// <returns>True if the stat exists.</returns>
     public virtual bool HasStat(string statName)
     {
-        // This will be implemented by the Infrastructure layer
-        throw new NotImplementedException("This method should be overridden by the Infrastructure layer");
+        return Stats.ContainsKey(statName);
     }
 }

@@ -99,7 +99,7 @@ public class InjectionConfigurator
                  .AddSingleton<ITaskManager, TaskManager>()
                  .AddSingleton<IComponentHandlerService, ComponentHandlerService>()
                  .AddSingleton<IModalService, ModalService>()
-                 .AddSingleton<IConfigurationInteractionService, ConfigurationInteractionService>()
+                 .AddScoped<IConfigurationInteractionService, ConfigurationInteractionService>()
                  .AddScoped<IPaginationService, PaginationService>()
                  .AddMemoryCache();
 

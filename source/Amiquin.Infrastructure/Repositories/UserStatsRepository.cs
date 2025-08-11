@@ -72,6 +72,7 @@ public class UserStatsRepository : IUserStatsRepository
             .Where(u => u.GetStat<int>("nachos_given", 0) > 0)
             .OrderByDescending(u => u.GetStat<int>("nachos_given", 0))
             .Take(limit)
+            .Cast<UserStats>()
             .ToList();
     }
 

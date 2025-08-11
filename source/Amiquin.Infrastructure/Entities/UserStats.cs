@@ -53,105 +53,14 @@ public class UserStats : Core.Models.UserStats
     public override DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
     /// <summary>
-    /// In-memory dictionary of fun statistics (not mapped to database).
+    /// Gets the JSON representation of fun statistics.
     /// </summary>
-    [NotMapped]
-    private Dictionary<string, object>? _funStatsCache;
-
+    protected override string GetStatsJson() => FunStatsJson;
+    
     /// <summary>
-    /// Gets the fun statistics as a dictionary.
+    /// Sets the JSON representation of fun statistics.
     /// </summary>
-    [NotMapped]
-    public Dictionary<string, object> FunStats
-    {
-        get
-        {
-            if (_funStatsCache == null)
-            {
-                try
-                {
-                    _funStatsCache = JsonSerializer.Deserialize<Dictionary<string, object>>(FunStatsJson) 
-                                    ?? new Dictionary<string, object>();
-                }
-                catch
-                {
-                    _funStatsCache = new Dictionary<string, object>();
-                }
-            }
-            return _funStatsCache;
-        }
-        set
-        {
-            _funStatsCache = value;
-            FunStatsJson = JsonSerializer.Serialize(value);
-            UpdatedAt = DateTime.UtcNow;
-        }
-    }
-
-    /// <summary>
-    /// Gets a fun stat value of a specific type.
-    /// </summary>
-    /// <typeparam name="T">The type to cast the value to.</typeparam>
-    /// <param name="statName">The name of the stat.</param>
-    /// <param name="defaultValue">Default value if stat doesn't exist.</param>
-    /// <returns>The stat value or default value.</returns>
-    public override T GetStat<T>(string statName, T defaultValue = default!)
-    {
-        if (!FunStats.TryGetValue(statName, out var value))
-            return defaultValue;
-
-        try
-        {
-            if (value is JsonElement jsonElement)
-            {
-                // Handle JsonElement deserialization
-                return jsonElement.Deserialize<T>() ?? defaultValue;
-            }
-            
-            // Direct cast for simple types
-            return (T)Convert.ChangeType(value, typeof(T)) ?? defaultValue;
-        }
-        catch
-        {
-            return defaultValue;
-        }
-    }
-
-    /// <summary>
-    /// Sets a fun stat value.
-    /// </summary>
-    /// <param name="statName">The name of the stat.</param>
-    /// <param name="value">The value to set.</param>
-    public override void SetStat(string statName, object value)
-    {
-        FunStats[statName] = value;
-        FunStatsJson = JsonSerializer.Serialize(FunStats);
-        UpdatedAt = DateTime.UtcNow;
-    }
-
-    /// <summary>
-    /// Increments a numeric fun stat.
-    /// </summary>
-    /// <param name="statName">The name of the stat.</param>
-    /// <param name="increment">The amount to increment (default 1).</param>
-    /// <returns>The new value after increment.</returns>
-    public override int IncrementStat(string statName, int increment = 1)
-    {
-        var currentValue = GetStat<int>(statName, 0);
-        var newValue = currentValue + increment;
-        SetStat(statName, newValue);
-        return newValue;
-    }
-
-    /// <summary>
-    /// Checks if a fun stat exists.
-    /// </summary>
-    /// <param name="statName">The name of the stat.</param>
-    /// <returns>True if the stat exists.</returns>
-    public override bool HasStat(string statName)
-    {
-        return FunStats.ContainsKey(statName);
-    }
+    protected override void SetStatsJson(string json) => FunStatsJson = json;
 
     /// <summary>
     /// Unique constraint to ensure one record per user per server.
