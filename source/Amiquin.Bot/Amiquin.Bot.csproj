@@ -37,10 +37,9 @@
   </PropertyGroup>
 
  <ItemGroup>
-    <ContentWithTargetPath Include="Configuration\appsettings.json" Condition="Exists('Configuration\appsettings.json')">
+    <Content Include="Configuration\**">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-        <TargetPath>Configuration\appsettings.json</TargetPath>
-    </ContentWithTargetPath>
+    </Content>
   </ItemGroup>
   
   <ItemGroup>

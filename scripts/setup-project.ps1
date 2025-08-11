@@ -67,10 +67,12 @@ $config = @{
     TTSModelName = "en_GB-northern_english_male-medium"
 }
 
-# Generate secure defaults
+# Generate secure defaults without shell-problematic characters
 function New-SecureString {
     param([int]$Length = 32)
-    $chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*'
+    # Avoid characters that cause issues in shell/Docker: $ ^ ! & * ` ' " \ | < > ( ) { } [ ] ; space
+    # Use only alphanumeric and safe special characters: @ # % _ - + = 
+    $chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@#%_-+='
     $random = New-Object System.Random
     $result = ""
     for ($i = 0; $i -lt $Length; $i++) {
@@ -529,6 +531,6 @@ if (Test-Path $solutionPath) {
 }
 
 Write-Host ""
-Write-Host "All configuration values can be overridden using environment variables with AMIQUIN_ prefix." -ForegroundColor Gray
+Write-Host "All configuration values can be overridden using environment variables with AMQ_ prefix." -ForegroundColor Gray
 Write-Host "For more information, see the documentation at dev/docs/" -ForegroundColor Gray
 Write-Host ""

@@ -64,17 +64,31 @@ echo -e "${CYAN}=== Amiquin Project Setup ===${NC}"
 echo ""
 
 # Configuration defaults
-CHAT_AUTH_TOKEN=""
+BOT_TOKEN=""
+BOT_NAME="Amiquin"
+OPENAI_API_KEY=""
 CHAT_SYSTEM_MESSAGE="I want you to act as personal assistant called Amiquin. You are friendly, helpful and professional."
 CHAT_TOKEN_LIMIT=2000
 CHAT_ENABLED="true"
 CHAT_MODEL="gpt-4o-mini"
+DATABASE_MODE=1  # SQLite by default
 DATABASE_CONNECTION="Data Source=Data/Database/amiquin.db"
 LOGS_PATH="Data/Logs"
 MESSAGES_PATH="Data/Messages"
 SESSIONS_PATH="Data/Sessions"
 PLUGINS_PATH="Data/Plugins"
 CONFIGURATION_PATH="Configuration"
+
+# Docker MySQL configuration (passwords will be generated)
+BOT_INSTANCE_NAME="amiquin"
+MYSQL_ROOT_PASSWORD=""
+MYSQL_DATABASE="amiquin_db"
+MYSQL_USER="amiquin_user"
+MYSQL_USER_PASSWORD=""
+
+# Voice/TTS
+VOICE_ENABLED="true"
+TTS_MODEL_NAME="en_GB-northern_english_male-medium"
 
 # Function to create directory
 ensure_directory() {
@@ -85,11 +99,22 @@ ensure_directory() {
     fi
 }
 
-# Function to generate secure string
+# Function to generate secure string without shell-problematic characters
 generate_secure_string() {
     local length=${1:-32}
-    openssl rand -base64 $length | tr -d "=+/" | cut -c1-$length 2>/dev/null || echo "$(date +%s)_$(whoami)_$(hostname)"
+    # Avoid characters that cause issues in shell/Docker: $ ^ ! & * ` ' " \ | < > ( ) { } [ ] ; space
+    # Use only alphanumeric and safe special characters: @ # % _ - + =
+    local chars='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@#%_-+='
+    local result=""
+    for i in $(seq 1 $length); do
+        result="${result}${chars:RANDOM % ${#chars}:1}"
+    done
+    echo "$result"
 }
+
+# Generate MySQL passwords by default for Docker compatibility
+MYSQL_ROOT_PASSWORD=$(generate_secure_string 24)
+MYSQL_USER_PASSWORD=$(generate_secure_string 24)
 
 # Interactive prompts
 if [ "$NON_INTERACTIVE" = true ]; then
@@ -99,11 +124,21 @@ else
     echo -e "Press Enter to use default values shown in [brackets]"
     echo ""
     
+    # Discord Bot Configuration
+    echo -e "${CYAN}=== Discord Bot Configuration ===${NC}"
+    read -p "Enter Discord Bot Token (required) [leave empty to configure later]: " input
+    if [ ! -z "$input" ]; then
+        BOT_TOKEN="$input"
+        echo -e "${GREEN}Discord bot token configured successfully${NC}"
+    else
+        echo -e "${YELLOW}Discord bot token will need to be configured later${NC}"
+    fi
+    
     # OpenAI Configuration
-    echo -e "${CYAN}=== AI Configuration ===${NC}"
+    echo -e "\n${CYAN}=== AI Configuration ===${NC}"
     read -p "Enter OpenAI API Key (required for AI features) [leave empty to configure later]: " input
     if [ ! -z "$input" ]; then
-        CHAT_AUTH_TOKEN="$input"
+        OPENAI_API_KEY="$input"
         echo -e "${GREEN}OpenAI API key configured successfully${NC}"
     else
         echo -e "${YELLOW}OpenAI API key will need to be configured later for AI features to work${NC}"
@@ -138,6 +173,49 @@ else
     else
         echo -e "Using default system message for Amiquin"
     fi
+    
+    # Database configuration
+    echo -e "\n${CYAN}=== Database Configuration ===${NC}"
+    if [ "$DEFAULT" = false ]; then
+        echo "Select Database Type:"
+        echo "1. SQLite (default - recommended for development)"
+        echo "2. MySQL (for production/Docker deployments)"
+        read -p "Enter choice [1]: " db_choice
+        
+        if [ "$db_choice" = "2" ]; then
+            DATABASE_MODE=0
+            
+            echo -e "${GREEN}Using pre-generated secure MySQL passwords${NC}"
+            
+            # Ask for database details
+            read -p "Enter database name [$MYSQL_DATABASE]: " input
+            if [ ! -z "$input" ]; then
+                MYSQL_DATABASE="$input"
+            fi
+            
+            read -p "Enter database user [$MYSQL_USER]: " input
+            if [ ! -z "$input" ]; then
+                MYSQL_USER="$input"
+            fi
+            
+            read -p "Enter bot instance name (for Docker containers) [$BOT_INSTANCE_NAME]: " input
+            if [ ! -z "$input" ]; then
+                BOT_INSTANCE_NAME="$input"
+            fi
+            
+            # Update MySQL connection string
+            DATABASE_CONNECTION="Server=localhost;Database=$MYSQL_DATABASE;Uid=$MYSQL_USER;Pwd=$MYSQL_USER_PASSWORD;Pooling=True;"
+            
+            echo "MySQL configuration:"
+            echo "  Database: $MYSQL_DATABASE"
+            echo "  User: $MYSQL_USER"
+            echo "  Instance: $BOT_INSTANCE_NAME"
+            echo "  Passwords: Already generated securely"
+        fi
+    else
+        # In default mode, MySQL passwords are already generated
+        echo -e "${GREEN}MySQL passwords generated for Docker compatibility${NC}"
+    fi
 fi
 
 # Create .env file
@@ -149,62 +227,107 @@ ENV_PATH="$PROJECT_ROOT/.env"
 cat > "$ENV_PATH" << EOF
 # Amiquin Environment Configuration
 # Generated by setup script on $(date '+%Y-%m-%d %H:%M:%S')
-# All configuration values can override appsettings.json using AMIQUIN_ prefix
+# All configuration values use AMQ_ prefix as defined in .env.example
 
 # ======================
-# OpenAI Configuration (for AI features)
+# Bot Configuration
 # ======================
-$(if [ ! -z "$CHAT_AUTH_TOKEN" ]; then echo "OPENAI_API_KEY=$CHAT_AUTH_TOKEN"; else echo "# OPENAI_API_KEY=sk-your-openai-api-key-here"; fi)
-$(if [ ! -z "$CHAT_AUTH_TOKEN" ]; then echo "AMIQUIN_Chat__AuthToken=$CHAT_AUTH_TOKEN"; else echo "# AMIQUIN_Chat__AuthToken=sk-your-openai-api-key-here"; fi)
-AMIQUIN_Chat__SystemMessage=$CHAT_SYSTEM_MESSAGE
-AMIQUIN_Chat__TokenLimit=$CHAT_TOKEN_LIMIT
-AMIQUIN_Chat__Enabled=$CHAT_ENABLED
-AMIQUIN_Chat__Model=$CHAT_MODEL
+$(if [ ! -z "$BOT_TOKEN" ]; then echo "AMQ_Bot__Token=\"$BOT_TOKEN\""; else echo "# AMQ_Bot__Token=\"your-discord-bot-token-here\""; fi)
+AMQ_Bot__Name="$BOT_NAME"
+AMQ_Bot__PrintLogo=true
+AMQ_Bot__MessageFetchCount=40
 
 # ======================
-# Database Configuration (SQLite default)
+# LLM (AI Language Model) Configuration
 # ======================
+AMQ_LLM__DefaultProvider="OpenAI"
+AMQ_LLM__EnableFallback=true
+AMQ_LLM__FallbackOrder__0="OpenAI"
+AMQ_LLM__FallbackOrder__1="Grok"
+AMQ_LLM__FallbackOrder__2="Gemini"
+AMQ_LLM__GlobalSystemMessage="$CHAT_SYSTEM_MESSAGE"
+AMQ_LLM__GlobalTemperature=0.6
+AMQ_LLM__GlobalTimeout=120
+
+# OpenAI Provider Configuration
+AMQ_LLM__Providers__OpenAI__Enabled=true
+$(if [ ! -z "$OPENAI_API_KEY" ]; then echo "AMQ_LLM__Providers__OpenAI__ApiKey=\"$OPENAI_API_KEY\""; else echo "# AMQ_LLM__Providers__OpenAI__ApiKey=\"sk-your-openai-api-key-here\""; fi)
+AMQ_LLM__Providers__OpenAI__BaseUrl="https://api.openai.com/v1/"
+AMQ_LLM__Providers__OpenAI__DefaultModel="$CHAT_MODEL"
+
+# OpenAI Model Configurations
+AMQ_LLM__Providers__OpenAI__Models__gpt-4o__Name="GPT-4 Omni"
+AMQ_LLM__Providers__OpenAI__Models__gpt-4o__MaxTokens=128000
+AMQ_LLM__Providers__OpenAI__Models__gpt-4o__MaxOutputTokens=4096
+
+AMQ_LLM__Providers__OpenAI__Models__gpt-4o-mini__Name="GPT-4 Omni Mini"
+AMQ_LLM__Providers__OpenAI__Models__gpt-4o-mini__MaxTokens=128000
+AMQ_LLM__Providers__OpenAI__Models__gpt-4o-mini__MaxOutputTokens=16384
+
+# ======================
+# Database Configuration
+# ======================
+AMQ_Database__Mode=$DATABASE_MODE
+
 # Provider-specific Connection Strings (Recommended)
-AMIQUIN_ConnectionStrings__Amiquin-Sqlite=$DATABASE_CONNECTION
-# AMIQUIN_ConnectionStrings__Amiquin-Mysql=Server=localhost;Database=amiquin_db;Uid=amiquin_user;Pwd=amiquin_password;Pooling=True;
+$(if [ "$DATABASE_MODE" = "1" ]; then
+    echo "AMQ_ConnectionStrings__Amiquin-Sqlite=\"Data Source=Data/Database/amiquin.db\""
+    echo "# AMQ_ConnectionStrings__Amiquin-Mysql=\"Server=localhost;Database=amiquin_db;Uid=amiquin_user;Pwd=amiquin_password;Pooling=True;\""
+else
+    echo "# AMQ_ConnectionStrings__Amiquin-Sqlite=\"Data Source=Data/Database/amiquin.db\""
+    echo "AMQ_ConnectionStrings__Amiquin-Mysql=\"$DATABASE_CONNECTION\""
+fi)
 
 # Legacy Connection String (for backward compatibility)
-AMIQUIN_ConnectionStrings__AmiquinContext=$DATABASE_CONNECTION
+AMQ_ConnectionStrings__AmiquinContext="$DATABASE_CONNECTION"
+
+# ======================
+# Docker MySQL Configuration (for docker-compose)
+# ======================
+AMQ_BOT_NAME="$BOT_INSTANCE_NAME"
+AMQ_DB_ROOT_PASSWORD="$MYSQL_ROOT_PASSWORD"
+AMQ_DB_NAME="$MYSQL_DATABASE"
+AMQ_DB_USER="$MYSQL_USER"
+AMQ_DB_USER_PASSWORD="$MYSQL_USER_PASSWORD"
 
 # ======================
 # Data Paths Configuration
 # ======================
-AMIQUIN_DataPaths__Logs=$LOGS_PATH
-AMIQUIN_DataPaths__Messages=$MESSAGES_PATH
-AMIQUIN_DataPaths__Sessions=$SESSIONS_PATH
-AMIQUIN_DataPaths__Plugins=$PLUGINS_PATH
-AMIQUIN_DataPaths__Configuration=$CONFIGURATION_PATH
+AMQ_DataPaths__Logs="$LOGS_PATH"
+AMQ_DataPaths__Messages="$MESSAGES_PATH"
+AMQ_DataPaths__Sessions="$SESSIONS_PATH"
+AMQ_DataPaths__Plugins="$PLUGINS_PATH"
+AMQ_DataPaths__Configuration="$CONFIGURATION_PATH"
 
 # ======================
-# Session Management Configuration
+# Voice/TTS Configuration
 # ======================
-AMIQUIN_SessionManagement__MaxSessionsPerUser=5
-AMIQUIN_SessionManagement__InactivityTimeoutMinutes=120
-AMIQUIN_SessionManagement__CleanupIntervalMinutes=30
-AMIQUIN_SessionManagement__MaxHistoryLength=50
+AMQ_Voice__TTSModelName="$TTS_MODEL_NAME"
+AMQ_Voice__PiperCommand="/usr/local/bin/piper"
+AMQ_Voice__Enabled=$VOICE_ENABLED
 
 # ======================
 # Logging Configuration
 # ======================
-AMIQUIN_Serilog__MinimumLevel__Default=Information
-AMIQUIN_Serilog__WriteTo__1__Args__path=$LOGS_PATH/amiquin-.log
-AMIQUIN_Serilog__WriteTo__1__Args__rollingInterval=Day
-AMIQUIN_Serilog__WriteTo__1__Args__retainedFileCountLimit=7
-AMIQUIN_Serilog__Properties__Application=Amiquin
+AMQ_Serilog__MinimumLevel__Default="Information"
+AMQ_Serilog__MinimumLevel__Override__System="Warning"
+AMQ_Serilog__MinimumLevel__Override__Microsoft="Warning"
+AMQ_Serilog__MinimumLevel__Override__Discord="Information"
 
 # ======================
-# Optional Configuration Overrides
+# Optional Providers (Disabled by default)
 # ======================
-# Uncomment and customize as needed:
+# Grok Provider Configuration
+# AMQ_LLM__Providers__Grok__Enabled=false
+# AMQ_LLM__Providers__Grok__ApiKey="xai-your-grok-api-key-here"
+# AMQ_LLM__Providers__Grok__BaseUrl="https://api.x.ai/v1/"
+# AMQ_LLM__Providers__Grok__DefaultModel="grok-3"
 
-# Custom logging levels
-# AMIQUIN_Serilog__MinimumLevel__Override__System=Warning
-# AMIQUIN_Serilog__MinimumLevel__Override__Microsoft=Warning
+# Gemini Provider Configuration
+# AMQ_LLM__Providers__Gemini__Enabled=false
+# AMQ_LLM__Providers__Gemini__ApiKey="your-gemini-api-key-here"
+# AMQ_LLM__Providers__Gemini__BaseUrl="https://generativelanguage.googleapis.com/"
+# AMQ_LLM__Providers__Gemini__DefaultModel="gemini-1.5-flash"
 EOF
 
 echo -e "${GREEN}Created .env file${NC}"
@@ -218,8 +341,8 @@ ensure_directory "$CONFIG_DIR"
 APPSETTINGS_PATH="$CONFIG_DIR/appsettings.json"
 
 # Create appsettings.json
-if [ ! -z "$CHAT_AUTH_TOKEN" ]; then
-    AUTH_TOKEN_VALUE="\"$CHAT_AUTH_TOKEN\""
+if [ ! -z "$OPENAI_API_KEY" ]; then
+    AUTH_TOKEN_VALUE="\"$OPENAI_API_KEY\""
 else
     AUTH_TOKEN_VALUE="\"your-openai-api-key\""
 fi
@@ -338,11 +461,29 @@ echo "  - Data/Plugins (Plugin storage)"
 echo ""
 
 # Show warnings for missing configuration
-if [ -z "$CHAT_AUTH_TOKEN" ]; then
-    echo -e "${YELLOW}IMPORTANT: Missing configuration${NC}"
-    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+HAS_WARNINGS=false
+
+if [ -z "$BOT_TOKEN" ]; then
+    if [ "$HAS_WARNINGS" = false ]; then
+        echo -e "${YELLOW}IMPORTANT: Missing configuration${NC}"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        HAS_WARNINGS=true
+    fi
+    echo -e "${YELLOW}  • Discord Bot Token: Required for bot functionality${NC}"
+    echo "    - Update 'AMQ_Bot__Token' in .env file"
+fi
+
+if [ -z "$OPENAI_API_KEY" ]; then
+    if [ "$HAS_WARNINGS" = false ]; then
+        echo -e "${YELLOW}IMPORTANT: Missing configuration${NC}"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        HAS_WARNINGS=true
+    fi
     echo -e "${YELLOW}  • OpenAI API Key: Required for AI chat features${NC}"
-    echo "    - Update 'OPENAI_API_KEY' and 'AMIQUIN_Chat__AuthToken' in .env file"
+    echo "    - Update 'AMQ_LLM__Providers__OpenAI__ApiKey' in .env file"
+fi
+
+if [ "$HAS_WARNINGS" = true ]; then
     echo ""
 fi
 
@@ -350,8 +491,15 @@ echo -e "${YELLOW}Next steps:${NC}"
 
 STEP_NUMBER=1
 
-if [ -z "$CHAT_AUTH_TOKEN" ]; then
+if [ -z "$BOT_TOKEN" ]; then
+    echo "$STEP_NUMBER. Add your Discord Bot Token to .env file"
+    echo "   - Get token from: https://discord.com/developers/applications"
+    ((STEP_NUMBER++))
+fi
+
+if [ -z "$OPENAI_API_KEY" ]; then
     echo "$STEP_NUMBER. Add your OpenAI API key to .env file (for AI features)"
+    echo "   - Get key from: https://platform.openai.com/api-keys"
     ((STEP_NUMBER++))
 fi
 
@@ -367,6 +515,6 @@ else
 fi
 
 echo ""
-echo "All configuration values can be overridden using environment variables with AMIQUIN_ prefix."
+echo "All configuration values can be overridden using environment variables with AMQ_ prefix."
 echo "For more information, see the documentation at dev/docs/"
 echo ""
