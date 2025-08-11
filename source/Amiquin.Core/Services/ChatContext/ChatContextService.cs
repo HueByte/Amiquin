@@ -21,7 +21,7 @@ public class ChatContextService : IChatContextService
 
     // Track recent activity timestamps for real-time activity detection
     private readonly ConcurrentDictionary<ulong, Queue<DateTime>> _activityTimestamps = new();
-    
+
     // Track semaphores for each guild to prevent concurrent processing
     private readonly ConcurrentDictionary<ulong, SemaphoreSlim> _guildSemaphores = new();
 
@@ -36,12 +36,20 @@ public class ChatContextService : IChatContextService
         var message = socketMessage.Content.Trim();
         if (socketMessage.Author.IsBot || string.IsNullOrWhiteSpace(message))
         {
-            _logger.LogInformation("Ignoring message from bot or empty message in scope {ScopeId}", scopeId);
+            _logger.LogDebug("Ignoring message from bot or empty message in scope {ScopeId}", scopeId);
+            return Task.CompletedTask;
+        }
+
+        // Filter out messages from excluded channels (moderation, admin, bot channels)
+        if (IsChannelExcludedFromActivity(socketMessage.Channel))
+        {
+            _logger.LogDebug("Ignoring message from excluded channel {ChannelName} in scope {ScopeId}",
+                socketMessage.Channel.Name, scopeId);
             return Task.CompletedTask;
         }
 
         var username = socketMessage.Author.GlobalName ?? socketMessage.Author.Username;
-        _logger.LogInformation("Received message from {Username} in scope {ScopeId}: {Message}", username, scopeId, message);
+        _logger.LogDebug("Received message from {Username} in scope {ScopeId}: {Message}", username, scopeId, message);
 
         // Track activity timestamp for real-time detection
         TrackActivityTimestamp(scopeId);
@@ -148,7 +156,7 @@ public class ChatContextService : IChatContextService
     {
         // Get or create semaphore for this guild
         var semaphore = _guildSemaphores.GetOrAdd(guildId, _ => new SemaphoreSlim(1, 1));
-        
+
         // Try to acquire the semaphore (non-blocking)
         if (!await semaphore.WaitAsync(0))
         {
@@ -218,10 +226,10 @@ public class ChatContextService : IChatContextService
                     _logger.LogInformation("Replied to mention from {Username} in guild {GuildId} with {ChunkCount} message(s): {Response}",
                         username, guildId, chunks.Count, response.Substring(0, Math.Min(response.Length, 100)) + "...");
                 }
-                
+
                 // Clear context messages after successful mention response to prevent duplicate responses
                 ClearContextMessages(guildId);
-                
+
                 return response;
             }
 
@@ -236,7 +244,7 @@ public class ChatContextService : IChatContextService
         {
             // Stop typing indicator
             typingState?.Dispose();
-            
+
             // Release the semaphore
             semaphore.Release();
         }
@@ -762,27 +770,82 @@ public class ChatContextService : IChatContextService
     #region Private Helper Methods
 
     /// <summary>
+    /// Determines if a channel should be excluded from activity monitoring.
+    /// Excludes moderation, admin, private, and bot channels.
+    /// </summary>
+    private bool IsChannelExcludedFromActivity(IChannel channel)
+    {
+        // TODO: Have server admins to configure which channels can be used for message collecting
+        if (channel is not ITextChannel textChannel)
+        {
+            _logger.LogDebug("Channel {ChannelName} excluded: not a text channel", channel.Name);
+            return true;
+        }
+
+        var channelName = textChannel.Name.ToLowerInvariant();
+
+        // Moderation and admin channels
+        var moderationKeywords = new[]
+        {
+            "mod", "admin", "staff", "moderator", "moderation", "management",
+            "private", "team", "internal", "restricted", "official"
+        };
+
+        // Bot and system channels  
+        var botKeywords = new[]
+        {
+            "bot", "command", "cmd", "log", "logs", "audit", "system",
+            "welcome", "rules", "announcements", "updates"
+        };
+
+        // Check if channel name contains excluded keywords
+        if (moderationKeywords.Any(keyword => channelName.Contains(keyword)) ||
+            botKeywords.Any(keyword => channelName.Contains(keyword)))
+        {
+            _logger.LogDebug("Channel {ChannelName} excluded: contains moderation/bot keywords", textChannel.Name);
+            return true;
+        }
+
+        // Additional check: exclude channels that are obviously private/restricted based on permissions
+        // Only exclude if @everyone explicitly has SendMessages denied AND the channel name suggests it's restricted
+        var everyoneRole = textChannel.Guild.EveryoneRole;
+        var permissions = textChannel.GetPermissionOverwrite(everyoneRole);
+
+        if (permissions.HasValue && permissions.Value.SendMessages == PermValue.Deny &&
+            (channelName.Contains("private") || channelName.Contains("staff") || channelName.Contains("admin")))
+        {
+            _logger.LogDebug("Channel {ChannelName} excluded: permission-based restriction", textChannel.Name);
+            return true;
+        }
+
+        _logger.LogDebug("Channel {ChannelName} included in activity monitoring", textChannel.Name);
+        return false;
+    }
+
+    /// <summary>
     /// Finds the most suitable "general" channel in a guild for initialization
     /// </summary>
-    private static ITextChannel? FindGeneralChannel(SocketGuild guild)
+    private ITextChannel? FindGeneralChannel(SocketGuild guild)
     {
         // Priority order for finding a general channel
         var preferredNames = new[] { "general", "main", "chat", "lobby", "discussion", "public" };
 
-        // First, try to find channels with preferred names
+        // First, try to find channels with preferred names, excluding moderation/admin channels
         foreach (var name in preferredNames)
         {
             var channel = guild.TextChannels.FirstOrDefault(c =>
                 c.Name.Contains(name, StringComparison.OrdinalIgnoreCase) &&
+                !IsChannelExcludedFromActivity(c) &&
                 guild.CurrentUser.GetPermissions(c).ReadMessageHistory &&
                 guild.CurrentUser.GetPermissions(c).ViewChannel);
             if (channel != null)
                 return channel;
         }
 
-        // Fallback to the first text channel the bot can read from
+        // Fallback to the first text channel the bot can read from, excluding restricted channels
         return guild.TextChannels
-            .Where(c => guild.CurrentUser.GetPermissions(c).ReadMessageHistory &&
+            .Where(c => !IsChannelExcludedFromActivity(c) &&
+                       guild.CurrentUser.GetPermissions(c).ReadMessageHistory &&
                        guild.CurrentUser.GetPermissions(c).ViewChannel)
             .OrderBy(c => c.Position)
             .FirstOrDefault();
@@ -840,9 +903,10 @@ public class ChatContextService : IChatContextService
                 return providedChannel;
             }
 
-            // Fall back to default text channel (first text channel the bot can send messages to)
+            // Fall back to default text channel (first text channel the bot can send messages to, excluding restricted channels)
             var defaultChannel = guild.TextChannels
-                .Where(c => guild.CurrentUser.GetPermissions(c).SendMessages &&
+                .Where(c => !IsChannelExcludedFromActivity(c) &&
+                           guild.CurrentUser.GetPermissions(c).SendMessages &&
                            guild.CurrentUser.GetPermissions(c).ViewChannel)
                 .OrderBy(c => c.Position)
                 .FirstOrDefault();
@@ -913,7 +977,7 @@ public class ChatContextService : IChatContextService
     {
         return _engagementMultipliers.GetValueOrDefault(scopeId, 1.0f);
     }
-    
+
     /// <summary>
     /// Resets the engagement multiplier for a specific scope back to baseline (1.0).
     /// Also clears any context messages to give the bot a fresh start.
@@ -921,19 +985,19 @@ public class ChatContextService : IChatContextService
     public void ResetEngagement(ulong scopeId)
     {
         _logger.LogInformation("Resetting engagement for scope {ScopeId} to baseline", scopeId);
-        
+
         // Reset engagement multiplier to baseline
         _engagementMultipliers.AddOrUpdate(scopeId, 1.0f, (key, current) => 1.0f);
-        
+
         // Clear context messages for a fresh start
         ClearContextMessages(scopeId);
-        
+
         // Clear activity timestamps as well
         if (_activityTimestamps.TryGetValue(scopeId, out var timestamps))
         {
             timestamps.Clear();
         }
-        
+
         _logger.LogDebug("Engagement reset complete for scope {ScopeId}", scopeId);
     }
 

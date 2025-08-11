@@ -58,13 +58,13 @@ public class AmiquinContext : DbContext
             .HasOne(c => c.Server)
             .WithMany(s => s.CommandLogs)
             .HasForeignKey(c => c.ServerId)
-            .OnDelete(DeleteBehavior.Restrict);
+            .OnDelete(DeleteBehavior.SetNull);
 
         builder.Entity<NachoPack>()
             .HasOne(n => n.Server)
             .WithMany(s => s.NachoPacks)
             .HasForeignKey(n => n.ServerId)
-            .OnDelete(DeleteBehavior.Restrict);
+            .OnDelete(DeleteBehavior.SetNull);
 
         // Configure Chat Session
 
@@ -128,13 +128,13 @@ public class AmiquinContext : DbContext
             .HasMany(s => s.CommandLogs)
             .WithOne(c => c.Server)
             .HasForeignKey(c => c.ServerId)
-            .OnDelete(DeleteBehavior.Restrict);
+            .OnDelete(DeleteBehavior.SetNull);
 
         builder.Entity<ServerMeta>()
             .HasMany(s => s.NachoPacks)
             .WithOne(n => n.Server)
             .HasForeignKey(n => n.ServerId)
-            .OnDelete(DeleteBehavior.Restrict);
+            .OnDelete(DeleteBehavior.SetNull);
 
         builder.Entity<ServerMeta>()
             .HasKey(s => s.Id);

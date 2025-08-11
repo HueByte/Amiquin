@@ -16,6 +16,6 @@ public class CommandLog : DbModel<int>
     public string? ErrorMessage { get; set; }
 
     [ForeignKey("ServerId")]
-    public ulong ServerId { get; set; }
+    public ulong? ServerId { get; set; }
     public ServerMeta? Server { get; set; }
 }

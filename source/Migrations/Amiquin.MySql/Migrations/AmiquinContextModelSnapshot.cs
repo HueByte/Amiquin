@@ -172,7 +172,7 @@ namespace Amiquin.MySql.Migrations
                     b.Property<bool>("IsSuccess")
                         .HasColumnType("tinyint(1)");
 
-                    b.Property<ulong>("ServerId")
+                    b.Property<ulong?>("ServerId")
                         .HasColumnType("bigint unsigned");
 
                     b.Property<ulong>("UserId")
@@ -234,7 +234,7 @@ namespace Amiquin.MySql.Migrations
                     b.Property<DateTime>("NachoReceivedDate")
                         .HasColumnType("datetime(6)");
 
-                    b.Property<ulong>("ServerId")
+                    b.Property<ulong?>("ServerId")
                         .HasColumnType("bigint unsigned");
 
                     b.Property<ulong>("UserId")
@@ -465,8 +465,7 @@ namespace Amiquin.MySql.Migrations
                     b.HasOne("Amiquin.Core.Models.ServerMeta", "Server")
                         .WithMany("CommandLogs")
                         .HasForeignKey("ServerId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("Server");
                 });
@@ -487,8 +486,7 @@ namespace Amiquin.MySql.Migrations
                     b.HasOne("Amiquin.Core.Models.ServerMeta", "Server")
                         .WithMany("NachoPacks")
                         .HasForeignKey("ServerId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("Server");
                 });

@@ -273,7 +273,7 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
 
     [SlashCommand("set-model", "Set the AI model for the server")]
     public async Task SetModelAsync(
-        [Summary("model", "The AI model to use")] string model,
+        [Summary("model", "The AI model to use")] [Autocomplete(typeof(ModelAutoCompleteHandler))] string model,
         [Summary("provider", "The AI provider")] [Choice("OpenAI", "OpenAI")] [Choice("Anthropic", "Anthropic")] [Choice("Gemini", "Gemini")] [Choice("Grok", "Grok")] string provider = "OpenAI")
     {
         try
