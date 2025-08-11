@@ -230,12 +230,19 @@ cat > "$ENV_PATH" << EOF
 # All configuration values use AMQ_ prefix as defined in .env.example
 
 # ======================
+# Discord Configuration
+# ======================
+$(if [ ! -z "$BOT_TOKEN" ]; then echo "AMQ_Discord__Token=\"$BOT_TOKEN\""; else echo "# AMQ_Discord__Token=\"your-discord-bot-token-here\""; fi)
+AMQ_Discord__Prefix="!amq"
+AMQ_Discord__ActivityMessage="Chatting with AI"
+
+# ======================
 # Bot Configuration
 # ======================
-$(if [ ! -z "$BOT_TOKEN" ]; then echo "AMQ_Bot__Token=\"$BOT_TOKEN\""; else echo "# AMQ_Bot__Token=\"your-discord-bot-token-here\""; fi)
 AMQ_Bot__Name="$BOT_NAME"
-AMQ_Bot__PrintLogo=true
+AMQ_Bot__PrintLogo=false
 AMQ_Bot__MessageFetchCount=40
+AMQ_Bot__MaxTokens=20000
 
 # ======================
 # LLM (AI Language Model) Configuration
@@ -470,7 +477,7 @@ if [ -z "$BOT_TOKEN" ]; then
         HAS_WARNINGS=true
     fi
     echo -e "${YELLOW}  • Discord Bot Token: Required for bot functionality${NC}"
-    echo "    - Update 'AMQ_Bot__Token' in .env file"
+    echo "    - Update 'AMQ_Discord__Token' in .env file"
 fi
 
 if [ -z "$OPENAI_API_KEY" ]; then

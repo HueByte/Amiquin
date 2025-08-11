@@ -193,12 +193,19 @@ $envContent = @"
 # All configuration values use AMQ_ prefix as defined in .env.example
 
 # ======================
+# Discord Configuration
+# ======================
+$(if ($config.BotToken) { "AMQ_Discord__Token=`"$($config.BotToken)`"" } else { "# AMQ_Discord__Token=`"your-discord-bot-token-here`"" })
+AMQ_Discord__Prefix=`"!amq`"
+AMQ_Discord__ActivityMessage=`"Chatting with AI`"
+
+# ======================
 # Bot Configuration
 # ======================
-$(if ($config.BotToken) { "AMQ_Bot__Token=`"$($config.BotToken)`"" } else { "# AMQ_Bot__Token=`"your-discord-bot-token-here`"" })
 AMQ_Bot__Name=`"$($config.BotName)`"
 AMQ_Bot__PrintLogo=false
 AMQ_Bot__MessageFetchCount=40
+AMQ_Bot__MaxTokens=20000
 
 # ======================
 # LLM (AI Language Model) Configuration
@@ -487,7 +494,7 @@ if (-not $config.BotToken) {
         $hasWarnings = $true
     }
     Write-Host "  • Discord Bot Token: Required for bot functionality" -ForegroundColor Yellow
-    Write-Host "    - Update 'AMQ_Bot__Token' in .env file"
+    Write-Host "    - Update 'AMQ_Discord__Token' in .env file"
 }
 
 if (-not $config.OpenAIApiKey) {
