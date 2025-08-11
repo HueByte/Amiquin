@@ -1160,8 +1160,8 @@ public class ChatContextService : IChatContextService
             // Detect activity spike (sudden jump to high activity)
             var isActivitySpike = currentActivity >= 1.3 && previousMultiplier < 1.5f;
 
-            // Random chance for immediate engagement on activity spikes (30% chance)
-            if (isActivitySpike && new Random().NextDouble() < 0.3)
+            // Random chance for immediate engagement on activity spikes (10% chance - reduced from 30%)
+            if (isActivitySpike && new Random().NextDouble() < 0.10)
             {
                 _logger.LogInformation("Activity spike detected in scope {ScopeId}, triggering immediate engagement", scopeId);
 

@@ -66,40 +66,19 @@ public class PersonaChatService : IPersonaChatService
         {
             var timeSinceStart = DateTime.UtcNow - existingRequest.StartTime;
 
-            // If request is very recent (< 2 seconds), wait for it to complete
-            if (timeSinceStart.TotalSeconds < 2 && existingRequest.CompletionSource != null)
+            // If request is very recent (< 5 seconds), silently skip this duplicate
+            if (timeSinceStart.TotalSeconds < 5)
             {
-                _logger.LogInformation("Duplicate request detected for instance {InstanceId}, waiting for existing request", instanceId);
-                try
-                {
-                    // Wait for the existing request to complete (with timeout)
-                    var waitTask = existingRequest.CompletionSource.Task;
-                    var timeoutTask = Task.Delay(TimeSpan.FromSeconds(10));
-                    var completedTask = await Task.WhenAny(waitTask, timeoutTask);
-
-                    if (completedTask == waitTask)
-                    {
-                        return await waitTask;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Error waiting for existing request for instance {InstanceId}", instanceId);
-                }
-            }
-            else if (timeSinceStart.TotalSeconds < 10)
-            {
-                // If request is still recent, return a polite message
-                _logger.LogInformation("Recent request still processing for instance {InstanceId}, providing feedback", instanceId);
-                return "I'm still processing the previous request. Please wait a moment...";
+                _logger.LogDebug("Duplicate request detected for instance {InstanceId}, silently skipping", instanceId);
+                return string.Empty; // Return empty string to indicate silent skip
             }
         }
 
-        // Try to acquire the semaphore (non-blocking)
-        if (!await semaphore.WaitAsync(100))
+        // Try to acquire the semaphore (non-blocking) - if busy, silently skip
+        if (!await semaphore.WaitAsync(0)) // No timeout - immediate check only
         {
-            _logger.LogInformation("Instance {InstanceId} busy, request from user {UserId} queued", instanceId, userId);
-            return "I'm currently processing another request for this server. Please try again in a moment.";
+            _logger.LogDebug("Instance {InstanceId} busy, silently skipping request from user {UserId}", instanceId, userId);
+            return string.Empty; // Return empty string to indicate silent skip
         }
 
         var completionSource = new TaskCompletionSource<string>();

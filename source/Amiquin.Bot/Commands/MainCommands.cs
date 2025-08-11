@@ -49,6 +49,14 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
         // Send the message with context to the chat service
         var response = await _chatService.ChatAsync(Context.Guild.Id, Context.User.Id, Context.Client.CurrentUser.Id, prompt);
 
+        // If response is empty, it means the request was silently skipped (duplicate/busy)
+        if (string.IsNullOrEmpty(response))
+        {
+            // Silently delete the deferred response to avoid any message
+            await DeleteOriginalResponseAsync();
+            return;
+        }
+
         // Track this message in context for future interactions
         // Note: We don't have direct access to SocketMessage here, but we can track the user's input
         // The bot's response will be tracked when it's sent as a regular message

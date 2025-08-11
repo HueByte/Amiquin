@@ -18,6 +18,9 @@ public class ActivitySessionService : IActivitySessionService
     
     // Semaphores to prevent concurrent executions per guild
     private readonly ConcurrentDictionary<ulong, SemaphoreSlim> _guildSemaphores = new();
+    
+    // Track last usage to clean up unused semaphores
+    private readonly ConcurrentDictionary<ulong, DateTime> _lastSemaphoreUsage = new();
 
     public ActivitySessionService(
         ILogger<ActivitySessionService> logger,
@@ -39,8 +42,11 @@ public class ActivitySessionService : IActivitySessionService
         // Get or create semaphore for this guild to prevent concurrent executions
         var semaphore = _guildSemaphores.GetOrAdd(guildId, _ => new SemaphoreSlim(1, 1));
         
-        // Try to acquire the semaphore - if another execution is running, skip this one
-        if (!await semaphore.WaitAsync(100, cancellationToken)) // 100ms timeout
+        // Update last usage timestamp
+        _lastSemaphoreUsage[guildId] = DateTime.UtcNow;
+        
+        // Try to acquire the semaphore - if another execution is running, skip this one immediately
+        if (!await semaphore.WaitAsync(0, cancellationToken)) // No timeout - immediate check
         {
             _logger.LogDebug("Activity session already running for guild {GuildId}, skipping", guildId);
             return false;
@@ -48,7 +54,15 @@ public class ActivitySessionService : IActivitySessionService
         
         try
         {
-            return await ExecuteActivitySessionInternalAsync(guildId, adjustFrequencyCallback, cancellationToken);
+            var result = await ExecuteActivitySessionInternalAsync(guildId, adjustFrequencyCallback, cancellationToken);
+            
+            // Cleanup unused semaphores occasionally
+            if (DateTime.UtcNow.Minute % 10 == 0) // Every 10 minutes
+            {
+                CleanupUnusedSemaphores();
+            }
+            
+            return result;
         }
         finally
         {
@@ -104,16 +118,28 @@ public class ActivitySessionService : IActivitySessionService
                 msg.Contains("@Amiquin", StringComparison.OrdinalIgnoreCase) ||
                 msg.Contains($"<@{_discordClient.CurrentUser?.Id}>", StringComparison.OrdinalIgnoreCase));
 
-            // Get engagement multiplier
-            var engagementMultiplier = _chatContextService.GetEngagementMultiplier(guildId);
+            // Get engagement multiplier and cap it during high activity periods
+            var rawEngagementMultiplier = _chatContextService.GetEngagementMultiplier(guildId);
+            var engagementMultiplier = currentActivity switch
+            {
+                >= 2.0 => Math.Min(rawEngagementMultiplier, 1.2f), // Extremely high: cap at 1.2x
+                >= 1.5 => Math.Min(rawEngagementMultiplier, 1.5f), // Very high: cap at 1.5x
+                >= 1.0 => Math.Min(rawEngagementMultiplier, 2.0f), // High: cap at 2.0x
+                _ => rawEngagementMultiplier                        // Normal: no cap
+            };
 
             // Calculate engagement probability with activity dampening for high activity
             var baseChance = CalculateBaseChance(currentActivity);
             
-            // Reduce the impact of activity multiplier in high-activity scenarios to prevent over-engagement
-            var activityMultiplier = currentActivity >= 1.5 
-                ? Math.Min(currentActivity * 0.5, 1.0) // Dampen high activity impact
-                : currentActivity;
+            // Apply much stronger dampening for high activity scenarios
+            var activityMultiplier = currentActivity switch
+            {
+                >= 2.0 => 0.1,    // Extremely high: 10% of normal multiplier effect
+                >= 1.5 => 0.2,    // Very high: 20% of normal multiplier effect  
+                >= 1.0 => 0.4,    // High: 40% of normal multiplier effect
+                >= 0.7 => 0.7,    // Moderate: 70% of normal multiplier effect
+                _ => 1.0           // Low/Normal: full multiplier effect
+            };
             
             var adjustedChance = baseChance * engagementMultiplier * activityMultiplier;
 
@@ -125,7 +151,17 @@ public class ActivitySessionService : IActivitySessionService
             }
             else
             {
-                adjustedChance = Math.Min(adjustedChance, 0.90); // Cap at 90% (increased from 85%)
+                // Apply dynamic caps based on activity level to prevent over-engagement
+                var maxChance = currentActivity switch
+                {
+                    >= 2.0 => 0.10,   // Extremely high activity: cap at 10%
+                    >= 1.5 => 0.20,   // Very high activity: cap at 20%
+                    >= 1.0 => 0.35,   // High activity: cap at 35%
+                    >= 0.7 => 0.60,   // Moderate activity: cap at 60%
+                    _ => 0.90          // Low/Normal activity: cap at 90%
+                };
+                
+                adjustedChance = Math.Min(adjustedChance, maxChance);
             }
 
             // Random engagement check
@@ -229,11 +265,12 @@ public class ActivitySessionService : IActivitySessionService
     {
         return activityLevel switch
         {
-            <= 0.3 => 0.25,    // 25% base chance for low activity
-            <= 0.5 => 0.35,    // 35% base chance for below normal
-            <= 1.0 => 0.40,    // 40% base chance for normal activity (reduced from 45%)
-            <= 1.5 => 0.25,    // 25% base chance for high activity (reduced from 55% to prevent over-engagement)
-            _ => 0.15           // 15% base chance for very high activity (reduced from 65% to prevent spam)
+            <= 0.3 => 0.25,    // 25% base chance for low activity (no change)
+            <= 0.5 => 0.30,    // 30% base chance for below normal (reduced from 35%)
+            <= 1.0 => 0.20,    // 20% base chance for normal activity (reduced from 40%)
+            <= 1.5 => 0.10,    // 10% base chance for high activity (reduced from 25%)
+            <= 2.0 => 0.05,    // 5% base chance for very high activity (reduced from 15%)
+            _ => 0.02           // 2% base chance for extremely high activity (reduced from 15%)
         };
     }
 
@@ -292,5 +329,44 @@ public class ActivitySessionService : IActivitySessionService
             7 => await chatContextService.AdaptiveResponseAsync(guildId),
             _ => null
         };
+    }
+    
+    /// <summary>
+    /// Cleans up unused semaphores to prevent memory leaks
+    /// </summary>
+    private void CleanupUnusedSemaphores()
+    {
+        try
+        {
+            var cutoffTime = DateTime.UtcNow.AddMinutes(-30); // Clean up semaphores unused for 30 minutes
+            var keysToRemove = new List<ulong>();
+            
+            foreach (var kvp in _lastSemaphoreUsage)
+            {
+                if (kvp.Value < cutoffTime)
+                {
+                    keysToRemove.Add(kvp.Key);
+                }
+            }
+            
+            foreach (var key in keysToRemove)
+            {
+                if (_guildSemaphores.TryRemove(key, out var semaphore))
+                {
+                    semaphore.Dispose();
+                    _lastSemaphoreUsage.TryRemove(key, out _);
+                    _logger.LogDebug("Cleaned up unused semaphore for guild {GuildId}", key);
+                }
+            }
+            
+            if (keysToRemove.Count > 0)
+            {
+                _logger.LogDebug("Cleaned up {Count} unused semaphores", keysToRemove.Count);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Error during semaphore cleanup");
+        }
     }
 }
