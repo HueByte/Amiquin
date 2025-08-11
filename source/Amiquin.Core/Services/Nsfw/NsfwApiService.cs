@@ -91,24 +91,25 @@ public class NsfwApiService : INsfwApiService
 
         try
         {
-            // First try waifu.im with alternative tags
-            var selectedTags = _alternativeTags.OrderBy(x => _random.Next()).Take(count).ToList();
-            var tasks = selectedTags.Select(tag => FetchWaifuImageAsync(tag)).ToList();
-            var results = await Task.WhenAll(tasks);
-            images.AddRange(results.Where(img => img != null)!);
+            // First priority: nekos.best API
+            var nekosBestImages = await FetchFromNekosBestAsync(count);
+            images.AddRange(nekosBestImages);
 
-            // Try alternative API - waifu.pics NSFW endpoint
+            // If we still need more images, try waifu.im with alternative tags
+            if (images.Count < count)
+            {
+                var remainingCount = count - images.Count;
+                var selectedTags = _alternativeTags.OrderBy(x => _random.Next()).Take(remainingCount).ToList();
+                var tasks = selectedTags.Select(tag => FetchWaifuImageAsync(tag)).ToList();
+                var results = await Task.WhenAll(tasks);
+                images.AddRange(results.Where(img => img != null)!);
+            }
+
+            // Last resort: waifu.pics NSFW endpoint
             if (images.Count < count)
             {
                 var waifuPicsImages = await FetchFromWaifuPicsNsfwAsync(count - images.Count);
                 images.AddRange(waifuPicsImages);
-            }
-
-            // Try another alternative - nekos.best API
-            if (images.Count < count)
-            {
-                var nekosBestImages = await FetchFromNekosBestAsync(count - images.Count);
-                images.AddRange(nekosBestImages);
             }
         }
         catch (Exception ex)

@@ -1,5 +1,6 @@
 using Discord;
 using Discord.WebSocket;
+using Amiquin.Core.Models;
 
 namespace Amiquin.Core.Services.Fun;
 
@@ -31,11 +32,34 @@ public interface IFunService
     List<string> GenerateColorPalette(int count = 5);
 
     /// <summary>
+    /// Generates a color palette using proper color theory rules.
+    /// </summary>
+    /// <param name="harmonyType">Type of color harmony (complementary, triadic, etc.).</param>
+    /// <param name="baseHue">Base hue for the palette (0-360), or null for random.</param>
+    /// <returns>Palette information with colors and metadata.</returns>
+    Task<ColorPalette> GenerateColorTheoryPaletteAsync(ColorHarmonyType harmonyType, float? baseHue = null);
+
+    /// <summary>
     /// Generates a visual preview image of a color palette.
     /// </summary>
     /// <param name="colors">List of hex color codes to display.</param>
     /// <returns>Stream containing the palette preview image.</returns>
     Task<Stream> GeneratePaletteImageAsync(List<string> colors);
+
+    /// <summary>
+    /// Creates an interactive palette interface using Discord Components V2.
+    /// </summary>
+    /// <param name="palette">The color palette to display.</param>
+    /// <param name="userId">User ID for the interaction.</param>
+    /// <returns>Embed and components for the interactive interface.</returns>
+    Task<(Embed embed, Discord.MessageComponent components)> CreateInteractivePaletteAsync(ColorPalette palette, ulong userId);
+
+    /// <summary>
+    /// Generates representative images for each color in a palette.
+    /// </summary>
+    /// <param name="palette">The color palette to generate images for.</param>
+    /// <returns>Dictionary mapping color hex codes to image streams.</returns>
+    Task<Dictionary<string, Stream>> GeneratePaletteColorImagesAsync(ColorPalette palette);
 
     /// <summary>
     /// Gets a random GIF URL for an interaction type.

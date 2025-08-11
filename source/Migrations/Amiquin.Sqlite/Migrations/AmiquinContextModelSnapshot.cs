@@ -309,6 +309,9 @@ namespace Amiquin.Sqlite.Migrations
                     b.Property<DateTime>("LastUpdated")
                         .HasColumnType("TEXT");
 
+                    b.Property<ulong?>("NsfwChannelId")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("Persona")
                         .IsRequired()
                         .HasColumnType("TEXT");
