@@ -10,6 +10,7 @@ using Amiquin.Core.Services.Toggle;
 using Amiquin.Core.Utilities;
 using Discord;
 using Discord.Interactions;
+using Discord.WebSocket;
 using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
 using System.Text;
@@ -534,127 +535,12 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
                     return;
                 }
 
-                // Create multiple embeds for pagination
-                var embeds = new List<Embed>();
+                // Create embeds using helper method
+                var embeds = await CreateConfigEmbedsAsync(serverMeta, serverId);
 
-                // Page 1: Basic Server Information
-                var basicInfoEmbed = new EmbedBuilder()
-                    .WithTitle($"⚙️ Server Configuration - {Context.Guild.Name}")
-                    .WithDescription("📋 **Basic Information & Settings**")
-                    .WithColor(Color.Blue)
-                    .WithThumbnailUrl(Context.Guild.IconUrl)
-                    .WithCurrentTimestamp();
-
-                basicInfoEmbed.AddField("Server ID", serverId.ToString(), inline: true);
-                basicInfoEmbed.AddField("Server Name", Context.Guild.Name, inline: true);
-                basicInfoEmbed.AddField("Member Count", Context.Guild.MemberCount.ToString(), inline: true);
-                basicInfoEmbed.AddField("Created", serverMeta.CreatedAt.ToString("yyyy-MM-dd HH:mm UTC"), inline: true);
-                basicInfoEmbed.AddField("Last Updated", serverMeta.LastUpdated.ToString("yyyy-MM-dd HH:mm UTC"), inline: true);
-                basicInfoEmbed.AddField("Active", serverMeta.IsActive ? "✅ Yes" : "❌ No", inline: true);
-
-                // Primary Channel
-                if (serverMeta.PrimaryChannelId.HasValue)
-                {
-                    var channel = Context.Guild.GetTextChannel(serverMeta.PrimaryChannelId.Value);
-                    if (channel != null)
-                    {
-                        basicInfoEmbed.AddField("Primary Channel", channel.Mention, inline: true);
-                    }
-                    else
-                    {
-                        basicInfoEmbed.AddField("Primary Channel", "⚠️ Channel not found (deleted?)", inline: true);
-                    }
-                }
-                else
-                {
-                    basicInfoEmbed.AddField("Primary Channel", "❌ Not configured", inline: true);
-                }
-
-                basicInfoEmbed.WithFooter("Page 1 of 3 • Use navigation buttons below");
-                embeds.Add(basicInfoEmbed.Build());
-
-                // Page 2: AI & Chat Configuration
-                var aiConfigEmbed = new EmbedBuilder()
-                    .WithTitle($"🤖 AI Configuration - {Context.Guild.Name}")
-                    .WithDescription("🧠 **AI Model & Chat Settings**")
-                    .WithColor(Color.Green)
-                    .WithThumbnailUrl(Context.Guild.IconUrl)
-                    .WithCurrentTimestamp();
-
-                // Current AI Model
-                var activeSession = await _chatSessionService.GetActiveServerSessionAsync(serverId);
-                if (activeSession != null)
-                {
-                    aiConfigEmbed.AddField("Current AI Model", activeSession.Model, inline: true);
-                    aiConfigEmbed.AddField("Current Provider", activeSession.Provider, inline: true);
-                    aiConfigEmbed.AddField("Session Active Since", activeSession.LastActivityAt.ToString("yyyy-MM-dd HH:mm UTC"), inline: true);
-                }
-                else
-                {
-                    aiConfigEmbed.AddField("Current AI Model", "❌ No active session", inline: true);
-                    aiConfigEmbed.AddField("Current Provider", "Not available", inline: true);
-                    aiConfigEmbed.AddField("Session Status", "Inactive", inline: true);
-                }
-
-                // Preferred Provider
-                if (!string.IsNullOrWhiteSpace(serverMeta.PreferredProvider))
-                {
-                    aiConfigEmbed.AddField("Preferred Provider", serverMeta.PreferredProvider, inline: true);
-                }
-                else
-                {
-                    aiConfigEmbed.AddField("Preferred Provider", "Using global default", inline: true);
-                }
-
-                // Persona information
-                if (!string.IsNullOrWhiteSpace(serverMeta.Persona))
-                {
-                    var personaText = serverMeta.Persona.Length > 1000
-                        ? $"{serverMeta.Persona[..996]}..."
-                        : serverMeta.Persona;
-                    aiConfigEmbed.AddField("Server Persona", personaText, inline: false);
-                }
-                else
-                {
-                    aiConfigEmbed.AddField("Server Persona", "❌ No custom persona configured", inline: false);
-                }
-
-                aiConfigEmbed.WithFooter("Page 2 of 3 • Use navigation buttons below");
-                embeds.Add(aiConfigEmbed.Build());
-
-                // Page 3: Feature Toggles
-                var togglesEmbed = new EmbedBuilder()
-                    .WithTitle($"🎛️ Feature Toggles - {Context.Guild.Name}")
-                    .WithDescription("🔧 **Feature Flags & Settings**")
-                    .WithColor(Color.Orange)
-                    .WithThumbnailUrl(Context.Guild.IconUrl)
-                    .WithCurrentTimestamp();
-
-                var serverToggles = await _toggleService.GetTogglesByServerId(serverId);
-                if (serverToggles.Any())
-                {
-                    var togglesText = new StringBuilder();
-                    foreach (var toggle in serverToggles.OrderBy(t => t.Name))
-                    {
-                        var status = toggle.IsEnabled ? "✅" : "❌";
-                        var description = toggle.IsEnabled ? "Enabled" : "Disabled";
-                        togglesText.AppendLine($"{status} **{toggle.Name}** - {description}");
-                    }
-                    
-                    togglesEmbed.AddField("Current Feature States", togglesText.ToString().Trim(), inline: false);
-                }
-                else
-                {
-                    togglesEmbed.AddField("Feature Toggles", "❌ No toggles configured", inline: false);
-                }
-
-                togglesEmbed.AddField("💡 Tip", "Use `/admin toggle` to enable/disable features", inline: false);
-                togglesEmbed.WithFooter("Page 3 of 3 • Use navigation buttons below");
-                embeds.Add(togglesEmbed.Build());
-
-                // Create paginated message
+                // Use the pagination service properly
                 var (embed, component) = await _paginationService.CreatePaginatedMessageAsync(
-                    embeds, Context.User.Id, TimeSpan.FromMinutes(10));
+                    embeds, Context.User.Id, TimeSpan.FromMinutes(15));
 
                 await ModifyOriginalResponseAsync(msg =>
                 {
@@ -667,6 +553,150 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
                 _logger.LogError(ex, "Error viewing config for server {ServerId}", Context.Guild.Id);
                 await ModifyOriginalResponseAsync(msg => msg.Content = "❌ An error occurred while retrieving the configuration.");
             }
+        }
+
+        [ComponentInteraction("page_*_*")]
+        public async Task HandlePaginationAsync(string sessionId, string action)
+        {
+            try
+            {
+                var component = (SocketMessageComponent)Context.Interaction;
+                var handled = await _paginationService.HandleInteractionAsync(component);
+                
+                if (!handled)
+                {
+                    await RespondAsync("❌ Pagination session not found or expired.", ephemeral: true);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error handling pagination interaction");
+                await RespondAsync("❌ Error handling pagination.", ephemeral: true);
+            }
+        }
+
+        private async Task<List<Embed>> CreateConfigEmbedsAsync(Amiquin.Core.Models.ServerMeta? serverMeta, ulong serverId)
+        {
+            var embeds = new List<Embed>();
+
+            if (serverMeta == null) return embeds;
+
+            // Page 1: Basic Server Information
+            var basicInfoEmbed = new EmbedBuilder()
+                .WithTitle($"⚙️ Server Configuration - {Context.Guild.Name}")
+                .WithDescription("📋 **Basic Information & Settings**")
+                .WithColor(Color.Blue)
+                .WithThumbnailUrl(Context.Guild.IconUrl)
+                .WithCurrentTimestamp();
+
+            basicInfoEmbed.AddField("Server ID", serverId.ToString(), inline: true);
+            basicInfoEmbed.AddField("Server Name", Context.Guild.Name, inline: true);
+            basicInfoEmbed.AddField("Member Count", Context.Guild.MemberCount.ToString(), inline: true);
+            basicInfoEmbed.AddField("Created", serverMeta.CreatedAt.ToString("yyyy-MM-dd HH:mm UTC"), inline: true);
+            basicInfoEmbed.AddField("Last Updated", serverMeta.LastUpdated.ToString("yyyy-MM-dd HH:mm UTC"), inline: true);
+            basicInfoEmbed.AddField("Active", serverMeta.IsActive ? "✅ Yes" : "❌ No", inline: true);
+
+            // Primary Channel
+            if (serverMeta.PrimaryChannelId.HasValue)
+            {
+                var channel = Context.Guild.GetTextChannel(serverMeta.PrimaryChannelId.Value);
+                if (channel != null)
+                {
+                    basicInfoEmbed.AddField("Primary Channel", channel.Mention, inline: true);
+                }
+                else
+                {
+                    basicInfoEmbed.AddField("Primary Channel", "⚠️ Channel not found (deleted?)", inline: true);
+                }
+            }
+            else
+            {
+                basicInfoEmbed.AddField("Primary Channel", "❌ Not configured", inline: true);
+            }
+
+            basicInfoEmbed.WithFooter("Page 1 of 3 • Use navigation buttons below");
+            embeds.Add(basicInfoEmbed.Build());
+
+            // Page 2: AI & Chat Configuration
+            var aiConfigEmbed = new EmbedBuilder()
+                .WithTitle($"🤖 AI Configuration - {Context.Guild.Name}")
+                .WithDescription("🧠 **AI Model & Chat Settings**")
+                .WithColor(Color.Green)
+                .WithThumbnailUrl(Context.Guild.IconUrl)
+                .WithCurrentTimestamp();
+
+            // Current AI Model
+            var activeSession = await _chatSessionService.GetActiveServerSessionAsync(serverId);
+            if (activeSession != null)
+            {
+                aiConfigEmbed.AddField("Current AI Model", activeSession.Model, inline: true);
+                aiConfigEmbed.AddField("Current Provider", activeSession.Provider, inline: true);
+                aiConfigEmbed.AddField("Session Active Since", activeSession.LastActivityAt.ToString("yyyy-MM-dd HH:mm UTC"), inline: true);
+            }
+            else
+            {
+                aiConfigEmbed.AddField("Current AI Model", "❌ No active session", inline: true);
+                aiConfigEmbed.AddField("Current Provider", "Not available", inline: true);
+                aiConfigEmbed.AddField("Session Status", "Inactive", inline: true);
+            }
+
+            // Preferred Provider
+            if (!string.IsNullOrWhiteSpace(serverMeta.PreferredProvider))
+            {
+                aiConfigEmbed.AddField("Preferred Provider", serverMeta.PreferredProvider, inline: true);
+            }
+            else
+            {
+                aiConfigEmbed.AddField("Preferred Provider", "Using global default", inline: true);
+            }
+
+            // Persona information
+            if (!string.IsNullOrWhiteSpace(serverMeta.Persona))
+            {
+                var personaText = serverMeta.Persona.Length > 1000
+                    ? $"{serverMeta.Persona[..996]}..."
+                    : serverMeta.Persona;
+                aiConfigEmbed.AddField("Server Persona", personaText, inline: false);
+            }
+            else
+            {
+                aiConfigEmbed.AddField("Server Persona", "❌ No custom persona configured", inline: false);
+            }
+
+            aiConfigEmbed.WithFooter("Page 2 of 3 • Use navigation buttons below");
+            embeds.Add(aiConfigEmbed.Build());
+
+            // Page 3: Feature Toggles
+            var togglesEmbed = new EmbedBuilder()
+                .WithTitle($"🎛️ Feature Toggles - {Context.Guild.Name}")
+                .WithDescription("🔧 **Feature Flags & Settings**")
+                .WithColor(Color.Orange)
+                .WithThumbnailUrl(Context.Guild.IconUrl)
+                .WithCurrentTimestamp();
+
+            var serverToggles = await _toggleService.GetTogglesByServerId(serverId);
+            if (serverToggles.Any())
+            {
+                var togglesText = new StringBuilder();
+                foreach (var toggle in serverToggles.OrderBy(t => t.Name))
+                {
+                    var status = toggle.IsEnabled ? "✅" : "❌";
+                    var description = toggle.IsEnabled ? "Enabled" : "Disabled";
+                    togglesText.AppendLine($"{status} **{toggle.Name}** - {description}");
+                }
+                
+                togglesEmbed.AddField("Current Feature States", togglesText.ToString().Trim(), inline: false);
+            }
+            else
+            {
+                togglesEmbed.AddField("Feature Toggles", "❌ No toggles configured", inline: false);
+            }
+
+            togglesEmbed.AddField("💡 Tip", "Use `/admin toggle` to enable/disable features", inline: false);
+            togglesEmbed.WithFooter("Page 3 of 3 • Use navigation buttons below");
+            embeds.Add(togglesEmbed.Build());
+
+            return embeds;
         }
 
         [SlashCommand("reset", "Reset a specific configuration setting")]

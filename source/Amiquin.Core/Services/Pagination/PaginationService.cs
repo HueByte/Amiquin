@@ -1,9 +1,9 @@
+using Amiquin.Core.IRepositories;
+using Amiquin.Core.Models;
 using Discord;
 using Discord.WebSocket;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
-using Amiquin.Core.IRepositories;
-using Amiquin.Core.Models;
 
 namespace Amiquin.Core.Services.Pagination;
 
@@ -22,8 +22,8 @@ public class PaginationService : IPaginationService
     }
 
     public async Task<(Embed Embed, MessageComponent Component)> CreatePaginatedMessageAsync(
-        IReadOnlyList<Embed> embeds, 
-        ulong userId, 
+        IReadOnlyList<Embed> embeds,
+        ulong userId,
         TimeSpan? timeout = null)
     {
         if (embeds.Count == 0)
@@ -67,7 +67,7 @@ public class PaginationService : IPaginationService
         var embed = CreateEmbedWithPageInfo(embeds[0], 1, embeds.Count);
         var component = CreateNavigationComponent(sessionId, 0, embeds.Count);
 
-        _logger.LogDebug("Created pagination session {SessionId} for user {UserId} with {PageCount} pages", 
+        _logger.LogDebug("Created pagination session {SessionId} for user {UserId} with {PageCount} pages",
             sessionId, userId, embeds.Count);
 
         return (embed, component);
@@ -76,7 +76,7 @@ public class PaginationService : IPaginationService
     public async Task<bool> HandleInteractionAsync(SocketMessageComponent component)
     {
         var customId = component.Data.CustomId;
-        
+
         // Check if this is a pagination interaction
         if (!customId.StartsWith("page_"))
             return false;
@@ -114,7 +114,6 @@ public class PaginationService : IPaginationService
 
         if (newPage == oldPage)
         {
-            await component.DeferAsync();
             return true;
         }
 
@@ -133,7 +132,7 @@ public class PaginationService : IPaginationService
             properties.Components = newComponent;
         });
 
-        _logger.LogDebug("Updated pagination session {SessionId} from page {OldPage} to page {NewPage}", 
+        _logger.LogDebug("Updated pagination session {SessionId} from page {OldPage} to page {NewPage}",
             sessionId, oldPage + 1, newPage + 1);
 
         return true;
