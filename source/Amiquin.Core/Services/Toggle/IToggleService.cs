@@ -51,4 +51,12 @@ public interface IToggleService
     /// <param name="description">Optional description for the toggle.</param>
     /// <returns>True if the operation was successful; otherwise, false.</returns>
     Task<bool> UpdateAllTogglesAsync(string toggleName, bool isEnabled, string? description = null);
+
+    /// <summary>
+    /// Removes toggles that are no longer defined in the constants list for a specific server.
+    /// This helps maintain database cleanliness by removing obsolete toggles.
+    /// </summary>
+    /// <param name="serverId">The Discord server ID to clean up toggles for.</param>
+    /// <returns>The number of obsolete toggles that were removed.</returns>
+    Task<int> RemoveObsoleteTogglesAsync(ulong serverId);
 }

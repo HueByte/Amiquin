@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Amiquin.Core.Services.ComponentHandler;
 using Amiquin.Core.Services.Meta;
 using Amiquin.Core.Services.Toggle;
+using Amiquin.Core.Models;
 using System.Text;
 using Amiquin.Core.Services.Pagination;
 using Amiquin.Core.Services.Modal;
@@ -729,63 +730,132 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         await _toggleService.CreateServerTogglesIfNotExistsAsync(guildId);
         
         var toggles = await _toggleService.GetTogglesByServerId(guildId);
+        var guild = (component.Channel as SocketGuildChannel)?.Guild;
         
-        var embedBuilder = new EmbedBuilder()
-            .WithTitle("🎛️ Feature Toggles")
-            .WithDescription("Enable or disable features for your server")
-            .WithColor(new Color(241, 196, 15))
-            .WithCurrentTimestamp();
-
-        var enabledToggles = toggles.Where(t => t.IsEnabled).ToList();
-        var disabledToggles = toggles.Where(t => !t.IsEnabled).ToList();
-
-        if (enabledToggles.Any())
+        if (guild == null)
         {
-            embedBuilder.AddField("✅ Enabled Features",
-                string.Join("\n", enabledToggles.Select(t => $"• {FormatToggleName(t.Name)}").Take(10)),
-                false);
+            await component.ModifyOriginalResponseAsync(msg => msg.Content = "❌ Unable to find guild information.");
+            return;
         }
 
-        if (disabledToggles.Any())
+        // Generate all pages as embeds for pagination
+        var embeds = GenerateToggleEmbeds(toggles.ToList(), guildId);
+        
+        if (embeds.Count == 1)
         {
-            embedBuilder.AddField("❌ Disabled Features",
-                string.Join("\n", disabledToggles.Select(t => $"• {FormatToggleName(t.Name)}").Take(10)),
-                false);
+            // Single page - show directly with buttons
+            await component.ModifyOriginalResponseAsync(msg =>
+            {
+                msg.Embed = embeds[0];
+                msg.Components = GenerateToggleComponents(toggles.Take(8).ToList(), guildId, 0, 1);
+            });
+        }
+        else
+        {
+            // Multiple pages - use pagination service
+            var (embed, messageComponent) = await _paginationService.CreatePaginatedMessageAsync(embeds, component.User.Id);
+            
+            await component.ModifyOriginalResponseAsync(msg =>
+            {
+                msg.Embed = embed;
+                msg.Components = messageComponent;
+            });
+        }
+    }
+
+    private List<Embed> GenerateToggleEmbeds(List<Models.Toggle> toggles, ulong guildId)
+    {
+        const int itemsPerPage = 8;
+        var embeds = new List<Embed>();
+        var totalPages = (int)Math.Ceiling((double)toggles.Count / itemsPerPage);
+        var totalEnabled = toggles.Count(t => t.IsEnabled);
+
+        for (int page = 0; page < totalPages; page++)
+        {
+            var startIndex = page * itemsPerPage;
+            var pageToggles = toggles.Skip(startIndex).Take(itemsPerPage).ToList();
+            var enabledCount = pageToggles.Count(t => t.IsEnabled);
+            
+            var embedBuilder = new EmbedBuilder()
+                .WithTitle("🎛️ Feature Toggles")
+                .WithDescription("Enable or disable features for your server")
+                .WithColor(new Color(241, 196, 15))
+                .WithCurrentTimestamp()
+                .WithFooter($"Page {page + 1}/{totalPages} • {toggles.Count} total features");
+
+            embedBuilder.AddField("📊 Summary", 
+                $"**Total Enabled:** {totalEnabled}/{toggles.Count} features\n" +
+                $"**On this page:** {enabledCount}/{pageToggles.Count} enabled", false);
+
+            // Group toggles by status for better organization
+            var enabledToggles = pageToggles.Where(t => t.IsEnabled).ToList();
+            var disabledToggles = pageToggles.Where(t => !t.IsEnabled).ToList();
+
+            if (enabledToggles.Any())
+            {
+                embedBuilder.AddField("✅ Enabled Features",
+                    string.Join("\n", enabledToggles.Select(t => $"• **{FormatToggleName(t.Name)}**")),
+                    true);
+            }
+
+            if (disabledToggles.Any())
+            {
+                embedBuilder.AddField("❌ Disabled Features",
+                    string.Join("\n", disabledToggles.Select(t => $"• {FormatToggleName(t.Name)}")),
+                    true);
+            }
+
+            embeds.Add(embedBuilder.Build());
         }
 
+        return embeds;
+    }
+
+    private MessageComponent GenerateToggleComponents(List<Models.Toggle> toggles, ulong guildId, int currentPage, int totalPages)
+    {
         var builder = new ComponentBuilder();
         
-        // Add toggle buttons for first few toggles
-        var togglesToShow = toggles.Take(5).ToList();
+        // Add toggle buttons - up to 5 per row, max 10 total
         int buttonCount = 0;
-        foreach (var toggle in togglesToShow)
+        int currentRow = 0;
+        
+        foreach (var toggle in toggles.Take(8)) // Show up to 8 toggles with buttons
         {
-            if (buttonCount >= 5) break; // Discord limit
+            if (buttonCount == 4) // Start new row after 4 buttons to leave room for navigation
+            {
+                currentRow++;
+                buttonCount = 0;
+            }
             
             var emoji = toggle.IsEnabled ? "✅" : "❌";
             var style = toggle.IsEnabled ? ButtonStyle.Success : ButtonStyle.Secondary;
+            var label = FormatToggleName(toggle.Name);
+            
+            // Truncate label if too long
+            if (label.Length > 20)
+                label = label.Substring(0, 17) + "...";
             
             builder.WithButton(
                 new ButtonBuilder()
                     .WithCustomId(_componentHandler.GenerateCustomId(TogglePrefix, toggle.Name, guildId.ToString()))
-                    .WithLabel($"{emoji} {FormatToggleName(toggle.Name)}")
-                    .WithStyle(style));
+                    .WithLabel($"{emoji} {label}")
+                    .WithStyle(style),
+                row: currentRow);
+            
             buttonCount++;
         }
 
-        // Add back button
+        // Add back button on the last row
+        var navRow = Math.Min(currentRow + 1, 4); // Discord max 5 rows (0-4)
+        
         builder.WithButton(
             new ButtonBuilder()
                 .WithCustomId(_componentHandler.GenerateCustomId(NavigationPrefix, "back", guildId.ToString()))
                 .WithLabel("← Back")
                 .WithStyle(ButtonStyle.Secondary),
-            row: 1);
+            row: navRow);
 
-        await component.ModifyOriginalResponseAsync(msg =>
-        {
-            msg.Embed = embedBuilder.Build();
-            msg.Components = builder.Build();
-        });
+        return builder.Build();
     }
 
     private async Task ShowCompleteConfigurationAsync(SocketMessageComponent component, ulong guildId)

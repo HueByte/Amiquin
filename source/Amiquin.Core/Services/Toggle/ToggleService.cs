@@ -44,7 +44,15 @@ public class ToggleService : IToggleService
 
         if (serverMeta.Toggles is not null && serverMeta.Toggles.Any())
         {
-            var missingToggles = expectedToggles.Except(serverMeta.Toggles.Select(t => t.Name)).ToList();
+            // Remove obsolete toggles first
+            var removedCount = await RemoveObsoleteTogglesAsync(serverId);
+            if (removedCount > 0)
+            {
+                // Refresh serverMeta after cleanup
+                serverMeta = await _serverMetaService.GetServerMetaAsync(serverId);
+            }
+            
+            var missingToggles = expectedToggles.Except(serverMeta.Toggles?.Select(t => t.Name) ?? []).ToList();
             if (missingToggles.Any())
             {
                 await SetServerTogglesBulkAsync(serverId, missingToggles.ToDictionary(x => x, x => (false, (string?)string.Empty)));
@@ -212,5 +220,53 @@ public class ToggleService : IToggleService
 
         _logger.LogInformation("Updated toggle {toggleName} for all servers", toggleName);
         return true;
+    }
+
+    /// <inheritdoc/>
+    public async Task<int> RemoveObsoleteTogglesAsync(ulong serverId)
+    {
+        var serverMeta = await _serverMetaService.GetServerMetaAsync(serverId, includeToggles: true);
+        if (serverMeta is null || !serverMeta.IsActive)
+        {
+            _logger.LogWarning("Server meta not found or inactive for serverId {serverId}", serverId);
+            return 0;
+        }
+
+        if (serverMeta.Toggles is null || !serverMeta.Toggles.Any())
+        {
+            _logger.LogDebug("No toggles found for serverId {serverId}", serverId);
+            return 0;
+        }
+
+        // Get all valid toggle names from constants
+        var validToggleNames = new HashSet<string>(Constants.ToggleNames.Toggles);
+        
+        // Find toggles that are no longer in the constants
+        var obsoleteToggles = serverMeta.Toggles
+            .Where(toggle => !validToggleNames.Contains(toggle.Name))
+            .ToList();
+
+        if (!obsoleteToggles.Any())
+        {
+            _logger.LogDebug("No obsolete toggles found for serverId {serverId}", serverId);
+            return 0;
+        }
+
+        // Remove obsolete toggles
+        foreach (var obsoleteToggle in obsoleteToggles)
+        {
+            serverMeta.Toggles.Remove(obsoleteToggle);
+            _logger.LogDebug("Removed obsolete toggle {ToggleName} for serverId {ServerId}", 
+                obsoleteToggle.Name, serverId);
+        }
+
+        // Update the server metadata
+        serverMeta.LastUpdated = DateTime.UtcNow;
+        await _serverMetaService.UpdateServerMetaAsync(serverMeta);
+
+        _logger.LogInformation("Removed {Count} obsolete toggles for serverId {ServerId}: [{ToggleNames}]",
+            obsoleteToggles.Count, serverId, string.Join(", ", obsoleteToggles.Select(t => t.Name)));
+
+        return obsoleteToggles.Count;
     }
 }
