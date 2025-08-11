@@ -1,6 +1,7 @@
 using Amiquin.Core.IRepositories;
 using Amiquin.Core.Services.Meta;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Xunit;
@@ -12,6 +13,8 @@ public class ServerMetaServiceTests
     private readonly Mock<ILogger<IServerMetaService>> _loggerMock;
     private readonly Mock<IMemoryCache> _memoryCacheMock;
     private readonly Mock<IServerMetaRepository> _serverMetaRepositoryMock;
+    private readonly Mock<IServiceProvider> _serviceProviderMock;
+    private readonly Mock<IServiceScope> _serviceScopeMock;
     private readonly ServerMetaService _sut; // System Under Test
 
     public ServerMetaServiceTests()
@@ -25,11 +28,28 @@ public class ServerMetaServiceTests
             .Returns(cacheEntryMock.Object);
 
         _serverMetaRepositoryMock = new Mock<IServerMetaRepository>();
+        
+        _serviceScopeMock = new Mock<IServiceScope>();
+        _serviceProviderMock = new Mock<IServiceProvider>();
+        
+        // Setup the service provider to return the repository when requested
+        var scopeServiceProviderMock = new Mock<IServiceProvider>();
+        scopeServiceProviderMock
+            .Setup(sp => sp.GetRequiredService<IServerMetaRepository>())
+            .Returns(_serverMetaRepositoryMock.Object);
+            
+        _serviceScopeMock
+            .Setup(s => s.ServiceProvider)
+            .Returns(scopeServiceProviderMock.Object);
+            
+        _serviceProviderMock
+            .Setup(sp => sp.CreateScope())
+            .Returns(_serviceScopeMock.Object);
 
         _sut = new ServerMetaService(
             _loggerMock.Object,
             _memoryCacheMock.Object,
-            _serverMetaRepositoryMock.Object
+            _serviceProviderMock.Object
         );
     }
 

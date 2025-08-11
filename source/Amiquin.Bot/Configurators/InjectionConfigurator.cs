@@ -163,7 +163,7 @@ public class InjectionConfigurator
                  .AddScoped<INewsApiClient, NewsApiClient>()
                  .AddScoped<IToggleService, ToggleService>()
                  .AddScoped<BotContextAccessor>()
-                 .AddScoped<IServerMetaService, ServerMetaService>()
+                 .AddSingleton<IServerMetaService, ServerMetaService>()
                  .AddScoped<INachoService, NachoService>()
                  .AddScoped<IChatSessionService, ChatSessionService>()
                  .AddScoped<IActivitySessionService, ActivitySessionService>();

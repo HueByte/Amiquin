@@ -3,6 +3,7 @@ using Amiquin.Core.IRepositories;
 using Amiquin.Core.Utilities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
 using System.Diagnostics;
@@ -26,7 +27,7 @@ public class ServerMetaService : IServerMetaService, IDisposable
 
     private readonly ILogger<IServerMetaService> _logger;
     private readonly IMemoryCache _memoryCache;
-    private readonly IServerMetaRepository _serverMetaRepository;
+    private readonly IServiceProvider _serviceProvider;
 
     // Semaphore dictionary to manage access to ServerMeta objects with automatic cleanup
     private readonly ConcurrentDictionary<ulong, SemaphoreEntry> _serverMetaSemaphores = new();
@@ -43,12 +44,12 @@ public class ServerMetaService : IServerMetaService, IDisposable
     /// </summary>
     /// <param name="logger">Logger instance for recording service operations.</param>
     /// <param name="memoryCache">Memory cache for storing frequently accessed server metadata.</param>
-    /// <param name="serverMetaRepository">Repository for database operations on server metadata.</param>
-    public ServerMetaService(ILogger<IServerMetaService> logger, IMemoryCache memoryCache, IServerMetaRepository serverMetaRepository)
+    /// <param name="serviceProvider">Service provider for creating scoped services.</param>
+    public ServerMetaService(ILogger<IServerMetaService> logger, IMemoryCache memoryCache, IServiceProvider serviceProvider)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _memoryCache = memoryCache ?? throw new ArgumentNullException(nameof(memoryCache));
-        _serverMetaRepository = serverMetaRepository ?? throw new ArgumentNullException(nameof(serverMetaRepository));
+        _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
 
         // Set up automatic semaphore cleanup every hour
         _cleanupTimer = new Timer(CleanupUnusedSemaphores, null,
@@ -150,8 +151,8 @@ public class ServerMetaService : IServerMetaService, IDisposable
 
                 // Query database
                 var queryStopwatch = Stopwatch.StartNew();
-                serverMeta = await _serverMetaRepository.AsQueryable()
-                    .FirstOrDefaultAsync(x => x.Id == serverId, cancellationToken);
+                serverMeta = await ExecuteWithRepositoryAsync(async repo =>
+                    await repo.AsQueryable().FirstOrDefaultAsync(x => x.Id == serverId, cancellationToken));
                 queryStopwatch.Stop();
                 RecordMetric(DatabaseQueryMetric, queryStopwatch.ElapsedMilliseconds);
 
@@ -163,8 +164,11 @@ public class ServerMetaService : IServerMetaService, IDisposable
                     _logger.LogInformation("Creating new ServerMeta for serverId {serverId} with name {serverName}",
                         serverId, serverMeta.ServerName);
 
-                    await _serverMetaRepository.AddAsync(serverMeta);
-                    await _serverMetaRepository.SaveChangesAsync();
+                    await ExecuteWithRepositoryAsync(async repo =>
+                    {
+                        await repo.AddAsync(serverMeta);
+                        await repo.SaveChangesAsync();
+                    });
                 }
 
                 // Cache with sliding expiration
@@ -205,8 +209,8 @@ public class ServerMetaService : IServerMetaService, IDisposable
             return existingMeta;
         }
 
-        var existingServerMeta = await _serverMetaRepository.AsQueryable()
-            .FirstOrDefaultAsync(x => x.Id == serverId);
+        var existingServerMeta = await ExecuteWithRepositoryAsync(async repo =>
+            await repo.AsQueryable().FirstOrDefaultAsync(x => x.Id == serverId));
 
         if (existingServerMeta is not null)
         {
@@ -238,8 +242,11 @@ public class ServerMetaService : IServerMetaService, IDisposable
 
         _logger.LogInformation("Creating new ServerMeta for serverId {serverId}", serverId);
 
-        await _serverMetaRepository.AddAsync(serverMeta);
-        await _serverMetaRepository.SaveChangesAsync();
+        await ExecuteWithRepositoryAsync(async repo =>
+        {
+            await repo.AddAsync(serverMeta);
+            await repo.SaveChangesAsync();
+        });
 
         _memoryCache.Set(cacheKey, serverMeta, TimeSpan.FromMinutes(30)); // Cache for 30 minutes
         return serverMeta;
@@ -271,34 +278,38 @@ public class ServerMetaService : IServerMetaService, IDisposable
 
             try
             {
-                var meta = await _serverMetaRepository.AsQueryable()
-                    .Include(x => x.Toggles)
-                    .FirstOrDefaultAsync(x => x.Id == serverMeta.Id, cancellationToken)
-                    ?? throw new InvalidOperationException($"ServerMeta not found for serverId {serverMeta.Id}");
-
-                // Update basic properties
-                meta.ServerName = serverMeta.ServerName ?? meta.ServerName;
-                meta.Persona = serverMeta.Persona ?? meta.Persona;
-
-                // Only update PreferredProvider if it's explicitly provided (not null)
-                if (serverMeta.PreferredProvider != null)
+                var meta = await ExecuteWithRepositoryAsync(async repo =>
                 {
-                    meta.PreferredProvider = serverMeta.PreferredProvider;
-                }
+                    var foundMeta = await repo.AsQueryable()
+                        .Include(x => x.Toggles)
+                        .FirstOrDefaultAsync(x => x.Id == serverMeta.Id, cancellationToken)
+                        ?? throw new InvalidOperationException($"ServerMeta not found for serverId {serverMeta.Id}");
 
-                // Update PrimaryChannelId (nullable field, so allow null to be set)
-                meta.PrimaryChannelId = serverMeta.PrimaryChannelId;
+                    // Update basic properties
+                    foundMeta.ServerName = serverMeta.ServerName ?? foundMeta.ServerName;
+                    foundMeta.Persona = serverMeta.Persona ?? foundMeta.Persona;
 
-                meta.LastUpdated = DateTime.UtcNow;
-                meta.IsActive = serverMeta.IsActive;
+                    // Only update PreferredProvider if it's explicitly provided (not null)
+                    if (serverMeta.PreferredProvider != null)
+                    {
+                        foundMeta.PreferredProvider = serverMeta.PreferredProvider;
+                    }
 
-                // Merge toggles if provided
-                if (serverMeta.Toggles is not null)
-                {
-                    MergeToggles(meta, serverMeta.Toggles, serverMeta.Id);
-                }
+                    // Update PrimaryChannelId (nullable field, so allow null to be set)
+                    foundMeta.PrimaryChannelId = serverMeta.PrimaryChannelId;
 
-                await _serverMetaRepository.SaveChangesAsync();
+                    foundMeta.LastUpdated = DateTime.UtcNow;
+                    foundMeta.IsActive = serverMeta.IsActive;
+
+                    // Merge toggles if provided
+                    if (serverMeta.Toggles is not null)
+                    {
+                        MergeToggles(foundMeta, serverMeta.Toggles, serverMeta.Id);
+                    }
+
+                    await repo.SaveChangesAsync();
+                    return foundMeta;
+                });
 
                 // Update cache with sliding expiration
                 var cacheOptions = new MemoryCacheEntryOptions
@@ -356,8 +367,11 @@ public class ServerMetaService : IServerMetaService, IDisposable
                 var serverMeta = await GetServerMetaAsync(serverId)
                     ?? throw new InvalidOperationException($"ServerMeta not found for serverId {serverId}");
 
-                await _serverMetaRepository.RemoveAsync(serverMeta);
-                await _serverMetaRepository.SaveChangesAsync();
+                await ExecuteWithRepositoryAsync(async repo =>
+                {
+                    await repo.RemoveAsync(serverMeta);
+                    await repo.SaveChangesAsync();
+                });
 
                 // Remove from cache and invalidate related caches
                 _memoryCache.Remove(GetServerMetaCacheKey(serverId));
@@ -393,9 +407,10 @@ public class ServerMetaService : IServerMetaService, IDisposable
         {
             _logger.LogInformation("Fetching all ServerMetas from repository");
 
-            var serverMetas = await _serverMetaRepository.AsQueryable()
-                .OrderBy(x => x.ServerName)
-                .ToListAsync();
+            var serverMetas = await ExecuteWithRepositoryAsync(async repo =>
+                await repo.AsQueryable()
+                    .OrderBy(x => x.ServerName)
+                    .ToListAsync());
 
             _logger.LogDebug("Retrieved {count} ServerMetas from repository", serverMetas.Count);
             return serverMetas;
@@ -408,6 +423,30 @@ public class ServerMetaService : IServerMetaService, IDisposable
     }
 
     // Private methods
+
+    /// <summary>
+    /// Executes a repository operation within a scoped service provider.
+    /// </summary>
+    /// <typeparam name="T">The return type of the operation.</typeparam>
+    /// <param name="operation">The operation to execute with the repository.</param>
+    /// <returns>The result of the operation.</returns>
+    private async Task<T> ExecuteWithRepositoryAsync<T>(Func<IServerMetaRepository, Task<T>> operation)
+    {
+        using var scope = _serviceProvider.CreateScope();
+        var repository = scope.ServiceProvider.GetRequiredService<IServerMetaRepository>();
+        return await operation(repository);
+    }
+
+    /// <summary>
+    /// Executes a repository operation within a scoped service provider without return value.
+    /// </summary>
+    /// <param name="operation">The operation to execute with the repository.</param>
+    private async Task ExecuteWithRepositoryAsync(Func<IServerMetaRepository, Task> operation)
+    {
+        using var scope = _serviceProvider.CreateScope();
+        var repository = scope.ServiceProvider.GetRequiredService<IServerMetaRepository>();
+        await operation(repository);
+    }
 
     /// <summary>
     /// Internal method for retrieving server metadata with advanced caching support.
@@ -433,8 +472,8 @@ public class ServerMetaService : IServerMetaService, IDisposable
         {
             _logger.LogDebug("Fetching ServerMeta for serverId {serverId} from repository", serverId);
 
-            serverMeta = await _serverMetaRepository.AsQueryable()
-                .FirstOrDefaultAsync(x => x.Id == serverId);
+            serverMeta = await ExecuteWithRepositoryAsync(async repo =>
+                await repo.AsQueryable().FirstOrDefaultAsync(x => x.Id == serverId));
 
             if (serverMeta is null)
             {
@@ -477,10 +516,11 @@ public class ServerMetaService : IServerMetaService, IDisposable
         if (serverMeta.Toggles is null || serverMeta.Toggles.Count == 0)
         {
             _logger.LogInformation("Toggles not loaded for serverId {serverId}, loading from repository", serverId);
-            serverMeta.Toggles = await _serverMetaRepository.AsQueryable()
-                .Where(x => x.Id == serverId)
-                .SelectMany(x => x.Toggles!)
-                .ToListAsync();
+            serverMeta.Toggles = await ExecuteWithRepositoryAsync(async repo =>
+                await repo.AsQueryable()
+                    .Where(x => x.Id == serverId)
+                    .SelectMany(x => x.Toggles!)
+                    .ToListAsync());
         }
 
         if (serverMeta.Toggles is null)
@@ -488,10 +528,11 @@ public class ServerMetaService : IServerMetaService, IDisposable
             _logger.LogInformation("Toggles are null for serverId {serverId}, seeding toggles", serverId);
             await CreateDefaultTogglesForServerAsync(serverMeta.Id);
 
-            serverMeta.Toggles = await _serverMetaRepository.AsQueryable()
-                .Where(x => x.Id == serverId)
-                .SelectMany(x => x.Toggles!)
-                .ToListAsync();
+            serverMeta.Toggles = await ExecuteWithRepositoryAsync(async repo =>
+                await repo.AsQueryable()
+                    .Where(x => x.Id == serverId)
+                    .SelectMany(x => x.Toggles!)
+                    .ToListAsync());
         }
     }
 
@@ -502,43 +543,46 @@ public class ServerMetaService : IServerMetaService, IDisposable
     /// <param name="serverId">The Discord server ID to create toggles for.</param>
     private async Task CreateDefaultTogglesForServerAsync(ulong serverId)
     {
-        var existingServerMeta = await _serverMetaRepository.AsQueryable()
-            .Include(x => x.Toggles)
-            .FirstOrDefaultAsync(x => x.Id == serverId);
-
-        if (existingServerMeta is null)
+        await ExecuteWithRepositoryAsync(async repo =>
         {
-            _logger.LogWarning("ServerMeta not found for serverId {serverId} when creating default toggles", serverId);
-            return;
-        }
+            var existingServerMeta = await repo.AsQueryable()
+                .Include(x => x.Toggles)
+                .FirstOrDefaultAsync(x => x.Id == serverId);
 
-        var expectedToggles = Constants.ToggleNames.Toggles;
-        existingServerMeta.Toggles ??= new List<Models.Toggle>();
-
-        var existingToggleNames = existingServerMeta.Toggles.Select(t => t.Name).ToHashSet();
-        var missingToggles = expectedToggles.Where(toggleName => !existingToggleNames.Contains(toggleName)).ToList();
-
-        foreach (var toggleName in missingToggles)
-        {
-            var toggle = new Models.Toggle
+            if (existingServerMeta is null)
             {
-                Id = Guid.NewGuid().ToString(),
-                ServerId = serverId,
-                Name = toggleName,
-                IsEnabled = true,
-                Description = string.Empty,
-                CreatedAt = DateTime.UtcNow
-            };
+                _logger.LogWarning("ServerMeta not found for serverId {serverId} when creating default toggles", serverId);
+                return;
+            }
 
-            existingServerMeta.Toggles.Add(toggle);
-        }
+            var expectedToggles = Constants.ToggleNames.Toggles;
+            existingServerMeta.Toggles ??= new List<Models.Toggle>();
 
-        if (missingToggles.Any())
-        {
-            existingServerMeta.LastUpdated = DateTime.UtcNow;
-            await _serverMetaRepository.SaveChangesAsync();
-            _logger.LogInformation("Created {count} default toggles for serverId {serverId}", missingToggles.Count, serverId);
-        }
+            var existingToggleNames = existingServerMeta.Toggles.Select(t => t.Name).ToHashSet();
+            var missingToggles = expectedToggles.Where(toggleName => !existingToggleNames.Contains(toggleName)).ToList();
+
+            foreach (var toggleName in missingToggles)
+            {
+                var toggle = new Models.Toggle
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    ServerId = serverId,
+                    Name = toggleName,
+                    IsEnabled = true,
+                    Description = string.Empty,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                existingServerMeta.Toggles.Add(toggle);
+            }
+
+            if (missingToggles.Any())
+            {
+                existingServerMeta.LastUpdated = DateTime.UtcNow;
+                await repo.SaveChangesAsync();
+                _logger.LogInformation("Created {count} default toggles for serverId {serverId}", missingToggles.Count, serverId);
+            }
+        });
     }
 
     /// <summary>
