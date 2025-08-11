@@ -5,6 +5,7 @@ using Amiquin.Core.DiscordExtensions;
 using Amiquin.Core.Services.BotContext;
 using Amiquin.Core.Services.ChatSession;
 using Amiquin.Core.Services.Meta;
+using Amiquin.Core.Services.Pagination;
 using Amiquin.Core.Services.Toggle;
 using Amiquin.Core.Utilities;
 using Discord;
@@ -23,18 +24,20 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
     private readonly IServerMetaService _serverMetaService;
     private readonly IToggleService _toggleService;
     private readonly IChatSessionService _chatSessionService;
+    private readonly IPaginationService _paginationService;
     private readonly BotContextAccessor _botContextAccessor;
     private const int WORKER_COUNT = 1;
     private const int DELETE_THROTTLE_MS = 500;
     private const int UPDATE_THROTTLE_MS = 1500;
     private const int BAR_WIDTH = 40;
 
-    public AdminCommands(ILogger<AdminCommands> logger, IServerMetaService serverMetaService, IToggleService toggleService, IChatSessionService chatSessionService, BotContextAccessor botContextAccessor)
+    public AdminCommands(ILogger<AdminCommands> logger, IServerMetaService serverMetaService, IToggleService toggleService, IChatSessionService chatSessionService, IPaginationService paginationService, BotContextAccessor botContextAccessor)
     {
         _logger = logger;
         _serverMetaService = serverMetaService;
         _toggleService = toggleService;
         _chatSessionService = chatSessionService;
+        _paginationService = paginationService;
         _botContextAccessor = botContextAccessor;
     }
 
@@ -217,88 +220,6 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
         }
     }
 
-    [SlashCommand("server-config", "Display server configuration and current settings")]
-    public async Task ShowServerConfigAsync()
-    {
-        try
-        {
-            var serverMeta = _botContextAccessor.ServerMeta;
-            var serverId = Context.Guild.Id;
-
-            var embedBuilder = new EmbedBuilder()
-                .WithTitle($"🔧 Server Configuration - {Context.Guild.Name}")
-                .WithColor(Color.Blue)
-                .WithThumbnailUrl(Context.Guild.IconUrl)
-                .WithImageUrl(Context.Guild.BannerUrl)
-                .WithCurrentTimestamp();
-
-            // Server basic info
-            embedBuilder.AddField("Server ID", serverId.ToString(), inline: true);
-            embedBuilder.AddField("Server Name", Context.Guild.Name, inline: true);
-            embedBuilder.AddField("Member Count", Context.Guild.MemberCount.ToString(), inline: true);
-
-            // Server Meta information
-            if (serverMeta != null)
-            {
-                embedBuilder.AddField("Server Created", serverMeta.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss UTC"), inline: true);
-                embedBuilder.AddField("Last Updated", serverMeta.LastUpdated.ToString("yyyy-MM-dd HH:mm:ss UTC"), inline: true);
-
-                // Persona information
-                if (!string.IsNullOrWhiteSpace(serverMeta.Persona))
-                {
-                    var personaText = serverMeta.Persona.Length > 1024
-                        ? $"{serverMeta.Persona[..1020]}..."
-                        : serverMeta.Persona;
-                    embedBuilder.AddField("Current Persona", personaText, inline: false);
-                }
-                else
-                {
-                    embedBuilder.AddField("Current Persona", "No custom persona set", inline: false);
-                }
-            }
-            else
-            {
-                embedBuilder.AddField("Server Meta", "Not configured", inline: true);
-            }
-
-            // Current AI Model
-            var activeSession = await _chatSessionService.GetActiveServerSessionAsync(serverId);
-            if (activeSession != null)
-            {
-                embedBuilder.AddField("Current AI Model", activeSession.Model, inline: true);
-                embedBuilder.AddField("Current Provider", activeSession.Provider, inline: true);
-                embedBuilder.AddField("Session Active Since", activeSession.LastActivityAt.ToString("yyyy-MM-dd HH:mm:ss UTC"), inline: true);
-            }
-            else
-            {
-                embedBuilder.AddField("Current AI Model", "No active session", inline: true);
-            }
-
-            // Toggle states
-            var serverToggles = await _toggleService.GetTogglesByServerId(serverId);
-            if (serverToggles.Any())
-            {
-                var togglesText = new StringBuilder();
-                foreach (var toggle in serverToggles)
-                {
-                    var status = toggle.IsEnabled ? "✅ Enabled" : "❌ Disabled";
-                    togglesText.AppendLine($"**{toggle.Name}**: {status}");
-                }
-                embedBuilder.AddField("Feature Toggles", togglesText.ToString().Trim(), inline: false);
-            }
-            else
-            {
-                embedBuilder.AddField("Feature Toggles", "No toggles configured", inline: false);
-            }
-
-            await ModifyOriginalResponseAsync(msg => msg.Embed = embedBuilder.Build());
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error retrieving server configuration for server {ServerId}", Context.Guild.Id);
-            await ModifyOriginalResponseAsync(msg => msg.Content = "❌ An error occurred while retrieving server configuration.");
-        }
-    }
 
     [SlashCommand("current-model", "Show which AI model is currently being used")]
     public async Task ShowCurrentModelAsync()
@@ -416,12 +337,18 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
     {
         private readonly ILogger<ConfigCommands> _logger;
         private readonly IServerMetaService _serverMetaService;
+        private readonly IChatSessionService _chatSessionService;
+        private readonly IToggleService _toggleService;
+        private readonly IPaginationService _paginationService;
         private readonly BotContextAccessor _botContextAccessor;
 
-        public ConfigCommands(ILogger<ConfigCommands> logger, IServerMetaService serverMetaService, BotContextAccessor botContextAccessor)
+        public ConfigCommands(ILogger<ConfigCommands> logger, IServerMetaService serverMetaService, IChatSessionService chatSessionService, IToggleService toggleService, IPaginationService paginationService, BotContextAccessor botContextAccessor)
         {
             _logger = logger;
             _serverMetaService = serverMetaService;
+            _chatSessionService = chatSessionService;
+            _toggleService = toggleService;
+            _paginationService = paginationService;
             _botContextAccessor = botContextAccessor;
         }
 
@@ -599,18 +526,31 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
             try
             {
                 var serverMeta = _botContextAccessor.ServerMeta;
+                var serverId = Context.Guild.Id;
+
                 if (serverMeta == null)
                 {
                     await ModifyOriginalResponseAsync(msg => msg.Content = "❌ Server metadata not found.");
                     return;
                 }
 
-                var embedBuilder = new EmbedBuilder()
-                    .WithTitle($"⚙️ Configuration for {Context.Guild.Name}")
+                // Create multiple embeds for pagination
+                var embeds = new List<Embed>();
+
+                // Page 1: Basic Server Information
+                var basicInfoEmbed = new EmbedBuilder()
+                    .WithTitle($"⚙️ Server Configuration - {Context.Guild.Name}")
+                    .WithDescription("📋 **Basic Information & Settings**")
                     .WithColor(Color.Blue)
                     .WithThumbnailUrl(Context.Guild.IconUrl)
-                    .WithImageUrl(Context.Guild.BannerUrl)
                     .WithCurrentTimestamp();
+
+                basicInfoEmbed.AddField("Server ID", serverId.ToString(), inline: true);
+                basicInfoEmbed.AddField("Server Name", Context.Guild.Name, inline: true);
+                basicInfoEmbed.AddField("Member Count", Context.Guild.MemberCount.ToString(), inline: true);
+                basicInfoEmbed.AddField("Created", serverMeta.CreatedAt.ToString("yyyy-MM-dd HH:mm UTC"), inline: true);
+                basicInfoEmbed.AddField("Last Updated", serverMeta.LastUpdated.ToString("yyyy-MM-dd HH:mm UTC"), inline: true);
+                basicInfoEmbed.AddField("Active", serverMeta.IsActive ? "✅ Yes" : "❌ No", inline: true);
 
                 // Primary Channel
                 if (serverMeta.PrimaryChannelId.HasValue)
@@ -618,38 +558,109 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
                     var channel = Context.Guild.GetTextChannel(serverMeta.PrimaryChannelId.Value);
                     if (channel != null)
                     {
-                        embedBuilder.AddField("Primary Channel", channel.Mention, inline: true);
+                        basicInfoEmbed.AddField("Primary Channel", channel.Mention, inline: true);
                     }
                     else
                     {
-                        embedBuilder.AddField("Primary Channel", "Channel not found (deleted?)", inline: true);
+                        basicInfoEmbed.AddField("Primary Channel", "⚠️ Channel not found (deleted?)", inline: true);
                     }
                 }
                 else
                 {
-                    embedBuilder.AddField("Primary Channel", "Not configured", inline: true);
+                    basicInfoEmbed.AddField("Primary Channel", "❌ Not configured", inline: true);
                 }
 
-                // Persona
-                if (!string.IsNullOrWhiteSpace(serverMeta.Persona))
+                basicInfoEmbed.WithFooter("Page 1 of 3 • Use navigation buttons below");
+                embeds.Add(basicInfoEmbed.Build());
+
+                // Page 2: AI & Chat Configuration
+                var aiConfigEmbed = new EmbedBuilder()
+                    .WithTitle($"🤖 AI Configuration - {Context.Guild.Name}")
+                    .WithDescription("🧠 **AI Model & Chat Settings**")
+                    .WithColor(Color.Green)
+                    .WithThumbnailUrl(Context.Guild.IconUrl)
+                    .WithCurrentTimestamp();
+
+                // Current AI Model
+                var activeSession = await _chatSessionService.GetActiveServerSessionAsync(serverId);
+                if (activeSession != null)
                 {
-                    var personaText = serverMeta.Persona.Length > 1024
-                        ? $"{serverMeta.Persona[..1020]}..."
-                        : serverMeta.Persona;
-                    embedBuilder.AddField("Server Persona", personaText, inline: false);
+                    aiConfigEmbed.AddField("Current AI Model", activeSession.Model, inline: true);
+                    aiConfigEmbed.AddField("Current Provider", activeSession.Provider, inline: true);
+                    aiConfigEmbed.AddField("Session Active Since", activeSession.LastActivityAt.ToString("yyyy-MM-dd HH:mm UTC"), inline: true);
                 }
                 else
                 {
-                    embedBuilder.AddField("Server Persona", "No custom persona configured", inline: false);
+                    aiConfigEmbed.AddField("Current AI Model", "❌ No active session", inline: true);
+                    aiConfigEmbed.AddField("Current Provider", "Not available", inline: true);
+                    aiConfigEmbed.AddField("Session Status", "Inactive", inline: true);
                 }
 
-                // Metadata
-                embedBuilder.AddField("Server ID", serverMeta.Id.ToString(), inline: true);
-                embedBuilder.AddField("Active", serverMeta.IsActive ? "✅ Yes" : "❌ No", inline: true);
-                embedBuilder.AddField("Created", serverMeta.CreatedAt.ToString("yyyy-MM-dd HH:mm UTC"), inline: true);
-                embedBuilder.AddField("Last Updated", serverMeta.LastUpdated.ToString("yyyy-MM-dd HH:mm UTC"), inline: true);
+                // Preferred Provider
+                if (!string.IsNullOrWhiteSpace(serverMeta.PreferredProvider))
+                {
+                    aiConfigEmbed.AddField("Preferred Provider", serverMeta.PreferredProvider, inline: true);
+                }
+                else
+                {
+                    aiConfigEmbed.AddField("Preferred Provider", "Using global default", inline: true);
+                }
 
-                await ModifyOriginalResponseAsync(msg => msg.Embed = embedBuilder.Build());
+                // Persona information
+                if (!string.IsNullOrWhiteSpace(serverMeta.Persona))
+                {
+                    var personaText = serverMeta.Persona.Length > 1000
+                        ? $"{serverMeta.Persona[..996]}..."
+                        : serverMeta.Persona;
+                    aiConfigEmbed.AddField("Server Persona", personaText, inline: false);
+                }
+                else
+                {
+                    aiConfigEmbed.AddField("Server Persona", "❌ No custom persona configured", inline: false);
+                }
+
+                aiConfigEmbed.WithFooter("Page 2 of 3 • Use navigation buttons below");
+                embeds.Add(aiConfigEmbed.Build());
+
+                // Page 3: Feature Toggles
+                var togglesEmbed = new EmbedBuilder()
+                    .WithTitle($"🎛️ Feature Toggles - {Context.Guild.Name}")
+                    .WithDescription("🔧 **Feature Flags & Settings**")
+                    .WithColor(Color.Orange)
+                    .WithThumbnailUrl(Context.Guild.IconUrl)
+                    .WithCurrentTimestamp();
+
+                var serverToggles = await _toggleService.GetTogglesByServerId(serverId);
+                if (serverToggles.Any())
+                {
+                    var togglesText = new StringBuilder();
+                    foreach (var toggle in serverToggles.OrderBy(t => t.Name))
+                    {
+                        var status = toggle.IsEnabled ? "✅" : "❌";
+                        var description = toggle.IsEnabled ? "Enabled" : "Disabled";
+                        togglesText.AppendLine($"{status} **{toggle.Name}** - {description}");
+                    }
+                    
+                    togglesEmbed.AddField("Current Feature States", togglesText.ToString().Trim(), inline: false);
+                }
+                else
+                {
+                    togglesEmbed.AddField("Feature Toggles", "❌ No toggles configured", inline: false);
+                }
+
+                togglesEmbed.AddField("💡 Tip", "Use `/admin toggle` to enable/disable features", inline: false);
+                togglesEmbed.WithFooter("Page 3 of 3 • Use navigation buttons below");
+                embeds.Add(togglesEmbed.Build());
+
+                // Create paginated message
+                var (embed, component) = await _paginationService.CreatePaginatedMessageAsync(
+                    embeds, Context.User.Id, TimeSpan.FromMinutes(10));
+
+                await ModifyOriginalResponseAsync(msg =>
+                {
+                    msg.Embed = embed;
+                    msg.Components = component;
+                });
             }
             catch (Exception ex)
             {
@@ -709,5 +720,212 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
                 await ModifyOriginalResponseAsync(msg => msg.Content = "❌ An error occurred while resetting the configuration.");
             }
         }
+
+        [SlashCommand("setup", "Interactive configuration setup using Discord modals")]
+        public async Task InteractiveSetupAsync()
+        {
+            try
+            {
+                var serverMeta = _botContextAccessor.ServerMeta;
+                if (serverMeta == null)
+                {
+                    await ModifyOriginalResponseAsync(msg => msg.Content = "❌ Server metadata not found.");
+                    return;
+                }
+
+                // Create modal with configuration fields
+                var modal = new ModalBuilder()
+                    .WithTitle($"⚙️ Configure {Context.Guild.Name}")
+                    .WithCustomId($"admin_config_modal_{Context.User.Id}_{Context.Guild.Id}")
+                    .AddTextInput(
+                        label: "Server Persona",
+                        customId: "persona_input",
+                        placeholder: "Enter a custom persona for the AI assistant...",
+                        value: string.IsNullOrWhiteSpace(serverMeta.Persona) ? "" : serverMeta.Persona[..Math.Min(serverMeta.Persona.Length, 4000)],
+                        style: TextInputStyle.Paragraph,
+                        maxLength: 4000,
+                        required: false)
+                    .AddTextInput(
+                        label: "Primary Channel ID",
+                        customId: "primary_channel_input",
+                        placeholder: "Enter the channel ID for primary bot activity",
+                        value: serverMeta.PrimaryChannelId?.ToString() ?? "",
+                        style: TextInputStyle.Short,
+                        maxLength: 20,
+                        required: false)
+                    .AddTextInput(
+                        label: "Preferred AI Provider",
+                        customId: "preferred_provider_input",
+                        placeholder: "OpenAI, Anthropic, Grok, Gemini, or leave empty for default",
+                        value: serverMeta.PreferredProvider ?? "",
+                        style: TextInputStyle.Short,
+                        maxLength: 50,
+                        required: false);
+
+                await RespondWithModalAsync(modal.Build());
+                _logger.LogInformation("Admin {UserId} opened interactive setup modal for server {ServerId}",
+                    Context.User.Id, Context.Guild.Id);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error opening interactive setup modal for server {ServerId}", Context.Guild.Id);
+                await RespondAsync("❌ An error occurred while opening the configuration modal.", ephemeral: true);
+            }
+        }
     }
+
+    /// <summary>
+    /// Handles modal submit interactions for the interactive configuration setup
+    /// </summary>
+    [ModalInteraction("admin_config_modal_*_*")]
+    public async Task HandleConfigModalAsync(string userId, string guildId, InteractiveConfigModal modal)
+    {
+        try
+        {
+            // Verify the user who submitted the modal is the same who opened it
+            if (!ulong.TryParse(userId, out var expectedUserId) || expectedUserId != Context.User.Id)
+            {
+                await RespondAsync("❌ You are not authorized to submit this configuration.", ephemeral: true);
+                return;
+            }
+
+            if (!ulong.TryParse(guildId, out var expectedGuildId) || expectedGuildId != Context.Guild.Id)
+            {
+                await RespondAsync("❌ Invalid guild context.", ephemeral: true);
+                return;
+            }
+
+            var serverMeta = _botContextAccessor.ServerMeta;
+            if (serverMeta == null)
+            {
+                await RespondAsync("❌ Server metadata not found.", ephemeral: true);
+                return;
+            }
+
+            var changes = new List<string>();
+
+            // Process persona changes
+            if (!string.IsNullOrWhiteSpace(modal.Persona) && modal.Persona != serverMeta.Persona)
+            {
+                serverMeta.Persona = modal.Persona.Trim();
+                changes.Add("✅ **Server Persona** updated");
+            }
+            else if (string.IsNullOrWhiteSpace(modal.Persona) && !string.IsNullOrWhiteSpace(serverMeta.Persona))
+            {
+                serverMeta.Persona = string.Empty;
+                changes.Add("🔄 **Server Persona** cleared");
+            }
+
+            // Process primary channel changes
+            if (!string.IsNullOrWhiteSpace(modal.PrimaryChannelId))
+            {
+                if (ulong.TryParse(modal.PrimaryChannelId.Trim(), out var channelId))
+                {
+                    var channel = Context.Guild.GetTextChannel(channelId);
+                    if (channel != null)
+                    {
+                        if (serverMeta.PrimaryChannelId != channelId)
+                        {
+                            serverMeta.PrimaryChannelId = channelId;
+                            changes.Add($"✅ **Primary Channel** set to {channel.Mention}");
+                        }
+                    }
+                    else
+                    {
+                        changes.Add("❌ **Primary Channel** - Channel not found in this server");
+                    }
+                }
+                else
+                {
+                    changes.Add("❌ **Primary Channel** - Invalid channel ID format");
+                }
+            }
+            else if (serverMeta.PrimaryChannelId.HasValue)
+            {
+                serverMeta.PrimaryChannelId = null;
+                changes.Add("🔄 **Primary Channel** cleared");
+            }
+
+            // Process preferred provider changes
+            if (!string.IsNullOrWhiteSpace(modal.PreferredProvider))
+            {
+                var provider = modal.PreferredProvider.Trim();
+                var validProviders = new[] { "OpenAI", "Anthropic", "Grok", "Gemini" };
+                var matchedProvider = validProviders.FirstOrDefault(p => 
+                    string.Equals(p, provider, StringComparison.OrdinalIgnoreCase));
+
+                if (matchedProvider != null)
+                {
+                    if (serverMeta.PreferredProvider != matchedProvider)
+                    {
+                        serverMeta.PreferredProvider = matchedProvider;
+                        changes.Add($"✅ **Preferred Provider** set to {matchedProvider}");
+                    }
+                }
+                else
+                {
+                    changes.Add($"❌ **Preferred Provider** - Invalid provider: {provider}");
+                }
+            }
+            else if (!string.IsNullOrWhiteSpace(serverMeta.PreferredProvider))
+            {
+                serverMeta.PreferredProvider = null;
+                changes.Add("🔄 **Preferred Provider** cleared (using default)");
+            }
+
+            // Save changes if any were made
+            if (changes.Any(c => c.StartsWith("✅") || c.StartsWith("🔄")))
+            {
+                await _serverMetaService.UpdateServerMetaAsync(serverMeta);
+            }
+
+            // Create response embed
+            var embedBuilder = new EmbedBuilder()
+                .WithTitle("⚙️ Configuration Updated")
+                .WithColor(changes.Any(c => c.StartsWith("❌")) ? Color.Orange : Color.Green)
+                .WithThumbnailUrl(Context.Guild.IconUrl)
+                .WithCurrentTimestamp();
+
+            if (changes.Any())
+            {
+                embedBuilder.WithDescription(string.Join("\n", changes));
+            }
+            else
+            {
+                embedBuilder.WithDescription("ℹ️ No changes were made to the configuration.");
+            }
+
+            embedBuilder.AddField("💡 Tip", "Use `/admin config view` to see your complete configuration", inline: false);
+
+            await RespondAsync(embed: embedBuilder.Build());
+
+            _logger.LogInformation("Admin {UserId} completed interactive setup for server {ServerId} with {ChangeCount} changes",
+                Context.User.Id, Context.Guild.Id, changes.Count(c => c.StartsWith("✅") || c.StartsWith("🔄")));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error handling config modal for server {ServerId}", Context.Guild?.Id);
+            await RespondAsync("❌ An error occurred while processing your configuration.", ephemeral: true);
+        }
+    }
+}
+
+/// <summary>
+/// Modal class for interactive configuration setup
+/// </summary>
+public class InteractiveConfigModal : IModal
+{
+    public string Title => "Server Configuration";
+
+    [InputLabel("Server Persona")]
+    [ModalTextInput("persona_input", TextInputStyle.Paragraph, "Enter a custom persona for the AI assistant...", maxLength: 4000)]
+    public string Persona { get; set; } = string.Empty;
+
+    [InputLabel("Primary Channel ID")]
+    [ModalTextInput("primary_channel_input", TextInputStyle.Short, "Enter the channel ID for primary bot activity", maxLength: 20)]
+    public string PrimaryChannelId { get; set; } = string.Empty;
+
+    [InputLabel("Preferred AI Provider")]
+    [ModalTextInput("preferred_provider_input", TextInputStyle.Short, "OpenAI, Anthropic, Grok, Gemini, or leave empty", maxLength: 50)]
+    public string PreferredProvider { get; set; } = string.Empty;
 }

@@ -213,6 +213,10 @@ public class ChatContextService : IChatContextService
                     _logger.LogInformation("Replied to mention from {Username} in guild {GuildId} with {ChunkCount} message(s): {Response}",
                         username, guildId, chunks.Count, response.Substring(0, Math.Min(response.Length, 100)) + "...");
                 }
+                
+                // Clear context messages after successful mention response to prevent duplicate responses
+                ClearContextMessages(guildId);
+                
                 return response;
             }
             else if (typingMessage != null)

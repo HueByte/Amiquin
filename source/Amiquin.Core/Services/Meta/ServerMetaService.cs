@@ -286,6 +286,9 @@ public class ServerMetaService : IServerMetaService, IDisposable
                     meta.PreferredProvider = serverMeta.PreferredProvider;
                 }
 
+                // Update PrimaryChannelId (nullable field, so allow null to be set)
+                meta.PrimaryChannelId = serverMeta.PrimaryChannelId;
+
                 meta.LastUpdated = DateTime.UtcNow;
                 meta.IsActive = serverMeta.IsActive;
 
