@@ -192,9 +192,9 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         // Common Toggles
         var toggles = await _toggleService.GetTogglesByServerId(guild.Id);
         var importantToggles = toggles
-            .Where(t => t.Name == "enable_chat" || 
-                       t.Name == "enable_voice" ||
-                       t.Name == "remember_history")
+            .Where(t => t.Name == Constants.ToggleNames.EnableChat || 
+                       t.Name == Constants.ToggleNames.EnableTTS ||
+                       t.Name == Constants.ToggleNames.EnableAIWelcome)
             .Take(2)
             .ToList();
 

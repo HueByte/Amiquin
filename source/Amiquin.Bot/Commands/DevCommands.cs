@@ -7,6 +7,7 @@ using Amiquin.Core.Models;
 using Amiquin.Core.Services.Chat;
 using Amiquin.Core.Services.ChatContext;
 using Amiquin.Core.Services.MessageCache;
+using Amiquin.Core.Services.Meta;
 using Amiquin.Core.Services.Pagination;
 using Amiquin.Core.Services.Persona;
 using Amiquin.Core.Services.Toggle;
@@ -34,8 +35,9 @@ public class DevCommands : InteractionModuleBase<ExtendedShardedInteractionConte
     private readonly IChatContextService _chatContextService;
     private readonly IPaginationService _paginationService;
     private readonly IChatSessionRepository _chatSessionRepository;
+    private readonly IServerMetaService _serverMetaService;
 
-    public DevCommands(IChatCoreService chatService, IMessageCacheService messageCacheService, IPersonaService personaService, DiscordShardedClient client, IVoiceService voiceService, IVoiceStateManager voiceStateManager, IPersonaChatService personaChatService, IToggleService toggleService, IChatContextService chatContextService, IPaginationService paginationService, IChatSessionRepository chatSessionRepository)
+    public DevCommands(IChatCoreService chatService, IMessageCacheService messageCacheService, IPersonaService personaService, DiscordShardedClient client, IVoiceService voiceService, IVoiceStateManager voiceStateManager, IPersonaChatService personaChatService, IToggleService toggleService, IChatContextService chatContextService, IPaginationService paginationService, IChatSessionRepository chatSessionRepository, IServerMetaService serverMetaService)
     {
         _chatService = chatService;
         _messageCacheService = messageCacheService;
@@ -48,6 +50,7 @@ public class DevCommands : InteractionModuleBase<ExtendedShardedInteractionConte
         _chatContextService = chatContextService;
         _paginationService = paginationService;
         _chatSessionRepository = chatSessionRepository;
+        _serverMetaService = serverMetaService;
     }
 
     [SlashCommand("toggle-feature", "Toggle a feature")]
@@ -427,6 +430,46 @@ Streams: {voiceState.AudioClient?.GetStreams().ToDictionary(x => x.Key, x => x.V
         }
 
         return embeds;
+    }
+
+    [SlashCommand("remove-server-meta", "Remove server metadata by server ID")]
+    [Ephemeral]
+    public async Task RemoveServerMetaAsync(
+        [Summary("server-id", "The server ID to remove metadata for")] string serverId)
+    {
+        try
+        {
+            if (!ulong.TryParse(serverId, out var serverIdLong))
+            {
+                await ModifyOriginalResponseAsync(msg => msg.Content = "❌ Invalid server ID format.");
+                return;
+            }
+
+            var serverMeta = await _serverMetaService.GetServerMetaAsync(serverIdLong);
+            if (serverMeta == null)
+            {
+                await ModifyOriginalResponseAsync(msg => msg.Content = $"❌ No server metadata found for server ID: {serverIdLong}");
+                return;
+            }
+
+            var serverName = serverMeta.ServerName ?? "Unknown";
+            await _serverMetaService.DeleteServerMetaAsync(serverIdLong);
+
+            var embed = new EmbedBuilder()
+                .WithTitle("✅ Server Metadata Removed")
+                .WithDescription($"Successfully removed server metadata for **{serverName}**")
+                .WithColor(Color.Green)
+                .AddField("Server ID", serverIdLong.ToString(), true)
+                .AddField("Server Name", serverName, true)
+                .WithTimestamp(DateTimeOffset.UtcNow)
+                .Build();
+
+            await ModifyOriginalResponseAsync(msg => msg.Embed = embed);
+        }
+        catch (Exception ex)
+        {
+            await ModifyOriginalResponseAsync(msg => msg.Content = $"❌ Error removing server metadata: {ex.Message}");
+        }
     }
 
     private List<string> ChunkText(string text, int maxLength)

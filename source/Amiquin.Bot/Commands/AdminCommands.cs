@@ -454,11 +454,17 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
         {
             try
             {
+                // Ensure server metadata exists
                 var serverMeta = _botContextAccessor.ServerMeta;
                 if (serverMeta == null)
                 {
-                    await ModifyOriginalResponseAsync(msg => msg.Content = "❌ Server metadata not found. Please try again later.");
-                    return;
+                    // Try to get or create server metadata
+                    serverMeta = await _serverMetaService.GetServerMetaAsync(Context.Guild.Id);
+                    if (serverMeta == null)
+                    {
+                        serverMeta = await _serverMetaService.CreateServerMetaAsync(Context.Guild.Id, Context.Guild.Name);
+                    }
+                    _botContextAccessor.SetServerMeta(serverMeta);
                 }
 
                 var embed = new EmbedBuilder()
@@ -564,11 +570,17 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
         {
             try
             {
+                // Ensure server metadata exists
                 var serverMeta = _botContextAccessor.ServerMeta;
                 if (serverMeta == null)
                 {
-                    await ModifyOriginalResponseAsync(msg => msg.Content = "❌ Server metadata not found. Please try again later.");
-                    return;
+                    // Try to get or create server metadata
+                    serverMeta = await _serverMetaService.GetServerMetaAsync(Context.Guild.Id);
+                    if (serverMeta == null)
+                    {
+                        serverMeta = await _serverMetaService.CreateServerMetaAsync(Context.Guild.Id, Context.Guild.Name);
+                    }
+                    _botContextAccessor.SetServerMeta(serverMeta);
                 }
 
                 var embed = new EmbedBuilder()
