@@ -20,6 +20,7 @@ using Amiquin.Core.Services.EventHandler;
 using Amiquin.Core.Services.ExternalProcessRunner;
 using Amiquin.Core.Services.Fun;
 using Amiquin.Core.Services.MessageCache;
+using Amiquin.Core.Services.Nsfw;
 using Amiquin.Core.Services.Meta;
 using Amiquin.Core.Services.Modal;
 using Amiquin.Core.Services.Nacho;
@@ -161,6 +162,7 @@ public class InjectionConfigurator
                  .AddScoped<IFunService, FunService>()
                  .AddScoped<IVoiceService, VoiceService>()
                  .AddScoped<INewsApiClient, NewsApiClient>()
+                 .AddScoped<INsfwApiService, NsfwApiService>()
                  .AddScoped<IToggleService, ToggleService>()
                  .AddScoped<BotContextAccessor>()
                  .AddSingleton<IServerMetaService, ServerMetaService>()
@@ -216,6 +218,12 @@ public class InjectionConfigurator
         {
             var externalUrls = services.GetRequiredService<IOptions<ExternalOptions>>().Value;
             client.BaseAddress = new Uri(externalUrls.NewsApiUrl);
+        });
+
+        _services.AddHttpClient<INsfwApiService, NsfwApiService>((services, client) =>
+        {
+            client.DefaultRequestHeaders.Add("Accept", "application/json");
+            client.Timeout = TimeSpan.FromSeconds(30);
         });
 
         // Configure HTTP clients for LLM providers

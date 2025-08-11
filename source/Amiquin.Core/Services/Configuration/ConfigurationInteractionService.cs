@@ -133,6 +133,16 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
             : "Using default";
         statusBuilder.AppendLine($"{providerIcon} **AI Provider:** {providerText}");
 
+        // NSFW Channel status
+        var nsfwChannelIcon = serverMeta.NsfwChannelId.HasValue ? "✅" : "⚠️";
+        var nsfwChannelText = "Not configured";
+        if (serverMeta.NsfwChannelId.HasValue)
+        {
+            var nsfwChannel = guild.GetTextChannel(serverMeta.NsfwChannelId.Value);
+            nsfwChannelText = nsfwChannel != null ? nsfwChannel.Mention : "Channel not found";
+        }
+        statusBuilder.AppendLine($"{nsfwChannelIcon} **NSFW Channel:** {nsfwChannelText}");
+
         // Get toggle count
         var toggles = await _toggleService.GetTogglesByServerId(guild.Id);
         var enabledCount = toggles.Count(t => t.IsEnabled);
@@ -161,6 +171,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
             .WithPlaceholder("Select a configuration section...")
             .AddOption("Server Persona", "persona", "Configure AI assistant behavior", new Emoji("🎭"))
             .AddOption("Primary Channel", "channel", "Set main bot channel", new Emoji("💬"))
+            .AddOption("NSFW Channel", "nsfw_channel", "Set NSFW content channel", new Emoji("🔞"))
             .AddOption("AI Provider", "provider", "Choose AI model provider", new Emoji("🤖"))
             .AddOption("Feature Toggles", "toggles", "Enable/disable features", new Emoji("🎛️"))
             .AddOption("View All Settings", "view_all", "Show complete configuration", new Emoji("📋"));
@@ -188,6 +199,13 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                 .WithLabel("Set Provider")
                 .WithStyle(ButtonStyle.Primary)
                 .WithEmote(new Emoji("🤖")),
+            row: 1)
+        .WithButton(
+            new ButtonBuilder()
+                .WithCustomId(_componentHandler.GenerateCustomId(QuickSetupPrefix, "nsfw_channel", guild.Id.ToString()))
+                .WithLabel("Set NSFW Channel")
+                .WithStyle(ButtonStyle.Secondary)
+                .WithEmote(new Emoji("🔞")),
             row: 1);
 
         // Common Toggles
@@ -322,6 +340,14 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                         await SetPrimaryChannelAsync(component, guildId, channelId);
                     }
                     break;
+                    
+                case "set_nsfw_channel":
+                    if (component.Data.Values.Any())
+                    {
+                        var channelId = ulong.Parse(component.Data.Values.First());
+                        await SetNsfwChannelAsync(component, guildId, channelId);
+                    }
+                    break;
                 case "set_provider":
                     if (component.Data.Values.Any())
                     {
@@ -331,6 +357,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                     break;
                 case "clear_persona":
                 case "clear_channel":
+                case "clear_nsfw_channel":
                 case "clear_provider":
                     await ClearSettingAsync(component, guildId, action.Replace("clear_", ""));
                     break;
@@ -386,6 +413,11 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                 case "channel":
                     // Component is already deferred by EventHandlerService
                     await ShowChannelConfigurationAsync(component, guildId);
+                    break;
+                    
+                case "nsfw_channel":
+                    // Component is already deferred by EventHandlerService
+                    await ShowNsfwChannelConfigurationAsync(component, guildId);
                     break;
                     
                 case "provider":
@@ -899,6 +931,15 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                 : "*Using default*", 
             true);
 
+        // NSFW Channel
+        var nsfwChannelText = "*Not configured*";
+        if (serverMeta?.NsfwChannelId.HasValue == true)
+        {
+            var nsfwChannel = guild.GetTextChannel(serverMeta.NsfwChannelId.Value);
+            nsfwChannelText = nsfwChannel != null ? nsfwChannel.Mention : "*Channel not found*";
+        }
+        embedBuilder.AddField("🔞 NSFW Channel", nsfwChannelText, true);
+
         // Feature Toggles
         var enabledToggles = toggles.Where(t => t.IsEnabled).Select(t => FormatToggleName(t.Name));
         var disabledToggles = toggles.Where(t => !t.IsEnabled).Select(t => FormatToggleName(t.Name));
@@ -955,6 +996,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         export.AppendLine("### Server Metadata");
         export.AppendLine($"- **Persona:** {serverMeta?.Persona ?? "Not configured"}");
         export.AppendLine($"- **Primary Channel ID:** {serverMeta?.PrimaryChannelId?.ToString() ?? "Not configured"}");
+        export.AppendLine($"- **NSFW Channel ID:** {serverMeta?.NsfwChannelId?.ToString() ?? "Not configured"}");
         export.AppendLine($"- **Preferred Provider:** {serverMeta?.PreferredProvider ?? "Default"}");
         export.AppendLine();
         
@@ -1084,6 +1126,14 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                     await ShowChannelConfigurationAsync(component, guildId);
                     break;
                     
+                case "nsfw_channel":
+                    serverMeta.NsfwChannelId = null;
+                    await _serverMetaService.UpdateServerMetaAsync(serverMeta);
+                    await component.ModifyOriginalResponseAsync(msg => msg.Content = "✅ NSFW channel cleared.");
+                    await Task.Delay(2000);
+                    await ShowNsfwChannelConfigurationAsync(component, guildId);
+                    break;
+                    
                 case "provider":
                     serverMeta.PreferredProvider = null;
                     await _serverMetaService.UpdateServerMetaAsync(serverMeta);
@@ -1171,6 +1221,137 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
             _logger.LogError(ex, "Error handling modal submission");
             await modal.ModifyOriginalResponseAsync(msg => msg.Content = "❌ An error occurred while processing your submission.");
             return true;
+        }
+    }
+
+    private async Task ShowNsfwChannelConfigurationAsync(SocketMessageComponent component, ulong guildId)
+    {
+        var guild = (component.Channel as SocketGuildChannel)?.Guild;
+        if (guild == null) return;
+
+        var serverMeta = await _serverMetaService.GetServerMetaAsync(guildId);
+        var nsfwChannels = guild.TextChannels
+            .Where(c => c.IsNsfw && guild.CurrentUser.GetPermissions(c).SendMessages)
+            .OrderBy(c => c.Position)
+            .Take(25)
+            .ToList();
+
+        var embedBuilder = new EmbedBuilder()
+            .WithTitle("🔞 NSFW Channel Configuration")
+            .WithDescription("Set the channel for NSFW content (daily galleries, etc.)\n**⚠️ Only NSFW-marked channels are shown**")
+            .WithColor(new Color(255, 0, 100))
+            .WithCurrentTimestamp();
+
+        if (serverMeta?.NsfwChannelId.HasValue == true)
+        {
+            var currentChannel = guild.GetTextChannel(serverMeta.NsfwChannelId.Value);
+            embedBuilder.AddField("Current NSFW Channel", 
+                currentChannel != null ? currentChannel.Mention : "*Channel not found*", 
+                false);
+        }
+        else
+        {
+            embedBuilder.AddField("Current NSFW Channel", "*Not configured*", false);
+        }
+
+        // Check if Daily NSFW toggle is enabled
+        var isDailyNsfwEnabled = await _toggleService.IsEnabledAsync(guildId, Constants.ToggleNames.EnableDailyNSFW);
+        var warningText = isDailyNsfwEnabled 
+            ? "⚠️ Daily NSFW feature is **enabled**. Set a channel to receive daily content."
+            : "ℹ️ Daily NSFW feature is **disabled**. Enable it in Feature Toggles to use this channel.";
+        
+        embedBuilder.AddField("Daily NSFW Status", warningText, false);
+
+        var builder = new ComponentBuilder();
+
+        if (nsfwChannels.Any())
+        {
+            // Create channel select menu
+            var selectMenu = new SelectMenuBuilder()
+                .WithCustomId(_componentHandler.GenerateCustomId(ConfigActionPrefix, "set_nsfw_channel", guildId.ToString()))
+                .WithPlaceholder("Select an NSFW channel...")
+                .WithMinValues(1)
+                .WithMaxValues(1);
+
+            foreach (var channel in nsfwChannels)
+            {
+                var isSelected = serverMeta?.NsfwChannelId == channel.Id;
+                var topic = channel.Topic != null && channel.Topic.Length > 50 
+                    ? channel.Topic[..50] + "..." 
+                    : channel.Topic ?? "No topic";
+                selectMenu.AddOption(
+                    $"#{channel.Name}",
+                    channel.Id.ToString(),
+                    topic,
+                    emote: new Emoji("🔞"),
+                    isDefault: isSelected);
+            }
+
+            builder.WithSelectMenu(selectMenu);
+        }
+        else
+        {
+            embedBuilder.AddField("⚠️ No NSFW Channels Found", 
+                "No NSFW channels were found where the bot has permissions. Please:\n" +
+                "• Create a channel and mark it as NSFW (18+)\n" +
+                "• Ensure the bot has permission to send messages", 
+                false);
+        }
+
+        // Add navigation buttons
+        builder.WithButton(
+            new ButtonBuilder()
+                .WithCustomId(_componentHandler.GenerateCustomId(ConfigActionPrefix, "clear_nsfw_channel", guildId.ToString()))
+                .WithLabel("🗑️ Clear Channel")
+                .WithStyle(ButtonStyle.Danger)
+                .WithDisabled(serverMeta?.NsfwChannelId == null),
+            row: 1)
+        .WithButton(
+            new ButtonBuilder()
+                .WithCustomId(_componentHandler.GenerateCustomId(NavigationPrefix, "back", guildId.ToString()))
+                .WithLabel("← Back")
+                .WithStyle(ButtonStyle.Secondary),
+            row: 1);
+
+        await component.ModifyOriginalResponseAsync(msg =>
+        {
+            msg.Embed = embedBuilder.Build();
+            msg.Components = builder.Build();
+        });
+    }
+
+    private async Task SetNsfwChannelAsync(SocketMessageComponent component, ulong guildId, ulong channelId)
+    {
+        var guild = (component.Channel as SocketGuildChannel)?.Guild;
+        if (guild == null) return;
+
+        var channel = guild.GetTextChannel(channelId);
+        if (channel == null)
+        {
+            await component.ModifyOriginalResponseAsync(msg => msg.Content = "❌ Channel not found.");
+            return;
+        }
+
+        // Verify channel is NSFW
+        if (!channel.IsNsfw)
+        {
+            await component.ModifyOriginalResponseAsync(msg => 
+                msg.Content = $"❌ {channel.Mention} is not marked as NSFW. Please mark it as 18+ in channel settings.");
+            return;
+        }
+
+        var serverMeta = await _serverMetaService.GetServerMetaAsync(guildId);
+        if (serverMeta != null)
+        {
+            serverMeta.NsfwChannelId = channelId;
+            await _serverMetaService.UpdateServerMetaAsync(serverMeta);
+            
+            await component.ModifyOriginalResponseAsync(msg => 
+                msg.Content = $"✅ NSFW channel set to {channel.Mention}");
+            
+            // Refresh the interface after a short delay
+            await Task.Delay(2000);
+            await ShowNsfwChannelConfigurationAsync(component, guildId);
         }
     }
 }
