@@ -7,6 +7,7 @@ using SixLabors.ImageSharp.Processing;
 using SixLabors.Fonts;
 using Color = SixLabors.ImageSharp.Color;
 using Amiquin.Core.IRepositories;
+using Amiquin.Core.Services.Toggle;
 using Discord;
 using Microsoft.Extensions.Logging;
 
@@ -18,6 +19,7 @@ namespace Amiquin.Core.Services.Fun;
 public class FunService : IFunService
 {
     private readonly IUserStatsRepository _userStatsRepository;
+    private readonly IToggleService _toggleService;
     private readonly ILogger<FunService> _logger;
     private readonly HttpClient _httpClient;
     private readonly Random _random = new();
@@ -35,12 +37,23 @@ public class FunService : IFunService
         { "highfive", "https://api.waifu.pics/sfw/highfive" }
     };
 
+    // NSFW GIF API endpoints (requires server toggle)
+    private readonly Dictionary<string, string> _nsfwGifApiEndpoints = new()
+    {
+        { "waifu", "https://api.waifu.pics/nsfw/waifu" },
+        { "neko", "https://api.waifu.pics/nsfw/neko" },
+        { "trap", "https://api.waifu.pics/nsfw/trap" },
+        { "blowjob", "https://api.waifu.pics/nsfw/blowjob" }
+    };
+
     public FunService(
-        IUserStatsRepository userStatsRepository, 
+        IUserStatsRepository userStatsRepository,
+        IToggleService toggleService,
         ILogger<FunService> logger,
         HttpClient httpClient)
     {
         _userStatsRepository = userStatsRepository;
+        _toggleService = toggleService;
         _logger = logger;
         _httpClient = httpClient;
     }
@@ -263,6 +276,55 @@ public class FunService : IFunService
             _logger.LogError(ex, "Error getting GIF for interaction type: {InteractionType}", interactionType);
             return null;
         }
+    }
+
+    /// <inheritdoc/>
+    public async Task<string?> GetNsfwGifAsync(ulong serverId, string nsfwType)
+    {
+        try
+        {
+            // Check if NSFW is enabled for this server
+            if (!await IsNsfwEnabledAsync(serverId))
+            {
+                _logger.LogWarning("NSFW content requested but disabled for server {ServerId}", serverId);
+                return null;
+            }
+
+            var endpoint = _nsfwGifApiEndpoints.GetValueOrDefault(nsfwType.ToLower());
+            if (endpoint == null)
+            {
+                _logger.LogWarning("Unknown NSFW type: {NsfwType}", nsfwType);
+                return null;
+            }
+
+            var response = await _httpClient.GetStringAsync(endpoint);
+            var jsonDoc = JsonDocument.Parse(response);
+            
+            if (jsonDoc.RootElement.TryGetProperty("url", out var urlElement))
+            {
+                return urlElement.GetString();
+            }
+            
+            _logger.LogWarning("No URL found in NSFW response for type: {NsfwType}", nsfwType);
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting NSFW GIF for type: {NsfwType}", nsfwType);
+            return null;
+        }
+    }
+
+    /// <inheritdoc/>
+    public async Task<bool> IsNsfwEnabledAsync(ulong serverId)
+    {
+        return await _toggleService.IsEnabledAsync(serverId, Constants.ToggleNames.EnableNSFW);
+    }
+
+    /// <inheritdoc/>
+    public List<string> GetAvailableNsfwTypes()
+    {
+        return _nsfwGifApiEndpoints.Keys.ToList();
     }
 
     /// <inheritdoc/>

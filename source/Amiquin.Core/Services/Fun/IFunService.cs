@@ -45,6 +45,27 @@ public interface IFunService
     Task<string?> GetInteractionGifAsync(string interactionType);
 
     /// <summary>
+    /// Gets a random NSFW GIF URL for a specific type.
+    /// </summary>
+    /// <param name="serverId">Discord server ID to check NSFW toggle.</param>
+    /// <param name="nsfwType">Type of NSFW content (waifu, neko, etc.).</param>
+    /// <returns>URL of the NSFW GIF, or null if NSFW is disabled or request fails.</returns>
+    Task<string?> GetNsfwGifAsync(ulong serverId, string nsfwType);
+
+    /// <summary>
+    /// Checks if NSFW content is enabled for a server.
+    /// </summary>
+    /// <param name="serverId">Discord server ID to check.</param>
+    /// <returns>True if NSFW is enabled, false otherwise.</returns>
+    Task<bool> IsNsfwEnabledAsync(ulong serverId);
+
+    /// <summary>
+    /// Gets the list of available NSFW types.
+    /// </summary>
+    /// <returns>List of available NSFW content types.</returns>
+    List<string> GetAvailableNsfwTypes();
+
+    /// <summary>
     /// Gives a nacho to Amiquin from a user.
     /// </summary>
     /// <param name="userId">Discord user ID of the giver.</param>

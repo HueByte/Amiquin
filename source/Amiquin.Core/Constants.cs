@@ -15,6 +15,7 @@ public class Constants
         public const string EnableChat = "EnableChat";
         public const string EnableLiveJob = "EnableLiveJob";
         public const string EnableAIWelcome = "EnableAIWelcome";
+        public const string EnableNSFW = "EnableNSFW";
 
         public static List<string> SystemExclusiveTogglesList = new()
         {
@@ -27,7 +28,8 @@ public class Constants
             EnableJoinMessage,
             EnableChat,
             EnableLiveJob,
-            EnableAIWelcome
+            EnableAIWelcome,
+            EnableNSFW
         };
         #endregion
     }
