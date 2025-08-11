@@ -96,20 +96,27 @@ public class FunService : IFunService
                 .BackgroundColor(color)
                 .Draw(Color.Black, 2f, new RectangleF(1, 1, 298, 98)));
             
-            // Add text with color info
-            var textColor = GetContrastColor(color);
-            var text = $"#{hexColor.ToUpper()}";
-            
+            // Add text with color info (if fonts are available)
             var font = GetAvailableFont(12, FontStyle.Bold);
-            var textOptions = new RichTextOptions(font)
+            if (font != null)
             {
-                Origin = new PointF(150, 50),
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center
-            };
-            
-            image.Mutate(ctx => ctx
-                .DrawText(textOptions, text, textColor));
+                var textColor = GetContrastColor(color);
+                var text = $"#{hexColor.ToUpper()}";
+                
+                var textOptions = new RichTextOptions(font)
+                {
+                    Origin = new PointF(150, 50),
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+                
+                image.Mutate(ctx => ctx
+                    .DrawText(textOptions, text, textColor));
+            }
+            else
+            {
+                _logger.LogWarning("No fonts available - generating color image without text for hex {HexColor}", hexColor);
+            }
             
             // Convert to stream
             var stream = new MemoryStream();
@@ -161,15 +168,21 @@ public class FunService : IFunService
             const int margin = 10;
             const int textHeight = 25;
             
+            var font = GetAvailableFont(11, FontStyle.Regular);
+            var includeText = font != null;
+            
             var imageWidth = colors.Count * (swatchWidth + margin) - margin;
-            var imageHeight = swatchHeight + textHeight + margin * 2;
+            var imageHeight = swatchHeight + (includeText ? textHeight : 0) + margin * 2;
 
             using var image = new Image<Rgba32>(imageWidth, imageHeight);
             
             // Fill background with white
             image.Mutate(ctx => ctx.BackgroundColor(Color.White));
 
-            var font = GetAvailableFont(11, FontStyle.Regular);
+            if (!includeText)
+            {
+                _logger.LogWarning("No fonts available - generating palette image without text labels");
+            }
 
             for (int i = 0; i < colors.Count; i++)
             {
@@ -190,19 +203,22 @@ public class FunService : IFunService
                     .Fill(color, swatchRect)
                     .Draw(Color.Black, 1f, swatchRect));
 
-                // Draw hex code below swatch
-                var textX = x + swatchWidth / 2;
-                var textY = margin + swatchHeight + 5;
-                
-                var textOptions = new RichTextOptions(font)
+                // Draw hex code below swatch (if fonts are available)
+                if (includeText && font != null)
                 {
-                    Origin = new PointF(textX, textY),
-                    HorizontalAlignment = HorizontalAlignment.Center,
-                    VerticalAlignment = VerticalAlignment.Top
-                };
+                    var textX = x + swatchWidth / 2;
+                    var textY = margin + swatchHeight + 5;
+                    
+                    var textOptions = new RichTextOptions(font)
+                    {
+                        Origin = new PointF(textX, textY),
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        VerticalAlignment = VerticalAlignment.Top
+                    };
 
-                image.Mutate(ctx => ctx
-                    .DrawText(textOptions, $"#{colorHex.ToUpper()}", Color.Black));
+                    image.Mutate(ctx => ctx
+                        .DrawText(textOptions, $"#{colorHex.ToUpper()}", Color.Black));
+                }
             }
 
             // Convert to stream
@@ -296,7 +312,7 @@ public class FunService : IFunService
     /// <summary>
     /// Gets an available font with fallback options for cross-platform compatibility.
     /// </summary>
-    private static Font GetAvailableFont(float size, FontStyle style = FontStyle.Regular)
+    private static Font? GetAvailableFont(float size, FontStyle style = FontStyle.Regular)
     {
         // List of font families to try, in order of preference
         var fontFamilies = new[]
@@ -327,7 +343,8 @@ public class FunService : IFunService
             return SystemFonts.CreateFont(availableFamilies[0].Name, size, style);
         }
 
-        throw new InvalidOperationException("No font families are available on this system");
+        // Return null if no fonts are available - caller should handle this
+        return null;
     }
 
     /// <summary>
