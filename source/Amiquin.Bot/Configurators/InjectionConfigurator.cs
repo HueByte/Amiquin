@@ -1,5 +1,6 @@
 using Amiquin.Core;
 using Amiquin.Core.Abstraction;
+using Amiquin.Core.Abstractions;
 using Amiquin.Core.Exceptions;
 using Amiquin.Core.IRepositories;
 using Amiquin.Core.Job;
@@ -81,6 +82,7 @@ public class InjectionConfigurator
 
         _services.AddHostedService<AmiquinHost>()
                  .AddSingleton(client)
+                 .AddSingleton<IDiscordClientWrapper>(provider => new DiscordClientWrapper(provider.GetRequiredService<DiscordShardedClient>()))
                  .AddSingleton(interactionService)
                  .AddSingleton<IChatContextService, ChatContextService>()
                  .AddSingleton<BotSessionService>()

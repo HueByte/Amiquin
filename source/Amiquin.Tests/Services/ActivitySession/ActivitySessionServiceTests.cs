@@ -1,4 +1,5 @@
 using Amiquin.Core;
+using Amiquin.Core.Abstractions;
 using Amiquin.Core.Services.ActivitySession;
 using Amiquin.Core.Services.ChatContext;
 using Amiquin.Core.Services.Toggle;
@@ -15,7 +16,7 @@ public class ActivitySessionServiceTests
     private readonly Mock<ILogger<ActivitySessionService>> _mockLogger;
     private readonly Mock<IChatContextService> _mockChatContextService;
     private readonly Mock<IToggleService> _mockToggleService;
-    private readonly Mock<DiscordShardedClient> _mockDiscordClient;
+    private readonly Mock<IDiscordClientWrapper> _mockDiscordClient;
     private readonly ActivitySessionService _service;
 
     public ActivitySessionServiceTests()
@@ -23,7 +24,7 @@ public class ActivitySessionServiceTests
         _mockLogger = new Mock<ILogger<ActivitySessionService>>();
         _mockChatContextService = new Mock<IChatContextService>();
         _mockToggleService = new Mock<IToggleService>();
-        _mockDiscordClient = new Mock<DiscordShardedClient>();
+        _mockDiscordClient = new Mock<IDiscordClientWrapper>();
         // Setup Discord client with current user - using null is fine for testing
         _mockDiscordClient.Setup(c => c.CurrentUser).Returns((SocketSelfUser?)null);
 
@@ -102,9 +103,8 @@ public class ActivitySessionServiceTests
             .Setup(cs => cs.GetEngagementMultiplier(guildId))
             .Returns(1.0f);
 
-        var mockGuild = new Mock<SocketGuild>();
-        mockGuild.Setup(g => g.Name).Returns("TestGuild");
-        _mockDiscordClient.Setup(c => c.GetGuild(guildId)).Returns(mockGuild.Object);
+        // Return null for guild - the actual guild object isn't used in the test logic
+        _mockDiscordClient.Setup(c => c.GetGuild(guildId)).Returns((SocketGuild?)null);
 
         _mockChatContextService
             .Setup(cs => cs.AdaptiveResponseAsync(guildId, It.IsAny<IMessageChannel>()))
@@ -150,9 +150,8 @@ public class ActivitySessionServiceTests
             .Setup(cs => cs.GetEngagementMultiplier(guildId))
             .Returns(1.0f);
 
-        var mockGuild = new Mock<SocketGuild>();
-        mockGuild.Setup(g => g.Name).Returns("TestGuild");
-        _mockDiscordClient.Setup(c => c.GetGuild(guildId)).Returns(mockGuild.Object);
+        // Return null for guild - the actual guild object isn't used in the test logic
+        _mockDiscordClient.Setup(c => c.GetGuild(guildId)).Returns((SocketGuild?)null);
 
         _mockChatContextService
             .Setup(cs => cs.AdaptiveResponseAsync(guildId, It.IsAny<IMessageChannel>()))
@@ -192,9 +191,8 @@ public class ActivitySessionServiceTests
             .Setup(cs => cs.GetEngagementMultiplier(guildId))
             .Returns(1.0f);
 
-        var mockGuild = new Mock<SocketGuild>();
-        mockGuild.Setup(g => g.Name).Returns("TestGuild");
-        _mockDiscordClient.Setup(c => c.GetGuild(guildId)).Returns(mockGuild.Object);
+        // Return null for guild - the actual guild object isn't used in the test logic
+        _mockDiscordClient.Setup(c => c.GetGuild(guildId)).Returns((SocketGuild?)null);
 
         // Setup to fail first two attempts, succeed on third
         var callCount = 0;
@@ -237,9 +235,8 @@ public class ActivitySessionServiceTests
             .Setup(cs => cs.GetEngagementMultiplier(guildId))
             .Returns(1.0f);
 
-        var mockGuild = new Mock<SocketGuild>();
-        mockGuild.Setup(g => g.Name).Returns("TestGuild");
-        _mockDiscordClient.Setup(c => c.GetGuild(guildId)).Returns(mockGuild.Object);
+        // Return null for guild - the actual guild object isn't used in the test logic
+        _mockDiscordClient.Setup(c => c.GetGuild(guildId)).Returns((SocketGuild?)null);
 
         // Setup to always return null (failure)
         _mockChatContextService
@@ -276,9 +273,8 @@ public class ActivitySessionServiceTests
             .Setup(cs => cs.GetEngagementMultiplier(guildId))
             .Returns(1.0f);
 
-        var mockGuild = new Mock<SocketGuild>();
-        mockGuild.Setup(g => g.Name).Returns("TestGuild");
-        _mockDiscordClient.Setup(c => c.GetGuild(guildId)).Returns(mockGuild.Object);
+        // Return null for guild - the actual guild object isn't used in the test logic
+        _mockDiscordClient.Setup(c => c.GetGuild(guildId)).Returns((SocketGuild?)null);
 
         // Setup to cancel during execution
         _mockChatContextService

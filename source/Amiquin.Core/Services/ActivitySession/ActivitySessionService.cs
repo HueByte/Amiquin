@@ -1,6 +1,6 @@
+using Amiquin.Core.Abstractions;
 using Amiquin.Core.Services.ChatContext;
 using Amiquin.Core.Services.Toggle;
-using Discord.WebSocket;
 using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
 
@@ -14,7 +14,7 @@ public class ActivitySessionService : IActivitySessionService
     private readonly ILogger<ActivitySessionService> _logger;
     private readonly IChatContextService _chatContextService;
     private readonly IToggleService _toggleService;
-    private readonly DiscordShardedClient _discordClient;
+    private readonly IDiscordClientWrapper _discordClient;
     
     // Semaphores to prevent concurrent executions per guild
     private readonly ConcurrentDictionary<ulong, SemaphoreSlim> _guildSemaphores = new();
@@ -23,7 +23,7 @@ public class ActivitySessionService : IActivitySessionService
         ILogger<ActivitySessionService> logger,
         IChatContextService chatContextService,
         IToggleService toggleService,
-        DiscordShardedClient discordClient)
+        IDiscordClientWrapper discordClient)
     {
         _logger = logger;
         _chatContextService = chatContextService;

@@ -9,6 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using OpenAI.Chat;
+using System.Collections.Concurrent;
 using System.Text;
 
 namespace Amiquin.Core.Services.Chat;
@@ -24,6 +25,20 @@ public class PersonaChatService : IPersonaChatService
     private readonly IServerMetaService _serverMetaService;
     private readonly IServiceProvider _serviceProvider;
     private readonly BotOptions _botOptions;
+    
+    // Semaphores to prevent duplicate requests per instance
+    private static readonly ConcurrentDictionary<ulong, SemaphoreSlim> _instanceSemaphores = new();
+    
+    // Track pending requests to provide better user feedback
+    private static readonly ConcurrentDictionary<ulong, PendingRequestInfo> _pendingRequests = new();
+    
+    private class PendingRequestInfo
+    {
+        public DateTime StartTime { get; set; } = DateTime.UtcNow;
+        public string UserMessage { get; set; } = string.Empty;
+        public ulong UserId { get; set; }
+        public TaskCompletionSource<string>? CompletionSource { get; set; }
+    }
 
     public PersonaChatService(
         ILogger<PersonaChatService> logger,
@@ -43,6 +58,61 @@ public class PersonaChatService : IPersonaChatService
 
     public async Task<string> ChatAsync(ulong instanceId, ulong userId, ulong botId, string message)
     {
+        // Get or create semaphore for this instance
+        var semaphore = _instanceSemaphores.GetOrAdd(instanceId, _ => new SemaphoreSlim(1, 1));
+        
+        // Check if there's already a pending request for this instance
+        if (_pendingRequests.TryGetValue(instanceId, out var existingRequest))
+        {
+            var timeSinceStart = DateTime.UtcNow - existingRequest.StartTime;
+            
+            // If request is very recent (< 2 seconds), wait for it to complete
+            if (timeSinceStart.TotalSeconds < 2 && existingRequest.CompletionSource != null)
+            {
+                _logger.LogInformation("Duplicate request detected for instance {InstanceId}, waiting for existing request", instanceId);
+                try
+                {
+                    // Wait for the existing request to complete (with timeout)
+                    var waitTask = existingRequest.CompletionSource.Task;
+                    var timeoutTask = Task.Delay(TimeSpan.FromSeconds(10));
+                    var completedTask = await Task.WhenAny(waitTask, timeoutTask);
+                    
+                    if (completedTask == waitTask)
+                    {
+                        return await waitTask;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Error waiting for existing request for instance {InstanceId}", instanceId);
+                }
+            }
+            else if (timeSinceStart.TotalSeconds < 10)
+            {
+                // If request is still recent, return a polite message
+                _logger.LogInformation("Recent request still processing for instance {InstanceId}, providing feedback", instanceId);
+                return "I'm still processing the previous request. Please wait a moment...";
+            }
+        }
+
+        // Try to acquire the semaphore (non-blocking)
+        if (!await semaphore.WaitAsync(100))
+        {
+            _logger.LogInformation("Instance {InstanceId} busy, request from user {UserId} queued", instanceId, userId);
+            return "I'm currently processing another request for this server. Please try again in a moment.";
+        }
+
+        var completionSource = new TaskCompletionSource<string>();
+        var pendingInfo = new PendingRequestInfo
+        {
+            StartTime = DateTime.UtcNow,
+            UserMessage = message,
+            UserId = userId,
+            CompletionSource = completionSource
+        };
+
+        _pendingRequests[instanceId] = pendingInfo;
+
         try
         {
             _logger.LogDebug("Processing chat for instance {InstanceId}, user {UserId}", instanceId, userId);
@@ -91,12 +161,28 @@ public class PersonaChatService : IPersonaChatService
 
             _logger.LogInformation("Chat completed for instance {InstanceId}", instanceId);
 
+            // Signal completion to any waiting requests
+            completionSource.SetResult(response.Content);
+            
             return response.Content;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error processing chat for instance {InstanceId}", instanceId);
-            return "I'm sorry, I encountered an error processing your message. Please try again.";
+            var errorMessage = "I'm sorry, I encountered an error processing your message. Please try again.";
+            
+            // Signal completion with error
+            completionSource.SetResult(errorMessage);
+            
+            return errorMessage;
+        }
+        finally
+        {
+            // Clean up pending request tracking
+            _pendingRequests.TryRemove(instanceId, out _);
+            
+            // Release the semaphore
+            semaphore.Release();
         }
     }
 
