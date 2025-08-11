@@ -195,20 +195,28 @@ public class EventHandlerService : IEventHandlerService
     /// <inheritdoc/>
     public async Task OnComponentInteractionAsync(SocketMessageComponent component)
     {
-        // Defer immediately to avoid 3-second timeout
-        try
+        // Check if this interaction will trigger a modal (which cannot be deferred)
+        var customId = component.Data.CustomId;
+        bool isModalTrigger = customId.Contains("config_action_persona") || 
+                             customId.Contains("config_quick_persona");
+
+        // Only defer if this is not a modal trigger interaction
+        if (!isModalTrigger)
         {
-            await component.DeferAsync();
-        }
-        catch (Discord.Net.HttpException ex) when (ex.DiscordCode == DiscordErrorCode.UnknownInteraction)
-        {
-            _logger.LogWarning("Component interaction {InteractionId} expired before defer (10062)", component.Id);
-            return;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to defer component interaction {InteractionId}", component.Id);
-            return;
+            try
+            {
+                await component.DeferAsync();
+            }
+            catch (Discord.Net.HttpException ex) when (ex.DiscordCode == DiscordErrorCode.UnknownInteraction)
+            {
+                _logger.LogWarning("Component interaction {InteractionId} expired before defer (10062)", component.Id);
+                return;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to defer component interaction {InteractionId}", component.Id);
+                return;
+            }
         }
 
         try
@@ -224,7 +232,12 @@ public class EventHandlerService : IEventHandlerService
             _logger.LogError(ex, "Error handling component interaction {CustomId}", component.Data.CustomId);
             try
             {
-                await component.ModifyOriginalResponseAsync(msg => msg.Content = "An error occurred while processing your interaction.");
+                if (component.HasResponded)
+                    await component.ModifyOriginalResponseAsync(msg => msg.Content = "An error occurred while processing your interaction.");
+                else if (!isModalTrigger)
+                    await component.ModifyOriginalResponseAsync(msg => msg.Content = "An error occurred while processing your interaction.");
+                else
+                    await component.RespondAsync("An error occurred while processing your interaction.", ephemeral: true);
             }
             catch
             {

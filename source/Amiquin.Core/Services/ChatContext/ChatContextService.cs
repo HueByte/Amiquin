@@ -21,6 +21,9 @@ public class ChatContextService : IChatContextService
 
     // Track recent activity timestamps for real-time activity detection
     private readonly ConcurrentDictionary<ulong, Queue<DateTime>> _activityTimestamps = new();
+    
+    // Track semaphores for each guild to prevent concurrent processing
+    private readonly ConcurrentDictionary<ulong, SemaphoreSlim> _guildSemaphores = new();
 
     public ChatContextService(ILogger<ChatContextService> logger, IServiceScopeFactory serviceScopeFactory)
     {
@@ -143,7 +146,17 @@ public class ChatContextService : IChatContextService
 
     public async Task<string?> AnswerMentionAsync(ulong guildId, SocketMessage mentionMessage, IMessageChannel? channel = null)
     {
-        IUserMessage? typingMessage = null;
+        // Get or create semaphore for this guild
+        var semaphore = _guildSemaphores.GetOrAdd(guildId, _ => new SemaphoreSlim(1, 1));
+        
+        // Try to acquire the semaphore (non-blocking)
+        if (!await semaphore.WaitAsync(0))
+        {
+            _logger.LogInformation("Skipping mention response for guild {GuildId} - already processing a message", guildId);
+            return null; // Skip this message as we're already processing one
+        }
+
+        IDisposable? typingState = null;
 
         try
         {
@@ -166,11 +179,11 @@ public class ChatContextService : IChatContextService
                                   "For other users in context, use their userId from [username:userId] format.";
             var prompt = $"[{username}:{userId}] {mentionContent}{contextPrompt}{mentionGuidance}";
 
-            // Send typing indicator
+            // Start typing indicator
             var targetChannel = channel ?? mentionMessage.Channel as IMessageChannel;
             if (targetChannel != null)
             {
-                typingMessage = await targetChannel.SendMessageAsync("*Typing...*", messageReference: new Discord.MessageReference(mentionMessage.Id));
+                typingState = targetChannel.EnterTypingState();
             }
 
             // Use session-based chat service like /chat command
@@ -192,16 +205,8 @@ public class ChatContextService : IChatContextService
                             chunk += $" `({i + 1}/{chunks.Count})`";
                         }
 
-                        if (i == 0 && typingMessage != null)
-                        {
-                            // Update the typing message with the first chunk
-                            await typingMessage.ModifyAsync(msg => msg.Content = chunk);
-                        }
-                        else
-                        {
-                            // Send subsequent chunks as new messages
-                            await targetChannel.SendMessageAsync(chunk);
-                        }
+                        // Send message with reference to original message for first chunk
+                        await targetChannel.SendMessageAsync(chunk, messageReference: i == 0 ? new Discord.MessageReference(mentionMessage.Id) : null);
 
                         // Small delay between chunks
                         if (i < chunks.Count - 1)
@@ -219,32 +224,21 @@ public class ChatContextService : IChatContextService
                 
                 return response;
             }
-            else if (typingMessage != null)
-            {
-                // If no response, update typing message to indicate failure
-                await typingMessage.ModifyAsync(msg => msg.Content = "*No response generated*");
-            }
 
             return null;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error answering mention for guild {GuildId}", guildId);
-
-            // Update typing message to show error if it exists
-            if (typingMessage != null)
-            {
-                try
-                {
-                    await typingMessage.ModifyAsync(msg => msg.Content = "*Error processing request*");
-                }
-                catch
-                {
-                    // Ignore errors when trying to update typing message
-                }
-            }
-
             return null;
+        }
+        finally
+        {
+            // Stop typing indicator
+            typingState?.Dispose();
+            
+            // Release the semaphore
+            semaphore.Release();
         }
     }
 
@@ -918,6 +912,29 @@ public class ChatContextService : IChatContextService
     public float GetEngagementMultiplier(ulong scopeId)
     {
         return _engagementMultipliers.GetValueOrDefault(scopeId, 1.0f);
+    }
+    
+    /// <summary>
+    /// Resets the engagement multiplier for a specific scope back to baseline (1.0).
+    /// Also clears any context messages to give the bot a fresh start.
+    /// </summary>
+    public void ResetEngagement(ulong scopeId)
+    {
+        _logger.LogInformation("Resetting engagement for scope {ScopeId} to baseline", scopeId);
+        
+        // Reset engagement multiplier to baseline
+        _engagementMultipliers.AddOrUpdate(scopeId, 1.0f, (key, current) => 1.0f);
+        
+        // Clear context messages for a fresh start
+        ClearContextMessages(scopeId);
+        
+        // Clear activity timestamps as well
+        if (_activityTimestamps.TryGetValue(scopeId, out var timestamps))
+        {
+            timestamps.Clear();
+        }
+        
+        _logger.LogDebug("Engagement reset complete for scope {ScopeId}", scopeId);
     }
 
     /// <summary>

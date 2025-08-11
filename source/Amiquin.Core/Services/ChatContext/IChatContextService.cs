@@ -154,5 +154,12 @@ public interface IChatContextService
     /// <param name="guild">The Discord guild to initialize context for.</param>
     /// <returns>A task representing the initialization operation.</returns>
     Task InitializeActivityContextAsync(Discord.WebSocket.SocketGuild guild);
+    
+    /// <summary>
+    /// Resets the engagement multiplier for a specific scope back to baseline (1.0).
+    /// Also clears any context messages to give the bot a fresh start.
+    /// </summary>
+    /// <param name="scopeId">The scope identifier to reset engagement for.</param>
+    void ResetEngagement(ulong scopeId);
     #endregion
 }

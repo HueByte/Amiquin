@@ -3,6 +3,8 @@ using Amiquin.Core;
 using Amiquin.Core.Attributes;
 using Amiquin.Core.DiscordExtensions;
 using Amiquin.Core.Services.BotContext;
+using Amiquin.Core.Services.Chat;
+using Amiquin.Core.Services.ChatContext;
 using Amiquin.Core.Services.ChatSession;
 using Amiquin.Core.Services.Configuration;
 using Amiquin.Core.Services.Meta;
@@ -25,6 +27,8 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
     private readonly IChatSessionService _chatSessionService;
     private readonly BotContextAccessor _botContextAccessor;
     private readonly IConfigurationInteractionService _configurationService;
+    private readonly IChatContextService _chatContextService;
+    private readonly IPersonaChatService _personaChatService;
 
     public AdminCommands(
         ILogger<AdminCommands> logger, 
@@ -32,7 +36,9 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
         IToggleService toggleService, 
         IChatSessionService chatSessionService, 
         BotContextAccessor botContextAccessor,
-        IConfigurationInteractionService configurationService)
+        IConfigurationInteractionService configurationService,
+        IChatContextService chatContextService,
+        IPersonaChatService personaChatService)
     {
         _logger = logger;
         _serverMetaService = serverMetaService;
@@ -40,6 +46,8 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
         _chatSessionService = chatSessionService;
         _botContextAccessor = botContextAccessor;
         _configurationService = configurationService;
+        _chatContextService = chatContextService;
+        _personaChatService = personaChatService;
     }
 
     [SlashCommand("set-persona", "Set the server persona")]
@@ -184,6 +192,85 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
         }
     }
 
+    [SlashCommand("calm-down", "Reset Amiquin's engagement rate to baseline")]
+    [Ephemeral]
+    public async Task CalmDownAsync()
+    {
+        try
+        {
+            var guildId = Context.Guild.Id;
+            
+            // Reset the engagement rate for this guild
+            _chatContextService.ResetEngagement(guildId);
+            
+            // Get the current engagement level for display
+            var currentLevel = _chatContextService.GetEngagementMultiplier(guildId);
+            
+            var embed = new EmbedBuilder()
+                .WithTitle("😌 Calming Down...")
+                .WithDescription("I'll take it easy for a bit. My engagement has been reset to baseline.")
+                .AddField("Engagement Level", $"Reset to {currentLevel:F1}x (baseline)", true)
+                .AddField("Context", "Cleared all conversation context", true)
+                .AddField("Status", "🌙 Relaxed mode activated", false)
+                .WithColor(new Color(135, 206, 235)) // Sky blue for calm
+                .WithThumbnailUrl(Context.Client.CurrentUser.GetDisplayAvatarUrl())
+                .WithFooter("Use mentions to re-engage me if needed")
+                .WithCurrentTimestamp()
+                .Build();
+
+            await ModifyOriginalResponseAsync(msg => msg.Embed = embed);
+            
+            _logger.LogInformation("Admin {UserId} reset engagement for guild {GuildId}", 
+                Context.User.Id, guildId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error resetting engagement for guild {GuildId}", Context.Guild.Id);
+            await ModifyOriginalResponseAsync(msg => msg.Content = "❌ An error occurred while resetting engagement.");
+        }
+    }
+
+    [SlashCommand("compact", "Manually trigger chat history optimization")]
+    [Ephemeral]
+    public async Task CompactAsync()
+    {
+        try
+        {
+            var guildId = Context.Guild.Id;
+            
+            // Trigger history optimization for this guild's chat sessions
+            var (success, message) = await _personaChatService.TriggerHistoryOptimizationAsync(guildId);
+            
+            var embed = new EmbedBuilder()
+                .WithTitle(success ? "📦 History Compacted" : "⚠️ Compaction Issue")
+                .WithDescription(message)
+                .WithColor(success ? new Color(46, 204, 113) : new Color(231, 76, 60)) // Green for success, red for failure
+                .WithThumbnailUrl(Context.Client.CurrentUser.GetDisplayAvatarUrl())
+                .WithCurrentTimestamp();
+            
+            if (success)
+            {
+                embed.AddField("💾 Benefits", "• Reduced memory usage\n• Faster response times\n• Lower token costs", true);
+                embed.AddField("🔄 What happened", "• Older messages summarized\n• Recent messages preserved\n• Context maintained", true);
+                embed.WithFooter("History optimization helps maintain performance");
+            }
+            else
+            {
+                embed.WithFooter("Try again later or check if there are enough messages to compact");
+            }
+
+            await ModifyOriginalResponseAsync(msg => msg.Embed = embed.Build());
+            
+            _logger.LogInformation("Admin {UserId} triggered history optimization for guild {GuildId} - Success: {Success}", 
+                Context.User.Id, guildId, success);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error triggering history optimization for guild {GuildId}", Context.Guild.Id);
+            await ModifyOriginalResponseAsync(msg => msg.Content = "❌ An error occurred while optimizing chat history.");
+        }
+    }
+
     [SlashCommand("set-model", "Set the AI model for the server")]
     public async Task SetModelAsync(
         [Summary("model", "The AI model to use")] string model,
@@ -281,6 +368,9 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
         {
             try
             {
+                // Ensure all toggles are created for this server
+                await _toggleService.CreateServerTogglesIfNotExistsAsync(Context.Guild.Id);
+                
                 var serverMeta = _botContextAccessor.ServerMeta;
                 var toggles = await _toggleService.GetTogglesByServerId(Context.Guild.Id);
 
@@ -321,13 +411,22 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
                 var enabledCount = toggles.Count(t => t.IsEnabled);
                 embed.AddField("🎛️ Features", $"{enabledCount}/{toggles.Count} enabled", true);
 
-                // List enabled features
-                var enabledFeatures = toggles.Where(t => t.IsEnabled).Select(t => t.Name).ToList();
-                if (enabledFeatures.Any())
+                // List all toggles with their status
+                if (toggles.Any())
                 {
-                    embed.AddField("✅ Enabled Features", 
-                        string.Join(", ", enabledFeatures.Take(10)), 
-                        false);
+                    var togglesList = toggles
+                        .OrderBy(t => t.Name)
+                        .Select(t => $"{(t.IsEnabled ? "✅" : "❌")} {FormatToggleName(t.Name)}")
+                        .ToList();
+                    
+                    // Split into multiple fields if there are many toggles
+                    var togglesPerField = 10;
+                    for (int i = 0; i < togglesList.Count; i += togglesPerField)
+                    {
+                        var batch = togglesList.Skip(i).Take(togglesPerField);
+                        var fieldName = i == 0 ? "Available Features" : "Available Features (cont.)";
+                        embed.AddField(fieldName, string.Join("\n", batch), true);
+                    }
                 }
 
                 await ModifyOriginalResponseAsync(msg => msg.Embed = embed.Build());
@@ -549,6 +648,20 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
                 _logger.LogError(ex, "Error exporting config for server {ServerId}", Context.Guild.Id);
                 await ModifyOriginalResponseAsync(msg => msg.Content = "❌ An error occurred while exporting the configuration.");
             }
+        }
+        
+        /// <summary>
+        /// Formats toggle names to be more user-friendly by adding spaces between words.
+        /// </summary>
+        private static string FormatToggleName(string toggleName)
+        {
+            // Convert from PascalCase to readable format
+            // e.g., "EnableChat" -> "Enable Chat"
+            return System.Text.RegularExpressions.Regex.Replace(
+                toggleName, 
+                "([a-z])([A-Z])", 
+                "$1 $2"
+            );
         }
     }
 }

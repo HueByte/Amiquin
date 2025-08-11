@@ -73,6 +73,9 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
 
     public async Task<(Embed embed, MessageComponent components)> CreateConfigurationInterfaceAsync(ulong guildId, SocketGuild guild)
     {
+        // Ensure all toggles are created for this server
+        await _toggleService.CreateServerTogglesIfNotExistsAsync(guildId);
+        
         var serverMeta = await _serverMetaService.GetServerMetaAsync(guildId);
         if (serverMeta == null)
         {
@@ -344,7 +347,10 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         {
             if (context.Parameters.Length < 2)
             {
-                await component.RespondAsync("❌ Invalid quick setup data.", ephemeral: true);
+                if (component.HasResponded)
+                    await component.ModifyOriginalResponseAsync(msg => msg.Content = "❌ Invalid quick setup data.");
+                else
+                    await component.RespondAsync("❌ Invalid quick setup data.", ephemeral: true);
                 return true;
             }
 
@@ -354,7 +360,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
             switch (setupType)
             {
                 case "persona":
-                    // Show modal for persona input
+                    // Show modal for persona input (NOT deferred - handled specially in EventHandlerService)
                     var personaModal = new ModalBuilder()
                         .WithTitle("Set Server Persona")
                         .WithCustomId(_componentHandler.GenerateCustomId(ModalPrefix, "persona", guildId.ToString()))
@@ -380,7 +386,10 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                     break;
                     
                 default:
-                    await component.RespondAsync("❌ Unknown quick setup option.", ephemeral: true);
+                    if (component.HasResponded)
+                        await component.ModifyOriginalResponseAsync(msg => msg.Content = "❌ Unknown quick setup option.");
+                    else
+                        await component.RespondAsync("❌ Unknown quick setup option.", ephemeral: true);
                     break;
             }
 
@@ -709,6 +718,9 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
 
     private async Task ShowToggleConfigurationAsync(SocketMessageComponent component, ulong guildId)
     {
+        // Ensure all toggles are created for this server
+        await _toggleService.CreateServerTogglesIfNotExistsAsync(guildId);
+        
         var toggles = await _toggleService.GetTogglesByServerId(guildId);
         
         var embedBuilder = new EmbedBuilder()
@@ -774,6 +786,9 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         var guild = (component.Channel as SocketGuildChannel)?.Guild;
         if (guild == null) return;
 
+        // Ensure all toggles are created for this server
+        await _toggleService.CreateServerTogglesIfNotExistsAsync(guildId);
+        
         var serverMeta = await _serverMetaService.GetServerMetaAsync(guildId);
         var toggles = await _toggleService.GetTogglesByServerId(guildId);
 

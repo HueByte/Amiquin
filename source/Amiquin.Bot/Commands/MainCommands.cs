@@ -29,11 +29,25 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
     {
         message = message.Trim();
         var originalMessage = message;
-        var response = await _chatService.ChatAsync(Context.Guild.Id, Context.User.Id, Context.Client.CurrentUser.Id, $"[{Context.User.GlobalName}:{Context.User.Id}] {message}");
+
+        // Get context from the ChatContextService
+        var context = _chatContextService.FormatContextMessagesForAI(Context.Guild.Id);
+        var username = Context.User.GlobalName ?? Context.User.Username;
+        var userId = Context.User.Id;
+
+        // Build the prompt with context if available
+        var contextPrompt = !string.IsNullOrWhiteSpace(context) ? $"\nRecent context:\n{context}" : "";
+        var prompt = $"{contextPrompt}\n[{username}:{userId}] {message}";
+
+        // Send the message with context to the chat service
+        var response = await _chatService.ChatAsync(Context.Guild.Id, Context.User.Id, Context.Client.CurrentUser.Id, prompt);
+
+        // Track this message in context for future interactions
+        // Note: We don't have direct access to SocketMessage here, but we can track the user's input
+        // The bot's response will be tracked when it's sent as a regular message
+
         int messageCount = _messageCacheService.GetChatMessageCount(Context.Guild.Id);
-
-        var chatContext = _chatContextService.GetContextMessages(Context.Guild.Id);
-
+        var hasContext = !string.IsNullOrWhiteSpace(context);
 
         // User Embed
         Embed userEmbed = new EmbedBuilder()
@@ -44,11 +58,15 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
 
         var botEmbeds = DiscordUtilities.ChunkMessageAsEmbeds(response, (chunk, chunkIndex, chunkCount) =>
         {
+            var footerText = hasContext
+                ? $"☁️ Using conversation context ☁️ {chunkIndex}/{chunkCount}"
+                : $"☁️ Remembering last {messageCount} messages ☁️ {chunkIndex}/{chunkCount}";
+
             return new EmbedBuilder()
                 .WithDescription(chunk)
                 .WithAuthor(Context.Client.CurrentUser)
                 .WithColor(Color.Purple)
-                .WithFooter($"☁️ Remembering last {messageCount} messages ☁️ {chunkIndex}/{chunkCount}")
+                .WithFooter(footerText)
                 .Build();
         }).ToList();
 
@@ -73,9 +91,9 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
     {
         // Get version from assembly
         var assemblyVersion = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "Unknown";
-        var amiquinBannerUrl = $"https://cdn.discordapp.com/banners/{Context.Client.CurrentUser.Id}/{Context.Client.CurrentUser.BannerId}?size=512";
+        // var amiquinBannerUrl = $"https://cdn.discordapp.com/banners/{Context.Client.CurrentUser.Id}/{Context.Client.CurrentUser.BannerId}?size=512";
 
-        // https://cdn.discordapp.com/banners/1350616120838590464/ee9ef09c613404439b9fa64ee6cc6a7a?size=512
+        var amiquinBannerUrl = "https://cdn.discordapp.com/banners/1350616120838590464/ee9ef09c613404439b9fa64ee6cc6a7a?size=512";
         var embed = new EmbedBuilder()
             .WithTitle("☁️ Amiquin Bot Information")
             .WithDescription("A modular and extensible Discord bot")
