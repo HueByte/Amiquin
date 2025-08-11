@@ -100,7 +100,7 @@ public class FunService : IFunService
             var textColor = GetContrastColor(color);
             var text = $"#{hexColor.ToUpper()}";
             
-            var font = SystemFonts.CreateFont("Arial", 12, FontStyle.Bold);
+            var font = GetAvailableFont(12, FontStyle.Bold);
             var textOptions = new RichTextOptions(font)
             {
                 Origin = new PointF(150, 50),
@@ -143,6 +143,80 @@ public class FunService : IFunService
         }
         
         return colors;
+    }
+
+    /// <inheritdoc/>
+    public async Task<Stream> GeneratePaletteImageAsync(List<string> colors)
+    {
+        try
+        {
+            if (colors == null || colors.Count == 0)
+            {
+                throw new ArgumentException("Color list cannot be null or empty");
+            }
+
+            // Image dimensions
+            const int swatchWidth = 80;
+            const int swatchHeight = 80;
+            const int margin = 10;
+            const int textHeight = 25;
+            
+            var imageWidth = colors.Count * (swatchWidth + margin) - margin;
+            var imageHeight = swatchHeight + textHeight + margin * 2;
+
+            using var image = new Image<Rgba32>(imageWidth, imageHeight);
+            
+            // Fill background with white
+            image.Mutate(ctx => ctx.BackgroundColor(Color.White));
+
+            var font = GetAvailableFont(11, FontStyle.Regular);
+
+            for (int i = 0; i < colors.Count; i++)
+            {
+                var colorHex = colors[i].TrimStart('#');
+                
+                // Parse the color
+                if (!Rgba32.TryParseHex($"#{colorHex}", out var color))
+                {
+                    _logger.LogWarning("Invalid hex color in palette: {Color}", colors[i]);
+                    continue;
+                }
+
+                var x = i * (swatchWidth + margin);
+                var swatchRect = new RectangleF(x, margin, swatchWidth, swatchHeight);
+                
+                // Draw color swatch
+                image.Mutate(ctx => ctx
+                    .Fill(color, swatchRect)
+                    .Draw(Color.Black, 1f, swatchRect));
+
+                // Draw hex code below swatch
+                var textX = x + swatchWidth / 2;
+                var textY = margin + swatchHeight + 5;
+                
+                var textOptions = new RichTextOptions(font)
+                {
+                    Origin = new PointF(textX, textY),
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Top
+                };
+
+                image.Mutate(ctx => ctx
+                    .DrawText(textOptions, $"#{colorHex.ToUpper()}", Color.Black));
+            }
+
+            // Convert to stream
+            var stream = new MemoryStream();
+            await image.SaveAsPngAsync(stream);
+            stream.Position = 0;
+            
+            return stream;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error generating palette image");
+            throw;
+        }
     }
 
     /// <inheritdoc/>
@@ -217,6 +291,43 @@ public class FunService : IFunService
     public async Task<int> GetTotalNachosAsync(ulong serverId)
     {
         return await _userStatsRepository.GetTotalNachosReceivedAsync(serverId);
+    }
+
+    /// <summary>
+    /// Gets an available font with fallback options for cross-platform compatibility.
+    /// </summary>
+    private static Font GetAvailableFont(float size, FontStyle style = FontStyle.Regular)
+    {
+        // List of font families to try, in order of preference
+        var fontFamilies = new[]
+        {
+            "Arial",           // Windows
+            "Liberation Sans", // Linux
+            "DejaVu Sans",     // Linux/Unix
+            "Helvetica",       // macOS
+            "sans-serif"       // Generic fallback
+        };
+
+        foreach (var fontFamily in fontFamilies)
+        {
+            try
+            {
+                return SystemFonts.CreateFont(fontFamily, size, style);
+            }
+            catch (FontFamilyNotFoundException)
+            {
+                // Continue to next font
+            }
+        }
+
+        // If all else fails, get any available font family
+        var availableFamilies = SystemFonts.Families.ToArray();
+        if (availableFamilies.Length > 0)
+        {
+            return SystemFonts.CreateFont(availableFamilies[0].Name, size, style);
+        }
+
+        throw new InvalidOperationException("No font families are available on this system");
     }
 
     /// <summary>

@@ -31,6 +31,13 @@ public interface IFunService
     List<string> GenerateColorPalette(int count = 5);
 
     /// <summary>
+    /// Generates a visual preview image of a color palette.
+    /// </summary>
+    /// <param name="colors">List of hex color codes to display.</param>
+    /// <returns>Stream containing the palette preview image.</returns>
+    Task<Stream> GeneratePaletteImageAsync(List<string> colors);
+
+    /// <summary>
     /// Gets a random GIF URL for an interaction type.
     /// </summary>
     /// <param name="interactionType">Type of interaction (bite, kiss, etc.).</param>
