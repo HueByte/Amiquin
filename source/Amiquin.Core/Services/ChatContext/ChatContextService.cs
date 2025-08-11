@@ -844,7 +844,8 @@ public class ChatContextService : IChatContextService
 
             // Fall back to default text channel (first text channel the bot can send messages to)
             var defaultChannel = guild.TextChannels
-                .Where(c => c.GetPermissionOverwrite(discordClient.CurrentUser)?.SendMessages != PermValue.Deny)
+                .Where(c => guild.CurrentUser.GetPermissions(c).SendMessages &&
+                           guild.CurrentUser.GetPermissions(c).ViewChannel)
                 .OrderBy(c => c.Position)
                 .FirstOrDefault();
 
