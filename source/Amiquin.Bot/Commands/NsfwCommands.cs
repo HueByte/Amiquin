@@ -22,28 +22,103 @@ public class NsfwCommands : InteractionModuleBase<ExtendedShardedInteractionCont
         _toggleService = toggleService;
     }
 
+    // NSFW-only tags
+    [SlashCommand("ero", "Get a random erotic image")]
+    public async Task EroAsync()
+    {
+        await HandleNsfwRequestAsync("ero", "Ero");
+    }
+
+    [SlashCommand("ass", "Get a random ass-focused image")]
+    public async Task AssAsync()
+    {
+        await HandleNsfwRequestAsync("ass", "Ass");
+    }
+
+    [SlashCommand("hentai", "Get a random hentai image")]
+    public async Task HentaiAsync()
+    {
+        await HandleNsfwRequestAsync("hentai", "Hentai");
+    }
+
+    [SlashCommand("milf", "Get a random MILF image")]
+    public async Task MilfAsync()
+    {
+        await HandleNsfwRequestAsync("milf", "MILF");
+    }
+
+    [SlashCommand("oral", "Get a random oral image")]
+    public async Task OralAsync()
+    {
+        await HandleNsfwRequestAsync("oral", "Oral");
+    }
+
+    [SlashCommand("paizuri", "Get a random paizuri image")]
+    public async Task PaizuriAsync()
+    {
+        await HandleNsfwRequestAsync("paizuri", "Paizuri");
+    }
+
+    [SlashCommand("ecchi", "Get a random ecchi image")]
+    public async Task EcchiAsync()
+    {
+        await HandleNsfwRequestAsync("ecchi", "Ecchi");
+    }
+
+    // Versatile tags (NSFW versions)
     [SlashCommand("waifu", "Get a random NSFW waifu image")]
     public async Task WaifuAsync()
     {
         await HandleNsfwRequestAsync("waifu", "Waifu");
     }
 
-    [SlashCommand("neko", "Get a random NSFW neko image")]
-    public async Task NekoAsync()
+    [SlashCommand("maid", "Get a random NSFW maid image")]
+    public async Task MaidAsync()
     {
-        await HandleNsfwRequestAsync("neko", "Neko");
+        await HandleNsfwRequestAsync("maid", "Maid");
     }
 
-    [SlashCommand("trap", "Get a random NSFW trap image")]
-    public async Task TrapAsync()
+    [SlashCommand("oppai", "Get a random NSFW oppai image")]
+    public async Task OppaiAsync()
     {
-        await HandleNsfwRequestAsync("trap", "Trap");
+        await HandleNsfwRequestAsync("oppai", "Oppai");
     }
 
-    [SlashCommand("blowjob", "Get a random NSFW blowjob image")]
-    public async Task BlowjobAsync()
+    [SlashCommand("selfies", "Get a random NSFW selfie image")]
+    public async Task SelfiesAsync()
     {
-        await HandleNsfwRequestAsync("blowjob", "Blowjob");
+        await HandleNsfwRequestAsync("selfies", "Selfies");
+    }
+
+    [SlashCommand("uniform", "Get a random NSFW uniform image")]
+    public async Task UniformAsync()
+    {
+        await HandleNsfwRequestAsync("uniform", "Uniform");
+    }
+
+    // Character-specific commands
+    [SlashCommand("marin", "Get a random NSFW Marin Kitagawa image")]
+    public async Task MarinAsync()
+    {
+        await HandleNsfwRequestAsync("marin-kitagawa", "Marin Kitagawa");
+    }
+
+    [SlashCommand("mori", "Get a random NSFW Mori Calliope image")]
+    public async Task MoriAsync()
+    {
+        await HandleNsfwRequestAsync("mori-calliope", "Mori Calliope");
+    }
+
+    [SlashCommand("raiden", "Get a random NSFW Raiden Shogun image")]
+    public async Task RaidenAsync()
+    {
+        await HandleNsfwRequestAsync("raiden-shogun", "Raiden Shogun");
+    }
+
+    [SlashCommand("ayaka", "Get a random NSFW Kamisato Ayaka image")]
+    public async Task AyakaAsync()
+    {
+        await HandleNsfwRequestAsync("kamisato-ayaka", "Kamisato Ayaka");
     }
 
     [SlashCommand("toggle", "Check or toggle NSFW content for this server")]

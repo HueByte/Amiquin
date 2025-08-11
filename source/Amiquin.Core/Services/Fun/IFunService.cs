@@ -74,6 +74,17 @@ public interface IFunService
     Task<int> GiveNachoAsync(ulong userId, ulong serverId);
 
     /// <summary>
+    /// Generates a dynamic AI response for when a user gives Amiquin a nacho.
+    /// </summary>
+    /// <param name="userId">Discord user ID of the giver.</param>
+    /// <param name="serverId">Discord server ID.</param>
+    /// <param name="channelId">Discord channel ID for context.</param>
+    /// <param name="userName">Name of the user giving the nacho.</param>
+    /// <param name="totalNachos">Total nachos the user has given.</param>
+    /// <returns>A personalized response message.</returns>
+    Task<string> GenerateNachoResponseAsync(ulong userId, ulong serverId, ulong channelId, string userName, int totalNachos);
+
+    /// <summary>
     /// Gets the top nacho givers for a server.
     /// </summary>
     /// <param name="serverId">Discord server ID.</param>

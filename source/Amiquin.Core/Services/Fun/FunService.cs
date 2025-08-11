@@ -7,6 +7,7 @@ using SixLabors.ImageSharp.Processing;
 using SixLabors.Fonts;
 using Color = SixLabors.ImageSharp.Color;
 using Amiquin.Core.IRepositories;
+using Amiquin.Core.Services.Chat;
 using Amiquin.Core.Services.Toggle;
 using Discord;
 using Microsoft.Extensions.Logging;
@@ -20,6 +21,7 @@ public class FunService : IFunService
 {
     private readonly IUserStatsRepository _userStatsRepository;
     private readonly IToggleService _toggleService;
+    private readonly IPersonaChatService _personaChatService;
     private readonly ILogger<FunService> _logger;
     private readonly HttpClient _httpClient;
     private readonly Random _random = new();
@@ -37,23 +39,43 @@ public class FunService : IFunService
         { "highfive", "https://api.waifu.pics/sfw/highfive" }
     };
 
-    // NSFW GIF API endpoints (requires server toggle)
-    private readonly Dictionary<string, string> _nsfwGifApiEndpoints = new()
+    // NSFW tags for waifu.im API (requires server toggle)
+    private readonly Dictionary<string, string> _nsfwTags = new()
     {
-        { "waifu", "https://api.waifu.pics/nsfw/waifu" },
-        { "neko", "https://api.waifu.pics/nsfw/neko" },
-        { "trap", "https://api.waifu.pics/nsfw/trap" },
-        { "blowjob", "https://api.waifu.pics/nsfw/blowjob" }
+        // NSFW-only tags
+        { "ero", "Erotic content" },
+        { "ass", "Ass focused content" },
+        { "hentai", "Hentai content" },
+        { "milf", "MILF content" },
+        { "oral", "Oral content" },
+        { "paizuri", "Paizuri content" },
+        { "ecchi", "Ecchi content" }
+    };
+
+    // Versatile tags that can be used with is_nsfw parameter
+    private readonly Dictionary<string, string> _versatileTags = new()
+    {
+        { "waifu", "Waifu images" },
+        { "maid", "Maid themed" },
+        { "marin-kitagawa", "Marin Kitagawa character" },
+        { "mori-calliope", "Mori Calliope character" },
+        { "raiden-shogun", "Raiden Shogun character" },
+        { "oppai", "Oppai focused" },
+        { "selfies", "Selfie style images" },
+        { "uniform", "Uniform themed" },
+        { "kamisato-ayaka", "Kamisato Ayaka character" }
     };
 
     public FunService(
         IUserStatsRepository userStatsRepository,
         IToggleService toggleService,
+        IPersonaChatService personaChatService,
         ILogger<FunService> logger,
         HttpClient httpClient)
     {
         _userStatsRepository = userStatsRepository;
         _toggleService = toggleService;
+        _personaChatService = personaChatService;
         _logger = logger;
         _httpClient = httpClient;
     }
@@ -290,27 +312,47 @@ public class FunService : IFunService
                 return null;
             }
 
-            var endpoint = _nsfwGifApiEndpoints.GetValueOrDefault(nsfwType.ToLower());
-            if (endpoint == null)
+            var tagLower = nsfwType.ToLower();
+            
+            // Check if it's a valid tag (either NSFW or versatile)
+            bool isNsfwTag = _nsfwTags.ContainsKey(tagLower);
+            bool isVersatileTag = _versatileTags.ContainsKey(tagLower);
+            
+            if (!isNsfwTag && !isVersatileTag)
             {
                 _logger.LogWarning("Unknown NSFW type: {NsfwType}", nsfwType);
                 return null;
             }
 
-            var response = await _httpClient.GetStringAsync(endpoint);
+            // Build the waifu.im API URL
+            var url = $"https://api.waifu.im/search?included_tags={tagLower}";
+            
+            // Add is_nsfw parameter for versatile tags
+            if (isVersatileTag)
+            {
+                url += "&is_nsfw=true";
+            }
+
+            var response = await _httpClient.GetStringAsync(url);
             var jsonDoc = JsonDocument.Parse(response);
             
-            if (jsonDoc.RootElement.TryGetProperty("url", out var urlElement))
+            // waifu.im returns an object with an "images" array
+            if (jsonDoc.RootElement.TryGetProperty("images", out var imagesElement) && 
+                imagesElement.GetArrayLength() > 0)
             {
-                return urlElement.GetString();
+                var firstImage = imagesElement[0];
+                if (firstImage.TryGetProperty("url", out var urlElement))
+                {
+                    return urlElement.GetString();
+                }
             }
             
-            _logger.LogWarning("No URL found in NSFW response for type: {NsfwType}", nsfwType);
+            _logger.LogWarning("No images found in waifu.im response for tag: {NsfwType}", nsfwType);
             return null;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error getting NSFW GIF for type: {NsfwType}", nsfwType);
+            _logger.LogError(ex, "Error getting NSFW image for tag: {NsfwType}", nsfwType);
             return null;
         }
     }
@@ -324,7 +366,11 @@ public class FunService : IFunService
     /// <inheritdoc/>
     public List<string> GetAvailableNsfwTypes()
     {
-        return _nsfwGifApiEndpoints.Keys.ToList();
+        // Combine both NSFW-only and versatile tags
+        var allTags = new List<string>();
+        allTags.AddRange(_nsfwTags.Keys);
+        allTags.AddRange(_versatileTags.Keys);
+        return allTags;
     }
 
     /// <inheritdoc/>
@@ -336,6 +382,77 @@ public class FunService : IFunService
         
         _logger.LogDebug("User {UserId} gave a nacho to Amiquin. Total: {Total}", userId, newTotal);
         return newTotal;
+    }
+
+    /// <inheritdoc/>
+    public async Task<string> GenerateNachoResponseAsync(ulong userId, ulong serverId, ulong channelId, string userName, int totalNachos)
+    {
+        try
+        {
+            // Create a context-aware prompt for the nacho interaction
+            var prompt = $"The user {userName} just gave you a delicious nacho! 🌮 " +
+                        $"This is nacho number {totalNachos} they've given you. " +
+                        $"Please respond with a short, friendly, and grateful message (1-2 sentences max). " +
+                        $"Be creative and vary your responses. You can be playful, appreciative, or humorous. " +
+                        $"If they've given many nachos (over 10), acknowledge their generosity. " +
+                        $"Keep it casual and fun, like you're genuinely enjoying the nacho!";
+
+            // Use the persona chat service to generate a contextual response
+            // Using channelId as instanceId to maintain conversation context per channel
+            var response = await _personaChatService.ChatAsync(channelId, userId, 0, prompt);
+            
+            // Fallback to default responses if AI fails
+            if (string.IsNullOrWhiteSpace(response))
+            {
+                response = GetFallbackNachoResponse(totalNachos);
+            }
+            
+            return response;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to generate dynamic nacho response for user {UserId}", userId);
+            // Return a fallback response if something goes wrong
+            return GetFallbackNachoResponse(totalNachos);
+        }
+    }
+
+    /// <summary>
+    /// Gets a fallback nacho response when AI generation fails.
+    /// </summary>
+    private string GetFallbackNachoResponse(int totalNachos)
+    {
+        var responses = totalNachos switch
+        {
+            > 50 => new[]
+            {
+                "🌮 WOW! You're a nacho legend! Thanks for all the love!",
+                "🌮 *drowning in nachos* You're the best nacho friend ever!",
+                "🌮 My nacho hero! You've given me so many delicious treats!"
+            },
+            > 20 => new[]
+            {
+                "🌮 You're so generous! These nachos keep me going!",
+                "🌮 *happy crunching* You really know how to spoil a bot!",
+                "🌮 Another nacho from my favorite human! Thank you!"
+            },
+            > 10 => new[]
+            {
+                "🌮 Mmm, you always bring the best nachos! Thanks!",
+                "🌮 *nom nom* Your nachos never disappoint!",
+                "🌮 Getting quite the collection thanks to you!"
+            },
+            _ => new[]
+            {
+                "🌮 *Crunch crunch* Thanks for the nacho!",
+                "🌮 Delicious! This nacho hits the spot!",
+                "🌮 You're so kind! This nacho is perfect!",
+                "🌮 *nom nom* Best nacho ever!",
+                "🌮 Yummy! Thanks for thinking of me!"
+            }
+        };
+        
+        return responses[_random.Next(responses.Length)];
     }
 
     /// <inheritdoc/>

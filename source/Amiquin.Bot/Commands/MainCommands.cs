@@ -131,7 +131,7 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
                 
             await ModifyOriginalResponseAsync(msg => msg.Embed = embed);
         }
-        catch (Exception ex)
+        catch
         {
             await ModifyOriginalResponseAsync(msg => msg.Content = "❌ Failed to measure size. Try again later!");
         }
@@ -159,7 +159,7 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
                 msg.Attachments = new[] { attachment };
             });
         }
-        catch (Exception ex)
+        catch
         {
             await ModifyOriginalResponseAsync(msg => msg.Content = "❌ Invalid hex color format. Use #RRGGBB or RRGGBB format.");
         }
@@ -192,7 +192,7 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
             
             await ModifyOriginalResponseAsync(msg => msg.Embed = embed.Build());
         }
-        catch (Exception ex)
+        catch
         {
             await ModifyOriginalResponseAsync(msg => msg.Content = "❌ Failed to generate color palette. Try again later!");
         }
@@ -218,30 +218,31 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
     {
         try
         {
+            // Give the nacho and get the total count
             var totalNachos = await _funService.GiveNachoAsync(Context.User.Id, Context.Guild.Id);
             
-            var responses = new[]
-            {
-                "🌮 *Crunch crunch* Thanks for the nacho!",
-                "🌮 Mmm, delicious! *happy bot noises*",
-                "🌮 You're so kind! This nacho hits the spot!",
-                "🌮 *nom nom* Best nacho ever!",
-                "🌮 Thanks! I was getting hungry 😋",
-                "🌮 *mechanical chewing sounds* Tasty!"
-            };
+            // Generate a dynamic, context-aware response using AI
+            var response = await _funService.GenerateNachoResponseAsync(
+                Context.User.Id, 
+                Context.Guild.Id, 
+                Context.Channel.Id,
+                Context.User.Username,
+                totalNachos
+            );
             
-            var response = responses[new Random().Next(responses.Length)];
-            
+            // Build the embed with the dynamic response
             var embed = new EmbedBuilder()
                 .WithTitle("Nacho Delivery! 🌮")
                 .WithDescription($"{response}\n\n**Your total nachos given:** {totalNachos}")
                 .WithColor(Color.Orange)
                 .WithThumbnailUrl(Context.Client.CurrentUser.GetDisplayAvatarUrl())
+                .WithFooter($"Nacho #{totalNachos} from {Context.User.Username}", Context.User.GetAvatarUrl())
+                .WithCurrentTimestamp()
                 .Build();
                 
             await ModifyOriginalResponseAsync(msg => msg.Embed = embed);
         }
-        catch (Exception ex)
+        catch
         {
             await ModifyOriginalResponseAsync(msg => msg.Content = "❌ Failed to deliver nacho. Try again later!");
         }
@@ -275,7 +276,7 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
             
             await ModifyOriginalResponseAsync(msg => msg.Embed = embed.Build());
         }
-        catch (Exception ex)
+        catch
         {
             await ModifyOriginalResponseAsync(msg => msg.Content = "❌ Failed to load nacho leaderboard. Try again later!");
         }
