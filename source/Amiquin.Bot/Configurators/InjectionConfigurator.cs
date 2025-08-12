@@ -291,6 +291,7 @@ public class InjectionConfigurator
     public InjectionConfigurator AddRepositories()
     {
         _services.AddScoped<IMessageRepository, MessageRepository>()
+                 .AddScoped<ISessionMessageRepository, SessionMessageRepository>()
                  .AddScoped<IToggleRepository, ToggleRepository>()
                  .AddScoped<IServerMetaRepository, ServerMetaRepository>()
                  .AddScoped<INachoRepository, NachoRepository>()

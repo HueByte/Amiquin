@@ -86,18 +86,12 @@ public class MessageCacheService : IMessageCacheService
                 return new List<ChatMessage>();
             }
 
-            // Get the DbContext through the service provider using DbContext base class
-            var dbContext = scope.ServiceProvider.GetRequiredService<DbContext>();
+            // Use the SessionMessage repository to get messages for the active session
+            var sessionMessageRepository = scope.ServiceProvider.GetRequiredService<ISessionMessageRepository>();
             
-            // Query SessionMessages for the active session
-            var sessionMessages = await dbContext.Set<SessionMessage>()
-                .Where(x => x.ChatSessionId == activeSession.Id && x.IncludeInContext)
-                .OrderByDescending(x => x.CreatedAt)
-                .Take(_messageFetchCount) // Get the most recent messages
-                .ToListAsync();
-
-            // Reverse to get chronological order (oldest first)
-            sessionMessages.Reverse();
+            // Get messages for the active session that should be included in context
+            var sessionMessages = await sessionMessageRepository.GetSessionContextMessagesAsync(
+                activeSession.Id, _messageFetchCount);
 
             // Convert SessionMessages to ChatMessages based on role
             return sessionMessages.Select(x =>
