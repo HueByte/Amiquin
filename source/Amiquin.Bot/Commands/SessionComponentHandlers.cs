@@ -199,7 +199,6 @@ public class SessionComponentHandlers
         {
             msg.Embed = embed;
             msg.Components = components;
-            msg.Flags = MessageFlags.ComponentsV2;
         });
     }
 }

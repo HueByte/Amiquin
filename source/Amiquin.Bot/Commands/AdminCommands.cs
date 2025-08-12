@@ -445,15 +445,17 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
         {
             try
             {
-                var (embed, components) = await _configurationService.CreateConfigurationInterfaceAsync(
+                var components = await _configurationService.CreateConfigurationInterfaceAsync(
                     Context.Guild.Id, 
                     Context.Guild);
 
                 await ModifyOriginalResponseAsync(msg =>
                 {
-                    msg.Embed = embed;
                     msg.Components = components;
                     msg.Flags = MessageFlags.ComponentsV2;
+                    // Clear embed and content since ComponentsV2 uses display components
+                    msg.Embed = null;
+                    msg.Content = null;
                 });
 
                 _logger.LogInformation("Admin {UserId} opened server manager interface for server {ServerId}",

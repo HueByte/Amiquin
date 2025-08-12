@@ -174,20 +174,30 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
 
             var attachment = new FileAttachment(colorImage, $"color_{cleanHex}.png");
 
-            // Create embed with color information
-            var embed = new EmbedBuilder()
-                .WithTitle("🎨 Color Information")
-                .WithDescription($"**Hex:** #{cleanHex}\n**RGB:** {r}, {g}, {b}\n**HSL:** {h:F0}°, {s:F0}%, {l:F0}%")
-                .WithColor(new Color((byte)r, (byte)g, (byte)b))
-                .WithImageUrl(imageUrl)
-                .WithFooter($"Requested by {Context.User.Username}", Context.User.GetAvatarUrl())
-                .WithCurrentTimestamp()
+            // Create ComponentsV2 display with color information
+            var components = new ComponentBuilderV2()
+                .WithTextDisplay($"# 🎨 Color Information\n## #{cleanHex}")
+                .WithTextDisplay($"**Hex:** #{cleanHex}\n**RGB:** {r}, {g}, {b}\n**HSL:** {h:F0}°, {s:F0}%, {l:F0}%")
+                .WithMediaGallery([imageUrl])
+                .WithActionRow([
+                    new ButtonBuilder()
+                        .WithLabel("🎲 Random Color")
+                        .WithCustomId("random_color")
+                        .WithStyle(ButtonStyle.Primary),
+                    new ButtonBuilder()
+                        .WithLabel("🎨 Generate Palette")
+                        .WithCustomId($"generate_palette_{cleanHex}")
+                        .WithStyle(ButtonStyle.Secondary)
+                ])
                 .Build();
 
             await ModifyOriginalResponseAsync(msg =>
             {
-                msg.Embed = embed;
+                msg.Components = components;
+                msg.Flags = MessageFlags.ComponentsV2;
                 msg.Attachments = new[] { attachment };
+                msg.Embed = null;
+                msg.Content = null;
             });
         }
         catch
@@ -243,79 +253,16 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
             var selectedHarmony = harmony ?? (ColorHarmonyType)Random.Shared.Next(0, 7);
             var palette = await _funService.GenerateColorTheoryPaletteAsync(selectedHarmony, baseHue);
 
-            // Generate color images for each color in the palette in parallel
-            var colorImages = new List<FileAttachment>();
-            var imageUrls = new List<string>();
-
-            var imageGenerationTasks = palette.Colors.Select(async color =>
-            {
-                try
-                {
-                    using var colorImage = await _funService.GenerateColorImageAsync(color.Hex);
-                    var cleanHex = color.Hex.TrimStart('#').ToUpper();
-                    var fileName = $"palette_color_{cleanHex}.png";
-                    var imageUrl = $"attachment://{fileName}";
-
-                    var attachment = new FileAttachment(colorImage, fileName);
-                    return (success: true, attachment, imageUrl);
-                }
-                catch
-                {
-                    // Return failure for this color
-                    return (success: false, attachment: (FileAttachment?)null, imageUrl: (string?)null);
-                }
-            });
-
-            var results = await Task.WhenAll(imageGenerationTasks);
-
-            foreach (var result in results)
-            {
-                if (result.success && result.attachment.HasValue && result.imageUrl != null)
-                {
-                    colorImages.Add(result.attachment.Value);
-                    imageUrls.Add(result.imageUrl);
-                }
-            }
-
-            if (colorImages.Count == 0)
-            {
-                await ModifyOriginalResponseAsync(msg => msg.Content = "❌ Failed to generate color images for palette. Try again later!");
-                return;
-            }
-
-            // Create embed with palette information
-            var firstColorHex = palette.Colors[0].Hex.TrimStart('#');
-            var firstColorInt = Convert.ToInt32(firstColorHex, 16);
-            var embedBuilder = new EmbedBuilder()
-                .WithTitle($"🎨 {palette.Name}")
-                .WithDescription($"**Harmony Type:** {selectedHarmony}\n**Base Hue:** {palette.BaseHue:F1}°\n\n**Description:** {palette.Description}")
-                .WithColor(new Color((uint)firstColorInt));
-
-            // Add color details as fields
-            foreach (var color in palette.Colors)
-            {
-                var hex = color.Hex.TrimStart('#');
-                var colorInt = Convert.ToInt32(hex, 16);
-                var r = (colorInt >> 16) & 0xFF;
-                var g = (colorInt >> 8) & 0xFF;
-                var b = colorInt & 0xFF;
-                
-                embedBuilder.AddField(
-                    color.Name,
-                    $"{color.Hex.ToUpper()} • {color.Role}\nRGB({r}, {g}, {b})",
-                    inline: true
-                );
-            }
-
-            embedBuilder.WithFooter($"Generated by {Context.User.Username}", Context.User.GetAvatarUrl())
-                .WithTimestamp(palette.CreatedAt);
-
-            var embed = embedBuilder.Build();
+            // Create interactive palette with ComponentsV2
+            var (components, attachments) = await _funService.CreateInteractivePaletteAsync(palette, Context.User.Id);
 
             await ModifyOriginalResponseAsync(msg =>
             {
-                msg.Embed = embed;
-                msg.Attachments = colorImages;
+                msg.Components = components;
+                msg.Flags = MessageFlags.ComponentsV2;
+                msg.Attachments = attachments.ToArray();
+                msg.Embed = null;
+                msg.Content = null;
             });
         }
         catch
@@ -356,7 +303,6 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
         {
             msg.Embed = embed;
             msg.Components = components;
-            msg.Flags = MessageFlags.ComponentsV2;
         });
     }
 
@@ -439,23 +385,36 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
         // var amiquinBannerUrl = $"https://cdn.discordapp.com/banners/{Context.Client.CurrentUser.Id}/{Context.Client.CurrentUser.BannerId}?size=512";
 
         var amiquinBannerUrl = "https://cdn.discordapp.com/banners/1350616120838590464/ee9ef09c613404439b9fa64ee6cc6a7a?size=512";
-        var embed = new EmbedBuilder()
-            .WithTitle("☁️ Amiquin Bot Information")
-            .WithDescription("A modular and extensible Discord bot")
-            .WithColor(Color.Blue)
-            .WithThumbnailUrl(Context.Client.CurrentUser.GetDisplayAvatarUrl())
-            .AddField("Version", assemblyVersion, true)
-            .AddField("Bot ID", Context.Client.CurrentUser.Id.ToString(), true)
-            .AddField("Created", Context.Client.CurrentUser.CreatedAt.ToString("MMM dd, yyyy"), true)
-            .AddField("Servers", Context.Client.Guilds.Count.ToString(), true)
-            .AddField("Users", Context.Client.Guilds.Sum(g => g.MemberCount).ToString(), true)
-            .AddField("Shards", Context.Client.Shards.Count.ToString(), true)
-            .WithFooter($"Requested by {Context.User.GlobalName ?? Context.User.Username}")
-            .WithTimestamp(DateTimeOffset.Now)
-            .WithImageUrl(amiquinBannerUrl)
+        
+        // Create ComponentsV2 display with bot information
+        var components = new ComponentBuilderV2()
+            .WithTextDisplay("# ☁️ Amiquin Bot Information\n## A modular and extensible Discord bot")
+            .WithMediaGallery([amiquinBannerUrl])
+            .WithTextDisplay($"**Version:** {assemblyVersion}\n**Bot ID:** {Context.Client.CurrentUser.Id}\n**Created:** {Context.Client.CurrentUser.CreatedAt:MMM dd, yyyy}")
+            .WithTextDisplay($"**Servers:** {Context.Client.Guilds.Count}\n**Users:** {Context.Client.Guilds.Sum(g => g.MemberCount):N0}\n**Shards:** {Context.Client.Shards.Count}")
+            .WithActionRow([
+                new ButtonBuilder()
+                    .WithLabel("🔗 GitHub")
+                    .WithStyle(ButtonStyle.Link)
+                    .WithUrl("https://github.com/HueByte/Amiquin"),
+                new ButtonBuilder()
+                    .WithLabel("📖 Documentation")
+                    .WithStyle(ButtonStyle.Link)
+                    .WithUrl("https://github.com/HueByte/Amiquin/wiki"),
+                new ButtonBuilder()
+                    .WithLabel("💬 Support")
+                    .WithCustomId("bot_support")
+                    .WithStyle(ButtonStyle.Secondary)
+            ])
             .Build();
 
-        await ModifyOriginalResponseAsync(msg => msg.Embed = embed);
+        await ModifyOriginalResponseAsync(msg =>
+        {
+            msg.Components = components;
+            msg.Flags = MessageFlags.ComponentsV2;
+            msg.Embed = null;
+            msg.Content = null;
+        });
     }
 
     [SlashCommand("sleep", "Put Amiquin to sleep for 5 minutes")]
@@ -567,7 +526,6 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
             {
                 msg.Embed = embed.Build();
                 msg.Components = components;
-                msg.Flags = MessageFlags.ComponentsV2;
             });
         }
 
@@ -787,7 +745,6 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
             {
                 msg.Embed = embed;
                 msg.Components = components;
-                msg.Flags = MessageFlags.ComponentsV2;
             });
         }
     }

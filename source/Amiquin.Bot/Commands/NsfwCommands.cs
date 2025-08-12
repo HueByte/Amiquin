@@ -142,18 +142,53 @@ public class NsfwCommands : InteractionModuleBase<ExtendedShardedInteractionCont
                 return;
             }
 
-            // Build the gallery using embed
-            var embed = BuildNsfwGalleryEmbed(result.Images);
+            // Build source information for display
+            var sourceInfo = string.Join(", ", result.Images
+                .Select(img => img.Source ?? "Unknown")
+                .Distinct()
+                .Take(3));
             
+            var artistInfo = result.Images
+                .Where(img => !string.IsNullOrWhiteSpace(img.Artist))
+                .Select(img => img.Artist!)
+                .Distinct()
+                .Take(3)
+                .ToList();
+
+            var artistText = artistInfo.Count > 0 
+                ? $"\nArtists: {string.Join(", ", artistInfo)}{(artistInfo.Count == 3 ? " and others" : "")}"
+                : "";
+
             // Add status message if there were issues but we still got some images
             var statusMessage = result.IsTemporaryFailure && !string.IsNullOrEmpty(result.ErrorMessage)
                 ? $"⚠️ {result.ErrorMessage}" 
                 : null;
+
+            // Create ComponentsV2 display with media gallery
+            var imageUrls = result.Images.Select(img => img.Url).ToArray();
+            var components = new ComponentBuilderV2()
+                .WithTextDisplay($"# 🔞 NSFW Gallery\n## {result.Images.Count} images")
+                .WithTextDisplay($"**Sources:** {sourceInfo}{artistText}")
+                .WithMediaGallery(imageUrls)
+                .WithTextDisplay($"*Requested by {Context.User.Username} • Enjoy responsibly*")
+                .WithActionRow([
+                    new ButtonBuilder()
+                        .WithLabel("🔄 New Gallery")
+                        .WithCustomId("nsfw_new_gallery")
+                        .WithStyle(ButtonStyle.Primary),
+                    new ButtonBuilder()
+                        .WithLabel("🎲 Random Image")
+                        .WithCustomId("nsfw_random_waifu")
+                        .WithStyle(ButtonStyle.Secondary)
+                ])
+                .Build();
             
             await ModifyOriginalResponseAsync(msg => 
             {
                 msg.Content = statusMessage;
-                msg.Embed = embed;
+                msg.Components = components;
+                msg.Flags = MessageFlags.ComponentsV2;
+                msg.Embed = null;
             });
         }
         catch (Exception ex)
@@ -197,17 +232,29 @@ public class NsfwCommands : InteractionModuleBase<ExtendedShardedInteractionCont
             // Check current status
             var isEnabled = await _funService.IsNsfwEnabledAsync(serverId);
             var status = isEnabled ? "enabled" : "disabled";
+            var statusIcon = isEnabled ? "🔞" : "🚫";
+            var statusColor = isEnabled ? "🔴" : "🟢";
             
-            var embed = new EmbedBuilder()
-                .WithTitle("NSFW Status")
-                .WithDescription($"NSFW content is currently **{status}** for this server.")
-                .WithColor(isEnabled ? Color.Red : Color.Green)
-                .AddField("How to change", 
-                    "Server administrators can use `/nsfw toggle enable:true` or `/nsfw toggle enable:false` to change this setting.")
-                .WithCurrentTimestamp()
+            // Create ComponentsV2 display for NSFW status
+            var components = new ComponentBuilderV2()
+                .WithTextDisplay($"# {statusIcon} NSFW Status\n## Currently {status}")
+                .WithTextDisplay($"**Status:** {statusColor} NSFW content is **{status}** for this server")
+                .WithTextDisplay("**How to change:** Server administrators can use `/nsfw toggle enable:true` or `/nsfw toggle enable:false` to change this setting")
+                .WithActionRow([
+                    new ButtonBuilder()
+                        .WithLabel(isEnabled ? "🚫 Disable NSFW" : "🔞 Enable NSFW")
+                        .WithCustomId(isEnabled ? "nsfw_toggle_disable" : "nsfw_toggle_enable")
+                        .WithStyle(isEnabled ? ButtonStyle.Danger : ButtonStyle.Success)
+                ])
                 .Build();
             
-            await ModifyOriginalResponseAsync(msg => msg.Embed = embed);
+            await ModifyOriginalResponseAsync(msg => 
+            {
+                msg.Components = components;
+                msg.Flags = MessageFlags.ComponentsV2;
+                msg.Embed = null;
+                msg.Content = null;
+            });
         }
     }
 
@@ -256,15 +303,34 @@ public class NsfwCommands : InteractionModuleBase<ExtendedShardedInteractionCont
                 return;
             }
 
-            var embed = new EmbedBuilder()
-                .WithTitle($"🔞 {displayName}")
-                .WithImageUrl(imageUrl)
-                .WithColor(Color.Red)
-                .WithFooter($"Requested by {Context.User.Username}", Context.User.GetAvatarUrl())
-                .WithCurrentTimestamp()
+            // Create ComponentsV2 display for NSFW content
+            var components = new ComponentBuilderV2()
+                .WithTextDisplay($"# 🔞 {displayName}\n## NSFW Content")
+                .WithMediaGallery([imageUrl])
+                .WithTextDisplay($"*Requested by {Context.User.Username}*")
+                .WithActionRow([
+                    new ButtonBuilder()
+                        .WithLabel("🎲 Random")
+                        .WithCustomId($"nsfw_random_{nsfwType}")
+                        .WithStyle(ButtonStyle.Primary),
+                    new ButtonBuilder()
+                        .WithLabel("🖼️ Gallery")
+                        .WithCustomId("nsfw_gallery")
+                        .WithStyle(ButtonStyle.Secondary),
+                    new ButtonBuilder()
+                        .WithLabel("🔄 New Image")
+                        .WithCustomId($"nsfw_get_{nsfwType}")
+                        .WithStyle(ButtonStyle.Secondary)
+                ])
                 .Build();
 
-            await ModifyOriginalResponseAsync(msg => msg.Embed = embed);
+            await ModifyOriginalResponseAsync(msg =>
+            {
+                msg.Components = components;
+                msg.Flags = MessageFlags.ComponentsV2;
+                msg.Embed = null;
+                msg.Content = null;
+            });
         }
         catch
         {
@@ -280,43 +346,6 @@ public class NsfwCommands : InteractionModuleBase<ExtendedShardedInteractionCont
         }
     }
 
-    /// <summary>
-    /// Builds embed for displaying NSFW images.
-    /// </summary>
-    private Embed BuildNsfwGalleryEmbed(List<Core.Models.NsfwImage> images)
-    {
-        // Build source information for display
-        var sourceInfo = string.Join(", ", images
-            .Select(img => img.Source ?? "Unknown")
-            .Distinct()
-            .Take(3));
-        
-        var artistInfo = images
-            .Where(img => !string.IsNullOrWhiteSpace(img.Artist))
-            .Select(img => img.Artist!)
-            .Distinct()
-            .Take(3)
-            .ToList();
-
-        var artistText = artistInfo.Count > 0 
-            ? $"\nArtists: {string.Join(", ", artistInfo)}{(artistInfo.Count == 3 ? " and others" : "")}"
-            : "";
-
-        var embed = new EmbedBuilder()
-            .WithTitle("🔞 NSFW Gallery")
-            .WithDescription($"{images.Count} images • Sources: {sourceInfo}{artistText}")
-            .WithColor(Color.Red)
-            .WithFooter($"Requested by {Context.User.Username} • Enjoy responsibly", Context.User.GetAvatarUrl())
-            .WithCurrentTimestamp();
-
-        // Add the first image as thumbnail if available
-        if (images.Count > 0)
-        {
-            embed.WithImageUrl(images[0].Url);
-        }
-        
-        return embed.Build();
-    }
 
     /// <summary>
     /// Creates a graceful error message for users based on the API result status.

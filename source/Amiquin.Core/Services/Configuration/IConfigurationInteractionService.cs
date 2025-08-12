@@ -9,9 +9,9 @@ namespace Amiquin.Core.Services.Configuration;
 public interface IConfigurationInteractionService
 {
     /// <summary>
-    /// Creates a configuration interface using Components V2.
+    /// Creates a configuration interface using Components V2 display components.
     /// </summary>
-    Task<(Embed embed, MessageComponent components)> CreateConfigurationInterfaceAsync(ulong guildId, SocketGuild guild);
+    Task<MessageComponent> CreateConfigurationInterfaceAsync(ulong guildId, SocketGuild guild);
     
     /// <summary>
     /// Initializes and registers all configuration-related component handlers.

@@ -566,7 +566,7 @@ public class FunService : IFunService
     }
 
     /// <inheritdoc/>
-    public async Task<(Embed embed, Discord.MessageComponent components, IEnumerable<FileAttachment> attachments)> CreateInteractivePaletteAsync(ColorPalette palette, ulong userId)
+    public async Task<(Discord.MessageComponent components, IEnumerable<FileAttachment> attachments)> CreateInteractivePaletteAsync(ColorPalette palette, ulong userId)
     {
         // Generate color images for each color in the palette
         var colorImages = new List<FileAttachment>();
@@ -601,85 +601,47 @@ public class FunService : IFunService
             }
         }
 
-        // Create embed with palette information and media gallery
-        var firstColorHex = palette.Colors[0].Hex.TrimStart('#');
-        var firstColorInt = Convert.ToInt32(firstColorHex, 16);
-        var embed = new EmbedBuilder()
-            .WithTitle($"🎨 {palette.Name}")
-            .WithDescription($"**Harmony Type:** {palette.HarmonyType}\n**Base Hue:** {palette.BaseHue:F1}°\n\n**Description:** {palette.Description}")
-            .WithColor(new Discord.Color((uint)firstColorInt));
-
-        // Add color details as fields
-        for (int i = 0; i < palette.Colors.Count; i++)
-        {
-            var color = palette.Colors[i];
-            var hex = color.Hex.TrimStart('#');
-            var colorInt = Convert.ToInt32(hex, 16);
-            var r = (colorInt >> 16) & 0xFF;
-            var g = (colorInt >> 8) & 0xFF;
-            var b = colorInt & 0xFF;
-            
-            embed.AddField(
-                $"{GetColorEmoji(color)} {color.Name}",
-                $"{color.Hex.ToUpper()} • {color.Role}\nRGB({r}, {g}, {b})",
-                inline: true
-            );
-        }
-
-        // Add tags if available
-        if (palette.Tags.Any())
-        {
-            embed.AddField("🏷️ Suggested Uses", string.Join(" • ", palette.Tags), inline: false);
-        }
-
-        embed.WithFooter($"Harmony: {palette.HarmonyType} | Base Hue: {palette.BaseHue:F1}°")
-            .WithTimestamp(palette.CreatedAt);
-
-        // Create interactive components using ComponentBuilderV2 with MediaGallery
-        // Color selection dropdown options
-        var colorOptions = palette.Colors.Select(color => 
-            new SelectMenuOptionBuilder()
-                .WithLabel($"{color.Name} {color.Hex.ToUpper()}")
-                .WithValue(color.Hex)
-                .WithDescription($"{color.Role} • HSL({color.Hue:F0}°, {color.Saturation:F0}%, {color.Lightness:F0}%)")
-                .WithEmote(Emoji.Parse(GetColorEmoji(color)))
-        ).ToList();
-
-        var colorSelect = new SelectMenuBuilder(
-            customId: _componentHandler.GenerateCustomId("palette_color", palette.Id, userId.ToString()),
-            options: colorOptions,
-            placeholder: "Select a color to view details...",
-            minValues: 1,
-            maxValues: 1
-        );
-
-        // Action buttons
-        var buttons = new List<ButtonBuilder>
-        {
-            new ButtonBuilder()
-                .WithLabel("🔄 New Palette")
-                .WithCustomId(_componentHandler.GenerateCustomId("palette_regenerate", palette.HarmonyType.ToString(), userId.ToString()))
-                .WithStyle(ButtonStyle.Primary),
-            new ButtonBuilder()
-                .WithLabel("🎲 Random Harmony")
-                .WithCustomId(_componentHandler.GenerateCustomId("palette_random", userId.ToString()))
-                .WithStyle(ButtonStyle.Secondary),
-            new ButtonBuilder()
-                .WithLabel("💾 Export")
-                .WithCustomId(_componentHandler.GenerateCustomId("palette_export", palette.Id, userId.ToString()))
-                .WithStyle(ButtonStyle.Secondary)
-        };
-
+        // Create interactive ComponentsV2 display
+        
         var components = new ComponentBuilderV2()
+            .WithTextDisplay($"# 🎨 {palette.Name}\n## {palette.HarmonyType} Color Palette")
+            .WithTextDisplay($"{palette.Description}\n\n**Base Hue:** {palette.BaseHue:F1}°")
             .WithMediaGallery(imageUrls.ToArray())
-            .WithActionRow([colorSelect])
-            .WithActionRow(buttons)
+            .WithTextDisplay($"**Colors in this palette:**\n{string.Join("\n", palette.Colors.Select(c => $"• **{c.Name}** ({c.Hex.ToUpper()}) - {c.Role}"))}")
+            .WithActionRow([
+                new SelectMenuBuilder()
+                    .WithCustomId(_componentHandler.GenerateCustomId("palette_color", palette.Id, userId.ToString()))
+                    .WithPlaceholder("Select a color to view details...")
+                    .WithOptions(palette.Colors.Select(color => 
+                        new SelectMenuOptionBuilder()
+                            .WithLabel($"{color.Name} {color.Hex.ToUpper()}")
+                            .WithValue(color.Hex)
+                            .WithDescription($"{color.Role} • HSL({color.Hue:F0}°, {color.Saturation:F0}%, {color.Lightness:F0}%)")
+                            .WithEmote(Emoji.Parse(GetColorEmoji(color)))
+                    ).ToList())
+                    .WithMinValues(1)
+                    .WithMaxValues(1)
+            ])
+            .WithActionRow([
+                new ButtonBuilder()
+                    .WithLabel("🔄 New Palette")
+                    .WithCustomId(_componentHandler.GenerateCustomId("palette_regenerate", palette.HarmonyType.ToString(), userId.ToString()))
+                    .WithStyle(ButtonStyle.Primary),
+                new ButtonBuilder()
+                    .WithLabel("🎲 Random Harmony")
+                    .WithCustomId(_componentHandler.GenerateCustomId("palette_random", userId.ToString()))
+                    .WithStyle(ButtonStyle.Secondary),
+                new ButtonBuilder()
+                    .WithLabel("💾 Export")
+                    .WithCustomId(_componentHandler.GenerateCustomId("palette_export", palette.Id, userId.ToString()))
+                    .WithStyle(ButtonStyle.Secondary)
+            ])
             .Build();
 
         // Register component handlers
         RegisterPaletteHandlers(palette);
 
-        return (embed.Build(), components, colorImages);
+        return (components, colorImages);
     }
 
     private List<PaletteColor> GenerateColorsByHarmony(ColorHarmonyType harmonyType, float baseHue)

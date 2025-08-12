@@ -51,8 +51,8 @@ public interface IFunService
     /// </summary>
     /// <param name="palette">The color palette to display.</param>
     /// <param name="userId">User ID for the interaction.</param>
-    /// <returns>Embed, components, and file attachments for the interactive interface with color images.</returns>
-    Task<(Embed embed, Discord.MessageComponent components, IEnumerable<FileAttachment> attachments)> CreateInteractivePaletteAsync(ColorPalette palette, ulong userId);
+    /// <returns>Components V2 message component and file attachments for the interactive interface with color images.</returns>
+    Task<(Discord.MessageComponent components, IEnumerable<FileAttachment> attachments)> CreateInteractivePaletteAsync(ColorPalette palette, ulong userId);
 
     /// <summary>
     /// Generates representative images for each color in a palette.
