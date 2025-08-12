@@ -31,12 +31,14 @@ services:
     build:
       context: ./source
       dockerfile: Amiquin.Bot/dockerfile
+      args:
+        AMQ_BOT_NAME: ${AMQ_BOT_NAME}
     env_file:
       - .env
     ports:
       - "10001:10000" # Adjust ports as needed
     volumes:
-      - amq-data:/${AMQ_BOT_NAME}/Data
+      - amq-data:/Data
     depends_on:
       mysql:
         condition: service_healthy

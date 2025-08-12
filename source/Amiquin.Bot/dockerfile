@@ -2,7 +2,8 @@
 # Stage 0: Base dependencies layer for caching external dependencies
 # =============================================================================
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS dependencies-base
-ARG MAIN_WORK_DIR=/home/app/amiquin
+ARG AMQ_BOT_NAME=amiquin
+ARG MAIN_WORK_DIR=/home/app/${AMQ_BOT_NAME}
 
 # Install build dependencies in a single layer
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -51,7 +52,8 @@ RUN curl -L "https://ftp.osuosl.org/pub/xiph/releases/opus/opus-${OPUS_VERSION}.
 # Stage 3: .NET build layer with native dependencies
 # =============================================================================
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
-ARG MAIN_WORK_DIR=/home/app/amiquin
+ARG AMQ_BOT_NAME=amiquin
+ARG MAIN_WORK_DIR=/home/app/${AMQ_BOT_NAME}
 WORKDIR ${MAIN_WORK_DIR}
 
 # Copy native libraries from dedicated build stages
@@ -112,7 +114,8 @@ RUN pipx install piper-tts==${PIPER_VERSION} && pipx ensurepath
 # Stage 5: Final runtime image
 # =============================================================================
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
-ARG MAIN_WORK_DIR=/home/app/amiquin
+ARG AMQ_BOT_NAME=amiquin
+ARG MAIN_WORK_DIR=/home/app/${AMQ_BOT_NAME}
 WORKDIR ${MAIN_WORK_DIR}
 
 # Copy runtime dependencies from cached layer
@@ -130,10 +133,6 @@ RUN ldconfig
 
 # Create non-root user with proper setup
 RUN useradd -ms /bin/bash -u 1000 amiquin \
-    && mkdir -p ${MAIN_WORK_DIR}/Data/Logs \
-    && mkdir -p ${MAIN_WORK_DIR}/Data/Database \
-    && mkdir -p ${MAIN_WORK_DIR}/Data/Messages \
-    && mkdir -p ${MAIN_WORK_DIR}/Data/Sessions \
     && chown -R amiquin:amiquin ${MAIN_WORK_DIR}
 
 # Copy Piper TTS installation to amiquin user
@@ -153,13 +152,26 @@ RUN if [ ! -f Configuration/appsettings.json ] && [ -f Configuration/appsettings
         cp Configuration/appsettings.example.json Configuration/appsettings.json; \
     fi
 
-# Set environment variables for data paths
-ENV AMQ_DataPaths__Logs=${MAIN_WORK_DIR}/Data/Logs
-ENV AMQ_DataPaths__Database=${MAIN_WORK_DIR}/Data/Database
-ENV AMQ_DataPaths__Messages=${MAIN_WORK_DIR}/Data/Messages
-ENV AMQ_DataPaths__Sessions=${MAIN_WORK_DIR}/Data/Sessions
+# Create Data directory structure at volume mount point
+RUN mkdir -p /Data/Logs \
+    && mkdir -p /Data/Database \
+    && mkdir -p /Data/Messages \
+    && mkdir -p /Data/Sessions \
+    && chown -R amiquin:amiquin /Data
+
+# Move any Data folders that were copied from build to the volume location
+RUN if [ -d "${MAIN_WORK_DIR}/build/Data" ]; then \
+        cp -r ${MAIN_WORK_DIR}/build/Data/* /Data/ 2>/dev/null || true; \
+        rm -rf ${MAIN_WORK_DIR}/build/Data; \
+    fi
+
+# Set environment variables for data paths (pointing to volume)
+ENV AMQ_DataPaths__Logs=/Data/Logs
+ENV AMQ_DataPaths__Database=/Data/Database
+ENV AMQ_DataPaths__Messages=/Data/Messages
+ENV AMQ_DataPaths__Sessions=/Data/Sessions
 ENV AMQ_Database__Mode=1
-ENV AMQ_ConnectionStrings__AmiquinContext="Data Source=${MAIN_WORK_DIR}/Data/Database/amiquin.db"
+ENV AMQ_ConnectionStrings__AmiquinContext="Data Source=/Data/Database/amiquin.db"
 ENV PATH="${PATH}:/home/amiquin/.local/bin"
 
 # Health check for console application - just check if process is running
