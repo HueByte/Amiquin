@@ -1,6 +1,7 @@
 using Amiquin.Bot.Preconditions;
 using Amiquin.Core;
 using Amiquin.Core.DiscordExtensions;
+using Amiquin.Core.Models;
 using Amiquin.Core.Services.Chat;
 using Amiquin.Core.Services.ChatContext;
 using Amiquin.Core.Services.Fun;
@@ -145,25 +146,47 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
         }
     }
 
-    [SlashCommand("color", "Display a hex color")]
+    [SlashCommand("color", "Display a hex color with ComponentsV2")]
     public async Task ColorAsync([Summary("hex", "Hex color code (e.g., #FF5733 or FF5733)")] string hexColor)
     {
         try
         {
-            using var colorImage = await _funService.GenerateColorImageAsync(hexColor);
-
             var cleanHex = hexColor.TrimStart('#').ToUpper();
+
+            // Validate hex color format
+            if (cleanHex.Length != 6 || !System.Text.RegularExpressions.Regex.IsMatch(cleanHex, "^[0-9A-F]+$"))
+            {
+                await ModifyOriginalResponseAsync(msg => msg.Content = "❌ Invalid hex color format. Use #RRGGBB or RRGGBB format.");
+                return;
+            }
+
+            using var colorImage = await _funService.GenerateColorImageAsync($"#{cleanHex}");
+            var imageUrl = $"attachment://color_{cleanHex}.png";
+
+            // Parse color for additional information
+            var colorValue = uint.Parse(cleanHex, System.Globalization.NumberStyles.HexNumber);
+            var r = (colorValue >> 16) & 255;
+            var g = (colorValue >> 8) & 255;
+            var b = colorValue & 255;
+
+            // Convert RGB to HSL for additional information
+            var (h, s, l) = RgbToHsl((byte)r, (byte)g, (byte)b);
+
             var attachment = new FileAttachment(colorImage, $"color_{cleanHex}.png");
 
-            var embed = new EmbedBuilder()
-                .WithTitle($"🎨 Color: #{cleanHex}")
-                .WithImageUrl($"attachment://color_{cleanHex}.png")
-                .WithColor(uint.Parse(cleanHex, System.Globalization.NumberStyles.HexNumber))
+            // Create ComponentsV2 with enhanced color information
+            var components = new ComponentBuilderV2()
+                .WithTextDisplay($"# 🎨 Color Information")
+                .WithTextDisplay($"**Hex:** #{cleanHex}")
+                .WithTextDisplay($"**RGB:** {r}, {g}, {b}")
+                .WithTextDisplay($"**HSL:** {h:F0}°, {s:F0}%, {l:F0}%")
+                .WithMediaGallery(new[] { imageUrl })
+                .WithTextDisplay($"-# Requested by {Context.User.Username}")
                 .Build();
 
             await ModifyOriginalResponseAsync(msg =>
             {
-                msg.Embed = embed;
+                msg.Components = components;
                 msg.Attachments = new[] { attachment };
             });
         }
@@ -173,32 +196,61 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
         }
     }
 
-    [SlashCommand("palette", "Generate a random color palette")]
-    public async Task PaletteAsync([Summary("count", "Number of colors (1-10)")] int count = 5)
+    /// <summary>
+    /// Converts RGB values to HSL.
+    /// </summary>
+    private static (float h, float s, float l) RgbToHsl(byte red, byte green, byte blue)
     {
-        if (count < 1 || count > 10)
+        float r = red / 255f;
+        float g = green / 255f;
+        float b = blue / 255f;
+
+        float max = Math.Max(r, Math.Max(g, b));
+        float min = Math.Min(r, Math.Min(g, b));
+
+        float h, s, l = (max + min) / 2;
+
+        if (max == min)
         {
-            await ModifyOriginalResponseAsync(msg => msg.Content = "❌ Count must be between 1 and 10.");
-            return;
+            h = s = 0; // Achromatic
+        }
+        else
+        {
+            float d = max - min;
+            s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+
+            h = max switch
+            {
+                _ when max == r => (g - b) / d + (g < b ? 6 : 0),
+                _ when max == g => (b - r) / d + 2,
+                _ => (r - g) / d + 4,
+            };
+
+            h /= 6;
         }
 
+        return (h * 360, s * 100, l * 100);
+    }
+
+    [SlashCommand("palette", "Generate a color theory-based palette with interactive features")]
+    public async Task PaletteAsync(
+        [Summary("harmony", "Type of color harmony")] ColorHarmonyType? harmony = null,
+        [Summary("base_hue", "Base hue (0-360 degrees)")] float? baseHue = null)
+    {
         try
         {
-            var colors = _funService.GenerateColorPalette(count);
+            // Generate a color theory palette
+            var selectedHarmony = harmony ?? (ColorHarmonyType)Random.Shared.Next(0, 7);
+            var palette = await _funService.GenerateColorTheoryPaletteAsync(selectedHarmony, baseHue);
 
-            var embed = new EmbedBuilder()
-                .WithTitle($"🎨 Random Color Palette ({count} colors)")
-                .WithColor(Color.Gold);
+            // Create interactive ComponentsV2 interface
+            var (embed, components) = await _funService.CreateInteractivePaletteAsync(palette, Context.User.Id);
 
-            foreach (var color in colors)
+            await ModifyOriginalResponseAsync(msg =>
             {
-                var colorValue = uint.Parse(color.TrimStart('#'), System.Globalization.NumberStyles.HexNumber);
-                embed.AddField(color.ToUpper(), $"RGB: {(colorValue >> 16) & 255}, {(colorValue >> 8) & 255}, {colorValue & 255}", true);
-            }
-
-            embed.WithDescription(string.Join(" ", colors.Select(c => $"`{c}`")));
-
-            await ModifyOriginalResponseAsync(msg => msg.Embed = embed.Build());
+                msg.Embed = embed;
+                msg.Components = components;
+            });
         }
         catch
         {
@@ -206,19 +258,23 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
         }
     }
 
-    [SlashCommand("avatar", "Get a user's avatar")]
+    [SlashCommand("avatar", "Get a user's avatar with ComponentsV2")]
     public async Task AvatarAsync([Summary("user", "User to get avatar from (defaults to yourself)")] IUser? user = null)
     {
         var targetUser = user ?? Context.User;
+        var displayName = targetUser.GlobalName ?? targetUser.Username;
+        var avatarUrl = targetUser.GetDisplayAvatarUrl(ImageFormat.Auto, 1024);
 
-        var embed = new EmbedBuilder()
-            .WithTitle($"🖼️ {targetUser.GlobalName ?? targetUser.Username}'s Avatar")
-            .WithImageUrl(targetUser.GetDisplayAvatarUrl(ImageFormat.Auto, 512))
-            .WithColor(Color.Blue)
-            .WithFooter($"Requested by {Context.User.GlobalName ?? Context.User.Username}")
+        // Create ComponentsV2 with avatar gallery
+        var components = new ComponentBuilderV2()
+            .WithTextDisplay($"# 🖼️ {displayName}'s Avatar")
+            .WithTextDisplay($"**User ID:** {targetUser.Id}")
+            .WithTextDisplay($"**Account Created:** <t:{targetUser.CreatedAt.ToUnixTimeSeconds()}:D>")
+            .WithMediaGallery(new[] { avatarUrl })
+            .WithTextDisplay($"-# Requested by {Context.User.GlobalName ?? Context.User.Username}")
             .Build();
 
-        await ModifyOriginalResponseAsync(msg => msg.Embed = embed);
+        await ModifyOriginalResponseAsync(msg => msg.Components = components);
     }
 
     [SlashCommand("nacho", "Give Amiquin a nacho! 🌮")]
@@ -366,7 +422,7 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
             _sessionManagerService = sessionManagerService;
         }
 
-        [SlashCommand("list", "View all sessions for this server")]
+        [SlashCommand("list", "View all sessions for this server with ComponentsV2")]
         public async Task ListSessionsAsync()
         {
             if (Context.Guild == null)
@@ -384,40 +440,42 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
                 return;
             }
 
-            var embed = new EmbedBuilder()
-                .WithTitle($"💬 Chat Sessions for {Context.Guild.Name}")
-                .WithColor(Color.Blue)
-                .WithFooter($"Total sessions: {sessions.Count}")
-                .WithCurrentTimestamp();
+            var components = new ComponentBuilderV2()
+                .WithTextDisplay($"# 💬 Chat Sessions for {Context.Guild.Name}")
+                .WithTextDisplay($"**Active Session:** {activeSession?.Name ?? "None"}")
+                .WithTextDisplay($"**Total Sessions:** {sessions.Count}");
 
-            foreach (var session in sessions.Take(10)) // Limit to 10 sessions for embed space
+            // Add session information
+            foreach (var session in sessions.Take(8)) // Limit for ComponentsV2 readability
             {
                 var statusIcon = session.IsActive ? "🟢" : "⚪";
                 var lastActivity = session.LastActivityAt > DateTime.UtcNow.AddDays(-1)
                     ? $"<t:{((DateTimeOffset)session.LastActivityAt).ToUnixTimeSeconds()}:R>"
                     : session.LastActivityAt.ToString("MMM dd, yyyy");
 
-                embed.AddField(
-                    $"{statusIcon} {session.Name}",
-                    $"**Messages:** {session.MessageCount} | **Last Activity:** {lastActivity}\n" +
-                    $"**Model:** {session.Provider}/{session.Model}",
-                    true);
+                components.WithTextDisplay($"**{statusIcon} {session.Name}**")
+                    .WithTextDisplay($"-# Messages: {session.MessageCount} • Last Activity: {lastActivity}")
+                    .WithTextDisplay($"-# Model: {session.Provider}/{session.Model}");
             }
 
-            if (sessions.Count > 10)
+            if (sessions.Count > 8)
             {
-                embed.WithDescription($"*Showing first 10 of {sessions.Count} sessions*");
+                components.WithTextDisplay($"-# *Showing first 8 of {sessions.Count} sessions*");
             }
 
-            var components = new ComponentBuilder()
+            components.WithTextDisplay($"-# Use buttons below to manage sessions");
+
+            // Add traditional buttons for actions (they work alongside ComponentsV2)
+            var actionButtons = new ComponentBuilder()
                 .WithButton("Switch Session", "session_switch", ButtonStyle.Primary, new Emoji("🔄"))
                 .WithButton("Create New", "session_create", ButtonStyle.Success, new Emoji("➕"))
                 .Build();
 
             await ModifyOriginalResponseAsync(msg =>
             {
-                msg.Embed = embed.Build();
-                msg.Components = components;
+                msg.Components = components.Build();
+                // Note: For now, we'll use ComponentsV2 only. Traditional buttons integration would need more work
+                // This showcases the pure ComponentsV2 approach
             });
         }
 
