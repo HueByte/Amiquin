@@ -131,9 +131,16 @@ COPY --from=opus-build /opt/opus/lib /usr/local/lib
 # Update linker cache
 RUN ldconfig
 
+# Create Data directory structure at volume mount point (as root)
+RUN mkdir -p /Data/Logs \
+    && mkdir -p /Data/Database \
+    && mkdir -p /Data/Messages \
+    && mkdir -p /Data/Sessions
+
 # Create non-root user with proper setup
 RUN useradd -ms /bin/bash -u 1000 amiquin \
-    && chown -R amiquin:amiquin ${MAIN_WORK_DIR}
+    && chown -R amiquin:amiquin ${MAIN_WORK_DIR} \
+    && chown -R amiquin:amiquin /Data
 
 # Copy Piper TTS installation to amiquin user
 USER amiquin
@@ -149,20 +156,13 @@ WORKDIR ${MAIN_WORK_DIR}/build
 
 # Ensure appsettings.json exists (copy from example if not present)
 RUN if [ ! -f Configuration/appsettings.json ] && [ -f Configuration/appsettings.example.json ]; then \
-        cp Configuration/appsettings.example.json Configuration/appsettings.json; \
+    cp Configuration/appsettings.example.json Configuration/appsettings.json; \
     fi
-
-# Create Data directory structure at volume mount point
-RUN mkdir -p /Data/Logs \
-    && mkdir -p /Data/Database \
-    && mkdir -p /Data/Messages \
-    && mkdir -p /Data/Sessions \
-    && chown -R amiquin:amiquin /Data
 
 # Move any Data folders that were copied from build to the volume location
 RUN if [ -d "${MAIN_WORK_DIR}/build/Data" ]; then \
-        cp -r ${MAIN_WORK_DIR}/build/Data/* /Data/ 2>/dev/null || true; \
-        rm -rf ${MAIN_WORK_DIR}/build/Data; \
+    cp -r ${MAIN_WORK_DIR}/build/Data/* /Data/ 2>/dev/null || true; \
+    rm -rf ${MAIN_WORK_DIR}/build/Data; \
     fi
 
 # Set environment variables for data paths (pointing to volume)
