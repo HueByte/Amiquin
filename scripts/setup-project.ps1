@@ -44,6 +44,9 @@ $config = @{
     SystemMessage = "I want you to act as personal assistant called Amiquin. You are friendly, helpful and professional."
     DefaultModel = "gpt-4o-mini"
     
+    # NSFW/Waifu API configuration
+    WaifuApiToken = ""
+    
     # Database
     DatabaseMode = 1  # SQLite by default
     DatabaseConnection = "Data Source=Data/Database/amiquin.db"
@@ -119,6 +122,18 @@ if ($NonInteractive) {
         Write-Host "OpenAI API key configured successfully" -ForegroundColor Green
     } else {
         Write-Host "OpenAI API key will need to be configured later for AI features to work" -ForegroundColor Yellow
+    }
+    
+    # Waifu API Configuration
+    Write-Host "\n=== NSFW/Waifu API Configuration ===" -ForegroundColor Cyan
+    Write-Host "Waifu API token is optional but recommended for better rate limits and NSFW features"
+    Write-Host "Get your token from: https://www.waifu.im/dashboard/"
+    $waifuToken = Read-Host "Enter Waifu API Token [leave empty to configure later]"
+    if ($waifuToken) { 
+        $config.WaifuApiToken = $waifuToken 
+        Write-Host "Waifu API token configured successfully" -ForegroundColor Green
+    } else {
+        Write-Host "Waifu API token can be configured later in the .env file for better NSFW functionality" -ForegroundColor Yellow
     }
     
     # System Message
@@ -277,6 +292,14 @@ AMQ_Voice__PiperCommand=`"/usr/local/bin/piper`"
 AMQ_Voice__Enabled=$($config.VoiceEnabled.ToString().ToLower())
 
 # ======================
+# NSFW/Waifu API Configuration
+# ======================
+$(if ($config.WaifuApiToken) { "AMQ_WaifuApi__Token=`"$($config.WaifuApiToken)`"" } else { "# AMQ_WaifuApi__Token=`"your-waifu-api-token-here`"" })
+AMQ_WaifuApi__BaseUrl=`"https://api.waifu.im`"
+AMQ_WaifuApi__Version=`"v5`"
+AMQ_WaifuApi__Enabled=true
+
+# ======================
 # Logging Configuration
 # ======================
 AMQ_Serilog__MinimumLevel__Default=`"Information`"
@@ -384,6 +407,12 @@ $appSettings = @{
         PiperCommand = "/usr/local/bin/piper"
         Enabled = $config.VoiceEnabled
     }
+    WaifuApi = @{
+        Token = if ($config.WaifuApiToken) { $config.WaifuApiToken } else { "your-waifu-api-token-here" }
+        BaseUrl = "https://api.waifu.im"
+        Version = "v5"
+        Enabled = $true
+    }
     Serilog = @{
         MinimumLevel = @{
             Default = "Information"
@@ -421,6 +450,7 @@ try {
     $exampleSettings = $appSettings.Clone()
     $exampleSettings.Bot.Token = "your-discord-bot-token-here"
     $exampleSettings.LLM.Providers.OpenAI.ApiKey = "your-openai-api-key-here"
+    $exampleSettings.WaifuApi.Token = "your-waifu-api-token-here"
     
     $exampleJson = $exampleSettings | ConvertTo-Json -Depth 10
     Set-Content -Path $examplePath -Value $exampleJson -Encoding UTF8

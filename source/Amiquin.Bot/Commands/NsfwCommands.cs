@@ -4,6 +4,7 @@ using Amiquin.Core.Services.Nsfw;
 using Amiquin.Core.Services.Toggle;
 using Discord;
 using Discord.Interactions;
+using Microsoft.Extensions.Logging;
 
 namespace Amiquin.Bot.Commands;
 
@@ -61,12 +62,14 @@ public class NsfwCommands : InteractionModuleBase<ExtendedShardedInteractionCont
     private readonly IFunService _funService;
     private readonly IToggleService _toggleService;
     private readonly INsfwApiService _nsfwApiService;
+    private readonly ILogger<NsfwCommands> _logger;
 
-    public NsfwCommands(IFunService funService, IToggleService toggleService, INsfwApiService nsfwApiService)
+    public NsfwCommands(IFunService funService, IToggleService toggleService, INsfwApiService nsfwApiService, ILogger<NsfwCommands> logger)
     {
         _funService = funService;
         _toggleService = toggleService;
         _nsfwApiService = nsfwApiService;
+        _logger = logger;
     }
 
     [SlashCommand("get", "Get a random NSFW image of the specified category")]
@@ -126,29 +129,44 @@ public class NsfwCommands : InteractionModuleBase<ExtendedShardedInteractionCont
 
         try
         {
-            // Fetch 10 random NSFW images (5 waifu, 5 alternative)
-            var images = await _nsfwApiService.GetDailyNsfwImagesAsync(5, 5);
+            // Fetch 10 random NSFW images with status information
+            var result = await _nsfwApiService.GetNsfwImagesWithStatusAsync(5, 5);
             
-            if (images.Count == 0)
+            if (!result.IsSuccess)
             {
-                await ModifyOriginalResponseAsync(msg => msg.Content = 
-                    "❌ Could not fetch NSFW gallery. Please try again later.");
+                await ModifyOriginalResponseAsync(msg => 
+                {
+                    msg.Content = CreateGracefulErrorMessage(result);
+                    msg.Embed = null;
+                });
                 return;
             }
 
             // Build the gallery embed
-            var embed = BuildNsfwGalleryEmbed(images);
+            var embed = BuildNsfwGalleryEmbed(result.Images);
+            
+            // Add status message if there were issues but we still got some images
+            var statusMessage = result.IsTemporaryFailure && !string.IsNullOrEmpty(result.ErrorMessage)
+                ? $"⚠️ {result.ErrorMessage}" 
+                : null;
             
             await ModifyOriginalResponseAsync(msg => 
             {
-                msg.Content = null;
+                msg.Content = statusMessage;
                 msg.Embed = embed;
             });
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogError(ex, "Error in NSFW gallery command");
             await ModifyOriginalResponseAsync(msg => msg.Content = 
-                "❌ An error occurred while fetching the NSFW gallery. Please try again later.");
+                "❌ **Oops! Something went wrong** 🤖\n\n" +
+                "The NSFW gallery service is having a temporary hiccup. This usually resolves itself quickly.\n\n" +
+                "**What you can try:**\n" +
+                "• Wait a minute and try again\n" +
+                "• Use individual NSFW commands instead\n" +
+                "• Try again later if the issue persists\n\n" +
+                "*Don't worry, this is usually just a temporary glitch!* ✨");
         }
     }
 
@@ -228,7 +246,13 @@ public class NsfwCommands : InteractionModuleBase<ExtendedShardedInteractionCont
             if (string.IsNullOrEmpty(imageUrl))
             {
                 await ModifyOriginalResponseAsync(msg => msg.Content = 
-                    $"❌ Could not fetch {displayName} content. Please try again later.");
+                    $"🔧 **{displayName} Not Available Right Now** 🤖\n\n" +
+                    $"The {displayName.ToLower()} service is having a temporary hiccup!\n\n" +
+                    $"**Quick fixes to try:**\n" +
+                    $"• Wait a minute and try again\n" +
+                    $"• Try a different category with `/nsfw get`\n" +
+                    $"• Check out the gallery with `/nsfw gallery`\n\n" +
+                    $"*This usually resolves itself quickly!* ⚡");
                 return;
             }
 
@@ -245,7 +269,14 @@ public class NsfwCommands : InteractionModuleBase<ExtendedShardedInteractionCont
         catch
         {
             await ModifyOriginalResponseAsync(msg => msg.Content = 
-                $"❌ An error occurred while fetching {displayName} content. Please try again later.");
+                $"🚧 **Oops! {displayName} Service Hiccup** 🤖\n\n" +
+                $"Something went wrong while fetching {displayName.ToLower()} content, but don't worry!\n\n" +
+                $"**What you can do:**\n" +
+                $"• Try again in 1-2 minutes\n" +
+                $"• Use `/nsfw gallery` for a variety pack\n" +
+                $"• Try different categories - they might work better\n" +
+                $"• Check back later if the issue continues\n\n" +
+                $"*Most issues resolve themselves quickly!* 💙");
         }
     }
 
@@ -298,5 +329,44 @@ public class NsfwCommands : InteractionModuleBase<ExtendedShardedInteractionCont
             inline: false);
 
         return embedBuilder.Build();
+    }
+
+    /// <summary>
+    /// Creates a graceful error message for users based on the API result status.
+    /// </summary>
+    private string CreateGracefulErrorMessage(NsfwApiResult result)
+    {
+        if (result.IsRateLimited)
+        {
+            var waitTimeMinutes = result.RetryAfter.HasValue 
+                ? Math.Ceiling((result.RetryAfter.Value - DateTime.UtcNow).TotalMinutes)
+                : 5;
+            
+            return $"⏳ **Taking a quick break!** 🎯\n\n" +
+                   $"The NSFW image services are currently rate-limited to ensure fair usage for everyone.\n\n" +
+                   $"**When can you try again?**\n" +
+                   $"• In about {waitTimeMinutes} minute(s)\n" +
+                   $"• Individual NSFW commands may still work\n\n" +
+                   $"*Thanks for your patience! This helps keep the service stable for everyone.* 💙";
+        }
+
+        if (result.IsTemporaryFailure)
+        {
+            return "🔧 **Temporary Service Hiccup** 🤖\n\n" +
+                   "The NSFW image services are experiencing some temporary issues, but they should be back soon!\n\n" +
+                   "**What you can try:**\n" +
+                   "• Wait 2-3 minutes and try again\n" +
+                   "• Use individual `/nsfw get` commands which might work better\n" +
+                   "• Try different categories if some aren't working\n\n" +
+                   "*Most issues resolve themselves within a few minutes!* ⚡";
+        }
+
+        return "❌ **Service Temporarily Unavailable** 🚧\n\n" +
+               "The NSFW gallery is currently experiencing issues and couldn't fetch any images.\n\n" +
+               "**Don't worry, this is usually temporary:**\n" +
+               "• The service should be back within 5-10 minutes\n" +
+               "• You can try individual NSFW commands instead\n" +
+               "• Check back later if the issue persists\n\n" +
+               "*We're working to keep everything running smoothly!* 🛠️";
     }
 }

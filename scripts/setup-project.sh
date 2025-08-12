@@ -67,6 +67,7 @@ echo ""
 BOT_TOKEN=""
 BOT_NAME="Amiquin"
 OPENAI_API_KEY=""
+WAIFU_API_TOKEN=""
 CHAT_SYSTEM_MESSAGE="I want you to act as personal assistant called Amiquin. You are friendly, helpful and professional."
 CHAT_TOKEN_LIMIT=2000
 CHAT_ENABLED="true"
@@ -142,6 +143,18 @@ else
         echo -e "${GREEN}OpenAI API key configured successfully${NC}"
     else
         echo -e "${YELLOW}OpenAI API key will need to be configured later for AI features to work${NC}"
+    fi
+    
+    # Waifu API Configuration
+    echo -e "\n${CYAN}=== NSFW/Waifu API Configuration ===${NC}"
+    echo "Waifu API token is optional but recommended for better rate limits and NSFW features"
+    echo "Get your token from: https://www.waifu.im/dashboard/"
+    read -p "Enter Waifu API Token [leave empty to configure later]: " input
+    if [ ! -z "$input" ]; then
+        WAIFU_API_TOKEN="$input"
+        echo -e "${GREEN}Waifu API token configured successfully${NC}"
+    else
+        echo -e "${YELLOW}Waifu API token can be configured later in the .env file for better NSFW functionality${NC}"
     fi
     
     # System Message
@@ -312,6 +325,14 @@ AMQ_DataPaths__Configuration="$CONFIGURATION_PATH"
 AMQ_Voice__TTSModelName="$TTS_MODEL_NAME"
 AMQ_Voice__PiperCommand="/usr/local/bin/piper"
 AMQ_Voice__Enabled=$VOICE_ENABLED
+
+# ======================
+# NSFW/Waifu API Configuration
+# ======================
+$(if [ ! -z "$WAIFU_API_TOKEN" ]; then echo "AMQ_WaifuApi__Token=\"$WAIFU_API_TOKEN\""; else echo "# AMQ_WaifuApi__Token=\"your-waifu-api-token-here\""; fi)
+AMQ_WaifuApi__BaseUrl="https://api.waifu.im"
+AMQ_WaifuApi__Version="v5"
+AMQ_WaifuApi__Enabled=true
 
 # ======================
 # Logging Configuration
