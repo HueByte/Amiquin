@@ -251,6 +251,21 @@ public class JobService : IAsyncDisposable, IJobService
     }
 
     /// <summary>
+    /// Checks if a job with the specified ID exists.
+    /// </summary>
+    /// <param name="jobId">The ID of the job to check.</param>
+    /// <returns>True if the job exists; otherwise, false.</returns>
+    public bool JobExists(string jobId)
+    {
+        if (_disposed || string.IsNullOrEmpty(jobId))
+        {
+            return false;
+        }
+
+        return _dynamicJobs.ContainsKey(jobId);
+    }
+
+    /// <summary>
     /// Gets job information by its ID.
     /// </summary>
     /// <param name="jobId">The ID of the job to retrieve.</param>

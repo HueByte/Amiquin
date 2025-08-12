@@ -262,10 +262,11 @@ public class NsfwApiService : INsfwApiService
             return null;
         }
 
+        // Use the search endpoint for random images with proper v5 API format
         // First try with the specific tag
         var result = await TryFetchWaifuImageWithUrl($"{_waifuApiOptions.BaseUrl}/search?included_tags={tag}&is_nsfw=true", tag);
         
-        // If forbidden, try without the specific tag (just NSFW)
+        // If that fails, try without specific tag for random NSFW
         if (result == null)
         {
             result = await TryFetchWaifuImageWithUrl($"{_waifuApiOptions.BaseUrl}/search?is_nsfw=true", "random-nsfw");
@@ -302,20 +303,41 @@ public class NsfwApiService : INsfwApiService
                 _lastRateLimitHit = DateTime.UtcNow;
                 _consecutiveRateLimits++;
                 
-                // Increase cooldown for repeated rate limits
-                var effectiveCooldown = _consecutiveRateLimits > 3 
-                    ? TimeSpan.FromMinutes(20) 
-                    : _rateLimitCooldown;
+                // Check for Retry-After header as mentioned in API docs
+                var retryAfterSeconds = 0;
+                if (response.Headers.RetryAfter != null)
+                {
+                    retryAfterSeconds = (int)(response.Headers.RetryAfter.Delta?.TotalSeconds ?? 0);
+                }
                 
-                _logger.LogWarning("Rate limited by waifu.im API for tag: {Tag}. Cooldown activated for {Cooldown} minutes (consecutive: {Count})", 
-                    tagForLogging, effectiveCooldown.TotalMinutes, _consecutiveRateLimits);
+                // Use server-provided retry time or default cooldown
+                var effectiveCooldown = retryAfterSeconds > 0 
+                    ? TimeSpan.FromSeconds(retryAfterSeconds)
+                    : (_consecutiveRateLimits > 3 ? TimeSpan.FromMinutes(20) : _rateLimitCooldown);
+                
+                _logger.LogWarning("Rate limited by waifu.im API for tag: {Tag}. Cooldown activated for {Cooldown} seconds (consecutive: {Count}, server retry-after: {RetryAfter}s)", 
+                    tagForLogging, effectiveCooldown.TotalSeconds, _consecutiveRateLimits, retryAfterSeconds);
                 return null;
             }
             
             if (response.StatusCode == HttpStatusCode.Forbidden)
             {
                 var responseBody = await response.Content.ReadAsStringAsync();
-                _logger.LogWarning("Forbidden response from waifu.im for tag: {Tag}. Response: {Response}", tagForLogging, responseBody);
+                
+                // Check if this is the HTML access denied page (indicating service blocking)
+                if (responseBody.Contains("Access Denied") && responseBody.Contains("<!DOCTYPE html>"))
+                {
+                    _logger.LogWarning("waifu.im service is blocking access - switching to permanent fallback mode for tag: {Tag}", tagForLogging);
+                    
+                    // Treat this as a permanent service issue and activate extended cooldown
+                    _lastRateLimitHit = DateTime.UtcNow;
+                    _consecutiveRateLimits = 10; // Force extended cooldown to rely on fallback services
+                }
+                else
+                {
+                    _logger.LogWarning("Forbidden response from waifu.im for tag: {Tag}. Response: {Response}", tagForLogging, responseBody);
+                }
+                
                 return null;
             }
             
@@ -377,34 +399,49 @@ public class NsfwApiService : INsfwApiService
     private async Task<List<NsfwImage>> FetchFromWaifuPicsNsfwAsync(int count)
     {
         var images = new List<NsfwImage>();
-        var categories = new[] { "waifu", "neko", "trap", "blowjob" };
+        var categories = new[] { "waifu", "neko", "trap", "blowjob", "ass", "hentai", "milf", "oral", "paizuri", "ecchi" };
 
         try
         {
-            foreach (var category in categories.Take(count))
+            // Randomize categories and fetch multiple images per category for better variety
+            var shuffledCategories = categories.OrderBy(x => _random.Next()).ToArray();
+            var imagesPerCategory = Math.Max(1, count / 4); // At least 1 per category, distribute count
+            
+            foreach (var category in shuffledCategories)
             {
-                try
+                // Fetch multiple images from each category to increase variety
+                for (int i = 0; i < imagesPerCategory && images.Count < count * 2; i++) // Fetch extra for filtering
                 {
-                    var url = $"https://api.waifu.pics/nsfw/{category}";
-                    var response = await _httpClient.GetStringAsync(url);
-                    var jsonDoc = JsonDocument.Parse(response);
-
-                    if (jsonDoc.RootElement.TryGetProperty("url", out var urlElement))
+                    try
                     {
-                        images.Add(new NsfwImage
-                        {
-                            Url = urlElement.GetString() ?? string.Empty,
-                            Source = "waifu.pics",
-                            Tags = category
-                        });
-                    }
+                        var url = $"https://api.waifu.pics/nsfw/{category}";
+                        var response = await _httpClient.GetStringAsync(url);
+                        var jsonDoc = JsonDocument.Parse(response);
 
-                    if (images.Count >= count) break;
+                        if (jsonDoc.RootElement.TryGetProperty("url", out var urlElement))
+                        {
+                            var imageUrl = urlElement.GetString();
+                            if (!string.IsNullOrEmpty(imageUrl) && !images.Any(img => img.Url == imageUrl))
+                            {
+                                images.Add(new NsfwImage
+                                {
+                                    Url = imageUrl,
+                                    Source = "waifu.pics",
+                                    Tags = category
+                                });
+                            }
+                        }
+
+                        // Small delay to avoid overwhelming the API
+                        await Task.Delay(100);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogDebug(ex, "Failed to fetch from waifu.pics category: {Category}", category);
+                    }
                 }
-                catch (Exception ex)
-                {
-                    _logger.LogDebug(ex, "Failed to fetch from waifu.pics category: {Category}", category);
-                }
+
+                if (images.Count >= count) break;
             }
         }
         catch (Exception ex)

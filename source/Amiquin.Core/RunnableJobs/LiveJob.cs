@@ -80,13 +80,30 @@ public class LiveJob : IRunnableJob
 
                         if (isLiveJobEnabled && !currentlyHasSession)
                         {
-                            // Create new activity session for this server
-                            var sessionJobId = CreateActivitySessionJob(serverId, serviceScopeFactory);
-                            if (!string.IsNullOrEmpty(sessionJobId))
+                            // Thread-safe check to prevent duplicate job creation during parallel processing
+                            var jobId = $"ActivitySession_{serverId}";
+                            
+                            // Use TryAdd to atomically add the job ID only if it doesn't exist
+                            // This prevents race conditions when multiple threads try to create the same job
+                            if (_activeSessionJobs.TryAdd(serverId, jobId))
                             {
-                                _activeSessionJobs[serverId] = sessionJobId;
-                                Interlocked.Increment(ref sessionsCreated);
-                                _logger.LogInformation("Created ActivitySession for guild {GuildId}", serverId);
+                                // Only proceed if we successfully added the job ID to the dictionary
+                                var sessionJobId = CreateActivitySessionJob(serverId, serviceScopeFactory);
+                                if (!string.IsNullOrEmpty(sessionJobId))
+                                {
+                                    Interlocked.Increment(ref sessionsCreated);
+                                    _logger.LogInformation("Created ActivitySession for guild {GuildId}", serverId);
+                                }
+                                else
+                                {
+                                    // If job creation failed, remove from dictionary to allow retry
+                                    _activeSessionJobs.TryRemove(serverId, out _);
+                                    _logger.LogError("Failed to create ActivitySession job for guild {GuildId}, removed from tracking", serverId);
+                                }
+                            }
+                            else
+                            {
+                                _logger.LogDebug("ActivitySession job for guild {GuildId} is already being created by another thread", serverId);
                             }
                         }
                         else if (!isLiveJobEnabled && currentlyHasSession)
@@ -128,6 +145,9 @@ public class LiveJob : IRunnableJob
                 }
             }
 
+            // Cleanup orphaned jobs - remove from tracking any jobs that no longer exist in JobService
+            await CleanupOrphanedJobsAsync();
+            
             _logger.LogInformation("LiveJob Coordinator completed: {Processed} servers, {Created} sessions created, {Removed} sessions removed",
                 serversProcessed, sessionsCreated, sessionsRemoved);
         }
@@ -184,5 +204,48 @@ public class LiveJob : IRunnableJob
         }
     }
 
+    /// <summary>
+    /// Cleans up orphaned jobs that are tracked in the dictionary but no longer exist in JobService
+    /// </summary>
+    private Task CleanupOrphanedJobsAsync()
+    {
+        try
+        {
+            var orphanedJobs = new List<ulong>();
+            
+            foreach (var kvp in _activeSessionJobs)
+            {
+                var serverId = kvp.Key;
+                var jobId = kvp.Value;
+                
+                // Check if the job actually exists in JobService
+                if (!_jobService.JobExists(jobId))
+                {
+                    orphanedJobs.Add(serverId);
+                    _logger.LogWarning("Found orphaned ActivitySession tracking for guild {GuildId} (job {JobId} doesn't exist)", serverId, jobId);
+                }
+            }
+            
+            // Remove orphaned entries
+            foreach (var serverId in orphanedJobs)
+            {
+                if (_activeSessionJobs.TryRemove(serverId, out var jobId))
+                {
+                    _logger.LogInformation("Cleaned up orphaned ActivitySession tracking for guild {GuildId}", serverId);
+                }
+            }
+            
+            if (orphanedJobs.Count > 0)
+            {
+                _logger.LogInformation("Cleaned up {Count} orphaned ActivitySession entries", orphanedJobs.Count);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error during orphaned job cleanup");
+        }
+        
+        return Task.CompletedTask;
+    }
 
 }
