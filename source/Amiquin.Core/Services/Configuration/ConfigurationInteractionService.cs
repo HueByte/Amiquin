@@ -174,7 +174,11 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
             .AddOption("NSFW Channel", "nsfw_channel", "Set NSFW content channel", new Emoji("🔞"))
             .AddOption("AI Provider", "provider", "Choose AI model provider", new Emoji("🤖"))
             .AddOption("Feature Toggles", "toggles", "Enable/disable features", new Emoji("🎛️"))
-            .AddOption("View All Settings", "view_all", "Show complete configuration", new Emoji("📋"));
+            .AddOption("View All Settings", "view_all", "Show complete configuration", new Emoji("📋"))
+            .AddOption("Discord Server Info", "server_info", "Discord server details and statistics", new Emoji("ℹ️"))
+            .AddOption("Amiquin Metadata", "amiquin_metadata", "Bot configuration and AI settings", new Emoji("⚙️"))
+            .AddOption("Session Context", "session_context", "Current conversation context and stats", new Emoji("💭"))
+            .AddOption("Server Persona Details", "persona_details", "Full server persona configuration", new Emoji("📖"));
 
         builder.WithSelectMenu(selectMenu);
 
@@ -208,20 +212,41 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                 .WithEmote(new Emoji("🔞")),
             row: 1);
 
-        // Common Toggles
+        // Most Important Toggles - Each in their own row for prominence
         var toggles = await _toggleService.GetTogglesByServerId(guild.Id);
-        var importantToggles = toggles
+        var criticalToggles = toggles
             .Where(t => t.Name == Constants.ToggleNames.EnableChat || 
-                       t.Name == Constants.ToggleNames.EnableTTS ||
-                       t.Name == Constants.ToggleNames.EnableAIWelcome)
-            .Take(2)
+                       t.Name == Constants.ToggleNames.EnableDailyNSFW)
             .ToList();
 
+        var importantToggles = toggles
+            .Where(t => t.Name == Constants.ToggleNames.EnableTTS ||
+                       t.Name == Constants.ToggleNames.EnableAIWelcome)
+            .ToList();
+
+        int toggleRow = 2;
+        
+        // Critical toggles get their own rows (most important)
+        foreach (var toggle in criticalToggles)
+        {
+            var emoji = toggle.IsEnabled ? "✅" : "❌";
+            var style = toggle.IsEnabled ? ButtonStyle.Success : ButtonStyle.Secondary;
+            var label = $"{emoji} {FormatToggleName(toggle.Name)}";
+            
+            builder.WithButton(
+                new ButtonBuilder()
+                    .WithCustomId(_componentHandler.GenerateCustomId(TogglePrefix, toggle.Name, guild.Id.ToString()))
+                    .WithLabel(label)
+                    .WithStyle(style),
+                row: toggleRow++);
+        }
+
+        // Important toggles can share a row (secondary importance)
         if (importantToggles.Any())
         {
-            int row = 2;
-            foreach (var toggle in importantToggles)
+            for (int i = 0; i < importantToggles.Count && i < 2; i++)
             {
+                var toggle = importantToggles[i];
                 var emoji = toggle.IsEnabled ? "✅" : "❌";
                 var style = toggle.IsEnabled ? ButtonStyle.Success : ButtonStyle.Secondary;
                 var label = $"{emoji} {FormatToggleName(toggle.Name)}";
@@ -231,32 +256,33 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                         .WithCustomId(_componentHandler.GenerateCustomId(TogglePrefix, toggle.Name, guild.Id.ToString()))
                         .WithLabel(label)
                         .WithStyle(style),
-                    row: row);
+                    row: toggleRow);
             }
         }
 
-        // Footer Actions
+        // Footer Actions - Use the next available row (max 4, 0-indexed)
+        var footerRow = Math.Min(toggleRow + 1, 4);
         builder.WithButton(
             new ButtonBuilder()
                 .WithCustomId(_componentHandler.GenerateCustomId(NavigationPrefix, "refresh", guild.Id.ToString()))
                 .WithLabel("Refresh")
                 .WithStyle(ButtonStyle.Secondary)
                 .WithEmote(new Emoji("🔄")),
-            row: 3)
+            row: footerRow)
         .WithButton(
             new ButtonBuilder()
                 .WithCustomId(_componentHandler.GenerateCustomId(NavigationPrefix, "export", guild.Id.ToString()))
                 .WithLabel("Export")
                 .WithStyle(ButtonStyle.Secondary)
                 .WithEmote(new Emoji("📤")),
-            row: 3)
+            row: footerRow)
         .WithButton(
             new ButtonBuilder()
                 .WithCustomId(_componentHandler.GenerateCustomId(NavigationPrefix, "help", guild.Id.ToString()))
                 .WithLabel("Help")
                 .WithStyle(ButtonStyle.Secondary)
                 .WithEmote(new Emoji("❓")),
-            row: 3);
+            row: footerRow);
 
         return builder.Build();
     }
@@ -299,6 +325,18 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                     break;
                 case "view_all":
                     await ShowCompleteConfigurationAsync(component, guildId);
+                    break;
+                case "server_info":
+                    await ShowDiscordServerInfoAsync(component, guildId);
+                    break;
+                case "amiquin_metadata":
+                    await ShowAmiquinMetadataAsync(component, guildId);
+                    break;
+                case "session_context":
+                    await ShowSessionContextAsync(component, guildId);
+                    break;
+                case "persona_details":
+                    await ShowPersonaDetailsAsync(component, guildId);
                     break;
                 default:
                     await component.ModifyOriginalResponseAsync(msg => msg.Content = "❌ Unknown configuration option.");
@@ -477,7 +515,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                 var newState = !toggle.IsEnabled;
                 await _toggleService.SetServerToggleAsync(guildId, toggleName, newState);
 
-                // Refresh the interface
+                // Return to main configuration interface
                 var guild = (component.Channel as SocketGuildChannel)?.Guild;
                 if (guild != null)
                 {
@@ -1145,6 +1183,322 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         }
     }
 
+    private async Task ShowDiscordServerInfoAsync(SocketMessageComponent component, ulong guildId)
+    {
+        var guild = (component.Channel as SocketGuildChannel)?.Guild;
+        if (guild == null) return;
+
+        var embedBuilder = new EmbedBuilder()
+            .WithTitle("ℹ️ Discord Server Information")
+            .WithDescription($"Details and statistics for **{guild.Name}**")
+            .WithColor(new Color(114, 137, 218)) // Discord blue
+            .WithThumbnailUrl(guild.IconUrl)
+            .WithCurrentTimestamp();
+
+        // Basic server info
+        embedBuilder.AddField("📅 Created", 
+            $"<t:{guild.CreatedAt.ToUnixTimeSeconds()}:F>\n<t:{guild.CreatedAt.ToUnixTimeSeconds()}:R>", true);
+        
+        var owner = guild.Owner;
+        embedBuilder.AddField("👑 Owner", 
+            owner != null ? $"{owner.Mention}\n{owner.Username}#{owner.Discriminator}" : "*Not found*", true);
+
+        embedBuilder.AddField("🆔 Server ID", guild.Id.ToString(), true);
+
+        // Member statistics
+        var memberCount = guild.MemberCount;
+        var onlineCount = guild.Users.Count(u => u.Status != UserStatus.Offline);
+        var botCount = guild.Users.Count(u => u.IsBot);
+        var humanCount = memberCount - botCount;
+
+        embedBuilder.AddField("👥 Members", 
+            $"**Total:** {memberCount:N0}\n**Humans:** {humanCount:N0}\n**Bots:** {botCount:N0}", true);
+
+        embedBuilder.AddField("🟢 Online", $"{onlineCount:N0} members", true);
+
+        // Channel statistics
+        var textChannels = guild.TextChannels.Count;
+        var voiceChannels = guild.VoiceChannels.Count;
+        var categories = guild.CategoryChannels.Count;
+
+        embedBuilder.AddField("📺 Channels",
+            $"**Text:** {textChannels}\n**Voice:** {voiceChannels}\n**Categories:** {categories}", true);
+
+        // Server features
+        var features = guild.Features.ToString().Replace("_", " ").ToLower();
+        if (string.IsNullOrEmpty(features) || features == "0")
+            features = "*None*";
+        
+        embedBuilder.AddField("✨ Features", 
+            features.Length > 100 ? $"{features[..100]}..." : features, false);
+
+        // Server boost info
+        if (guild.PremiumSubscriptionCount > 0)
+        {
+            embedBuilder.AddField("💎 Boost Level", 
+                $"Level {guild.PremiumTier} ({guild.PremiumSubscriptionCount} boosts)", true);
+        }
+
+        // Verification level
+        embedBuilder.AddField("🛡️ Verification", guild.VerificationLevel.ToString(), true);
+
+        var builder = new ComponentBuilder()
+            .WithButton(
+                new ButtonBuilder()
+                    .WithCustomId(_componentHandler.GenerateCustomId(NavigationPrefix, "back", guildId.ToString()))
+                    .WithLabel("← Back")
+                    .WithStyle(ButtonStyle.Secondary));
+
+        await component.ModifyOriginalResponseAsync(msg =>
+        {
+            msg.Embed = embedBuilder.Build();
+            msg.Components = builder.Build();
+        });
+    }
+
+    private async Task ShowAmiquinMetadataAsync(SocketMessageComponent component, ulong guildId)
+    {
+        var guild = (component.Channel as SocketGuildChannel)?.Guild;
+        if (guild == null) return;
+
+        var serverMeta = await _serverMetaService.GetServerMetaAsync(guildId);
+        var toggles = await _toggleService.GetTogglesByServerId(guildId);
+
+        var embedBuilder = new EmbedBuilder()
+            .WithTitle("⚙️ Amiquin Metadata & Configuration")
+            .WithDescription($"Bot configuration and AI settings for **{guild.Name}**")
+            .WithColor(new Color(88, 101, 242)) // Discord blurple
+            .WithThumbnailUrl("https://cdn.discordapp.com/avatars/YOUR_BOT_ID/avatar.png") // Replace with actual bot avatar
+            .WithCurrentTimestamp();
+
+        // Section 1: Configured Channels (Components V2 style)
+        var channelInfo = new StringBuilder();
+        
+        if (serverMeta?.PrimaryChannelId.HasValue == true)
+        {
+            var primaryChannel = guild.GetTextChannel(serverMeta.PrimaryChannelId.Value);
+            channelInfo.AppendLine($"**💬 Primary:** {primaryChannel?.Mention ?? "*Not found*"}");
+        }
+        else
+        {
+            channelInfo.AppendLine("**💬 Primary:** *Not configured*");
+        }
+
+        if (serverMeta?.NsfwChannelId.HasValue == true)
+        {
+            var nsfwChannel = guild.GetTextChannel(serverMeta.NsfwChannelId.Value);
+            channelInfo.AppendLine($"**🔞 NSFW:** {nsfwChannel?.Mention ?? "*Not found*"}");
+        }
+        else
+        {
+            channelInfo.AppendLine("**🔞 NSFW:** *Not configured*");
+        }
+
+        embedBuilder.AddField("📺 Configured Channels", channelInfo.ToString().TrimEnd(), false);
+
+        // Section 2: AI Related Information
+        var aiInfo = new StringBuilder();
+        aiInfo.AppendLine($"**🤖 Provider:** {serverMeta?.PreferredProvider ?? "*Using default (OpenAI)*"}");
+        
+        // TODO: Add actual message count and token estimates when these services are available
+        aiInfo.AppendLine($"**💬 Conversation Messages:** *Data not available*");
+        aiInfo.AppendLine($"**🧠 Memory Tokens (Est.):** *Data not available*");
+
+        embedBuilder.AddField("🤖 AI Configuration", aiInfo.ToString().TrimEnd(), false);
+
+        // Feature Toggle Summary
+        var enabledToggles = toggles.Where(t => t.IsEnabled).ToList();
+        var disabledToggles = toggles.Where(t => !t.IsEnabled).ToList();
+
+        embedBuilder.AddField("🎛️ Feature Summary", 
+            $"**Enabled:** {enabledToggles.Count}/{toggles.Count}\n" +
+            $"**Most Recent:** {toggles.OrderByDescending(t => t.CreatedAt).FirstOrDefault()?.Name ?? "*None*"}", true);
+
+        // Server metadata timestamps
+        if (serverMeta != null)
+        {
+            embedBuilder.AddField("📅 Metadata", 
+                $"**Created:** <t:{((DateTimeOffset)serverMeta.CreatedAt).ToUnixTimeSeconds()}:R>\n" +
+                $"**Updated:** <t:{((DateTimeOffset)serverMeta.LastUpdated).ToUnixTimeSeconds()}:R>", true);
+        }
+
+        var builder = new ComponentBuilder()
+            .WithButton(
+                new ButtonBuilder()
+                    .WithCustomId(_componentHandler.GenerateCustomId(NavigationPrefix, "back", guildId.ToString()))
+                    .WithLabel("← Back")
+                    .WithStyle(ButtonStyle.Secondary));
+
+        await component.ModifyOriginalResponseAsync(msg =>
+        {
+            msg.Embed = embedBuilder.Build();
+            msg.Components = builder.Build();
+        });
+    }
+
+    private async Task ShowSessionContextAsync(SocketMessageComponent component, ulong guildId)
+    {
+        var guild = (component.Channel as SocketGuildChannel)?.Guild;
+        if (guild == null) return;
+
+        var embedBuilder = new EmbedBuilder()
+            .WithTitle("💭 Session Context & Statistics")
+            .WithDescription($"Current conversation context and session stats for **{guild.Name}**")
+            .WithColor(new Color(46, 204, 113)) // Green
+            .WithCurrentTimestamp();
+
+        // TODO: When chat session service is properly accessible, get real data
+        // For now, show placeholder information with proper structure
+
+        embedBuilder.AddField("📊 Active Sessions", 
+            "*Session data not available*\n" +
+            "This will show active conversation sessions, participant counts, and session duration.", false);
+
+        embedBuilder.AddField("💬 Message Statistics", 
+            "*Message statistics not available*\n" +
+            "This will show:\n" +
+            "• Recent message count\n" +
+            "• Average messages per day\n" +
+            "• Most active channels", true);
+
+        embedBuilder.AddField("🧠 Context Memory", 
+            "*Context memory data not available*\n" +
+            "This will show:\n" +
+            "• Current context size\n" +
+            "• Token usage estimates\n" +
+            "• Memory optimization status", true);
+
+        embedBuilder.AddField("⏱️ Response Times", 
+            "*Performance data not available*\n" +
+            "This will show average response times and processing stats.", false);
+
+        embedBuilder.AddField("🔗 Recent Interactions", 
+            "*No recent interaction data available*\n" +
+            "This will show the last few interactions with timestamps.", false);
+
+        var builder = new ComponentBuilder()
+            .WithButton(
+                new ButtonBuilder()
+                    .WithCustomId(_componentHandler.GenerateCustomId(NavigationPrefix, "back", guildId.ToString()))
+                    .WithLabel("← Back")
+                    .WithStyle(ButtonStyle.Secondary));
+
+        await component.ModifyOriginalResponseAsync(msg =>
+        {
+            msg.Embed = embedBuilder.Build();
+            msg.Components = builder.Build();
+        });
+    }
+
+    private async Task ShowPersonaDetailsAsync(SocketMessageComponent component, ulong guildId)
+    {
+        var guild = (component.Channel as SocketGuildChannel)?.Guild;
+        if (guild == null) return;
+
+        var serverMeta = await _serverMetaService.GetServerMetaAsync(guildId);
+
+        var embedBuilder = new EmbedBuilder()
+            .WithTitle("📖 Server Persona Details")
+            .WithDescription($"Complete persona configuration for **{guild.Name}**")
+            .WithColor(new Color(155, 89, 182)) // Purple
+            .WithCurrentTimestamp();
+
+        if (!string.IsNullOrWhiteSpace(serverMeta?.Persona))
+        {
+            // Show the full persona without truncation in a code block for better formatting
+            var persona = serverMeta.Persona;
+            
+            // If the persona is very long, we might need to split it across fields
+            if (persona.Length <= 1024)
+            {
+                embedBuilder.AddField("🎭 Current Persona", $"```{persona}```", false);
+            }
+            else
+            {
+                // Split into multiple fields if too long for one field
+                var chunks = SplitText(persona, 1000); // Leave some room for the code block markers
+                for (int i = 0; i < chunks.Count; i++)
+                {
+                    var fieldName = i == 0 ? "🎭 Current Persona" : $"🎭 Persona (cont. {i + 1})";
+                    embedBuilder.AddField(fieldName, $"```{chunks[i]}```", false);
+                }
+            }
+
+            // Persona statistics
+            embedBuilder.AddField("📊 Persona Statistics", 
+                $"**Length:** {persona.Length:N0} characters\n" +
+                $"**Words:** ~{persona.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length:N0}\n" +
+                $"**Lines:** {persona.Split('\n').Length:N0}", true);
+
+            // When was it last updated
+            embedBuilder.AddField("📅 Last Updated", 
+                $"<t:{((DateTimeOffset)serverMeta.LastUpdated).ToUnixTimeSeconds()}:F>\n" +
+                $"<t:{((DateTimeOffset)serverMeta.LastUpdated).ToUnixTimeSeconds()}:R>", true);
+        }
+        else
+        {
+            embedBuilder.AddField("🎭 Current Persona", 
+                "*No persona configured for this server.*\n\n" +
+                "A persona helps define how the AI assistant should behave, including:\n" +
+                "• Communication style and tone\n" +
+                "• Areas of expertise or focus\n" +
+                "• Personality traits\n" +
+                "• Response patterns", false);
+
+            embedBuilder.AddField("💡 Getting Started", 
+                "Use the **Set Persona** button to configure how the AI should behave in your server.", false);
+        }
+
+        var builder = new ComponentBuilder()
+            .WithButton(
+                new ButtonBuilder()
+                    .WithCustomId(_componentHandler.GenerateCustomId(QuickSetupPrefix, "persona", guildId.ToString()))
+                    .WithLabel("✏️ Edit Persona")
+                    .WithStyle(ButtonStyle.Primary))
+            .WithButton(
+                new ButtonBuilder()
+                    .WithCustomId(_componentHandler.GenerateCustomId(NavigationPrefix, "back", guildId.ToString()))
+                    .WithLabel("← Back")
+                    .WithStyle(ButtonStyle.Secondary));
+
+        await component.ModifyOriginalResponseAsync(msg =>
+        {
+            msg.Embed = embedBuilder.Build();
+            msg.Components = builder.Build();
+        });
+    }
+
+    private List<string> SplitText(string text, int maxLength)
+    {
+        var result = new List<string>();
+        var currentPos = 0;
+        
+        while (currentPos < text.Length)
+        {
+            var remainingLength = text.Length - currentPos;
+            var chunkLength = Math.Min(maxLength, remainingLength);
+            
+            if (remainingLength > maxLength)
+            {
+                // Try to break at a word boundary
+                var lastSpace = text.LastIndexOf(' ', currentPos + maxLength, maxLength);
+                if (lastSpace > currentPos)
+                {
+                    chunkLength = lastSpace - currentPos;
+                }
+            }
+            
+            result.Add(text.Substring(currentPos, chunkLength));
+            currentPos += chunkLength;
+            
+            // Skip the space if we broke at a word boundary
+            if (currentPos < text.Length && text[currentPos] == ' ')
+                currentPos++;
+        }
+        
+        return result;
+    }
+
     private string TruncateText(string text, int maxLength)
     {
         if (string.IsNullOrWhiteSpace(text))
@@ -1198,11 +1552,26 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                                 .WithCurrentTimestamp()
                                 .Build();
 
+                            // Show success message first
                             await modal.ModifyOriginalResponseAsync(msg =>
                             {
                                 msg.Content = null;
                                 msg.Embed = embed;
                             });
+
+                            // Wait a moment then return to main configuration interface
+                            await Task.Delay(3000);
+                            var guildChannel = modal.Channel as SocketGuildChannel;
+                            var guild = guildChannel?.Guild;
+                            if (guild != null)
+                            {
+                                var (mainEmbed, mainComponents) = await CreateConfigurationInterfaceAsync(guildId, guild);
+                                await modal.ModifyOriginalResponseAsync(msg =>
+                                {
+                                    msg.Embed = mainEmbed;
+                                    msg.Components = mainComponents;
+                                });
+                            }
 
                             _logger.LogInformation("Persona updated for guild {GuildId} via modal", guildId);
                         }

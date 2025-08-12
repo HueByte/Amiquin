@@ -298,6 +298,9 @@ public class ServerMetaService : IServerMetaService, IDisposable
                     // Update PrimaryChannelId (nullable field, so allow null to be set)
                     foundMeta.PrimaryChannelId = serverMeta.PrimaryChannelId;
 
+                    // Update NsfwChannelId (nullable field, so allow null to be set)
+                    foundMeta.NsfwChannelId = serverMeta.NsfwChannelId;
+
                     foundMeta.LastUpdated = DateTime.UtcNow;
                     foundMeta.IsActive = serverMeta.IsActive;
 

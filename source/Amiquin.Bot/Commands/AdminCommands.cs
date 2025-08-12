@@ -546,6 +546,49 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
                             .AddField("Provider", matchedProvider, true);
                         break;
 
+                    case "nsfw-channel":
+                    case "nsfw_channel":
+                        if (!ulong.TryParse(value, out var nsfwChannelId))
+                        {
+                            // Try to parse channel mention
+                            if (value.StartsWith("<#") && value.EndsWith(">"))
+                            {
+                                value = value[2..^1];
+                                if (!ulong.TryParse(value, out nsfwChannelId))
+                                {
+                                    await ModifyOriginalResponseAsync(msg => msg.Content = "❌ Invalid NSFW channel format.");
+                                    return;
+                                }
+                            }
+                            else
+                            {
+                                await ModifyOriginalResponseAsync(msg => msg.Content = "❌ Invalid NSFW channel ID or mention.");
+                                return;
+                            }
+                        }
+
+                        var nsfwChannel = Context.Guild.GetTextChannel(nsfwChannelId);
+                        if (nsfwChannel == null)
+                        {
+                            await ModifyOriginalResponseAsync(msg => msg.Content = "❌ NSFW channel not found in this server.");
+                            return;
+                        }
+
+                        if (!nsfwChannel.IsNsfw)
+                        {
+                            await ModifyOriginalResponseAsync(msg => msg.Content = $"❌ {nsfwChannel.Mention} is not marked as NSFW. Please mark it as 18+ in channel settings.");
+                            return;
+                        }
+
+                        serverMeta.NsfwChannelId = nsfwChannelId;
+                        await _serverMetaService.UpdateServerMetaAsync(serverMeta);
+
+                        embed.WithTitle("✅ NSFW Channel Updated")
+                            .WithDescription($"NSFW channel has been set to {nsfwChannel.Mention}")
+                            .AddField("Channel", nsfwChannel.Mention, true)
+                            .AddField("Channel ID", nsfwChannelId.ToString(), true);
+                        break;
+
                     default:
                         await ModifyOriginalResponseAsync(msg => msg.Content = $"❌ Unknown setting: **{setting}**");
                         return;
@@ -607,6 +650,12 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
                         embed.WithDescription("AI provider has been reset to default.");
                         break;
 
+                    case "nsfw-channel":
+                    case "nsfw_channel":
+                        serverMeta.NsfwChannelId = null;
+                        embed.WithDescription("NSFW channel has been reset.");
+                        break;
+
                     default:
                         await ModifyOriginalResponseAsync(msg => msg.Content = $"❌ Unknown setting: **{setting}**");
                         return;
@@ -644,6 +693,7 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
                 export.AppendLine("## Server Settings");
                 export.AppendLine($"- Persona: {serverMeta?.Persona ?? "Not configured"}");
                 export.AppendLine($"- Primary Channel ID: {serverMeta?.PrimaryChannelId?.ToString() ?? "Not configured"}");
+                export.AppendLine($"- NSFW Channel ID: {serverMeta?.NsfwChannelId?.ToString() ?? "Not configured"}");
                 export.AppendLine($"- Preferred Provider: {serverMeta?.PreferredProvider ?? "Default"}");
                 export.AppendLine();
                 

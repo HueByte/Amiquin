@@ -1,6 +1,8 @@
 using Amiquin.Core.IRepositories;
 using Amiquin.Core.Models;
+using Amiquin.Core.Services.Meta;
 using Amiquin.Core.Services.Nacho;
+using Microsoft.Extensions.Logging;
 using MockQueryable;
 using Moq;
 using Xunit;
@@ -10,12 +12,16 @@ namespace Amiquin.Tests.Services;
 public class NachoServiceTests
 {
     private readonly Mock<INachoRepository> _nachoRepositoryMock;
+    private readonly Mock<IServerMetaService> _serverMetaServiceMock;
+    private readonly Mock<ILogger<NachoService>> _loggerMock;
     private readonly NachoService _sut; // System Under Test
 
     public NachoServiceTests()
     {
         _nachoRepositoryMock = new Mock<INachoRepository>();
-        _sut = new NachoService(_nachoRepositoryMock.Object);
+        _serverMetaServiceMock = new Mock<IServerMetaService>();
+        _loggerMock = new Mock<ILogger<NachoService>>();
+        _sut = new NachoService(_nachoRepositoryMock.Object, _serverMetaServiceMock.Object, _loggerMock.Object);
     }
 
     [Fact]
@@ -108,6 +114,11 @@ public class NachoServiceTests
         _nachoRepositoryMock.Setup(x => x.SaveChangesAsync())
             .Returns(Task.FromResult(true));
 
+        // Mock ServerMeta service to return existing ServerMeta
+        var serverMeta = new Amiquin.Core.Models.ServerMeta { Id = serverId, ServerName = "Test Server" };
+        _serverMetaServiceMock.Setup(x => x.GetServerMetaAsync(serverId))
+            .ReturnsAsync(serverMeta);
+
         // Act
         await _sut.AddNachoAsync(userId, serverId, nachoCount);
 
@@ -119,6 +130,8 @@ public class NachoServiceTests
             n.NachoReceivedDate.Date == today
         )), Times.Once);
         _nachoRepositoryMock.Verify(x => x.SaveChangesAsync(), Times.Once);
+        _serverMetaServiceMock.Verify(x => x.GetServerMetaAsync(serverId), Times.Once);
+        _serverMetaServiceMock.Verify(x => x.CreateServerMetaAsync(It.IsAny<ulong>(), It.IsAny<string>()), Times.Never);
     }
 
     [Fact]
@@ -155,6 +168,11 @@ public class NachoServiceTests
         _nachoRepositoryMock.Setup(x => x.AsQueryable())
             .Returns(mock);
 
+        // Mock ServerMeta service to return existing ServerMeta
+        var serverMeta = new Amiquin.Core.Models.ServerMeta { Id = serverId, ServerName = "Test Server" };
+        _serverMetaServiceMock.Setup(x => x.GetServerMetaAsync(serverId))
+            .ReturnsAsync(serverMeta);
+
         // Act & Assert
         var exception = await Assert.ThrowsAsync<Exception>(() =>
             _sut.AddNachoAsync(userId, serverId, nachoCount));
@@ -186,12 +204,57 @@ public class NachoServiceTests
         _nachoRepositoryMock.Setup(x => x.SaveChangesAsync())
             .Returns(Task.FromResult(true));
 
+        // Mock ServerMeta service to return existing ServerMeta
+        var serverMeta = new Amiquin.Core.Models.ServerMeta { Id = serverId, ServerName = "Test Server" };
+        _serverMetaServiceMock.Setup(x => x.GetServerMetaAsync(serverId))
+            .ReturnsAsync(serverMeta);
+
         // Act
         await _sut.AddNachoAsync(userId, serverId, nachoCount);
 
         // Assert
         _nachoRepositoryMock.Verify(x => x.AddAsync(It.IsAny<NachoPack>()), Times.Once);
         _nachoRepositoryMock.Verify(x => x.SaveChangesAsync(), Times.Once);
+    }
+
+    [Fact]
+    public async Task AddNachoAsync_WithMissingServerMeta_ShouldCreateServerMetaAndAddNacho()
+    {
+        // Arrange
+        var userId = 123456789UL;
+        var serverId = 987654321UL;
+        var nachoCount = 1;
+        var today = DateTime.UtcNow.Date;
+
+        var existingNachos = new List<NachoPack>(); // No existing nachos
+
+        var mock = existingNachos.AsQueryable().BuildMock();
+        _nachoRepositoryMock.Setup(x => x.AsQueryable())
+            .Returns(mock);
+        _nachoRepositoryMock.Setup(x => x.AddAsync(It.IsAny<NachoPack>()))
+            .Returns(Task.FromResult(true));
+        _nachoRepositoryMock.Setup(x => x.SaveChangesAsync())
+            .Returns(Task.FromResult(true));
+
+        // Mock ServerMeta service to return null (no existing ServerMeta)
+        _serverMetaServiceMock.Setup(x => x.GetServerMetaAsync(serverId))
+            .ReturnsAsync((Amiquin.Core.Models.ServerMeta?)null);
+        _serverMetaServiceMock.Setup(x => x.CreateServerMetaAsync(serverId, $"Server_{serverId}"))
+            .ReturnsAsync(new Amiquin.Core.Models.ServerMeta { Id = serverId, ServerName = $"Server_{serverId}" });
+
+        // Act
+        await _sut.AddNachoAsync(userId, serverId, nachoCount);
+
+        // Assert
+        _nachoRepositoryMock.Verify(x => x.AddAsync(It.Is<NachoPack>(n =>
+            n.UserId == userId &&
+            n.ServerId == serverId &&
+            n.NachoCount == nachoCount &&
+            n.NachoReceivedDate.Date == today
+        )), Times.Once);
+        _nachoRepositoryMock.Verify(x => x.SaveChangesAsync(), Times.Once);
+        _serverMetaServiceMock.Verify(x => x.GetServerMetaAsync(serverId), Times.Once);
+        _serverMetaServiceMock.Verify(x => x.CreateServerMetaAsync(serverId, $"Server_{serverId}"), Times.Once);
     }
 
     [Fact]

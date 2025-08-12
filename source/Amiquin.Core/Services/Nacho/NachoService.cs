@@ -1,5 +1,7 @@
 using Amiquin.Core.IRepositories;
+using Amiquin.Core.Services.Meta;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Amiquin.Core.Services.Nacho;
 
@@ -10,14 +12,20 @@ namespace Amiquin.Core.Services.Nacho;
 public class NachoService : INachoService
 {
     public readonly INachoRepository _nachoRepository;
+    private readonly IServerMetaService _serverMetaService;
+    private readonly ILogger<NachoService> _logger;
 
     /// <summary>
     /// Initializes a new instance of the NachoService.
     /// </summary>
     /// <param name="nachoRepository">Repository for database operations on nacho records.</param>
-    public NachoService(INachoRepository nachoRepository)
+    /// <param name="serverMetaService">Service for managing server metadata.</param>
+    /// <param name="logger">Logger for service operations.</param>
+    public NachoService(INachoRepository nachoRepository, IServerMetaService serverMetaService, ILogger<NachoService> logger)
     {
         _nachoRepository = nachoRepository;
+        _serverMetaService = serverMetaService;
+        _logger = logger;
     }
 
     /// <inheritdoc/>
@@ -49,6 +57,17 @@ public class NachoService : INachoService
         if (nachoCount < 1)
         {
             throw new Exception("Hey, that's not cool. At least give 1 nacho.");
+        }
+
+        // Ensure server metadata exists before creating nacho records
+        // This prevents foreign key constraint violations
+        var serverMeta = await _serverMetaService.GetServerMetaAsync(serverId);
+        if (serverMeta == null)
+        {
+            _logger.LogWarning("ServerMeta not found for serverId {ServerId} when giving nacho, creating default metadata", serverId);
+            
+            // Create server metadata with a fallback name
+            await _serverMetaService.CreateServerMetaAsync(serverId, $"Server_{serverId}");
         }
 
         var userTotalTodayNachos = await _nachoRepository.AsQueryable()

@@ -243,6 +243,17 @@ public class PersonaChatService : IPersonaChatService
         string userMessage,
         string assistantMessage)
     {
+        // Ensure server metadata exists before storing messages
+        // This prevents foreign key constraint violations
+        var serverMeta = await _serverMetaService.GetServerMetaAsync(instanceId);
+        if (serverMeta == null)
+        {
+            _logger.LogWarning("ServerMeta not found for serverId {ServerId}, creating default metadata", instanceId);
+            
+            // Create server metadata with a fallback name
+            await _serverMetaService.CreateServerMetaAsync(instanceId, $"Server_{instanceId}");
+        }
+
         // Create ChatMessage objects
         var userChatMessage = OpenAI.Chat.ChatMessage.CreateUserMessage(userMessage);
         var assistantChatMessage = OpenAI.Chat.ChatMessage.CreateAssistantMessage(assistantMessage);
