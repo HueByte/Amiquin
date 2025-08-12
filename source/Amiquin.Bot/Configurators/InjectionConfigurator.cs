@@ -316,7 +316,6 @@ public class InjectionConfigurator
         _services.Configure<DataPathOptions>(_configuration.GetSection(DataPathOptions.SectionName));
         _services.Configure<DiscordOptions>(_configuration.GetSection(DiscordOptions.SectionName));
         _services.Configure<VoiceOptions>(_configuration.GetSection(VoiceOptions.SectionName));
-        _services.Configure<WaifuApiOptions>(_configuration.GetSection(WaifuApiOptions.SectionName));
         _services.Configure<JobManagerOptions>(_configuration.GetSection(JobManagerOptions.SectionName));
 
         // TaskManager options (map from JobManager section for now)
