@@ -142,18 +142,19 @@ public class NsfwCommands : InteractionModuleBase<ExtendedShardedInteractionCont
                 return;
             }
 
-            // Build the gallery embed
-            var embed = BuildNsfwGalleryEmbed(result.Images);
+            // Build the gallery using ComponentsV2 MediaGallery
+            var components = BuildNsfwGalleryComponents(result.Images);
             
             // Add status message if there were issues but we still got some images
             var statusMessage = result.IsTemporaryFailure && !string.IsNullOrEmpty(result.ErrorMessage)
                 ? $"⚠️ {result.ErrorMessage}" 
-                : null;
+                : null; // Message content is now in the ComponentsV2 display
             
             await ModifyOriginalResponseAsync(msg => 
             {
                 msg.Content = statusMessage;
-                msg.Embed = embed;
+                msg.Embed = null; // Clear any existing embed
+                msg.Components = components;
             });
         }
         catch (Exception ex)
@@ -281,54 +282,36 @@ public class NsfwCommands : InteractionModuleBase<ExtendedShardedInteractionCont
     }
 
     /// <summary>
-    /// Builds an embed for displaying a gallery of NSFW images.
+    /// Builds ComponentsV2 with native MediaGallery for displaying NSFW images.
     /// </summary>
-    private Embed BuildNsfwGalleryEmbed(List<Core.Models.NsfwImage> images)
+    private MessageComponent BuildNsfwGalleryComponents(List<Core.Models.NsfwImage> images)
     {
-        var embedBuilder = new EmbedBuilder()
-            .WithTitle("🔞 NSFW Gallery")
-            .WithDescription($"A collection of {images.Count} random NSFW images")
-            .WithColor(new Color(255, 0, 100))
-            .WithCurrentTimestamp()
-            .WithFooter($"Requested by {Context.User.Username} • Enjoy responsibly", Context.User.GetAvatarUrl());
+        // Extract image URLs for the media gallery (limit to 10 as per Discord's MediaGallery limit)
+        var imageUrls = images.Take(10).Select(img => img.Url).ToArray();
+        
+        // Build source information for display
+        var sourceInfo = string.Join(", ", images
+            .Select(img => img.Source ?? "Unknown")
+            .Distinct()
+            .Take(3));
+        
+        var artistInfo = images
+            .Where(img => !string.IsNullOrWhiteSpace(img.Artist))
+            .Select(img => img.Artist!)
+            .Distinct()
+            .Take(3)
+            .ToList();
 
-        // Display first image as the main image
-        if (images.Count > 0)
-        {
-            embedBuilder.WithImageUrl(images[0].Url);
-        }
+        var artistText = artistInfo.Count > 0 
+            ? $"\n-# Artists: {string.Join(", ", artistInfo)}{(artistInfo.Count == 3 ? " and others" : "")}"
+            : "";
 
-        // Add up to 10 images as fields with links
-        for (int i = 0; i < Math.Min(images.Count, 10); i++)
-        {
-            var img = images[i];
-            var fieldTitle = $"Image {i + 1}";
-            
-            // Create a compact field value with source and link
-            var fieldValue = $"[{img.Source ?? "View"}]({img.Url})";
-            
-            if (!string.IsNullOrWhiteSpace(img.Artist))
-            {
-                fieldValue += $" • Artist: {img.Artist}";
-            }
-            
-            // Add tags if available (limit to first 50 chars)
-            if (!string.IsNullOrWhiteSpace(img.Tags))
-            {
-                var tags = img.Tags.Length > 50 ? img.Tags.Substring(0, 47) + "..." : img.Tags;
-                fieldValue += $"\nTags: {tags}";
-            }
-            
-            embedBuilder.AddField(fieldTitle, fieldValue, inline: true);
-        }
-
-        // Add a note about the gallery
-        embedBuilder.AddField("ℹ️ Gallery Info", 
-            $"This gallery contains {images.Count} images from various sources.\n" +
-            "Click the links to view each image in full resolution.", 
-            inline: false);
-
-        return embedBuilder.Build();
+        return new ComponentBuilderV2()
+            .WithTextDisplay($"# 🔞 NSFW Gallery")
+            .WithTextDisplay($"-# {images.Count} images • Sources: {sourceInfo}{artistText}")
+            .WithMediaGallery(imageUrls)
+            .WithTextDisplay($"-# Requested by {Context.User.Username} • Enjoy responsibly")
+            .Build();
     }
 
     /// <summary>

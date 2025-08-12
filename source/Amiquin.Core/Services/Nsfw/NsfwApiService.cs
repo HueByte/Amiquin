@@ -29,20 +29,20 @@ public class NsfwApiService : INsfwApiService
     
     // Circuit breaker for rate limiting
     private static DateTime _lastRateLimitHit = DateTime.MinValue;
-    private static readonly TimeSpan _rateLimitCooldown = TimeSpan.FromMinutes(5);
+    private static readonly TimeSpan _rateLimitCooldown = TimeSpan.FromMinutes(10); // Increased cooldown
+    private static int _consecutiveRateLimits = 0;
     
     private const int MaxRetryAttempts = 3;
     private const int MaxFetchAttempts = 10; // Prevent infinite loops
 
     private readonly string[] _waifuTags = new[]
     {
-        "waifu", "maid", "marin-kitagawa", "mori-calliope", "raiden-shogun",
-        "oppai", "selfies", "uniform", "kitsune"
+        "waifu", "maid", "uniform", "kitsune", "elf"
     };
 
-    private readonly string[] _alternativeTags = new[]
+    private readonly string[] _nsfwTags = new[]
     {
-        "ass", "hentai", "milf", "oral", "paizuri", "ecchi", "ero"
+        "oppai", "ass", "hentai", "milf", "oral", "paizuri", "ecchi"
     };
 
     public NsfwApiService(ILogger<NsfwApiService> logger, HttpClient httpClient, IOptions<WaifuApiOptions> waifuApiOptions)
@@ -155,14 +155,18 @@ public class NsfwApiService : INsfwApiService
         try
         {
             // Check circuit breaker - if we recently hit rate limits, skip waifu.im
-            if (DateTime.UtcNow - _lastRateLimitHit < _rateLimitCooldown)
+            var effectiveCooldown = _consecutiveRateLimits > 3 
+                ? TimeSpan.FromMinutes(20) 
+                : _rateLimitCooldown;
+                
+            if (DateTime.UtcNow - _lastRateLimitHit < effectiveCooldown)
             {
-                _logger.LogInformation("Skipping waifu.im due to recent rate limiting, cooldown until {CooldownEnd}", 
-                    _lastRateLimitHit.Add(_rateLimitCooldown));
+                _logger.LogInformation("Skipping waifu.im due to recent rate limiting, cooldown until {CooldownEnd} (consecutive: {Count})", 
+                    _lastRateLimitHit.Add(effectiveCooldown), _consecutiveRateLimits);
                 return images;
             }
 
-            // Get random tags for variety
+            // Get random versatile tags for variety (these work with is_nsfw=true)
             var selectedTags = _waifuTags.OrderBy(x => _random.Next()).Take(count).ToList();
 
             var tasks = selectedTags.Select(tag => FetchWaifuImageAsync(tag)).ToList();
@@ -214,11 +218,15 @@ public class NsfwApiService : INsfwApiService
             var nekosBestImages = await FetchFromNekosBestAsync(count);
             images.AddRange(nekosBestImages);
 
-            // If we still need more images and not rate limited, try waifu.im with alternative tags
-            if (images.Count < count && DateTime.UtcNow - _lastRateLimitHit >= _rateLimitCooldown)
+            // If we still need more images and not rate limited, try waifu.im with NSFW tags
+            var effectiveCooldown = _consecutiveRateLimits > 3 
+                ? TimeSpan.FromMinutes(20) 
+                : _rateLimitCooldown;
+                
+            if (images.Count < count && DateTime.UtcNow - _lastRateLimitHit >= effectiveCooldown)
             {
                 var remainingCount = Math.Min(count - images.Count, MaxFetchAttempts);
-                var selectedTags = _alternativeTags.OrderBy(x => _random.Next()).Take(remainingCount).ToList();
+                var selectedTags = _nsfwTags.OrderBy(x => _random.Next()).Take(remainingCount).ToList();
                 var tasks = selectedTags.Select(tag => FetchWaifuImageAsync(tag)).ToList();
                 var results = await Task.WhenAll(tasks);
                 images.AddRange(results.Where(img => img != null)!);
@@ -254,10 +262,22 @@ public class NsfwApiService : INsfwApiService
             return null;
         }
 
+        // First try with the specific tag
+        var result = await TryFetchWaifuImageWithUrl($"{_waifuApiOptions.BaseUrl}/search?included_tags={tag}&is_nsfw=true", tag);
+        
+        // If forbidden, try without the specific tag (just NSFW)
+        if (result == null)
+        {
+            result = await TryFetchWaifuImageWithUrl($"{_waifuApiOptions.BaseUrl}/search?is_nsfw=true", "random-nsfw");
+        }
+        
+        return result;
+    }
+    
+    private async Task<NsfwImage?> TryFetchWaifuImageWithUrl(string url, string tagForLogging)
+    {
         try
         {
-            var url = $"{_waifuApiOptions.BaseUrl}/search?included_tags={tag}&is_nsfw=true";
-            
             using var request = new HttpRequestMessage(HttpMethod.Get, url);
             
             // Add required Accept-Version header
@@ -269,27 +289,40 @@ public class NsfwApiService : INsfwApiService
                 request.Headers.Add("Authorization", $"Bearer {_waifuApiOptions.Token}");
             }
             
+            _logger.LogDebug("Making waifu.im request: {Url}", url);
+            
+            // Add a small delay between requests to avoid hitting rate limits
+            await Task.Delay(200); // 200ms delay between requests
+            
             using var response = await _httpClient.SendAsync(request);
             
             // Handle rate limiting and forbidden responses
             if (response.StatusCode == HttpStatusCode.TooManyRequests)
             {
                 _lastRateLimitHit = DateTime.UtcNow;
-                _logger.LogWarning("Rate limited by waifu.im API for tag: {Tag}. Cooldown activated for {Cooldown} minutes", 
-                    tag, _rateLimitCooldown.TotalMinutes);
+                _consecutiveRateLimits++;
+                
+                // Increase cooldown for repeated rate limits
+                var effectiveCooldown = _consecutiveRateLimits > 3 
+                    ? TimeSpan.FromMinutes(20) 
+                    : _rateLimitCooldown;
+                
+                _logger.LogWarning("Rate limited by waifu.im API for tag: {Tag}. Cooldown activated for {Cooldown} minutes (consecutive: {Count})", 
+                    tagForLogging, effectiveCooldown.TotalMinutes, _consecutiveRateLimits);
                 return null;
             }
             
             if (response.StatusCode == HttpStatusCode.Forbidden)
             {
-                _logger.LogWarning("Forbidden response from waifu.im for tag: {Tag}. Tag may be restricted", tag);
+                var responseBody = await response.Content.ReadAsStringAsync();
+                _logger.LogWarning("Forbidden response from waifu.im for tag: {Tag}. Response: {Response}", tagForLogging, responseBody);
                 return null;
             }
             
             if (!response.IsSuccessStatusCode)
             {
                 _logger.LogWarning("HTTP {StatusCode} response from waifu.im for tag: {Tag}", 
-                    response.StatusCode, tag);
+                    response.StatusCode, tagForLogging);
                 return null;
             }
 
@@ -299,12 +332,15 @@ public class NsfwApiService : INsfwApiService
             if (jsonDoc.RootElement.TryGetProperty("images", out var imagesElement) &&
                 imagesElement.GetArrayLength() > 0)
             {
+                // Reset consecutive rate limit counter on successful response
+                _consecutiveRateLimits = 0;
+                
                 var firstImage = imagesElement[0];
                 return new NsfwImage
                 {
                     Url = firstImage.GetProperty("url").GetString() ?? string.Empty,
                     Source = "waifu.im",
-                    Tags = tag,
+                    Tags = tagForLogging,
                     Width = firstImage.TryGetProperty("width", out var width) ? width.GetInt32() : null,
                     Height = firstImage.TryGetProperty("height", out var height) ? height.GetInt32() : null,
                     Artist = firstImage.TryGetProperty("artist", out var artist) && 
@@ -319,20 +355,20 @@ public class NsfwApiService : INsfwApiService
             if (ex.Message.Contains("429"))
             {
                 _lastRateLimitHit = DateTime.UtcNow;
-                _logger.LogWarning("Rate limited by waifu.im API for tag: {Tag}. Cooldown activated", tag);
+                _logger.LogWarning("Rate limited by waifu.im API for tag: {Tag}. Cooldown activated", tagForLogging);
             }
             else if (ex.Message.Contains("403"))
             {
-                _logger.LogWarning("Forbidden response from waifu.im for tag: {Tag}. Tag may be restricted", tag);
+                _logger.LogWarning("Forbidden response from waifu.im for tag: {Tag}. Tag may be restricted", tagForLogging);
             }
             else
             {
-                _logger.LogWarning(ex, "HTTP error fetching image from waifu.im for tag: {Tag}", tag);
+                _logger.LogWarning(ex, "HTTP error fetching image from waifu.im for tag: {Tag}", tagForLogging);
             }
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to fetch image from waifu.im for tag: {Tag}", tag);
+            _logger.LogWarning(ex, "Failed to fetch image from waifu.im for tag: {Tag}", tagForLogging);
         }
 
         return null;
@@ -387,8 +423,21 @@ public class NsfwApiService : INsfwApiService
         {
             // nekos.best API for hentai content
             var url = $"https://nekos.best/api/v2/hentai?amount={Math.Min(count, 20)}";
-            var response = await _httpClient.GetStringAsync(url);
-            var jsonDoc = JsonDocument.Parse(response);
+            
+            using var request = new HttpRequestMessage(HttpMethod.Get, url);
+            request.Headers.Add("User-Agent", "Amiquin-Bot/1.0");
+            
+            using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseContentRead);
+            
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("nekos.best returned {StatusCode}: {ReasonPhrase}", 
+                    response.StatusCode, response.ReasonPhrase);
+                return images;
+            }
+            
+            var responseContent = await response.Content.ReadAsStringAsync();
+            var jsonDoc = JsonDocument.Parse(responseContent);
 
             if (jsonDoc.RootElement.TryGetProperty("results", out var resultsElement))
             {
@@ -411,6 +460,10 @@ public class NsfwApiService : INsfwApiService
                     if (images.Count >= count) break;
                 }
             }
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogWarning(ex, "Network error connecting to nekos.best. Skipping this source.");
         }
         catch (Exception ex)
         {

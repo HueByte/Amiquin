@@ -240,7 +240,7 @@ public class PaginationService : IPaginationService
         var actionRow = new ActionRowBuilder();
         foreach (var button in buttons)
         {
-            actionRow.AddComponent(button.Build());
+            actionRow.AddComponent(button);
         }
 
         return new ComponentBuilder()
