@@ -232,7 +232,7 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
         return (h * 360, s * 100, l * 100);
     }
 
-    [SlashCommand("palette", "Generate a color theory-based palette with interactive features")]
+    [SlashCommand("palette", "Generate a color theory-based palette with visual gallery")]
     public async Task PaletteAsync(
         [Summary("harmony", "Type of color harmony")] ColorHarmonyType? harmony = null,
         [Summary("base_hue", "Base hue (0-360 degrees)")] float? baseHue = null)
@@ -243,13 +243,58 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
             var selectedHarmony = harmony ?? (ColorHarmonyType)Random.Shared.Next(0, 7);
             var palette = await _funService.GenerateColorTheoryPaletteAsync(selectedHarmony, baseHue);
 
-            // Create interactive ComponentsV2 interface
-            var (embed, components) = await _funService.CreateInteractivePaletteAsync(palette, Context.User.Id);
+            // Generate color images for each color in the palette
+            var colorImages = new List<FileAttachment>();
+            var imageUrls = new List<string>();
+
+            foreach (var color in palette.Colors)
+            {
+                try
+                {
+                    using var colorImage = await _funService.GenerateColorImageAsync(color.Hex);
+                    var cleanHex = color.Hex.TrimStart('#').ToUpper();
+                    var fileName = $"palette_color_{cleanHex}.png";
+                    var imageUrl = $"attachment://{fileName}";
+
+                    var attachment = new FileAttachment(colorImage, fileName);
+                    colorImages.Add(attachment);
+                    imageUrls.Add(imageUrl);
+                }
+                catch
+                {
+                    // Skip this color if image generation fails
+                    continue;
+                }
+            }
+
+            if (colorImages.Count == 0)
+            {
+                await ModifyOriginalResponseAsync(msg => msg.Content = "❌ Failed to generate color images for palette. Try again later!");
+                return;
+            }
+
+            // Create ComponentsV2 with palette information and color gallery
+            var components = new ComponentBuilderV2()
+                .WithTextDisplay($"# 🎨 {palette.Name}")
+                .WithTextDisplay($"**Harmony Type:** {selectedHarmony}")
+                .WithTextDisplay($"**Base Hue:** {palette.BaseHue:F1}°")
+                .WithTextDisplay($"**Colors in Palette:**");
+
+            // Add color details
+            foreach (var color in palette.Colors)
+            {
+                components.WithTextDisplay($"**{color.Name}** - {color.Hex.ToUpper()} - {color.Role}");
+            }
+
+            // Add the MediaGallery with all color images
+            components.WithMediaGallery(imageUrls.ToArray())
+                .WithTextDisplay($"**Description:** {palette.Description}")
+                .WithTextDisplay($"-# Generated on <t:{((DateTimeOffset)palette.CreatedAt).ToUnixTimeSeconds()}:f> • Requested by {Context.User.Username}");
 
             await ModifyOriginalResponseAsync(msg =>
             {
-                msg.Embed = embed;
-                msg.Components = components;
+                msg.Components = components.Build();
+                msg.Attachments = colorImages;
             });
         }
         catch
