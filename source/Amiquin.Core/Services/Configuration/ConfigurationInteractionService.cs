@@ -317,6 +317,9 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                 case "channel":
                     await ShowChannelConfigurationAsync(component, guildId);
                     break;
+                case "nsfw_channel":
+                    await ShowNsfwChannelConfigurationAsync(component, guildId);
+                    break;
                 case "provider":
                     await ShowProviderConfigurationAsync(component, guildId);
                     break;

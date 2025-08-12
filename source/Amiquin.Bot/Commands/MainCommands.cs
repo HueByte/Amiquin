@@ -478,7 +478,7 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
             _sessionManagerService = sessionManagerService;
         }
 
-        [SlashCommand("list", "View all sessions for this server with ComponentsV2")]
+        [SlashCommand("list", "View all sessions for this server")]
         public async Task ListSessionsAsync()
         {
             if (Context.Guild == null)
@@ -496,42 +496,40 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
                 return;
             }
 
-            var components = new ComponentBuilderV2()
-                .WithTextDisplay($"# 💬 Chat Sessions for {Context.Guild.Name}")
-                .WithTextDisplay($"**Active Session:** {activeSession?.Name ?? "None"}")
-                .WithTextDisplay($"**Total Sessions:** {sessions.Count}");
+            var embed = new EmbedBuilder()
+                .WithTitle($"💬 Chat Sessions for {Context.Guild.Name}")
+                .WithColor(Color.Blue)
+                .WithFooter($"Total sessions: {sessions.Count}")
+                .WithCurrentTimestamp();
 
-            // Add session information
-            foreach (var session in sessions.Take(8)) // Limit for ComponentsV2 readability
+            foreach (var session in sessions.Take(10)) // Limit to 10 sessions for embed space
             {
                 var statusIcon = session.IsActive ? "🟢" : "⚪";
                 var lastActivity = session.LastActivityAt > DateTime.UtcNow.AddDays(-1)
                     ? $"<t:{((DateTimeOffset)session.LastActivityAt).ToUnixTimeSeconds()}:R>"
                     : session.LastActivityAt.ToString("MMM dd, yyyy");
 
-                components.WithTextDisplay($"**{statusIcon} {session.Name}**")
-                    .WithTextDisplay($"-# Messages: {session.MessageCount} • Last Activity: {lastActivity}")
-                    .WithTextDisplay($"-# Model: {session.Provider}/{session.Model}");
+                embed.AddField(
+                    $"{statusIcon} {session.Name}",
+                    $"**Messages:** {session.MessageCount} | **Last Activity:** {lastActivity}\n" +
+                    $"**Model:** {session.Provider}/{session.Model}",
+                    true);
             }
 
-            if (sessions.Count > 8)
+            if (sessions.Count > 10)
             {
-                components.WithTextDisplay($"-# *Showing first 8 of {sessions.Count} sessions*");
+                embed.WithDescription($"*Showing first 10 of {sessions.Count} sessions*");
             }
 
-            components.WithTextDisplay($"-# Use buttons below to manage sessions");
-
-            // Add traditional buttons for actions (they work alongside ComponentsV2)
-            var actionButtons = new ComponentBuilder()
+            var components = new ComponentBuilder()
                 .WithButton("Switch Session", "session_switch", ButtonStyle.Primary, new Emoji("🔄"))
                 .WithButton("Create New", "session_create", ButtonStyle.Success, new Emoji("➕"))
                 .Build();
 
             await ModifyOriginalResponseAsync(msg =>
             {
-                msg.Components = components.Build();
-                // Note: For now, we'll use ComponentsV2 only. Traditional buttons integration would need more work
-                // This showcases the pure ComponentsV2 approach
+                msg.Embed = embed.Build();
+                msg.Components = components;
             });
         }
 
