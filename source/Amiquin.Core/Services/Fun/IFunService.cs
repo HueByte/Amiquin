@@ -47,12 +47,12 @@ public interface IFunService
     Task<Stream> GeneratePaletteImageAsync(List<string> colors);
 
     /// <summary>
-    /// Creates an interactive palette interface using Discord Components V2.
+    /// Creates an interactive palette interface using Discord Components V2 with media gallery.
     /// </summary>
     /// <param name="palette">The color palette to display.</param>
     /// <param name="userId">User ID for the interaction.</param>
-    /// <returns>Embed and components for the interactive interface.</returns>
-    Task<(Embed embed, Discord.MessageComponent components)> CreateInteractivePaletteAsync(ColorPalette palette, ulong userId);
+    /// <returns>Embed, components, and file attachments for the interactive interface with color images.</returns>
+    Task<(Embed embed, Discord.MessageComponent components, IEnumerable<FileAttachment> attachments)> CreateInteractivePaletteAsync(ColorPalette palette, ulong userId);
 
     /// <summary>
     /// Generates representative images for each color in a palette.

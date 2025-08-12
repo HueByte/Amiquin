@@ -163,7 +163,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
 
     private async Task<MessageComponent> BuildConfigurationComponentsAsync(Models.ServerMeta serverMeta, SocketGuild guild)
     {
-        var builder = new ComponentBuilder();
+        var builder = new ComponentBuilderV2();
 
         // Main Navigation Menu
         var selectMenu = new SelectMenuBuilder()
@@ -180,37 +180,31 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
             .AddOption("Session Context", "session_context", "Current conversation context and stats", new Emoji("💭"))
             .AddOption("Server Persona Details", "persona_details", "Full server persona configuration", new Emoji("📖"));
 
-        builder.WithSelectMenu(selectMenu);
+        builder.WithActionRow([selectMenu]);
 
         // Quick Actions Row
-        builder.WithButton(
+        builder.WithActionRow([
             new ButtonBuilder()
                 .WithCustomId(_componentHandler.GenerateCustomId(QuickSetupPrefix, "persona", guild.Id.ToString()))
                 .WithLabel("Set Persona")
                 .WithStyle(ButtonStyle.Primary)
                 .WithEmote(new Emoji("🎭")),
-            row: 1)
-        .WithButton(
             new ButtonBuilder()
                 .WithCustomId(_componentHandler.GenerateCustomId(QuickSetupPrefix, "channel", guild.Id.ToString()))
                 .WithLabel("Set Channel")
                 .WithStyle(ButtonStyle.Primary)
                 .WithEmote(new Emoji("💬")),
-            row: 1)
-        .WithButton(
             new ButtonBuilder()
                 .WithCustomId(_componentHandler.GenerateCustomId(QuickSetupPrefix, "provider", guild.Id.ToString()))
                 .WithLabel("Set Provider")
                 .WithStyle(ButtonStyle.Primary)
                 .WithEmote(new Emoji("🤖")),
-            row: 1)
-        .WithButton(
             new ButtonBuilder()
                 .WithCustomId(_componentHandler.GenerateCustomId(QuickSetupPrefix, "nsfw_channel", guild.Id.ToString()))
                 .WithLabel("Set NSFW Channel")
                 .WithStyle(ButtonStyle.Secondary)
-                .WithEmote(new Emoji("🔞")),
-            row: 1);
+                .WithEmote(new Emoji("🔞"))
+        ]);
 
         // Most Important Toggles - Each in their own row for prominence
         var toggles = await _toggleService.GetTogglesByServerId(guild.Id);
@@ -233,17 +227,19 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
             var style = toggle.IsEnabled ? ButtonStyle.Success : ButtonStyle.Secondary;
             var label = $"{emoji} {FormatToggleName(toggle.Name)}";
             
-            builder.WithButton(
+            builder.WithActionRow([
                 new ButtonBuilder()
                     .WithCustomId(_componentHandler.GenerateCustomId(TogglePrefix, toggle.Name, guild.Id.ToString()))
                     .WithLabel(label)
-                    .WithStyle(style),
-                row: toggleRow++);
+                    .WithStyle(style)
+            ]);
+            toggleRow++;
         }
 
         // Important toggles can share a row (secondary importance)
         if (importantToggles.Any())
         {
+            var importantButtons = new List<ButtonBuilder>();
             for (int i = 0; i < importantToggles.Count && i < 2; i++)
             {
                 var toggle = importantToggles[i];
@@ -251,38 +247,34 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                 var style = toggle.IsEnabled ? ButtonStyle.Success : ButtonStyle.Secondary;
                 var label = $"{emoji} {FormatToggleName(toggle.Name)}";
                 
-                builder.WithButton(
+                importantButtons.Add(
                     new ButtonBuilder()
                         .WithCustomId(_componentHandler.GenerateCustomId(TogglePrefix, toggle.Name, guild.Id.ToString()))
                         .WithLabel(label)
-                        .WithStyle(style),
-                    row: toggleRow);
+                        .WithStyle(style));
             }
+            builder.WithActionRow([.. importantButtons]);
         }
 
         // Footer Actions - Use the next available row (max 4, 0-indexed)
         var footerRow = Math.Min(toggleRow + 1, 4);
-        builder.WithButton(
+        builder.WithActionRow([
             new ButtonBuilder()
                 .WithCustomId(_componentHandler.GenerateCustomId(NavigationPrefix, "refresh", guild.Id.ToString()))
                 .WithLabel("Refresh")
                 .WithStyle(ButtonStyle.Secondary)
                 .WithEmote(new Emoji("🔄")),
-            row: footerRow)
-        .WithButton(
             new ButtonBuilder()
                 .WithCustomId(_componentHandler.GenerateCustomId(NavigationPrefix, "export", guild.Id.ToString()))
                 .WithLabel("Export")
                 .WithStyle(ButtonStyle.Secondary)
                 .WithEmote(new Emoji("📤")),
-            row: footerRow)
-        .WithButton(
             new ButtonBuilder()
                 .WithCustomId(_componentHandler.GenerateCustomId(NavigationPrefix, "help", guild.Id.ToString()))
                 .WithLabel("Help")
                 .WithStyle(ButtonStyle.Secondary)
-                .WithEmote(new Emoji("❓")),
-            row: footerRow);
+                .WithEmote(new Emoji("❓"))
+        ]);
 
         return builder.Build();
     }
@@ -625,25 +617,24 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
             "• Keep it concise but comprehensive (under 2000 characters)",
             false);
 
-        var builder = new ComponentBuilder();
+        var builder = new ComponentBuilderV2();
         
         // Add action buttons
-        builder.WithButton(
+        builder.WithActionRow([
             new ButtonBuilder()
                 .WithCustomId(_componentHandler.GenerateCustomId(QuickSetupPrefix, "persona", guildId.ToString()))
                 .WithLabel("✏️ Edit Persona")
-                .WithStyle(ButtonStyle.Primary))
-        .WithButton(
+                .WithStyle(ButtonStyle.Primary),
             new ButtonBuilder()
                 .WithCustomId(_componentHandler.GenerateCustomId(ConfigActionPrefix, "clear_persona", guildId.ToString()))
                 .WithLabel("🗑️ Clear Persona")
                 .WithStyle(ButtonStyle.Danger)
-                .WithDisabled(string.IsNullOrWhiteSpace(serverMeta?.Persona)))
-        .WithButton(
+                .WithDisabled(string.IsNullOrWhiteSpace(serverMeta?.Persona)),
             new ButtonBuilder()
                 .WithCustomId(_componentHandler.GenerateCustomId(NavigationPrefix, "back", guildId.ToString()))
                 .WithLabel("← Back")
-                .WithStyle(ButtonStyle.Secondary));
+                .WithStyle(ButtonStyle.Secondary)
+        ]);
 
         await component.ModifyOriginalResponseAsync(msg =>
         {
@@ -682,47 +673,47 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
             embedBuilder.AddField("Current Primary Channel", "*Not configured*", false);
         }
 
-        var builder = new ComponentBuilder();
+        var builder = new ComponentBuilderV2();
 
         if (textChannels.Any())
         {
             // Create channel select menu
-            var selectMenu = new SelectMenuBuilder()
-                .WithCustomId(_componentHandler.GenerateCustomId(ConfigActionPrefix, "set_channel", guildId.ToString()))
-                .WithPlaceholder("Select a channel...")
-                .WithMinValues(1)
-                .WithMaxValues(1);
-
+            var selectMenuOptions = new List<SelectMenuOptionBuilder>();
             foreach (var channel in textChannels)
             {
                 var isSelected = serverMeta?.PrimaryChannelId == channel.Id;
                 var topic = !string.IsNullOrWhiteSpace(channel.Topic)
                     ? (channel.Topic.Length > 50 ? channel.Topic[..50] + "..." : channel.Topic)
                     : "No topic set";
-                selectMenu.AddOption(
+                selectMenuOptions.Add(new SelectMenuOptionBuilder(
                     $"#{channel.Name}",
                     channel.Id.ToString(),
                     topic,
-                    isDefault: isSelected);
+                    isDefault: isSelected));
             }
+            
+            var selectMenu = new SelectMenuBuilder(
+                _componentHandler.GenerateCustomId(ConfigActionPrefix, "set_channel", guildId.ToString()),
+                selectMenuOptions)
+                .WithPlaceholder("Select a channel...")
+                .WithMinValues(1)
+                .WithMaxValues(1);
 
-            builder.WithSelectMenu(selectMenu);
+            builder.WithActionRow([selectMenu]);
         }
 
         // Add navigation buttons
-        builder.WithButton(
+        builder.WithActionRow([
             new ButtonBuilder()
                 .WithCustomId(_componentHandler.GenerateCustomId(ConfigActionPrefix, "clear_channel", guildId.ToString()))
                 .WithLabel("🗑️ Clear Channel")
                 .WithStyle(ButtonStyle.Danger)
                 .WithDisabled(serverMeta?.PrimaryChannelId == null),
-            row: 1)
-        .WithButton(
             new ButtonBuilder()
                 .WithCustomId(_componentHandler.GenerateCustomId(NavigationPrefix, "back", guildId.ToString()))
                 .WithLabel("← Back")
-                .WithStyle(ButtonStyle.Secondary),
-            row: 1);
+                .WithStyle(ButtonStyle.Secondary)
+        ]);
 
         await component.ModifyOriginalResponseAsync(msg =>
         {
@@ -752,15 +743,10 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
             string.Join("\n", providers.Select(p => $"• **{p}**")),
             false);
 
-        var builder = new ComponentBuilder();
+        var builder = new ComponentBuilderV2();
 
         // Create provider select menu
-        var selectMenu = new SelectMenuBuilder()
-            .WithCustomId(_componentHandler.GenerateCustomId(ConfigActionPrefix, "set_provider", guildId.ToString()))
-            .WithPlaceholder("Select a provider...")
-            .WithMinValues(1)
-            .WithMaxValues(1);
-
+        var selectMenuOptions = new List<SelectMenuOptionBuilder>();
         foreach (var provider in providers)
         {
             var isSelected = serverMeta?.PreferredProvider == provider;
@@ -773,22 +759,33 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                 _ => ""
             };
             
-            selectMenu.AddOption(provider, provider.ToLower(), description, isDefault: isSelected);
+            selectMenuOptions.Add(new SelectMenuOptionBuilder(
+                provider, 
+                provider.ToLower(), 
+                description, 
+                isDefault: isSelected));
         }
+        
+        var selectMenu = new SelectMenuBuilder(
+            _componentHandler.GenerateCustomId(ConfigActionPrefix, "set_provider", guildId.ToString()),
+            selectMenuOptions)
+            .WithPlaceholder("Select a provider...")
+            .WithMinValues(1)
+            .WithMaxValues(1);
 
-        builder.WithSelectMenu(selectMenu);
+        builder.WithActionRow([selectMenu]);
 
         // Add navigation buttons
-        builder.WithButton(
+        builder.WithActionRow([
             new ButtonBuilder()
                 .WithCustomId(_componentHandler.GenerateCustomId(ConfigActionPrefix, "clear_provider", guildId.ToString()))
                 .WithLabel("🔄 Use Default")
-                .WithStyle(ButtonStyle.Secondary))
-        .WithButton(
+                .WithStyle(ButtonStyle.Secondary),
             new ButtonBuilder()
                 .WithCustomId(_componentHandler.GenerateCustomId(NavigationPrefix, "back", guildId.ToString()))
                 .WithLabel("← Back")
-                .WithStyle(ButtonStyle.Secondary));
+                .WithStyle(ButtonStyle.Secondary)
+        ]);
 
         await component.ModifyOriginalResponseAsync(msg =>
         {
@@ -886,18 +883,18 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
 
     private MessageComponent GenerateToggleComponents(List<Models.Toggle> toggles, ulong guildId, int currentPage, int totalPages)
     {
-        var builder = new ComponentBuilder();
+        var builder = new ComponentBuilderV2();
         
-        // Add toggle buttons - up to 5 per row, max 10 total
-        int buttonCount = 0;
-        int currentRow = 0;
+        // Add toggle buttons - up to 4 per row, max 8 total
+        var buttonRows = new List<List<ButtonBuilder>>();
+        var currentRowButtons = new List<ButtonBuilder>();
         
         foreach (var toggle in toggles.Take(8)) // Show up to 8 toggles with buttons
         {
-            if (buttonCount == 4) // Start new row after 4 buttons to leave room for navigation
+            if (currentRowButtons.Count == 4) // Start new row after 4 buttons
             {
-                currentRow++;
-                buttonCount = 0;
+                buttonRows.Add(currentRowButtons);
+                currentRowButtons = new List<ButtonBuilder>();
             }
             
             var emoji = toggle.IsEnabled ? "✅" : "❌";
@@ -908,25 +905,32 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
             if (label.Length > 20)
                 label = label.Substring(0, 17) + "...";
             
-            builder.WithButton(
+            currentRowButtons.Add(
                 new ButtonBuilder()
                     .WithCustomId(_componentHandler.GenerateCustomId(TogglePrefix, toggle.Name, guildId.ToString()))
                     .WithLabel($"{emoji} {label}")
-                    .WithStyle(style),
-                row: currentRow);
-            
-            buttonCount++;
+                    .WithStyle(style));
+        }
+        
+        // Add remaining buttons if any
+        if (currentRowButtons.Any())
+        {
+            buttonRows.Add(currentRowButtons);
+        }
+        
+        // Add all button rows
+        foreach (var rowButtons in buttonRows)
+        {
+            builder.WithActionRow([.. rowButtons]);
         }
 
         // Add back button on the last row
-        var navRow = Math.Min(currentRow + 1, 4); // Discord max 5 rows (0-4)
-        
-        builder.WithButton(
+        builder.WithActionRow([
             new ButtonBuilder()
                 .WithCustomId(_componentHandler.GenerateCustomId(NavigationPrefix, "back", guildId.ToString()))
                 .WithLabel("← Back")
-                .WithStyle(ButtonStyle.Secondary),
-            row: navRow);
+                .WithStyle(ButtonStyle.Secondary)
+        ]);
 
         return builder.Build();
     }
@@ -999,19 +1003,19 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                 true);
         }
 
-        var builder = new ComponentBuilder();
+        var builder = new ComponentBuilderV2();
         
         // Add export and navigation buttons
-        builder.WithButton(
+        builder.WithActionRow([
             new ButtonBuilder()
                 .WithCustomId(_componentHandler.GenerateCustomId(NavigationPrefix, "export", guildId.ToString()))
                 .WithLabel("📤 Export")
-                .WithStyle(ButtonStyle.Primary))
-        .WithButton(
+                .WithStyle(ButtonStyle.Primary),
             new ButtonBuilder()
                 .WithCustomId(_componentHandler.GenerateCustomId(NavigationPrefix, "back", guildId.ToString()))
                 .WithLabel("← Back")
-                .WithStyle(ButtonStyle.Secondary));
+                .WithStyle(ButtonStyle.Secondary)
+        ]);
 
         await component.ModifyOriginalResponseAsync(msg =>
         {
@@ -1245,12 +1249,13 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         // Verification level
         embedBuilder.AddField("🛡️ Verification", guild.VerificationLevel.ToString(), true);
 
-        var builder = new ComponentBuilder()
-            .WithButton(
+        var builder = new ComponentBuilderV2()
+            .WithActionRow([
                 new ButtonBuilder()
                     .WithCustomId(_componentHandler.GenerateCustomId(NavigationPrefix, "back", guildId.ToString()))
                     .WithLabel("← Back")
-                    .WithStyle(ButtonStyle.Secondary));
+                    .WithStyle(ButtonStyle.Secondary)
+            ]);
 
         await component.ModifyOriginalResponseAsync(msg =>
         {
@@ -1325,12 +1330,13 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                 $"**Updated:** <t:{((DateTimeOffset)serverMeta.LastUpdated).ToUnixTimeSeconds()}:R>", true);
         }
 
-        var builder = new ComponentBuilder()
-            .WithButton(
+        var builder = new ComponentBuilderV2()
+            .WithActionRow([
                 new ButtonBuilder()
                     .WithCustomId(_componentHandler.GenerateCustomId(NavigationPrefix, "back", guildId.ToString()))
                     .WithLabel("← Back")
-                    .WithStyle(ButtonStyle.Secondary));
+                    .WithStyle(ButtonStyle.Secondary)
+            ]);
 
         await component.ModifyOriginalResponseAsync(msg =>
         {
@@ -1379,12 +1385,13 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
             "*No recent interaction data available*\n" +
             "This will show the last few interactions with timestamps.", false);
 
-        var builder = new ComponentBuilder()
-            .WithButton(
+        var builder = new ComponentBuilderV2()
+            .WithActionRow([
                 new ButtonBuilder()
                     .WithCustomId(_componentHandler.GenerateCustomId(NavigationPrefix, "back", guildId.ToString()))
                     .WithLabel("← Back")
-                    .WithStyle(ButtonStyle.Secondary));
+                    .WithStyle(ButtonStyle.Secondary)
+            ]);
 
         await component.ModifyOriginalResponseAsync(msg =>
         {
@@ -1452,17 +1459,17 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                 "Use the **Set Persona** button to configure how the AI should behave in your server.", false);
         }
 
-        var builder = new ComponentBuilder()
-            .WithButton(
+        var builder = new ComponentBuilderV2()
+            .WithActionRow([
                 new ButtonBuilder()
                     .WithCustomId(_componentHandler.GenerateCustomId(QuickSetupPrefix, "persona", guildId.ToString()))
                     .WithLabel("✏️ Edit Persona")
-                    .WithStyle(ButtonStyle.Primary))
-            .WithButton(
+                    .WithStyle(ButtonStyle.Primary),
                 new ButtonBuilder()
                     .WithCustomId(_componentHandler.GenerateCustomId(NavigationPrefix, "back", guildId.ToString()))
                     .WithLabel("← Back")
-                    .WithStyle(ButtonStyle.Secondary));
+                    .WithStyle(ButtonStyle.Secondary)
+            ]);
 
         await component.ModifyOriginalResponseAsync(msg =>
         {
@@ -1634,32 +1641,34 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         
         embedBuilder.AddField("Daily NSFW Status", warningText, false);
 
-        var builder = new ComponentBuilder();
+        var builder = new ComponentBuilderV2();
 
         if (nsfwChannels.Any())
         {
             // Create channel select menu
-            var selectMenu = new SelectMenuBuilder()
-                .WithCustomId(_componentHandler.GenerateCustomId(ConfigActionPrefix, "set_nsfw_channel", guildId.ToString()))
-                .WithPlaceholder("Select an NSFW channel...")
-                .WithMinValues(1)
-                .WithMaxValues(1);
-
+            var selectMenuOptions = new List<SelectMenuOptionBuilder>();
             foreach (var channel in nsfwChannels)
             {
                 var isSelected = serverMeta?.NsfwChannelId == channel.Id;
                 var topic = !string.IsNullOrWhiteSpace(channel.Topic)
                     ? (channel.Topic.Length > 50 ? channel.Topic[..50] + "..." : channel.Topic)
                     : "No topic set";
-                selectMenu.AddOption(
+                selectMenuOptions.Add(new SelectMenuOptionBuilder(
                     $"#{channel.Name}",
                     channel.Id.ToString(),
                     topic,
                     emote: new Emoji("🔞"),
-                    isDefault: isSelected);
+                    isDefault: isSelected));
             }
+            
+            var selectMenu = new SelectMenuBuilder(
+                _componentHandler.GenerateCustomId(ConfigActionPrefix, "set_nsfw_channel", guildId.ToString()),
+                selectMenuOptions)
+                .WithPlaceholder("Select an NSFW channel...")
+                .WithMinValues(1)
+                .WithMaxValues(1);
 
-            builder.WithSelectMenu(selectMenu);
+            builder.WithActionRow([selectMenu]);
         }
         else
         {
@@ -1671,19 +1680,17 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         }
 
         // Add navigation buttons
-        builder.WithButton(
+        builder.WithActionRow([
             new ButtonBuilder()
                 .WithCustomId(_componentHandler.GenerateCustomId(ConfigActionPrefix, "clear_nsfw_channel", guildId.ToString()))
                 .WithLabel("🗑️ Clear Channel")
                 .WithStyle(ButtonStyle.Danger)
                 .WithDisabled(serverMeta?.NsfwChannelId == null),
-            row: 1)
-        .WithButton(
             new ButtonBuilder()
                 .WithCustomId(_componentHandler.GenerateCustomId(NavigationPrefix, "back", guildId.ToString()))
                 .WithLabel("← Back")
-                .WithStyle(ButtonStyle.Secondary),
-            row: 1);
+                .WithStyle(ButtonStyle.Secondary)
+        ]);
 
         await component.ModifyOriginalResponseAsync(msg =>
         {

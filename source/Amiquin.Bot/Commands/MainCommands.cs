@@ -342,15 +342,21 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
             .WithCurrentTimestamp()
             .Build();
 
-        // Create button for direct link
-        var components = new ComponentBuilder()
-            .WithButton("Open in Browser", style: ButtonStyle.Link, url: avatarUrl)
+        // Create button for direct link using ComponentBuilderV2
+        var components = new ComponentBuilderV2()
+            .WithActionRow([
+                new ButtonBuilder()
+                    .WithLabel("Open in Browser")
+                    .WithStyle(ButtonStyle.Link)
+                    .WithUrl(avatarUrl)
+            ])
             .Build();
 
         await ModifyOriginalResponseAsync(msg =>
         {
             msg.Embed = embed;
             msg.Components = components;
+            msg.Flags = MessageFlags.ComponentsV2;
         });
     }
 
@@ -542,15 +548,26 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
                 embed.WithDescription($"*Showing first 10 of {sessions.Count} sessions*");
             }
 
-            var components = new ComponentBuilder()
-                .WithButton("Switch Session", "session_switch", ButtonStyle.Primary, new Emoji("🔄"))
-                .WithButton("Create New", "session_create", ButtonStyle.Success, new Emoji("➕"))
+            var components = new ComponentBuilderV2()
+                .WithActionRow([
+                    new ButtonBuilder()
+                        .WithLabel("Switch Session")
+                        .WithCustomId("session_switch")
+                        .WithStyle(ButtonStyle.Primary)
+                        .WithEmote(new Emoji("🔄")),
+                    new ButtonBuilder()
+                        .WithLabel("Create New")
+                        .WithCustomId("session_create")
+                        .WithStyle(ButtonStyle.Success)
+                        .WithEmote(new Emoji("➕"))
+                ])
                 .Build();
 
             await ModifyOriginalResponseAsync(msg =>
             {
                 msg.Embed = embed.Build();
                 msg.Components = components;
+                msg.Flags = MessageFlags.ComponentsV2;
             });
         }
 
@@ -726,25 +743,19 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
         private async Task ShowSessionSwitchUI(List<Amiquin.Core.Models.ChatSession> sessions)
         {
             var activeSession = sessions.FirstOrDefault(s => s.IsActive);
-            var selectMenuBuilder = new SelectMenuBuilder()
-                .WithPlaceholder("Choose a session to switch to...")
-                .WithCustomId("session_switch_select")
-                .WithMinValues(1)
-                .WithMaxValues(1);
-
-            foreach (var session in sessions.Take(25)) // Discord limit for select menu options
+            
+            var selectOptions = sessions.Take(25).Select(session => // Discord limit for select menu options
             {
                 var isActive = session.IsActive;
                 var description = $"{session.MessageCount} msgs, {session.Provider}/{session.Model}";
                 if (isActive) description = $"🟢 ACTIVE • {description}";
-
-                selectMenuBuilder.AddOption(
-                    label: session.Name,
-                    value: session.Id,
-                    description: description.Length > 100 ? description[..97] + "..." : description,
-                    isDefault: isActive
-                );
-            }
+                
+                return new SelectMenuOptionBuilder()
+                    .WithLabel(session.Name)
+                    .WithValue(session.Id)
+                    .WithDescription(description.Length > 100 ? description[..97] + "..." : description)
+                    .WithDefault(isActive);
+            }).ToList();
 
             var embed = new EmbedBuilder()
                 .WithTitle("🔄 Switch Chat Session")
@@ -753,15 +764,30 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
                 .WithFooter($"Total sessions: {sessions.Count}")
                 .Build();
 
-            var components = new ComponentBuilder()
-                .WithSelectMenu(selectMenuBuilder)
-                .WithButton("Cancel", "session_cancel", ButtonStyle.Secondary, new Emoji("❌"))
+            var components = new ComponentBuilderV2()
+                .WithActionRow([
+                    new SelectMenuBuilder(
+                        customId: "session_switch_select",
+                        options: selectOptions,
+                        placeholder: "Choose a session to switch to...",
+                        minValues: 1,
+                        maxValues: 1
+                    )
+                ])
+                .WithActionRow([
+                    new ButtonBuilder()
+                        .WithLabel("Cancel")
+                        .WithCustomId("session_cancel")
+                        .WithStyle(ButtonStyle.Secondary)
+                        .WithEmote(new Emoji("❌"))
+                ])
                 .Build();
 
             await ModifyOriginalResponseAsync(msg =>
             {
                 msg.Embed = embed;
                 msg.Components = components;
+                msg.Flags = MessageFlags.ComponentsV2;
             });
         }
     }

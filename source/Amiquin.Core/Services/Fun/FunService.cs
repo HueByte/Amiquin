@@ -566,43 +566,64 @@ public class FunService : IFunService
     }
 
     /// <inheritdoc/>
-    public async Task<(Embed embed, Discord.MessageComponent components)> CreateInteractivePaletteAsync(ColorPalette palette, ulong userId)
+    public async Task<(Embed embed, Discord.MessageComponent components, IEnumerable<FileAttachment> attachments)> CreateInteractivePaletteAsync(ColorPalette palette, ulong userId)
     {
-        // Generate preview images for each color
-        var previewTasks = palette.Colors.Select(async color =>
+        // Generate color images for each color in the palette
+        var colorImages = new List<FileAttachment>();
+        var imageUrls = new List<string>();
+
+        var imageGenerationTasks = palette.Colors.Select(async color =>
         {
             try
             {
-                using var stream = await GenerateColorImageAsync(color.Hex);
-                return (color.Hex, success: true);
+                using var colorImage = await GenerateColorImageAsync(color.Hex);
+                var cleanHex = color.Hex.TrimStart('#').ToUpper();
+                var fileName = $"palette_color_{cleanHex}.png";
+                var imageUrl = $"attachment://{fileName}";
+
+                var attachment = new FileAttachment(colorImage, fileName);
+                return (success: true, attachment, imageUrl, color);
             }
             catch
             {
-                return (color.Hex, success: false);
+                return (success: false, attachment: (FileAttachment?)null, imageUrl: (string?)null, color);
             }
         });
 
-        await Task.WhenAll(previewTasks);
+        var results = await Task.WhenAll(imageGenerationTasks);
 
-        // Create embed
+        foreach (var result in results)
+        {
+            if (result.success && result.attachment.HasValue && result.imageUrl != null)
+            {
+                colorImages.Add(result.attachment.Value);
+                imageUrls.Add(result.imageUrl);
+            }
+        }
+
+        // Create embed with palette information and media gallery
+        var firstColorHex = palette.Colors[0].Hex.TrimStart('#');
+        var firstColorInt = Convert.ToInt32(firstColorHex, 16);
         var embed = new EmbedBuilder()
             .WithTitle($"🎨 {palette.Name}")
-            .WithDescription(palette.Description)
-            .WithColor(new Discord.Color(
-                Convert.ToByte(palette.Colors.First().Hex[1..3], 16),
-                Convert.ToByte(palette.Colors.First().Hex[3..5], 16),
-                Convert.ToByte(palette.Colors.First().Hex[5..7], 16)))
-            .WithFooter($"Harmony: {palette.HarmonyType} | Base Hue: {palette.BaseHue:F1}°")
-            .WithTimestamp(palette.CreatedAt);
+            .WithDescription($"**Harmony Type:** {palette.HarmonyType}\n**Base Hue:** {palette.BaseHue:F1}°\n\n**Description:** {palette.Description}")
+            .WithColor(new Discord.Color((uint)firstColorInt));
 
-        // Add color fields
-        foreach (var color in palette.Colors)
+        // Add color details as fields
+        for (int i = 0; i < palette.Colors.Count; i++)
         {
-            var fieldValue = $"**{color.Hex.ToUpper()}**\n" +
-                           $"HSL({color.Hue:F0}°, {color.Saturation:F0}%, {color.Lightness:F0}%)\n" +
-                           $"Role: {color.Role}";
-
-            embed.AddField($"{GetColorEmoji(color)} {color.Name}", fieldValue, inline: true);
+            var color = palette.Colors[i];
+            var hex = color.Hex.TrimStart('#');
+            var colorInt = Convert.ToInt32(hex, 16);
+            var r = (colorInt >> 16) & 0xFF;
+            var g = (colorInt >> 8) & 0xFF;
+            var b = colorInt & 0xFF;
+            
+            embed.AddField(
+                $"{GetColorEmoji(color)} {color.Name}",
+                $"{color.Hex.ToUpper()} • {color.Role}\nRGB({r}, {g}, {b})",
+                inline: true
+            );
         }
 
         // Add tags if available
@@ -611,46 +632,54 @@ public class FunService : IFunService
             embed.AddField("🏷️ Suggested Uses", string.Join(" • ", palette.Tags), inline: false);
         }
 
-        // Create interactive components
-        var components = new ComponentBuilder();
+        embed.WithFooter($"Harmony: {palette.HarmonyType} | Base Hue: {palette.BaseHue:F1}°")
+            .WithTimestamp(palette.CreatedAt);
 
-        // Color selection dropdown
-        var colorSelect = new SelectMenuBuilder()
-            .WithCustomId(_componentHandler.GenerateCustomId("palette_color", palette.Id, userId.ToString()))
-            .WithPlaceholder("Select a color to view details...")
-            .WithMinValues(1)
-            .WithMaxValues(1);
+        // Create interactive components using ComponentBuilderV2 with MediaGallery
+        // Color selection dropdown options
+        var colorOptions = palette.Colors.Select(color => 
+            new SelectMenuOptionBuilder()
+                .WithLabel($"{color.Name} {color.Hex.ToUpper()}")
+                .WithValue(color.Hex)
+                .WithDescription($"{color.Role} • HSL({color.Hue:F0}°, {color.Saturation:F0}%, {color.Lightness:F0}%)")
+                .WithEmote(Emoji.Parse(GetColorEmoji(color)))
+        ).ToList();
 
-        foreach (var color in palette.Colors)
-        {
-            colorSelect.AddOption(
-                $"{color.Name} {color.Hex.ToUpper()}",
-                color.Hex,
-                $"{color.Role} • HSL({color.Hue:F0}°, {color.Saturation:F0}%, {color.Lightness:F0}%)",
-                emote: Emoji.Parse(GetColorEmoji(color)));
-        }
-
-        components.WithSelectMenu(colorSelect, row: 0);
+        var colorSelect = new SelectMenuBuilder(
+            customId: _componentHandler.GenerateCustomId("palette_color", palette.Id, userId.ToString()),
+            options: colorOptions,
+            placeholder: "Select a color to view details...",
+            minValues: 1,
+            maxValues: 1
+        );
 
         // Action buttons
-        components
-            .WithButton("🔄 New Palette", 
-                _componentHandler.GenerateCustomId("palette_regenerate", palette.HarmonyType.ToString(), userId.ToString()),
-                ButtonStyle.Primary, row: 1)
-            .WithButton("🎲 Random Harmony", 
-                _componentHandler.GenerateCustomId("palette_random", userId.ToString()),
-                ButtonStyle.Secondary, row: 1)
-            .WithButton("🖼️ Generate Images", 
-                _componentHandler.GenerateCustomId("palette_images", palette.Id, userId.ToString()),
-                ButtonStyle.Success, row: 1)
-            .WithButton("💾 Export", 
-                _componentHandler.GenerateCustomId("palette_export", palette.Id, userId.ToString()),
-                ButtonStyle.Secondary, row: 1);
+        var buttons = new List<ButtonBuilder>
+        {
+            new ButtonBuilder()
+                .WithLabel("🔄 New Palette")
+                .WithCustomId(_componentHandler.GenerateCustomId("palette_regenerate", palette.HarmonyType.ToString(), userId.ToString()))
+                .WithStyle(ButtonStyle.Primary),
+            new ButtonBuilder()
+                .WithLabel("🎲 Random Harmony")
+                .WithCustomId(_componentHandler.GenerateCustomId("palette_random", userId.ToString()))
+                .WithStyle(ButtonStyle.Secondary),
+            new ButtonBuilder()
+                .WithLabel("💾 Export")
+                .WithCustomId(_componentHandler.GenerateCustomId("palette_export", palette.Id, userId.ToString()))
+                .WithStyle(ButtonStyle.Secondary)
+        };
+
+        var components = new ComponentBuilderV2()
+            .WithMediaGallery(imageUrls.ToArray())
+            .WithActionRow([colorSelect])
+            .WithActionRow(buttons)
+            .Build();
 
         // Register component handlers
         RegisterPaletteHandlers(palette);
 
-        return (embed.Build(), components.Build());
+        return (embed.Build(), components, colorImages);
     }
 
     private List<PaletteColor> GenerateColorsByHarmony(ColorHarmonyType harmonyType, float baseHue)

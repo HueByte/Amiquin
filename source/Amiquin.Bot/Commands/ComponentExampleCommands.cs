@@ -50,7 +50,7 @@ public class ComponentExampleCommands : InteractionModuleBase<SocketInteractionC
             .WithColor(Color.Blue)
             .Build();
 
-        await ModifyOriginalResponseAsync(msg => { msg.Embed = embed; msg.Components = component; });
+        await ModifyOriginalResponseAsync(msg => { msg.Embed = embed; msg.Components = component; msg.Flags = MessageFlags.ComponentsV2; });
     }
 
     [SlashCommand("select", "Creates a select menu using the new component system")]
@@ -75,7 +75,7 @@ public class ComponentExampleCommands : InteractionModuleBase<SocketInteractionC
             .WithColor(Color.Green)
             .Build();
 
-        await ModifyOriginalResponseAsync(msg => { msg.Embed = embed; msg.Components = component; });
+        await ModifyOriginalResponseAsync(msg => { msg.Embed = embed; msg.Components = component; msg.Flags = MessageFlags.ComponentsV2; });
     }
 
     [SlashCommand("modal", "Shows a modal using the new modal system")]

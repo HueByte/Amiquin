@@ -207,44 +207,39 @@ public class PaginationService : IPaginationService
 
     private MessageComponent CreateNavigationComponent(string sessionId, int currentPage, int totalPages)
     {
-        var buttons = new List<ButtonBuilder>();
-
-        // First page button
-        buttons.Add(new ButtonBuilder()
-            .WithCustomId(_componentHandlerService.GenerateCustomId(ComponentPrefix, sessionId, "first"))
-            .WithLabel("⏪")
-            .WithStyle(ButtonStyle.Secondary)
-            .WithDisabled(currentPage == 0));
-
-        // Previous page button
-        buttons.Add(new ButtonBuilder()
-            .WithCustomId(_componentHandlerService.GenerateCustomId(ComponentPrefix, sessionId, "prev"))
-            .WithLabel("◀️")
-            .WithStyle(ButtonStyle.Primary)
-            .WithDisabled(currentPage == 0));
-
-        // Next page button
-        buttons.Add(new ButtonBuilder()
-            .WithCustomId(_componentHandlerService.GenerateCustomId(ComponentPrefix, sessionId, "next"))
-            .WithLabel("▶️")
-            .WithStyle(ButtonStyle.Primary)
-            .WithDisabled(currentPage == totalPages - 1));
-
-        // Last page button
-        buttons.Add(new ButtonBuilder()
-            .WithCustomId(_componentHandlerService.GenerateCustomId(ComponentPrefix, sessionId, "last"))
-            .WithLabel("⏩")
-            .WithStyle(ButtonStyle.Secondary)
-            .WithDisabled(currentPage == totalPages - 1));
-
-        var actionRow = new ActionRowBuilder();
-        foreach (var button in buttons)
+        var buttons = new List<ButtonBuilder>
         {
-            actionRow.AddComponent(button);
-        }
+            // First page button
+            new ButtonBuilder()
+                .WithCustomId(_componentHandlerService.GenerateCustomId(ComponentPrefix, sessionId, "first"))
+                .WithLabel("⏪")
+                .WithStyle(ButtonStyle.Secondary)
+                .WithDisabled(currentPage == 0),
+            
+            // Previous page button
+            new ButtonBuilder()
+                .WithCustomId(_componentHandlerService.GenerateCustomId(ComponentPrefix, sessionId, "prev"))
+                .WithLabel("◀️")
+                .WithStyle(ButtonStyle.Primary)
+                .WithDisabled(currentPage == 0),
+            
+            // Next page button
+            new ButtonBuilder()
+                .WithCustomId(_componentHandlerService.GenerateCustomId(ComponentPrefix, sessionId, "next"))
+                .WithLabel("▶️")
+                .WithStyle(ButtonStyle.Primary)
+                .WithDisabled(currentPage == totalPages - 1),
+            
+            // Last page button
+            new ButtonBuilder()
+                .WithCustomId(_componentHandlerService.GenerateCustomId(ComponentPrefix, sessionId, "last"))
+                .WithLabel("⏩")
+                .WithStyle(ButtonStyle.Secondary)
+                .WithDisabled(currentPage == totalPages - 1)
+        };
 
-        return new ComponentBuilder()
-            .WithRows(new List<ActionRowBuilder> { actionRow })
+        return new ComponentBuilderV2()
+            .WithActionRow(buttons)
             .Build();
     }
 
