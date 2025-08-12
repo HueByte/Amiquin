@@ -32,8 +32,8 @@ public class AdminSettingAutoCompleteHandler : AutocompleteHandler
 
             foreach (var setting in AvailableSettings)
             {
-                if (string.IsNullOrWhiteSpace(userInput) || 
-                    setting.Key.Contains(userInput) || 
+                if (string.IsNullOrWhiteSpace(userInput) ||
+                    setting.Key.Contains(userInput) ||
                     setting.Value.ToLowerInvariant().Contains(userInput))
                 {
                     suggestions.Add(new AutocompleteResult($"{setting.Key} - {setting.Value}", setting.Key));

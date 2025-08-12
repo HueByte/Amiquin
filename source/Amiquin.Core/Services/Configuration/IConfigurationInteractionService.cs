@@ -12,7 +12,7 @@ public interface IConfigurationInteractionService
     /// Creates a configuration interface using Components V2 display components.
     /// </summary>
     Task<MessageComponent> CreateConfigurationInterfaceAsync(ulong guildId, SocketGuild guild);
-    
+
     /// <summary>
     /// Initializes and registers all configuration-related component handlers.
     /// </summary>

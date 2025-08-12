@@ -62,7 +62,7 @@ public static class DiscordUtilities
         for (int i = 0; i < chunks.Count; i++)
         {
             string chunkToSend;
-            
+
             // Add part indicators if message is chunked (multiple parts)
             if (chunks.Count > 1)
             {
@@ -70,13 +70,13 @@ public static class DiscordUtilities
                 // Ensure the part indicator fits within the limit
                 var availableLength = maxLength - partIndicator.Length;
                 var chunk = chunks[i];
-                
+
                 if (chunk.Length > availableLength)
                 {
                     // This shouldn't happen with proper chunking, but safety check
                     chunk = chunk.Substring(0, availableLength);
                 }
-                
+
                 chunkToSend = chunk + partIndicator;
             }
             else

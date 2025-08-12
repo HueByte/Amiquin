@@ -16,8 +16,8 @@ public interface IPaginationService
     /// <param name="timeout">How long the pagination should remain active (default: 5 minutes)</param>
     /// <returns>A tuple containing the embed and component for the first page</returns>
     Task<(Embed Embed, MessageComponent Component)> CreatePaginatedMessageAsync(
-        IReadOnlyList<Embed> embeds, 
-        ulong userId, 
+        IReadOnlyList<Embed> embeds,
+        ulong userId,
         TimeSpan? timeout = null);
 
     /// <summary>

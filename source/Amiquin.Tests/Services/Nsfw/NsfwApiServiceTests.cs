@@ -1,10 +1,10 @@
-using System.Net;
-using System.Reflection;
-using System.Text;
 using Amiquin.Core.Services.Nsfw;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Moq.Protected;
+using System.Net;
+using System.Reflection;
+using System.Text;
 using Xunit;
 
 namespace Amiquin.Tests.Services.Nsfw;
@@ -14,35 +14,37 @@ public class NsfwApiServiceTests : IDisposable
     private readonly Mock<ILogger<NsfwApiService>> _loggerMock;
     private readonly Mock<HttpMessageHandler> _httpMessageHandlerMock;
     private readonly HttpClient _httpClient;
+    private readonly Mock<EHentaiService> _eHentaiServiceMock;
     private readonly NsfwApiService _nsfwApiService;
 
     public NsfwApiServiceTests()
     {
         // Reset static state before each test
         ResetStaticRateLimitState();
-        
+
         _loggerMock = new Mock<ILogger<NsfwApiService>>();
         _httpMessageHandlerMock = new Mock<HttpMessageHandler>();
         _httpClient = new HttpClient(_httpMessageHandlerMock.Object);
-        
-        _nsfwApiService = new NsfwApiService(_loggerMock.Object, _httpClient);
+        _eHentaiServiceMock = new Mock<EHentaiService>(Mock.Of<ILogger<EHentaiService>>(), Mock.Of<HttpClient>());
+
+        _nsfwApiService = new NsfwApiService(_loggerMock.Object, _httpClient, _eHentaiServiceMock.Object);
     }
-    
+
     public void Dispose()
     {
         // Reset static state after each test to ensure isolation
         ResetStaticRateLimitState();
         _httpClient?.Dispose();
     }
-    
+
     private void ResetStaticRateLimitState()
     {
         // Use reflection to reset the static fields
         var serviceType = typeof(NsfwApiService);
-        
+
         var lastRateLimitField = serviceType.GetField("_lastRateLimitHit", BindingFlags.NonPublic | BindingFlags.Static);
         lastRateLimitField?.SetValue(null, DateTime.MinValue);
-        
+
         var consecutiveRateLimitsField = serviceType.GetField("_consecutiveRateLimits", BindingFlags.NonPublic | BindingFlags.Static);
         consecutiveRateLimitsField?.SetValue(null, 0);
     }
@@ -89,7 +91,7 @@ public class NsfwApiServiceTests : IDisposable
         Assert.Single(result);
         Assert.Equal("https://example.com/image1.jpg", result[0].Url);
         Assert.Equal("waifu.im", result[0].Source);
-        
+
         // Verify the request was made to /search endpoint
         _httpMessageHandlerMock.Protected().Verify(
             "SendAsync",
@@ -156,7 +158,7 @@ public class NsfwApiServiceTests : IDisposable
 
         // Assert
         Assert.Empty(result);
-        
+
         // Verify rate limit warning was logged
         _loggerMock.Verify(
             x => x.Log(

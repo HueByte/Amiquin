@@ -1,19 +1,19 @@
-using System.Text.Json;
+using Amiquin.Core.IRepositories;
+using Amiquin.Core.Models;
+using Amiquin.Core.Services.Chat;
+using Amiquin.Core.Services.ComponentHandler;
+using Amiquin.Core.Services.Toggle;
+using Discord;
+using Microsoft.Extensions.Logging;
+using SixLabors.Fonts;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Drawing;
 using SixLabors.ImageSharp.Drawing.Processing;
 using SixLabors.ImageSharp.Formats.Png;
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
-using SixLabors.Fonts;
+using System.Text.Json;
 using Color = SixLabors.ImageSharp.Color;
-using Amiquin.Core.IRepositories;
-using Amiquin.Core.Services.Chat;
-using Amiquin.Core.Services.Toggle;
-using Amiquin.Core.Services.ComponentHandler;
-using Amiquin.Core.Models;
-using Discord;
-using Microsoft.Extensions.Logging;
 
 namespace Amiquin.Core.Services.Fun;
 
@@ -90,7 +90,7 @@ public class FunService : IFunService
     public async Task<int> GetOrGenerateDickSizeAsync(ulong userId, ulong serverId)
     {
         var userStats = await _userStatsRepository.GetOrCreateUserStatsAsync(userId, serverId);
-        
+
         if (!userStats.HasStat("dick_size"))
         {
             // Generate a random size between 1 and 30 cm with weighted distribution
@@ -98,16 +98,16 @@ public class FunService : IFunService
             var roll1 = _random.Next(1, 31);
             var roll2 = _random.Next(1, 31);
             var roll3 = _random.Next(1, 31);
-            
+
             // Take the middle value for more realistic distribution
             var sizes = new[] { roll1, roll2, roll3 }.OrderBy(x => x).ToArray();
             var dickSize = sizes[1]; // Middle value
-            
+
             userStats.SetStat("dick_size", dickSize);
             await _userStatsRepository.UpdateUserStatsAsync(userStats);
             _logger.LogDebug("Generated dick size {Size} for user {UserId}", dickSize, userId);
         }
-        
+
         return userStats.GetStat<int>("dick_size");
     }
 
@@ -128,29 +128,29 @@ public class FunService : IFunService
             {
                 throw new ArgumentException($"Invalid hex color: #{hexColor}");
             }
-            
+
             // Create a 300x100 image with the color
             using var image = new Image<Rgba32>(300, 100);
-            
+
             // Fill with the color and add border
             image.Mutate(ctx => ctx
                 .BackgroundColor(color)
                 .Draw(Color.Black, 2f, new RectangleF(1, 1, 298, 98)));
-            
+
             // Add text with color info (if fonts are available)
             var font = GetAvailableFont(12, FontStyle.Bold);
             if (font != null)
             {
                 var textColor = GetContrastColor(color);
                 var text = $"#{hexColor.ToUpper()}";
-                
+
                 var textOptions = new RichTextOptions(font)
                 {
                     Origin = new PointF(150, 50),
                     HorizontalAlignment = HorizontalAlignment.Center,
                     VerticalAlignment = VerticalAlignment.Center
                 };
-                
+
                 image.Mutate(ctx => ctx
                     .DrawText(textOptions, text, textColor));
             }
@@ -158,12 +158,12 @@ public class FunService : IFunService
             {
                 _logger.LogWarning("No fonts available - generating color image without text for hex {HexColor}", hexColor);
             }
-            
+
             // Convert to stream
             var stream = new MemoryStream();
             await image.SaveAsPngAsync(stream);
             stream.Position = 0;
-            
+
             return stream;
         }
         catch (Exception ex)
@@ -177,19 +177,19 @@ public class FunService : IFunService
     public List<string> GenerateColorPalette(int count = 5)
     {
         var colors = new List<string>();
-        
+
         for (int i = 0; i < count; i++)
         {
             // Generate random RGB values
             var r = _random.Next(0, 256);
             var g = _random.Next(0, 256);
             var b = _random.Next(0, 256);
-            
+
             // Convert to hex
             var hex = $"#{r:X2}{g:X2}{b:X2}";
             colors.Add(hex);
         }
-        
+
         return colors;
     }
 
@@ -208,15 +208,15 @@ public class FunService : IFunService
             const int swatchHeight = 80;
             const int margin = 10;
             const int textHeight = 25;
-            
+
             var font = GetAvailableFont(11, FontStyle.Regular);
             var includeText = font != null;
-            
+
             var imageWidth = colors.Count * (swatchWidth + margin) - margin;
             var imageHeight = swatchHeight + (includeText ? textHeight : 0) + margin * 2;
 
             using var image = new Image<Rgba32>(imageWidth, imageHeight);
-            
+
             // Fill background with white
             image.Mutate(ctx => ctx.BackgroundColor(Color.White));
 
@@ -228,7 +228,7 @@ public class FunService : IFunService
             for (int i = 0; i < colors.Count; i++)
             {
                 var colorHex = colors[i].TrimStart('#');
-                
+
                 // Parse the color
                 if (!Rgba32.TryParseHex($"#{colorHex}", out var color))
                 {
@@ -238,7 +238,7 @@ public class FunService : IFunService
 
                 var x = i * (swatchWidth + margin);
                 var swatchRect = new RectangleF(x, margin, swatchWidth, swatchHeight);
-                
+
                 // Draw color swatch
                 image.Mutate(ctx => ctx
                     .Fill(color, swatchRect)
@@ -249,7 +249,7 @@ public class FunService : IFunService
                 {
                     var textX = x + swatchWidth / 2;
                     var textY = margin + swatchHeight + 5;
-                    
+
                     var textOptions = new RichTextOptions(font)
                     {
                         Origin = new PointF(textX, textY),
@@ -266,7 +266,7 @@ public class FunService : IFunService
             var stream = new MemoryStream();
             await image.SaveAsPngAsync(stream);
             stream.Position = 0;
-            
+
             return stream;
         }
         catch (Exception ex)
@@ -290,12 +290,12 @@ public class FunService : IFunService
 
             var response = await _httpClient.GetStringAsync(endpoint);
             var jsonDoc = JsonDocument.Parse(response);
-            
+
             if (jsonDoc.RootElement.TryGetProperty("url", out var urlElement))
             {
                 return urlElement.GetString();
             }
-            
+
             _logger.LogWarning("No URL found in response for interaction type: {InteractionType}", interactionType);
             return null;
         }
@@ -319,11 +319,11 @@ public class FunService : IFunService
             }
 
             var tagLower = nsfwType.ToLower();
-            
+
             // Check if it's a valid tag (either NSFW or versatile)
             bool isNsfwTag = _nsfwTags.ContainsKey(tagLower);
             bool isVersatileTag = _versatileTags.ContainsKey(tagLower);
-            
+
             if (!isNsfwTag && !isVersatileTag)
             {
                 _logger.LogWarning("Unknown NSFW type: {NsfwType}", nsfwType);
@@ -332,7 +332,7 @@ public class FunService : IFunService
 
             // Build the waifu.im API URL
             var url = $"https://api.waifu.im/search?included_tags={tagLower}";
-            
+
             // Add is_nsfw parameter for versatile tags
             if (isVersatileTag)
             {
@@ -341,9 +341,9 @@ public class FunService : IFunService
 
             var response = await _httpClient.GetStringAsync(url);
             var jsonDoc = JsonDocument.Parse(response);
-            
+
             // waifu.im returns an object with an "images" array
-            if (jsonDoc.RootElement.TryGetProperty("images", out var imagesElement) && 
+            if (jsonDoc.RootElement.TryGetProperty("images", out var imagesElement) &&
                 imagesElement.GetArrayLength() > 0)
             {
                 var firstImage = imagesElement[0];
@@ -352,7 +352,7 @@ public class FunService : IFunService
                     return urlElement.GetString();
                 }
             }
-            
+
             _logger.LogWarning("No images found in waifu.im response for tag: {NsfwType}", nsfwType);
             return null;
         }
@@ -385,7 +385,7 @@ public class FunService : IFunService
         var userStats = await _userStatsRepository.GetOrCreateUserStatsAsync(userId, serverId);
         var newTotal = userStats.IncrementStat("nachos_given");
         await _userStatsRepository.UpdateUserStatsAsync(userStats);
-        
+
         _logger.LogDebug("User {UserId} gave a nacho to Amiquin. Total: {Total}", userId, newTotal);
         return newTotal;
     }
@@ -406,13 +406,13 @@ public class FunService : IFunService
             // Use the persona chat service to generate a contextual response
             // Using channelId as instanceId to maintain conversation context per channel
             var response = await _personaChatService.ChatAsync(channelId, userId, 0, prompt);
-            
+
             // Fallback to default responses if AI fails
             if (string.IsNullOrWhiteSpace(response))
             {
                 response = GetFallbackNachoResponse(totalNachos);
             }
-            
+
             return response;
         }
         catch (Exception ex)
@@ -457,7 +457,7 @@ public class FunService : IFunService
                 "🌮 Yummy! Thanks for thinking of me!"
             }
         };
-        
+
         return responses[_random.Next(responses.Length)];
     }
 
@@ -466,25 +466,25 @@ public class FunService : IFunService
     {
         var topGivers = await _userStatsRepository.GetTopNachoGiversAsync(serverId, limit);
         var fields = new List<EmbedFieldBuilder>();
-        
+
         for (int i = 0; i < topGivers.Count; i++)
         {
             var user = topGivers[i];
             var medal = i switch
             {
                 0 => "🥇",
-                1 => "🥈", 
+                1 => "🥈",
                 2 => "🥉",
                 _ => $"{i + 1}."
             };
-            
+
             var nachosGiven = user.GetStat<int>("nachos_given", 0);
             fields.Add(new EmbedFieldBuilder()
                 .WithName($"{medal} Rank {i + 1}")
                 .WithValue($"<@{user.UserId}>\n🌮 {nachosGiven} nachos")
                 .WithIsInline(true));
         }
-        
+
         return fields;
     }
 
@@ -539,7 +539,7 @@ public class FunService : IFunService
     {
         // Calculate luminance
         var luminance = (0.299 * backgroundColor.R + 0.587 * backgroundColor.G + 0.114 * backgroundColor.B) / 255;
-        
+
         // Return black for light backgrounds, white for dark backgrounds
         return luminance > 0.5 ? Color.Black : Color.White;
     }
@@ -548,7 +548,7 @@ public class FunService : IFunService
     public async Task<ColorPalette> GenerateColorTheoryPaletteAsync(ColorHarmonyType harmonyType, float? baseHue = null)
     {
         await Task.CompletedTask; // Make method async for future enhancements
-        
+
         var hue = baseHue ?? _random.Next(0, 360);
         var palette = new ColorPalette
         {
@@ -602,7 +602,7 @@ public class FunService : IFunService
         }
 
         // Create interactive ComponentsV2 display
-        
+
         var components = new ComponentBuilderV2()
             .WithTextDisplay($"# 🎨 {palette.Name}\n## {palette.HarmonyType} Color Palette")
             .WithTextDisplay($"{palette.Description}\n\n**Base Hue:** {palette.BaseHue:F1}°")
@@ -612,7 +612,7 @@ public class FunService : IFunService
                 new SelectMenuBuilder()
                     .WithCustomId(_componentHandler.GenerateCustomId("palette_color", palette.Id, userId.ToString()))
                     .WithPlaceholder("Select a color to view details...")
-                    .WithOptions(palette.Colors.Select(color => 
+                    .WithOptions(palette.Colors.Select(color =>
                         new SelectMenuOptionBuilder()
                             .WithLabel($"{color.Name} {color.Hex.ToUpper()}")
                             .WithValue(color.Hex)
@@ -655,27 +655,27 @@ public class FunService : IFunService
             case ColorHarmonyType.Monochromatic:
                 colors.AddRange(GenerateMonochromaticColors(baseHue, baseSaturation));
                 break;
-            
+
             case ColorHarmonyType.Analogous:
                 colors.AddRange(GenerateAnalogousColors(baseHue, baseSaturation, baseLightness));
                 break;
-            
+
             case ColorHarmonyType.Complementary:
                 colors.AddRange(GenerateComplementaryColors(baseHue, baseSaturation, baseLightness));
                 break;
-            
+
             case ColorHarmonyType.SplitComplementary:
                 colors.AddRange(GenerateSplitComplementaryColors(baseHue, baseSaturation, baseLightness));
                 break;
-            
+
             case ColorHarmonyType.Triadic:
                 colors.AddRange(GenerateTriadicColors(baseHue, baseSaturation, baseLightness));
                 break;
-            
+
             case ColorHarmonyType.Tetradic:
                 colors.AddRange(GenerateTetradicColors(baseHue, baseSaturation, baseLightness));
                 break;
-            
+
             case ColorHarmonyType.Square:
                 colors.AddRange(GenerateSquareColors(baseHue, baseSaturation, baseLightness));
                 break;
@@ -845,13 +845,13 @@ public class FunService : IFunService
     {
         var hueNames = new[]
         {
-            "Red", "Orange", "Yellow", "Lime", "Green", "Mint", 
+            "Red", "Orange", "Yellow", "Lime", "Green", "Mint",
             "Cyan", "Azure", "Blue", "Purple", "Magenta", "Rose"
         };
-        
+
         var hueIndex = (int)(baseHue / 30) % hueNames.Length;
         var hueName = hueNames[hueIndex];
-        
+
         return $"{hueName} {harmonyType}";
     }
 
@@ -870,7 +870,7 @@ public class FunService : IFunService
     private static List<string> GeneratePaletteTags(List<PaletteColor> colors, ColorHarmonyType harmonyType)
     {
         var tags = new List<string>();
-        
+
         // Add harmony-based tags
         switch (harmonyType)
         {
@@ -887,18 +887,18 @@ public class FunService : IFunService
                 tags.AddRange(new[] { "Vibrant", "Dynamic", "Creative", "Modern" });
                 break;
         }
-        
+
         // Add lightness-based tags
         var avgLightness = colors.Average(c => c.Lightness);
         if (avgLightness > 70) tags.Add("Light");
         else if (avgLightness < 30) tags.Add("Dark");
         else tags.Add("Medium");
-        
+
         // Add saturation-based tags
         var avgSaturation = colors.Average(c => c.Saturation);
         if (avgSaturation > 70) tags.Add("Vivid");
         else if (avgSaturation < 30) tags.Add("Muted");
-        
+
         return tags.Take(6).ToList();
     }
 
@@ -917,7 +917,7 @@ public class FunService : IFunService
         var intensity = saturation > 70 ? "vibrant" : saturation > 40 ? "moderate" : "subtle";
         var brightness = lightness > 70 ? "light" : lightness > 30 ? "medium" : "dark";
         var roleDesc = role.ToString().ToLower();
-        
+
         return $"A {brightness}, {intensity} {roleDesc} color";
     }
 
@@ -968,7 +968,7 @@ public class FunService : IFunService
             const int margin = 20;
 
             using var image = new Image<Rgba32>(width, height);
-            
+
             // Parse the color
             if (!Rgba32.TryParseHex(paletteColor.Hex, out var mainColor))
             {
@@ -988,7 +988,7 @@ public class FunService : IFunService
                     new ColorStop(0f, lightColor),
                     new ColorStop(0.5f, mainColor),
                     new ColorStop(1f, darkColor));
-                
+
                 ctx.Fill(gradientBrush);
 
                 // Add decorative elements based on color role
@@ -1000,7 +1000,7 @@ public class FunService : IFunService
             if (font != null)
             {
                 var contrastColor = GetContrastColor(mainColor);
-                
+
                 image.Mutate(ctx =>
                 {
                     // Color name
@@ -1046,7 +1046,7 @@ public class FunService : IFunService
             var stream = new MemoryStream();
             await image.SaveAsPngAsync(stream);
             stream.Position = 0;
-            
+
             return stream;
         }
         catch (Exception ex)
@@ -1060,11 +1060,11 @@ public class FunService : IFunService
     {
         // Convert RGB to HSL
         var (h, s, l) = RgbToHsl(baseColor.R, baseColor.G, baseColor.B);
-        
+
         // Adjust saturation and lightness
         s = Math.Clamp(s * saturationMultiplier, 0, 100);
         l = Math.Clamp(l * lightnessMultiplier, 0, 100);
-        
+
         // Convert back to RGB
         var (r, g, b) = HslToRgb(h, s, l);
         return new Rgba32(r, g, b);
@@ -1115,7 +1115,7 @@ public class FunService : IFunService
                 // Add a bold border
                 ctx.Draw(contrastColor, 3f, new RectangleF(5, 5, width - 10, height - 10));
                 break;
-            
+
             case ColorRole.Secondary:
                 // Add corner triangles
                 var trianglePoints = new PointF[]
@@ -1126,7 +1126,7 @@ public class FunService : IFunService
                 };
                 ctx.Fill(decorationColor, new Polygon(new LinearLineSegment(trianglePoints)));
                 break;
-            
+
             case ColorRole.Accent:
                 // Add subtle dots pattern
                 for (int x = 20; x < width - 20; x += 25)
@@ -1137,7 +1137,7 @@ public class FunService : IFunService
                     }
                 }
                 break;
-            
+
             case ColorRole.Highlight:
                 // Add diagonal lines
                 for (int i = 0; i < width + height; i += 15)
@@ -1146,7 +1146,7 @@ public class FunService : IFunService
                     ctx.Draw(decorationColor, 1f, new SixLabors.ImageSharp.Drawing.Path(line));
                 }
                 break;
-            
+
             case ColorRole.Neutral:
                 // Add simple corner squares
                 ctx.Fill(decorationColor, new RectangleF(10, 10, 15, 15));

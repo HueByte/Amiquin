@@ -473,7 +473,8 @@ public class JobService : IAsyncDisposable, IJobService
                 var taskResult = _taskManager.ExternalExecuteAsync<TrackedAmiquinJob>(
                     instanceId: "job-service",
                     requestId: requestId,
-                    task: async () => {
+                    task: async () =>
+                    {
                         // Execute the actual job task
                         await ExecuteJobTask(job, timeoutCts.Token);
                         // Signal completion by setting the result
@@ -538,7 +539,7 @@ public class JobService : IAsyncDisposable, IJobService
             else
             {
                 _logger.LogError("Job {JobName} [{JobId}] exceeded maximum retry attempts or auto-restart is disabled", job.Name, job.Id);
-                
+
                 // Schedule next regular execution even after timeout failure
                 if (!cts.IsCancellationRequested && _dynamicJobs.ContainsKey(job.Id))
                 {

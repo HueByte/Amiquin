@@ -65,7 +65,7 @@ public class NachoService : INachoService
         if (serverMeta == null)
         {
             _logger.LogWarning("ServerMeta not found for serverId {ServerId} when giving nacho, creating default metadata", serverId);
-            
+
             // Create server metadata with a fallback name
             await _serverMetaService.CreateServerMetaAsync(serverId, $"Server_{serverId}");
         }

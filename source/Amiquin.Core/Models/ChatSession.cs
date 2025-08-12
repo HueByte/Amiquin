@@ -1,6 +1,6 @@
+using Amiquin.Core.Abstraction;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using Amiquin.Core.Abstraction;
 
 namespace Amiquin.Core.Models;
 
@@ -13,12 +13,12 @@ public enum SessionScope
     /// Session is scoped to a specific user across all channels/servers
     /// </summary>
     User = 0,
-    
+
     /// <summary>
     /// Session is scoped to a specific channel (all users in that channel share context)
     /// </summary>
     Channel = 1,
-    
+
     /// <summary>
     /// Session is scoped to a specific server (default)
     /// </summary>

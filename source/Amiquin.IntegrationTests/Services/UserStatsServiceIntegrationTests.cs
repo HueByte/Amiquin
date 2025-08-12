@@ -67,17 +67,17 @@ public class UserStatsServiceIntegrationTests : IClassFixture<DatabaseFixture>
 
         // Act
         var userStats = await repository.GetOrCreateUserStatsAsync(userId, serverId);
-        
+
         // Test setting and getting stats
         userStats.SetStat("test_stat", 42);
         Assert.Equal(42, userStats.GetStat<int>("test_stat"));
         Assert.True(userStats.HasStat("test_stat"));
-        
+
         // Test increment
         var newValue = userStats.IncrementStat("test_stat", 8);
         Assert.Equal(50, newValue);
         Assert.Equal(50, userStats.GetStat<int>("test_stat"));
-        
+
         // Test default values
         Assert.Equal(0, userStats.GetStat<int>("nonexistent_stat"));
         Assert.Equal("default", userStats.GetStat("nonexistent_string", "default"));
@@ -85,7 +85,7 @@ public class UserStatsServiceIntegrationTests : IClassFixture<DatabaseFixture>
 
         // Save and verify persistence
         await repository.UpdateUserStatsAsync(userStats);
-        
+
         // Get fresh instance and verify stats persist
         var freshStats = await repository.GetOrCreateUserStatsAsync(userId, serverId);
         Assert.Equal(50, freshStats.GetStat<int>("test_stat"));
@@ -156,22 +156,22 @@ public class UserStatsServiceIntegrationTests : IClassFixture<DatabaseFixture>
 
         // Act
         var userStats = await repository.GetOrCreateUserStatsAsync(userId, serverId);
-        
+
         // Test string stats
         userStats.SetStat("username", "TestUser123");
         Assert.Equal("TestUser123", userStats.GetStat<string>("username"));
-        
+
         // Test boolean stats
         userStats.SetStat("is_premium", true);
         Assert.True(userStats.GetStat<bool>("is_premium"));
-        
+
         // Test decimal stats
         userStats.SetStat("score", 123.45);
         Assert.Equal(123.45, userStats.GetStat<double>("score"), 2);
 
         // Save and verify persistence
         await repository.UpdateUserStatsAsync(userStats);
-        
+
         // Get fresh instance and verify all types persist
         var freshStats = await repository.GetOrCreateUserStatsAsync(userId, serverId);
         Assert.Equal("TestUser123", freshStats.GetStat<string>("username"));

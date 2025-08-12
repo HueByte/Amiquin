@@ -23,7 +23,7 @@ public class ExternalProcessRunnerServiceTests
         var piperCommand = "piper";
         var modelPath = Path.Combine(Path.GetTempPath(), "voice.onnx");
         var ttsOutputPath = Path.Combine(Path.GetTempPath(), "audio.wav");
-        
+
         // Create temporary model file for test
         File.WriteAllText(modelPath, "dummy");
 
@@ -57,7 +57,7 @@ public class ExternalProcessRunnerServiceTests
         var piperCommand = "piper";
         var modelPath = Path.Combine(Path.GetTempPath(), "voice.onnx");
         var ttsOutputPath = Path.Combine(Path.GetTempPath(), "audio.wav");
-        
+
         // Create temporary model file for test
         File.WriteAllText(modelPath, "dummy");
 
@@ -88,7 +88,7 @@ public class ExternalProcessRunnerServiceTests
     {
         // Arrange
         var audioPath = Path.Combine(Path.GetTempPath(), "input.mp3");
-        
+
         // Create temporary audio file for test
         File.WriteAllText(audioPath, "dummy");
 
@@ -99,7 +99,7 @@ public class ExternalProcessRunnerServiceTests
 
             // Assert
             Assert.NotNull(process);
-            Assert.True(process.StartInfo.FileName.Contains("ffmpeg"));
+            Assert.Contains("ffmpeg", process.StartInfo.FileName);
             Assert.Contains("-i", process.StartInfo.Arguments);
             Assert.Contains("-re -hide_banner -loglevel error", process.StartInfo.Arguments);
             Assert.Contains("-ac 2 -f s16le -ar 48000", process.StartInfo.Arguments);
@@ -118,7 +118,7 @@ public class ExternalProcessRunnerServiceTests
     {
         // Arrange
         var audioPath = Path.Combine(Path.GetTempPath(), "input.mp3");
-        
+
         // Create temporary audio file for test
         File.WriteAllText(audioPath, "dummy");
 
@@ -151,7 +151,7 @@ public class ExternalProcessRunnerServiceTests
         var piperCommand = "piper";
         var modelPath = Path.Combine(Path.GetTempPath(), "models with spaces", "voice model.onnx");
         var ttsOutputPath = Path.Combine(Path.GetTempPath(), "output with spaces", "audio file.wav");
-        
+
         // Create directories and temporary model file for test
         Directory.CreateDirectory(Path.GetDirectoryName(modelPath)!);
         File.WriteAllText(modelPath, "dummy");
@@ -180,7 +180,7 @@ public class ExternalProcessRunnerServiceTests
     {
         // Arrange
         var audioPath = Path.Combine(Path.GetTempPath(), "audio with spaces", "input file.mp3");
-        
+
         // Create directory and temporary audio file for test
         Directory.CreateDirectory(Path.GetDirectoryName(audioPath)!);
         File.WriteAllText(audioPath, "dummy");
@@ -212,7 +212,7 @@ public class ExternalProcessRunnerServiceTests
         var piperCommand = "piper";
 
         // Act & Assert
-        Assert.Throws<ArgumentException>(() => 
+        Assert.Throws<ArgumentException>(() =>
             _sut.CreatePiperProcess(piperCommand, nullOrEmptyValue ?? "", nullOrEmptyValue ?? ""));
     }
 
@@ -222,7 +222,7 @@ public class ExternalProcessRunnerServiceTests
     public void CreateFfmpegProcess_WithEmptyOrNullPath_ShouldThrowException(string? nullOrEmptyValue)
     {
         // Act & Assert
-        Assert.Throws<ArgumentException>(() => 
+        Assert.Throws<ArgumentException>(() =>
             _sut.CreateFfmpegProcess(nullOrEmptyValue ?? ""));
     }
 }

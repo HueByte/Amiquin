@@ -4,7 +4,7 @@ public interface IPersonaChatService
 {
     Task<string> ChatAsync(ulong instanceId, ulong userId, ulong botId, string message);
     Task<string> ExchangeMessageAsync(ulong instanceId, string message);
-    
+
     /// <summary>
     /// Manually triggers history optimization for a specific instance.
     /// This compacts older messages into summaries to reduce token usage.

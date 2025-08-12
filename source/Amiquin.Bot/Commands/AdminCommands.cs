@@ -35,10 +35,10 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
     private readonly IModelProviderMappingService _modelProviderMappingService;
 
     public AdminCommands(
-        ILogger<AdminCommands> logger, 
-        IServerMetaService serverMetaService, 
-        IToggleService toggleService, 
-        IChatSessionService chatSessionService, 
+        ILogger<AdminCommands> logger,
+        IServerMetaService serverMetaService,
+        IToggleService toggleService,
+        IChatSessionService chatSessionService,
         BotContextAccessor botContextAccessor,
         IConfigurationInteractionService configurationService,
         IChatContextService chatContextService,
@@ -106,9 +106,9 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
     [SlashCommand("embed-say", "Make the bot say something in an embed")]
     [Ephemeral]
     public async Task EmbedSayAsync(
-        string title, 
-        string? thumbnail, 
-        [Summary("message", "The message to say")] string message, 
+        string title,
+        string? thumbnail,
+        [Summary("message", "The message to say")] string message,
         bool withAuthor = false)
     {
         if (string.IsNullOrWhiteSpace(message))
@@ -143,7 +143,7 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
         string? description = null)
     {
         await _toggleService.SetServerToggleAsync(Context.Guild.Id, toggleName, isEnabled, description);
-        
+
         var embed = new EmbedBuilder()
             .WithTitle("⚙️ Toggle Updated")
             .WithDescription($"Feature toggle has been updated successfully.")
@@ -154,7 +154,7 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
             .Build();
 
         await ModifyOriginalResponseAsync(msg => msg.Embed = embed);
-        _logger.LogInformation("Admin {UserId} toggled {Toggle} to {State} for guild {GuildId}", 
+        _logger.LogInformation("Admin {UserId} toggled {Toggle} to {State} for guild {GuildId}",
             Context.User.Id, toggleName, isEnabled, Context.Guild.Id);
     }
 
@@ -164,7 +164,7 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
     {
         if (messageCount < Constants.Limits.MessageHistoryMinCount || messageCount > Constants.Limits.MessageHistoryMaxCount)
         {
-            await ModifyOriginalResponseAsync(msg => msg.Content = 
+            await ModifyOriginalResponseAsync(msg => msg.Content =
                 $"❌ Message count must be between {Constants.Limits.MessageHistoryMinCount} and {Constants.Limits.MessageHistoryMaxCount}");
             return;
         }
@@ -177,7 +177,7 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
             if (messagesToDelete.Any())
             {
                 await ((ITextChannel)Context.Channel).DeleteMessagesAsync(messagesToDelete);
-                
+
                 var embed = new EmbedBuilder()
                     .WithTitle("🗑️ Messages Deleted")
                     .WithDescription($"Successfully deleted {messagesToDelete.Count} messages.")
@@ -207,13 +207,13 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
         try
         {
             var guildId = Context.Guild.Id;
-            
+
             // Reset the engagement rate for this guild
             _chatContextService.ResetEngagement(guildId);
-            
+
             // Get the current engagement level for display
             var currentLevel = _chatContextService.GetEngagementMultiplier(guildId);
-            
+
             var embed = new EmbedBuilder()
                 .WithTitle("😌 Calming Down...")
                 .WithDescription("I'll take it easy for a bit. My engagement has been reset to baseline.")
@@ -227,8 +227,8 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
                 .Build();
 
             await ModifyOriginalResponseAsync(msg => msg.Embed = embed);
-            
-            _logger.LogInformation("Admin {UserId} reset engagement for guild {GuildId}", 
+
+            _logger.LogInformation("Admin {UserId} reset engagement for guild {GuildId}",
                 Context.User.Id, guildId);
         }
         catch (Exception ex)
@@ -245,17 +245,17 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
         try
         {
             var guildId = Context.Guild.Id;
-            
+
             // Trigger history optimization for this guild's chat sessions
             var (success, message) = await _personaChatService.TriggerHistoryOptimizationAsync(guildId);
-            
+
             var embed = new EmbedBuilder()
                 .WithTitle(success ? "📦 History Compacted" : "⚠️ Compaction Issue")
                 .WithDescription(message)
                 .WithColor(success ? new Color(46, 204, 113) : new Color(231, 76, 60)) // Green for success, red for failure
                 .WithThumbnailUrl(Context.Client.CurrentUser.GetDisplayAvatarUrl())
                 .WithCurrentTimestamp();
-            
+
             if (success)
             {
                 embed.AddField("💾 Benefits", "• Reduced memory usage\n• Faster response times\n• Lower token costs", true);
@@ -268,8 +268,8 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
             }
 
             await ModifyOriginalResponseAsync(msg => msg.Embed = embed.Build());
-            
-            _logger.LogInformation("Admin {UserId} triggered history optimization for guild {GuildId} - Success: {Success}", 
+
+            _logger.LogInformation("Admin {UserId} triggered history optimization for guild {GuildId} - Success: {Success}",
                 Context.User.Id, guildId, success);
         }
         catch (Exception ex)
@@ -281,12 +281,12 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
 
     [SlashCommand("set-model", "Set the AI model for the server")]
     public async Task SetModelAsync(
-        [Summary("model", "The AI model to use")] [Autocomplete(typeof(ModelAutoCompleteHandler))] string model)
+        [Summary("model", "The AI model to use")][Autocomplete(typeof(ModelAutoCompleteHandler))] string model)
     {
         try
         {
             var serverId = Context.Guild.Id;
-            
+
             // Auto-detect provider from model
             var provider = _modelProviderMappingService.GetProviderForModel(model);
             if (string.IsNullOrEmpty(provider))
@@ -294,7 +294,7 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
                 await ModifyOriginalResponseAsync(msg => msg.Content = $"❌ Unknown model: **{model}**. Use autocomplete to see available models.");
                 return;
             }
-            
+
             // Update server meta
             var serverMeta = _botContextAccessor.ServerMeta;
             if (serverMeta != null)
@@ -308,7 +308,7 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
 
             var embed = new EmbedBuilder()
                 .WithTitle("✅ AI Model Updated")
-                .WithDescription(updatedCount > 0 
+                .WithDescription(updatedCount > 0
                     ? $"Updated {updatedCount} active session(s) to use **{model}** from **{provider}**"
                     : $"Server will now use **{model}** from **{provider}** for new chat sessions")
                 .AddField("Model", model, true)
@@ -318,13 +318,13 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
                 .Build();
 
             await ModifyOriginalResponseAsync(msg => msg.Embed = embed);
-            
+
             _logger.LogInformation("Admin {UserId} updated AI model for server {ServerId} to {Model} from {Provider}",
                 Context.User.Id, serverId, model, provider);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error setting model {Model} for server {ServerId}", 
+            _logger.LogError(ex, "Error setting model {Model} for server {ServerId}",
                 model, Context.Guild.Id);
             await ModifyOriginalResponseAsync(msg => msg.Content = "❌ An error occurred while updating the AI model.");
         }
@@ -427,9 +427,9 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
         private readonly IConfigurationInteractionService _configurationService;
 
         public ConfigCommands(
-            ILogger<ConfigCommands> logger, 
-            IServerMetaService serverMetaService, 
-            IToggleService toggleService, 
+            ILogger<ConfigCommands> logger,
+            IServerMetaService serverMetaService,
+            IToggleService toggleService,
             BotContextAccessor botContextAccessor,
             IConfigurationInteractionService configurationService)
         {
@@ -446,7 +446,7 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
             try
             {
                 var components = await _configurationService.CreateConfigurationInterfaceAsync(
-                    Context.Guild.Id, 
+                    Context.Guild.Id,
                     Context.Guild);
 
                 await ModifyOriginalResponseAsync(msg =>
@@ -616,7 +616,7 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
                 }
 
                 await ModifyOriginalResponseAsync(msg => msg.Embed = embed.Build());
-                
+
                 _logger.LogInformation("Admin {UserId} updated setting {Setting} to {Value} for server {ServerId}",
                     Context.User.Id, setting, value, Context.Guild.Id);
             }
@@ -684,13 +684,13 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
 
                 await _serverMetaService.UpdateServerMetaAsync(serverMeta);
                 await ModifyOriginalResponseAsync(msg => msg.Embed = embed.Build());
-                
+
                 _logger.LogInformation("Admin {UserId} reset setting {Setting} for server {ServerId}",
                     Context.User.Id, setting, Context.Guild.Id);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error resetting config {Setting} for server {ServerId}", 
+                _logger.LogError(ex, "Error resetting config {Setting} for server {ServerId}",
                     setting, Context.Guild.Id);
                 await ModifyOriginalResponseAsync(msg => msg.Content = "❌ An error occurred while resetting the configuration.");
             }
@@ -710,14 +710,14 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
                 export.AppendLine($"Server ID: {Context.Guild.Id}");
                 export.AppendLine($"Export Date: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC");
                 export.AppendLine();
-                
+
                 export.AppendLine("## Server Settings");
                 export.AppendLine($"- Persona: {serverMeta?.Persona ?? "Not configured"}");
                 export.AppendLine($"- Primary Channel ID: {serverMeta?.PrimaryChannelId?.ToString() ?? "Not configured"}");
                 export.AppendLine($"- NSFW Channel ID: {serverMeta?.NsfwChannelId?.ToString() ?? "Not configured"}");
                 export.AppendLine($"- Preferred Provider: {serverMeta?.PreferredProvider ?? "Default"}");
                 export.AppendLine();
-                
+
                 export.AppendLine("## Feature Toggles");
                 foreach (var toggle in toggles.OrderBy(t => t.Name))
                 {
@@ -728,12 +728,12 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
 
                 using var stream = new MemoryStream(Encoding.UTF8.GetBytes(export.ToString()));
                 await Context.Channel.SendFileAsync(
-                    stream, 
+                    stream,
                     $"config_{Context.Guild.Id}_{DateTime.UtcNow:yyyyMMdd_HHmmss}.txt",
                     $"Configuration export for **{Context.Guild.Name}**");
-                
+
                 await ModifyOriginalResponseAsync(msg => msg.Content = "✅ Configuration exported successfully!");
-                
+
                 _logger.LogInformation("Admin {UserId} exported configuration for server {ServerId}",
                     Context.User.Id, Context.Guild.Id);
             }
@@ -743,7 +743,7 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
                 await ModifyOriginalResponseAsync(msg => msg.Content = "❌ An error occurred while exporting the configuration.");
             }
         }
-        
+
         /// <summary>
         /// Formats toggle names to be more user-friendly by adding spaces between words.
         /// </summary>
@@ -752,8 +752,8 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
             // Convert from PascalCase to readable format
             // e.g., "EnableChat" -> "Enable Chat"
             return System.Text.RegularExpressions.Regex.Replace(
-                toggleName, 
-                "([a-z])([A-Z])", 
+                toggleName,
+                "([a-z])([A-Z])",
                 "$1 $2"
             );
         }

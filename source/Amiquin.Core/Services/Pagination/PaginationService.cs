@@ -28,7 +28,7 @@ public class PaginationService : IPaginationService
         _logger = logger;
         _serviceScopeFactory = serviceScopeFactory;
         _componentHandlerService = componentHandlerService;
-        
+
         // Register this service as the handler for pagination components
         _componentHandlerService.RegisterHandler(ComponentPrefix, HandlePaginationInteractionAsync);
     }

@@ -53,7 +53,7 @@ public interface IEventHandlerService
     /// </summary>
     /// <param name="component">The message component interaction.</param>
     Task OnComponentInteractionAsync(SocketMessageComponent component);
-    
+
     /// <summary>
     /// Handles the event when a user joins a guild.
     /// </summary>

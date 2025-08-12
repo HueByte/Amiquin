@@ -69,8 +69,8 @@ public class LiveJobTests
     public async Task RunAsync_WithServersEnabledForLiveJob_CreatesActivitySessions()
     {
         // Arrange
-        var servers = new List<ServerMeta> 
-        { 
+        var servers = new List<ServerMeta>
+        {
             new() { Id = 1001UL },
             new() { Id = 1002UL },
             new() { Id = 1003UL }
@@ -100,8 +100,8 @@ public class LiveJobTests
     public async Task RunAsync_WithServersDisabledForLiveJob_DoesNotCreateActivitySessions()
     {
         // Arrange
-        var servers = new List<ServerMeta> 
-        { 
+        var servers = new List<ServerMeta>
+        {
             new() { Id = 1001UL },
             new() { Id = 1002UL }
         };
@@ -126,8 +126,8 @@ public class LiveJobTests
     public async Task RunAsync_WithMixedServerStates_HandlesCorrectly()
     {
         // Arrange
-        var servers = new List<ServerMeta> 
-        { 
+        var servers = new List<ServerMeta>
+        {
             new() { Id = 1001UL },
             new() { Id = 1002UL },
             new() { Id = 1003UL }
@@ -197,9 +197,9 @@ public class LiveJobTests
             .Throws(new Exception("Database connection failed"));
 
         // Act & Assert - Should not throw
-        var exception = await Record.ExceptionAsync(() => 
+        var exception = await Record.ExceptionAsync(() =>
             _liveJob.RunAsync(_mockServiceScopeFactory.Object, CancellationToken.None));
-        
+
         Assert.NotNull(exception);
         Assert.IsType<Exception>(exception);
         Assert.Equal("Database connection failed", exception.Message);

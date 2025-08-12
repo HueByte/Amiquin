@@ -23,11 +23,11 @@ public class ComponentExampleCommands : InteractionModuleBase<SocketInteractionC
         _logger = logger;
         _componentHandlerService = componentHandlerService;
         _modalService = modalService;
-        
+
         // Register handlers for our example components
         _componentHandlerService.RegisterHandler("example_button", HandleExampleButtonAsync);
         _componentHandlerService.RegisterHandler("example_select", HandleExampleSelectAsync);
-        
+
         // Register modal handler
         _modalService.RegisterHandler("example_modal", HandleExampleModalAsync);
     }
@@ -93,7 +93,7 @@ public class ComponentExampleCommands : InteractionModuleBase<SocketInteractionC
     private async Task<bool> HandleExampleButtonAsync(SocketMessageComponent component, ComponentContext context)
     {
         var userId = context.GetParameter<ulong>(0);
-        
+
         var embed = new EmbedBuilder()
             .WithTitle("Button Clicked!")
             .WithDescription($"Button was clicked by <@{component.User.Id}>")
@@ -125,7 +125,7 @@ public class ComponentExampleCommands : InteractionModuleBase<SocketInteractionC
     {
         var userId = context.GetParameter<ulong>(0);
         var selectedValue = component.Data.Values.FirstOrDefault() ?? "none";
-        
+
         var embed = new EmbedBuilder()
             .WithTitle("Selection Made!")
             .WithDescription($"<@{component.User.Id}> selected: **{selectedValue}**")

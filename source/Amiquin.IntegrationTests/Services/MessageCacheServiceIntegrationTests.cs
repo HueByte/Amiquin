@@ -23,7 +23,7 @@ public class MessageCacheServiceIntegrationTests : IClassFixture<DatabaseFixture
         // Arrange
         await _fixture.CleanupAsync();
         var serverId = (ulong)Random.Shared.Next(100000000, 999999999);
-        
+
         // Create server meta first
         var serverMetaService = _fixture.ServiceProvider.GetRequiredService<Core.Services.Meta.IServerMetaService>();
         await serverMetaService.CreateServerMetaAsync(serverId, "Test Server for Messages");
@@ -278,7 +278,7 @@ public class MessageCacheServiceIntegrationTests : IClassFixture<DatabaseFixture
         // Arrange
         await _fixture.CleanupAsync();
         var serverId = (ulong)Random.Shared.Next(100000000, 999999999);
-        
+
         // Create server meta first
         var serverMetaService = _fixture.ServiceProvider.GetRequiredService<Core.Services.Meta.IServerMetaService>();
         await serverMetaService.CreateServerMetaAsync(serverId, "Test Server for Persistence");
@@ -304,7 +304,7 @@ public class MessageCacheServiceIntegrationTests : IClassFixture<DatabaseFixture
         // Act - Clear cache to force database retrieval and test persistence
         var memoryCache = _fixture.ServiceProvider.GetRequiredService<IMemoryCache>();
         memoryCache.Remove(serverId);
-        
+
         // Create new service instance and retrieve messages from database
         var newServiceInstance = _fixture.ServiceProvider.GetRequiredService<IMessageCacheService>();
         var retrievedMessages = await newServiceInstance.GetOrCreateChatMessagesAsync(serverId);

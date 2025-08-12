@@ -53,7 +53,7 @@ public class LiveJob : IRunnableJob
                 if (cancellationToken.IsCancellationRequested) break;
 
                 var batch = serverIds.Skip(i).Take(batchSize).ToList();
-                
+
                 // Process batch in parallel for efficiency
                 var tasks = batch.Select(async serverId =>
                 {
@@ -65,7 +65,7 @@ public class LiveJob : IRunnableJob
                         {
                             using var toggleCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                             toggleCts.CancelAfter(TimeSpan.FromSeconds(2)); // 2 second timeout per toggle check
-                            
+
                             // Create a separate scope for this parallel task to avoid DbContext concurrency issues
                             using var toggleScope = serviceScopeFactory.CreateScope();
                             var toggleService = toggleScope.ServiceProvider.GetRequiredService<IToggleService>();
@@ -82,7 +82,7 @@ public class LiveJob : IRunnableJob
                         {
                             // Thread-safe check to prevent duplicate job creation during parallel processing
                             var jobId = $"ActivitySession_{serverId}";
-                            
+
                             // Use TryAdd to atomically add the job ID only if it doesn't exist
                             // This prevents race conditions when multiple threads try to create the same job
                             if (_activeSessionJobs.TryAdd(serverId, jobId))
@@ -130,7 +130,7 @@ public class LiveJob : IRunnableJob
                 {
                     using var batchCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                     batchCts.CancelAfter(TimeSpan.FromSeconds(15)); // 15 seconds max per batch
-                    
+
                     await Task.WhenAll(tasks).WaitAsync(batchCts.Token);
                 }
                 catch (OperationCanceledException)
@@ -147,7 +147,7 @@ public class LiveJob : IRunnableJob
 
             // Cleanup orphaned jobs - remove from tracking any jobs that no longer exist in JobService
             await CleanupOrphanedJobsAsync();
-            
+
             _logger.LogInformation("LiveJob Coordinator completed: {Processed} servers, {Created} sessions created, {Removed} sessions removed",
                 serversProcessed, sessionsCreated, sessionsRemoved);
         }
@@ -166,7 +166,7 @@ public class LiveJob : IRunnableJob
         try
         {
             var jobId = $"ActivitySession_{serverId}";
-            
+
             // Create a simple AmiquinJob that uses the existing ActivitySessionJob class
             var amiquinJob = new AmiquinJob
             {
@@ -185,7 +185,7 @@ public class LiveJob : IRunnableJob
 
             // Register the job with JobService
             var isSuccess = _jobService.CreateDynamicJob(amiquinJob);
-            
+
             if (isSuccess)
             {
                 _logger.LogInformation("Successfully created ActivitySession job for guild {GuildId}", serverId);
@@ -212,12 +212,12 @@ public class LiveJob : IRunnableJob
         try
         {
             var orphanedJobs = new List<ulong>();
-            
+
             foreach (var kvp in _activeSessionJobs)
             {
                 var serverId = kvp.Key;
                 var jobId = kvp.Value;
-                
+
                 // Check if the job actually exists in JobService
                 if (!_jobService.JobExists(jobId))
                 {
@@ -225,7 +225,7 @@ public class LiveJob : IRunnableJob
                     _logger.LogWarning("Found orphaned ActivitySession tracking for guild {GuildId} (job {JobId} doesn't exist)", serverId, jobId);
                 }
             }
-            
+
             // Remove orphaned entries
             foreach (var serverId in orphanedJobs)
             {
@@ -234,7 +234,7 @@ public class LiveJob : IRunnableJob
                     _logger.LogInformation("Cleaned up orphaned ActivitySession tracking for guild {GuildId}", serverId);
                 }
             }
-            
+
             if (orphanedJobs.Count > 0)
             {
                 _logger.LogInformation("Cleaned up {Count} orphaned ActivitySession entries", orphanedJobs.Count);
@@ -244,7 +244,7 @@ public class LiveJob : IRunnableJob
         {
             _logger.LogError(ex, "Error during orphaned job cleanup");
         }
-        
+
         return Task.CompletedTask;
     }
 

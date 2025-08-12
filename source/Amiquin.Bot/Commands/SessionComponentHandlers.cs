@@ -90,19 +90,19 @@ public class SessionComponentHandlers
         try
         {
             var success = await _sessionManagerService.SwitchSessionAsync(component.GuildId.Value, selectedSessionId);
-            
+
             if (success)
             {
                 // Get session details for confirmation
                 var stats = await _sessionManagerService.GetSessionStatsAsync(selectedSessionId);
-                
+
                 var embed = new EmbedBuilder()
                     .WithTitle("✅ Session Switched")
                     .WithDescription($"Successfully switched to session: **{stats?.Name ?? "Unknown"}**")
                     .WithColor(Color.Green)
-                    .AddField("Session Info", 
+                    .AddField("Session Info",
                         $"**Messages:** {stats?.MessageCount ?? 0}\n" +
-                        $"**Model:** {stats?.Provider}/{stats?.Model}", 
+                        $"**Model:** {stats?.Provider}/{stats?.Model}",
                         true)
                     .WithFooter($"Switched by {component.User.GlobalName ?? component.User.Username}")
                     .WithCurrentTimestamp()
@@ -155,13 +155,13 @@ public class SessionComponentHandlers
     private async Task ShowSessionSwitchUI(SocketMessageComponent component, List<Amiquin.Core.Models.ChatSession> sessions)
     {
         var activeSession = sessions.FirstOrDefault(s => s.IsActive);
-        
+
         var selectOptions = sessions.Take(25).Select(session => // Discord limit for select menu options
         {
             var isActive = session.IsActive;
             var description = $"{session.MessageCount} msgs, {session.Provider}/{session.Model}";
             if (isActive) description = $"🟢 ACTIVE • {description}";
-            
+
             return new SelectMenuOptionBuilder()
                 .WithLabel(session.Name)
                 .WithValue(session.Id)

@@ -31,8 +31,8 @@ public class SleepService : ISleepService
         var cacheKey = $"{SleepKeyPrefix}{serverId}";
 
         _memoryCache.Set(cacheKey, wakeUpTime, wakeUpTime);
-        
-        _logger.LogInformation("Bot put to sleep on server {ServerId} for {DurationMinutes} minutes until {WakeUpTime}", 
+
+        _logger.LogInformation("Bot put to sleep on server {ServerId} for {DurationMinutes} minutes until {WakeUpTime}",
             serverId, durationMinutes, wakeUpTime);
 
         return Task.FromResult(wakeUpTime);
@@ -42,7 +42,7 @@ public class SleepService : ISleepService
     public Task<bool> IsSleepingAsync(ulong serverId)
     {
         var cacheKey = $"{SleepKeyPrefix}{serverId}";
-        
+
         if (_memoryCache.TryGetValue(cacheKey, out DateTime wakeUpTime))
         {
             if (DateTime.UtcNow < wakeUpTime)
@@ -65,7 +65,7 @@ public class SleepService : ISleepService
     public Task<TimeSpan?> GetRemainingSleepTimeAsync(ulong serverId)
     {
         var cacheKey = $"{SleepKeyPrefix}{serverId}";
-        
+
         if (_memoryCache.TryGetValue(cacheKey, out DateTime wakeUpTime))
         {
             var remaining = wakeUpTime - DateTime.UtcNow;
@@ -88,7 +88,7 @@ public class SleepService : ISleepService
     public Task<bool> WakeUpAsync(ulong serverId)
     {
         var cacheKey = $"{SleepKeyPrefix}{serverId}";
-        
+
         if (_memoryCache.TryGetValue(cacheKey, out _))
         {
             _memoryCache.Remove(cacheKey);
@@ -105,7 +105,7 @@ public class SleepService : ISleepService
         // This is a simplified implementation. In a production environment,
         // you might want to use a more sophisticated caching solution that
         // allows enumeration of keys with a specific prefix.
-        
+
         // For now, return empty dictionary as MemoryCache doesn't easily support enumeration
         // This could be enhanced by using a separate dictionary to track sleeping servers
         return Task.FromResult(new Dictionary<ulong, DateTime>());

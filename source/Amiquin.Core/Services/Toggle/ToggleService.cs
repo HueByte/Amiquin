@@ -50,15 +50,15 @@ public class ToggleService : IToggleService
             // Refresh serverMeta after cleanup
             serverMeta = await _serverMetaService.GetServerMetaAsync(serverId, includeToggles: true);
         }
-        
+
         // Check for missing toggles (only add missing ones, don't overwrite existing)
         var existingToggleNames = serverMeta.Toggles?.Select(t => t.Name).ToHashSet() ?? new HashSet<string>();
         var missingToggles = expectedToggles.Except(existingToggleNames).ToList();
-        
+
         if (missingToggles.Any())
         {
             await SetServerTogglesBulkAsync(serverId, missingToggles.ToDictionary(x => x, x => (false, (string?)string.Empty)));
-            _logger.LogInformation("Added {count} missing toggles for serverId {serverId}: {toggles}", 
+            _logger.LogInformation("Added {count} missing toggles for serverId {serverId}: {toggles}",
                 missingToggles.Count, serverId, string.Join(", ", missingToggles));
         }
         else
@@ -241,7 +241,7 @@ public class ToggleService : IToggleService
 
         // Get all valid toggle names from constants
         var validToggleNames = new HashSet<string>(Constants.ToggleNames.Toggles);
-        
+
         // Find toggles that are no longer in the constants
         var obsoleteToggles = serverMeta.Toggles
             .Where(toggle => !validToggleNames.Contains(toggle.Name))
@@ -257,7 +257,7 @@ public class ToggleService : IToggleService
         foreach (var obsoleteToggle in obsoleteToggles)
         {
             serverMeta.Toggles.Remove(obsoleteToggle);
-            _logger.LogDebug("Removed obsolete toggle {ToggleName} for serverId {ServerId}", 
+            _logger.LogDebug("Removed obsolete toggle {ToggleName} for serverId {ServerId}",
                 obsoleteToggle.Name, serverId);
         }
 

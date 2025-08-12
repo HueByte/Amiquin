@@ -75,7 +75,7 @@ public class CoreChatService : IChatCoreService
         // Use semaphore to prevent concurrent requests for the same instance
         var semaphore = _semaphoreManager.GetOrCreateInstanceSemaphore(instanceId.ToString());
         await semaphore.WaitAsync();
-        
+
         try
         {
             // Build system message with all components
@@ -148,14 +148,14 @@ public class CoreChatService : IChatCoreService
 
                 _logger.LogInformation("Attempting to use provider: {Provider}", providerName);
                 var response = await provider.ChatAsync(messages, options);
-                
+
                 _logger.LogInformation("Successfully received response from {Provider}", providerName);
                 return response;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to get response from provider {Provider}", providerName);
-                
+
                 if (!_llmOptions.EnableFallback || providerName == providersToTry.Last())
                 {
                     throw new Exception($"All providers failed. Last error from {providerName}: {ex.Message}", ex);

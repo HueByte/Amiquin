@@ -35,7 +35,7 @@ public class DailyNsfwJob : IRunnableJob
         try
         {
             var now = DateTime.UtcNow;
-            
+
             // Check if we should run (once per day at 12:00 UTC)
             if (_lastRunDate.Date == now.Date)
             {
@@ -133,7 +133,7 @@ public class DailyNsfwJob : IRunnableJob
 
                     // Build the gallery embed
                     var embed = BuildNsfwGalleryEmbed(images);
-                    
+
                     await channel.SendMessageAsync(embed: embed);
                     successCount++;
 
@@ -148,7 +148,7 @@ public class DailyNsfwJob : IRunnableJob
                 }
             }
 
-            _logger.LogInformation("Daily NSFW job completed. Sent to {Success}/{Total} servers", 
+            _logger.LogInformation("Daily NSFW job completed. Sent to {Success}/{Total} servers",
                 successCount, eligibleServers.Count);
         }
         catch (Exception ex)
@@ -168,18 +168,18 @@ public class DailyNsfwJob : IRunnableJob
 
         // Show up to 3 random images as a preview
         var previewImages = images.OrderBy(x => Guid.NewGuid()).Take(3).ToList();
-        
+
         for (int i = 0; i < previewImages.Count; i++)
         {
             var img = previewImages[i];
             var fieldTitle = $"Image {i + 1} • {img.Source}";
             var fieldValue = $"[View Image]({img.Url})";
-            
+
             if (!string.IsNullOrWhiteSpace(img.Artist))
             {
                 fieldValue += $"\nArtist: {img.Artist}";
             }
-            
+
             if (!string.IsNullOrWhiteSpace(img.Tags))
             {
                 fieldValue += $"\nTags: {img.Tags}";
@@ -190,9 +190,9 @@ public class DailyNsfwJob : IRunnableJob
 
         if (images.Count > 3)
         {
-            embedBuilder.AddField("📋 Full Gallery", 
+            embedBuilder.AddField("📋 Full Gallery",
                 $"**{images.Count - 3} more images available!**\n" +
-                $"Sources: {string.Join(", ", images.Select(i => i.Source).Distinct())}", 
+                $"Sources: {string.Join(", ", images.Select(i => i.Source).Distinct())}",
                 inline: false);
         }
 

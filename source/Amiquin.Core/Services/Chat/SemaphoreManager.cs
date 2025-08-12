@@ -8,7 +8,7 @@ namespace Amiquin.Core.Services.Chat;
 public class SemaphoreManager : ISemaphoreManager
 {
     private readonly ConcurrentDictionary<string, SemaphoreSlim> _semaphores = new();
-    
+
     /// <summary>
     /// Gets or creates a semaphore for the specified instance ID.
     /// </summary>

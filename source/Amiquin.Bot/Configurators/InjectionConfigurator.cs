@@ -1,3 +1,4 @@
+using Amiquin.Bot.Commands;
 using Amiquin.Core;
 using Amiquin.Core.Abstraction;
 using Amiquin.Core.Abstractions;
@@ -20,11 +21,11 @@ using Amiquin.Core.Services.EventHandler;
 using Amiquin.Core.Services.ExternalProcessRunner;
 using Amiquin.Core.Services.Fun;
 using Amiquin.Core.Services.MessageCache;
-using Amiquin.Core.Services.Nsfw;
 using Amiquin.Core.Services.Meta;
 using Amiquin.Core.Services.Modal;
 using Amiquin.Core.Services.ModelProvider;
 using Amiquin.Core.Services.Nacho;
+using Amiquin.Core.Services.Nsfw;
 using Amiquin.Core.Services.Pagination;
 using Amiquin.Core.Services.Persona;
 using Amiquin.Core.Services.ServerInteraction;
@@ -34,7 +35,6 @@ using Amiquin.Core.Services.Toggle;
 using Amiquin.Core.Services.Voice;
 using Amiquin.Infrastructure;
 using Amiquin.Infrastructure.Repositories;
-using Amiquin.Bot.Commands;
 using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
@@ -166,6 +166,7 @@ public class InjectionConfigurator
                  .AddScoped<IFunService, FunService>()
                  .AddScoped<IVoiceService, VoiceService>()
                  .AddScoped<INewsApiClient, NewsApiClient>()
+                 .AddScoped<EHentaiService>()
                  .AddScoped<INsfwApiService, NsfwApiService>()
                  .AddScoped<IToggleService, ToggleService>()
                  .AddScoped<BotContextAccessor>()
@@ -232,6 +233,14 @@ public class InjectionConfigurator
         {
             client.DefaultRequestHeaders.Add("Accept", "application/json");
             client.Timeout = TimeSpan.FromSeconds(30);
+        });
+
+        _services.AddHttpClient<EHentaiService>((services, client) =>
+        {
+            client.DefaultRequestHeaders.Add("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
+            client.DefaultRequestHeaders.Add("User-Agent",
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36");
+            client.Timeout = TimeSpan.FromSeconds(60);
         });
 
         // Configure HTTP clients for LLM providers

@@ -44,13 +44,13 @@ public class PersonaServiceTests : IDisposable
         _mockSemaphore = new Mock<SemaphoreSlim>(1, 1);
 
         _memoryCache = new MemoryCache(new MemoryCacheOptions());
-        
+
         _botOptions = new BotOptions
         {
             Name = "TestAmiquin"
             // Version is read-only property from assembly
         };
-        
+
         _mockBotOptions.Setup(o => o.Value).Returns(_botOptions);
         _mockChatSemaphoreManager
             .Setup(m => m.GetOrCreateInstanceSemaphore(It.IsAny<ulong>()))
@@ -75,10 +75,10 @@ public class PersonaServiceTests : IDisposable
         // Arrange
         var serverId = 12345UL;
         var serverPersona = "Additional server-specific instructions";
-        var serverMeta = new Core.Models.ServerMeta 
-        { 
-            Id = serverId, 
-            Persona = serverPersona 
+        var serverMeta = new Core.Models.ServerMeta
+        {
+            Id = serverId,
+            Persona = serverPersona
         };
 
         _mockServerMetaService
@@ -96,7 +96,7 @@ public class PersonaServiceTests : IDisposable
         Assert.NotNull(result);
         Assert.Contains("TestAmiquin", result); // Should contain bot name replacement
         Assert.Contains("1.0.0-test", result); // Should contain version replacement
-        
+
         // Should contain server-specific section
         Assert.Contains("## Server-Specific Instructions", result);
         Assert.Contains(serverPersona, result);
@@ -107,9 +107,9 @@ public class PersonaServiceTests : IDisposable
     {
         // Arrange
         var serverId = 12345UL;
-        var serverMeta = new Core.Models.ServerMeta 
-        { 
-            Id = serverId, 
+        var serverMeta = new Core.Models.ServerMeta
+        {
+            Id = serverId,
             Persona = null // No server-specific persona
         };
 
@@ -138,7 +138,7 @@ public class PersonaServiceTests : IDisposable
         var serverId = 12345UL;
         var cachedPersona = "Cached persona content";
         var cacheKey = StringModifier.CreateCacheKey(Constants.CacheKeys.ComputedPersonaMessageKey, serverId.ToString());
-        
+
         _memoryCache.Set(cacheKey, cachedPersona);
 
         // Act
@@ -146,7 +146,7 @@ public class PersonaServiceTests : IDisposable
 
         // Assert
         Assert.Equal(cachedPersona, result);
-        
+
         // Should not call server meta service if cached
         _mockServerMetaService.Verify(s => s.GetServerMetaAsync(It.IsAny<ulong>()), Times.Never);
     }
@@ -157,14 +157,14 @@ public class PersonaServiceTests : IDisposable
         // Arrange
         var serverId = 12345UL;
         var cachedBasePersona = "# Cached Base Persona\nThis is cached content";
-        
+
         // Set base persona in cache
         _memoryCache.Set("BasePersona", cachedBasePersona);
-        
-        var serverMeta = new Core.Models.ServerMeta 
-        { 
-            Id = serverId, 
-            Persona = "Server specific content" 
+
+        var serverMeta = new Core.Models.ServerMeta
+        {
+            Id = serverId,
+            Persona = "Server specific content"
         };
 
         _mockServerMetaService
@@ -191,7 +191,7 @@ public class PersonaServiceTests : IDisposable
         // Arrange
         var serverId = 12345UL;
         var contextBotName = "DynamicBotName";
-        
+
         _mockBotContextAccessor.Setup(b => b.IsInitialized).Returns(true);
         _mockBotContextAccessor.Setup(b => b.BotName).Returns(contextBotName);
 
@@ -214,7 +214,7 @@ public class PersonaServiceTests : IDisposable
     {
         // Arrange
         var serverId = 12345UL;
-        
+
         _mockBotContextAccessor.Setup(b => b.IsInitialized).Returns(false);
         // or could setup to throw exception to simulate failure
 
@@ -241,7 +241,7 @@ public class PersonaServiceTests : IDisposable
         var existingPersona = "Existing persona content";
         var summaryMessage = "This is a conversation summary";
         var cacheKey = StringModifier.CreateCacheKey(Constants.CacheKeys.ComputedPersonaMessageKey, serverId.ToString());
-        
+
         _memoryCache.Set(cacheKey, existingPersona);
 
         // Act
@@ -260,7 +260,7 @@ public class PersonaServiceTests : IDisposable
         // Arrange
         var serverId = 12345UL;
         var summaryMessage = "This is a conversation summary";
-        
+
         var serverMeta = new Core.Models.ServerMeta { Id = serverId, Persona = "Server persona" };
         _mockServerMetaService.Setup(s => s.GetServerMetaAsync(serverId)).ReturnsAsync(serverMeta);
 
@@ -274,7 +274,7 @@ public class PersonaServiceTests : IDisposable
         // Assert
         var cacheKey = StringModifier.CreateCacheKey(Constants.CacheKeys.ComputedPersonaMessageKey, serverId.ToString());
         var updatedPersona = _memoryCache.Get<string>(cacheKey);
-        
+
         Assert.NotNull(updatedPersona);
         Assert.Contains($"This is your summary of recent conversations: {summaryMessage}", updatedPersona);
         Assert.Contains("Server persona", updatedPersona);
@@ -313,7 +313,7 @@ public class PersonaServiceTests : IDisposable
         // Arrange
         var serverId = 12345UL;
         var serverMeta = new Core.Models.ServerMeta { Id = serverId, Persona = null };
-        
+
         _mockServerMetaService.Setup(s => s.GetServerMetaAsync(serverId)).ReturnsAsync(serverMeta);
         _mockNewsApiClient.Setup(n => n.GetNewsAsync()).ThrowsAsync(new HttpRequestException("News API failed"));
 
@@ -333,9 +333,9 @@ public class PersonaServiceTests : IDisposable
         // Arrange
         var serverId = 12345UL;
         var basePersona = $"Bot name: {Constants.PersonaKeywordsCache.Name}, Version: {Constants.PersonaKeywordsCache.Version}, Mood: {Constants.PersonaKeywordsCache.Mood}";
-        
+
         _memoryCache.Set("BasePersona", basePersona);
-        
+
         var serverMeta = new Core.Models.ServerMeta { Id = serverId, Persona = null };
         _mockServerMetaService.Setup(s => s.GetServerMetaAsync(serverId)).ReturnsAsync(serverMeta);
 
@@ -351,7 +351,7 @@ public class PersonaServiceTests : IDisposable
         Assert.Contains(_botOptions.Name, result);
         Assert.Contains(_botOptions.Version, result);
         Assert.Contains(moodContent, result);
-        
+
         // Should not contain the placeholder keywords
         Assert.DoesNotContain(Constants.PersonaKeywordsCache.Name, result);
         Assert.DoesNotContain(Constants.PersonaKeywordsCache.Version, result);

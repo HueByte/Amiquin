@@ -12,7 +12,7 @@ public class ActivitySessionJob
 {
     private readonly ulong _guildId;
     private readonly ILogger<ActivitySessionJob> _logger;
-    
+
     public ulong GuildId => _guildId;
     public string JobId => $"ActivitySession_{_guildId}";
     public DateTime CreatedAt { get; }
@@ -38,7 +38,7 @@ public class ActivitySessionJob
         {
             ExecutionCount++;
             LastExecutedAt = DateTime.UtcNow;
-            
+
             _logger.LogDebug("Executing ActivitySession for guild {GuildId} (execution #{Count})", _guildId, ExecutionCount);
 
             using var scope = serviceScopeFactory.CreateScope();
@@ -94,7 +94,7 @@ public class ActivitySessionJob
         {
             var oldFrequency = CurrentFrequencySeconds;
             CurrentFrequencySeconds = newFrequency;
-            _logger.LogDebug("Adjusted frequency for guild {GuildId}: {OldFreq}s → {NewFreq}s (activity: {Activity})", 
+            _logger.LogDebug("Adjusted frequency for guild {GuildId}: {OldFreq}s → {NewFreq}s (activity: {Activity})",
                 _guildId, oldFrequency, newFrequency, activityLevel);
         }
     }

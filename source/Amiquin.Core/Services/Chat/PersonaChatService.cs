@@ -249,7 +249,7 @@ public class PersonaChatService : IPersonaChatService
         if (serverMeta == null)
         {
             _logger.LogWarning("ServerMeta not found for serverId {ServerId}, creating default metadata", instanceId);
-            
+
             // Create server metadata with a fallback name
             await _serverMetaService.CreateServerMetaAsync(instanceId, $"Server_{instanceId}");
         }
@@ -294,31 +294,31 @@ public class PersonaChatService : IPersonaChatService
         try
         {
             _logger.LogInformation("Manual history optimization triggered for instance {InstanceId}", instanceId);
-            
+
             // Get current messages from message history
             var messages = await GetMessageHistoryAsync(instanceId);
-            
+
             if (messages == null || messages.Count < 5)
             {
                 return (false, "Not enough messages to optimize (minimum 5 required)");
             }
-            
+
             // Get server context (persona and session context)
             var (serverPersona, sessionContext) = await GetServerContextAsync(instanceId);
-            
+
             // Get original count before optimization
             var originalCount = messages.Count;
-            
+
             // Trigger the optimization
             await OptimizeHistoryAsync(instanceId, messages, sessionContext);
-            
+
             // Get remaining message count from cache
             var remainingMessages = _messageCache.GetChatMessageCount(instanceId);
             var optimizedCount = Math.Max(0, originalCount - remainingMessages);
-            
+
             var resultMessage = $"Successfully optimized history. Compacted {optimizedCount} messages into summary context. {remainingMessages} recent messages retained.";
             _logger.LogInformation("History optimization completed for instance {InstanceId}: {Result}", instanceId, resultMessage);
-            
+
             return (true, resultMessage);
         }
         catch (Exception ex)

@@ -15,10 +15,10 @@ public class ActivitySessionService : IActivitySessionService
     private readonly IChatContextService _chatContextService;
     private readonly IToggleService _toggleService;
     private readonly IDiscordClientWrapper _discordClient;
-    
+
     // Semaphores to prevent concurrent executions per guild
     private readonly ConcurrentDictionary<ulong, SemaphoreSlim> _guildSemaphores = new();
-    
+
     // Track last usage to clean up unused semaphores
     private readonly ConcurrentDictionary<ulong, DateTime> _lastSemaphoreUsage = new();
 
@@ -41,27 +41,27 @@ public class ActivitySessionService : IActivitySessionService
     {
         // Get or create semaphore for this guild to prevent concurrent executions
         var semaphore = _guildSemaphores.GetOrAdd(guildId, _ => new SemaphoreSlim(1, 1));
-        
+
         // Update last usage timestamp
         _lastSemaphoreUsage[guildId] = DateTime.UtcNow;
-        
+
         // Try to acquire the semaphore - if another execution is running, skip this one immediately
         if (!await semaphore.WaitAsync(0, cancellationToken)) // No timeout - immediate check
         {
             _logger.LogDebug("Activity session already running for guild {GuildId}, skipping", guildId);
             return false;
         }
-        
+
         try
         {
             var result = await ExecuteActivitySessionInternalAsync(guildId, adjustFrequencyCallback, cancellationToken);
-            
+
             // Cleanup unused semaphores occasionally
             if (DateTime.UtcNow.Minute % 10 == 0) // Every 10 minutes
             {
                 CleanupUnusedSemaphores();
             }
-            
+
             return result;
         }
         finally
@@ -69,7 +69,7 @@ public class ActivitySessionService : IActivitySessionService
             semaphore.Release();
         }
     }
-    
+
     /// <summary>
     /// Internal implementation of activity session execution
     /// </summary>
@@ -130,7 +130,7 @@ public class ActivitySessionService : IActivitySessionService
 
             // Calculate engagement probability with activity dampening for high activity
             var baseChance = CalculateBaseChance(currentActivity);
-            
+
             // Apply much stronger dampening for high activity scenarios
             var activityMultiplier = currentActivity switch
             {
@@ -140,7 +140,7 @@ public class ActivitySessionService : IActivitySessionService
                 >= 0.7 => 0.7,    // Moderate: 70% of normal multiplier effect
                 _ => 1.0           // Low/Normal: full multiplier effect
             };
-            
+
             var adjustedChance = baseChance * engagementMultiplier * activityMultiplier;
 
             // Force engagement for mentions
@@ -160,7 +160,7 @@ public class ActivitySessionService : IActivitySessionService
                     >= 0.7 => 0.60,   // Moderate activity: cap at 60%
                     _ => 0.90          // Low/Normal activity: cap at 90%
                 };
-                
+
                 adjustedChance = Math.Min(adjustedChance, maxChance);
             }
 
@@ -195,26 +195,26 @@ public class ActivitySessionService : IActivitySessionService
                 try
                 {
                     var actionChoice = SelectEngagementAction(currentActivity, random, botMentioned);
-                    _logger.LogDebug("Attempting action {Action} for guild {GuildName} (attempt {Attempt}/{MaxRetries})", 
+                    _logger.LogDebug("Attempting action {Action} for guild {GuildName} (attempt {Attempt}/{MaxRetries})",
                         actionChoice, guild.Name, retryAttempt + 1, maxRetries);
 
                     var response = await ExecuteEngagementAction(_chatContextService, guildId, actionChoice);
 
                     if (!string.IsNullOrEmpty(response))
                     {
-                        _logger.LogInformation("ActivitySession executed action {Action} for guild {GuildName}: success", 
+                        _logger.LogInformation("ActivitySession executed action {Action} for guild {GuildName}: success",
                             actionChoice, guild.Name);
-                        
+
                         // Clear context messages after successful engagement
                         _chatContextService.ClearContextMessages(guildId);
-                        
+
                         return true;
                     }
                     else
                     {
-                        _logger.LogWarning("Action {Action} returned empty response for guild {GuildId} (attempt {Attempt}/{MaxRetries})", 
+                        _logger.LogWarning("Action {Action} returned empty response for guild {GuildId} (attempt {Attempt}/{MaxRetries})",
                             actionChoice, guildId, retryAttempt + 1, maxRetries);
-                        
+
                         // If this was the last attempt, exit the loop
                         if (retryAttempt == maxRetries - 1)
                         {
@@ -232,9 +232,9 @@ public class ActivitySessionService : IActivitySessionService
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Error executing engagement action for guild {GuildId} (attempt {Attempt}/{MaxRetries}): {Error}", 
+                    _logger.LogWarning(ex, "Error executing engagement action for guild {GuildId} (attempt {Attempt}/{MaxRetries}): {Error}",
                         guildId, retryAttempt + 1, maxRetries, ex.Message);
-                    
+
                     // If this was the last attempt, continue to return false
                     if (retryAttempt == maxRetries - 1)
                     {
@@ -247,7 +247,7 @@ public class ActivitySessionService : IActivitySessionService
                 }
             }
 
-            _logger.LogWarning("ActivitySession failed to generate content for guild {GuildId} after {MaxRetries} attempts", 
+            _logger.LogWarning("ActivitySession failed to generate content for guild {GuildId} after {MaxRetries} attempts",
                 guildId, maxRetries);
             return false;
         }
@@ -330,7 +330,7 @@ public class ActivitySessionService : IActivitySessionService
             _ => null
         };
     }
-    
+
     /// <summary>
     /// Cleans up unused semaphores to prevent memory leaks
     /// </summary>
@@ -340,7 +340,7 @@ public class ActivitySessionService : IActivitySessionService
         {
             var cutoffTime = DateTime.UtcNow.AddMinutes(-30); // Clean up semaphores unused for 30 minutes
             var keysToRemove = new List<ulong>();
-            
+
             foreach (var kvp in _lastSemaphoreUsage)
             {
                 if (kvp.Value < cutoffTime)
@@ -348,7 +348,7 @@ public class ActivitySessionService : IActivitySessionService
                     keysToRemove.Add(kvp.Key);
                 }
             }
-            
+
             foreach (var key in keysToRemove)
             {
                 if (_guildSemaphores.TryRemove(key, out var semaphore))
@@ -358,7 +358,7 @@ public class ActivitySessionService : IActivitySessionService
                     _logger.LogDebug("Cleaned up unused semaphore for guild {GuildId}", key);
                 }
             }
-            
+
             if (keysToRemove.Count > 0)
             {
                 _logger.LogDebug("Cleaned up {Count} unused semaphores", keysToRemove.Count);

@@ -35,7 +35,7 @@ public interface IComponentHandlerService
     /// <param name="customId">The custom ID to parse.</param>
     /// <returns>The parsed component context, or null if invalid.</returns>
     ComponentContext? ParseCustomId(string customId);
-    
+
     /// <summary>
     /// Determines if the given custom ID will trigger a modal response.
     /// This helps the event handler decide whether to defer the interaction.
@@ -43,7 +43,7 @@ public interface IComponentHandlerService
     /// <param name="customId">The custom ID to check.</param>
     /// <returns>True if the interaction will respond with a modal, false otherwise.</returns>
     bool WillTriggerModal(string customId);
-    
+
     /// <summary>
     /// Registers a prefix as one that will trigger modal responses.
     /// This prevents the event handler from deferring interactions with this prefix.

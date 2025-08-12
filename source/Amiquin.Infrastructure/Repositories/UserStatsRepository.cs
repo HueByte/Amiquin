@@ -66,7 +66,7 @@ public class UserStatsRepository : IUserStatsRepository
         var allStats = await _context.UserStats
             .Where(u => u.ServerId == serverId)
             .ToListAsync();
-        
+
         // Filter and sort by nachos_given stat in memory since we can't query JSON in all databases the same way
         return allStats
             .Where(u => u.GetStat<int>("nachos_given", 0) > 0)
@@ -82,7 +82,7 @@ public class UserStatsRepository : IUserStatsRepository
         var allStats = await _context.UserStats
             .Where(u => u.ServerId == serverId)
             .ToListAsync();
-        
+
         // Sum nachos_given stat in memory
         return allStats.Sum(u => u.GetStat<int>("nachos_given", 0));
     }

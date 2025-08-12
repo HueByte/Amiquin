@@ -140,7 +140,7 @@ public class AmiquinContext : DbContext
             .HasKey(s => s.Id);
 
         #endregion
-        
+
         // Configure UserStats unique constraint  
         builder.Entity<InfraUserStats>()
             .HasIndex(u => new { u.UserId, u.ServerId })

@@ -187,7 +187,7 @@ public class EventHandlerService : IEventHandlerService
 
         // Create or update server metadata
         await serverMeta.CreateServerMetaAsync(guild.Id, guild.Name);
-        
+
         // Ensure toggles exist for this server (this preserves existing toggle values)
         await toggleService.CreateServerTogglesIfNotExistsAsync(guild.Id);
 
@@ -353,9 +353,9 @@ public class EventHandlerService : IEventHandlerService
                                $"and mention their name. Make it feel like a genuine community welcome from the server's AI assistant.";
 
             var welcomeMessage = await personaChatService.ChatAsync(
-                user.Guild.Id, 
-                user.Guild.CurrentUser.Id, 
-                user.Guild.CurrentUser.Id, 
+                user.Guild.Id,
+                user.Guild.CurrentUser.Id,
+                user.Guild.CurrentUser.Id,
                 welcomePrompt);
 
             if (!string.IsNullOrWhiteSpace(welcomeMessage))

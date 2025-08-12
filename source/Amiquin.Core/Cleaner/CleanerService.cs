@@ -31,10 +31,10 @@ public class CleanerService : ICleanerService
         using var scope = serviceScopeFactory.CreateScope();
         var logger = scope.ServiceProvider.GetRequiredService<ILogger<CleanerService>>();
         var configuration = scope.ServiceProvider.GetRequiredService<IConfiguration>();
-        
+
         logger.LogInformation("Starting comprehensive system cleanup");
         var stopwatch = Stopwatch.StartNew();
-        
+
         var cleanupTasks = new List<Task<(string Operation, bool Success, long ItemsProcessed)>>
         {
             CleanupMessageCacheAsync(scope, logger, cancellationToken),
@@ -43,13 +43,13 @@ public class CleanerService : ICleanerService
             CleanupTemporaryFilesAsync(logger, cancellationToken),
             ForceGarbageCollectionAsync(logger, cancellationToken)
         };
-        
+
         var results = await Task.WhenAll(cleanupTasks);
-        
+
         stopwatch.Stop();
         LogCleanupSummary(logger, results, stopwatch.ElapsedMilliseconds);
     }
-    
+
     /// <summary>
     /// Clears message cache and related cached data.
     /// </summary>
@@ -60,9 +60,9 @@ public class CleanerService : ICleanerService
         {
             var messageCacheService = scope.ServiceProvider.GetRequiredService<IMessageCacheService>();
             logger.LogDebug("Clearing message cache");
-            
+
             messageCacheService.ClearMessageCache();
-            
+
             await Task.Delay(100, cancellationToken);
             return ("Message Cache", true, 1);
         }
@@ -72,7 +72,7 @@ public class CleanerService : ICleanerService
             return ("Message Cache", false, 0);
         }
     }
-    
+
     /// <summary>
     /// Clears memory cache with detailed reporting.
     /// </summary>
@@ -82,27 +82,27 @@ public class CleanerService : ICleanerService
         try
         {
             var cache = scope.ServiceProvider.GetRequiredService<IMemoryCache>();
-            
+
             if (cache is MemoryCache memoryCache)
             {
                 var initialCount = memoryCache.Count;
                 logger.LogDebug("Clearing memory cache with {CacheCount} items", initialCount);
-                
+
                 // Log cache keys for debugging if enabled
                 if (logger.IsEnabled(LogLevel.Trace))
                 {
                     var cacheKeys = string.Join(", ", memoryCache.Keys.Take(10));
-                    logger.LogTrace("Sample cache keys: {CacheKeys}{More}", 
-                        cacheKeys, 
+                    logger.LogTrace("Sample cache keys: {CacheKeys}{More}",
+                        cacheKeys,
                         memoryCache.Count > Constants.Limits.CacheDisplayThreshold ? "..." : "");
                 }
-                
+
                 memoryCache.Clear();
-                
+
                 await Task.Delay(100, cancellationToken);
                 return ("Memory Cache", true, initialCount);
             }
-            
+
             return ("Memory Cache", true, 0);
         }
         catch (Exception ex)
@@ -111,7 +111,7 @@ public class CleanerService : ICleanerService
             return ("Memory Cache", false, 0);
         }
     }
-    
+
     /// <summary>
     /// Cleans up old log files based on retention policy.
     /// </summary>
@@ -122,18 +122,18 @@ public class CleanerService : ICleanerService
         {
             var logsPath = configuration.GetValue<string>("DataPaths:Logs") ?? Constants.Paths.DefaultDataLogsPath;
             var logDirectory = Path.GetFullPath(logsPath);
-            
+
             if (!Directory.Exists(logDirectory))
             {
                 logger.LogDebug("Logs directory does not exist: {LogDirectory}", logDirectory);
                 return ("Log Files", true, 0);
             }
-            
+
             var cutoffDate = DateTime.UtcNow.AddDays(-30); // Keep logs for 30 days
             var logFiles = Directory.GetFiles(logDirectory, "*.log", SearchOption.AllDirectories)
                 .Where(f => File.GetLastWriteTimeUtc(f) < cutoffDate)
                 .ToList();
-            
+
             var deletedCount = 0;
             foreach (var logFile in logFiles)
             {
@@ -148,13 +148,13 @@ public class CleanerService : ICleanerService
                     logger.LogWarning(ex, "Failed to delete log file: {LogFile}", logFile);
                 }
             }
-            
+
             if (deletedCount > 0)
             {
-                logger.LogDebug("Deleted {DeletedCount} old log files older than {CutoffDate}", 
+                logger.LogDebug("Deleted {DeletedCount} old log files older than {CutoffDate}",
                     deletedCount, cutoffDate.ToString("yyyy-MM-dd"));
             }
-            
+
             await Task.Delay(100, cancellationToken);
             return ("Log Files", true, deletedCount);
         }
@@ -164,7 +164,7 @@ public class CleanerService : ICleanerService
             return ("Log Files", false, 0);
         }
     }
-    
+
     /// <summary>
     /// Cleans up temporary files and directories created by the application.
     /// </summary>
@@ -174,7 +174,7 @@ public class CleanerService : ICleanerService
         try
         {
             var cleanedCount = 0;
-            
+
             // Clean TTS output files
             var ttsOutputPath = Constants.Paths.TTSBaseOutputPath;
             if (Directory.Exists(ttsOutputPath))
@@ -182,7 +182,7 @@ public class CleanerService : ICleanerService
                 var ttsFiles = Directory.GetFiles(ttsOutputPath, "*.wav", SearchOption.AllDirectories)
                     .Where(f => File.GetLastAccessTimeUtc(f) < DateTime.UtcNow.AddHours(-24))
                     .ToList();
-                
+
                 foreach (var ttsFile in ttsFiles)
                 {
                     try
@@ -197,7 +197,7 @@ public class CleanerService : ICleanerService
                     }
                 }
             }
-            
+
             // Clean system temp files related to the application
             var appTempPath = Constants.Paths.ApplicationTempPath;
             if (Directory.Exists(appTempPath))
@@ -213,7 +213,7 @@ public class CleanerService : ICleanerService
                     logger.LogWarning(ex, "Failed to delete app temp directory: {AppTempPath}", appTempPath);
                 }
             }
-            
+
             await Task.Delay(100, cancellationToken);
             return ("Temporary Files", true, cleanedCount);
         }
@@ -223,7 +223,7 @@ public class CleanerService : ICleanerService
             return ("Temporary Files", false, 0);
         }
     }
-    
+
     /// <summary>
     /// Forces garbage collection to free up memory.
     /// </summary>
@@ -233,18 +233,18 @@ public class CleanerService : ICleanerService
         try
         {
             var memoryBefore = GC.GetTotalMemory(false);
-            
+
             // Force garbage collection
             GC.Collect();
             GC.WaitForPendingFinalizers();
             GC.Collect();
-            
+
             var memoryAfter = GC.GetTotalMemory(false);
             var memoryFreed = memoryBefore - memoryAfter;
-            
-            logger.LogDebug("Garbage collection freed {MemoryFreed:N0} bytes ({MemoryFreedMB:F2} MB)", 
+
+            logger.LogDebug("Garbage collection freed {MemoryFreed:N0} bytes ({MemoryFreedMB:F2} MB)",
                 memoryFreed, memoryFreed / (1024.0 * 1024.0));
-            
+
             await Task.Delay(100, cancellationToken);
             return ("Garbage Collection", true, memoryFreed);
         }
@@ -254,40 +254,40 @@ public class CleanerService : ICleanerService
             return ("Garbage Collection", false, 0);
         }
     }
-    
+
     /// <summary>
     /// Logs a comprehensive summary of all cleanup operations.
     /// </summary>
-    private static void LogCleanupSummary(ILogger logger, 
-        (string Operation, bool Success, long ItemsProcessed)[] results, 
+    private static void LogCleanupSummary(ILogger logger,
+        (string Operation, bool Success, long ItemsProcessed)[] results,
         long totalTimeMs)
     {
         var summary = new StringBuilder();
         summary.AppendLine("=== Cleanup Summary ===");
-        
+
         var successful = 0;
         var failed = 0;
         var totalItemsProcessed = 0L;
-        
+
         foreach (var (operation, success, itemsProcessed) in results)
         {
             var status = success ? "✓" : "✗";
             summary.AppendLine($"{status} {operation}: {itemsProcessed:N0} items");
-            
+
             if (success) successful++;
             else failed++;
-            
+
             totalItemsProcessed += itemsProcessed;
         }
-        
+
         summary.AppendLine($"Total: {successful} successful, {failed} failed");
         summary.AppendLine($"Items processed: {totalItemsProcessed:N0}");
         summary.AppendLine($"Duration: {totalTimeMs:N0}ms");
-        
+
         // Log memory usage info
         var currentMemory = GC.GetTotalMemory(false);
         summary.AppendLine($"Current memory usage: {currentMemory / (1024.0 * 1024.0):F2} MB");
-        
+
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows) || RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
         {
             try
@@ -300,7 +300,7 @@ public class CleanerService : ICleanerService
                 // Ignore if we can't get process info
             }
         }
-        
+
         logger.LogInformation(summary.ToString());
     }
 }

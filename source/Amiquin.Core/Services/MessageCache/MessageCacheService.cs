@@ -88,7 +88,7 @@ public class MessageCacheService : IMessageCacheService
 
             // Use the SessionMessage repository to get messages for the active session
             var sessionMessageRepository = scope.ServiceProvider.GetRequiredService<ISessionMessageRepository>();
-            
+
             // Get messages for the active session that should be included in context
             var sessionMessages = await sessionMessageRepository.GetSessionContextMessagesAsync(
                 activeSession.Id, _messageFetchCount);

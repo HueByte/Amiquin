@@ -166,7 +166,7 @@ public class ActivitySessionServiceUnitTests
 
         // Assert
         Assert.True(result);
-        
+
         // Verify all expected calls were made
         _mockToggleService.Verify(ts => ts.IsEnabledAsync(guildId, Constants.ToggleNames.EnableLiveJob), Times.Once);
         _mockChatContextService.Verify(cs => cs.GetContextMessages(guildId), Times.Once);
@@ -182,7 +182,7 @@ public class ActivitySessionServiceUnitTests
         // Arrange
         var guildId = 12345UL;
         var cts = new CancellationTokenSource();
-        
+
         _mockToggleService
             .Setup(ts => ts.IsEnabledAsync(guildId, Constants.ToggleNames.EnableLiveJob))
             .Returns(async () =>

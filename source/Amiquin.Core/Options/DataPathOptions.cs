@@ -6,32 +6,32 @@ namespace Amiquin.Core.Options;
 public class DataPathOptions
 {
     public const string SectionName = "DataPaths";
-    
+
     /// <summary>
     /// Path for log files.
     /// </summary>
     public string Logs { get; set; } = Constants.Paths.DefaultDataLogsPath;
-    
+
     /// <summary>
     /// Path for message storage.
     /// </summary>
     public string Messages { get; set; } = Constants.Paths.DefaultDataMessagesPath;
-    
+
     /// <summary>
     /// Path for session data.
     /// </summary>
     public string Sessions { get; set; } = Constants.Paths.DefaultDataSessionsPath;
-    
+
     /// <summary>
     /// Path for plugin data.
     /// </summary>
     public string Plugins { get; set; } = Constants.Paths.DefaultDataPluginsPath;
-    
+
     /// <summary>
     /// Path for configuration files.
     /// </summary>
     public string Configuration { get; set; } = "Configuration";
-    
+
     /// <summary>
     /// Gets the full absolute path for a relative path.
     /// </summary>

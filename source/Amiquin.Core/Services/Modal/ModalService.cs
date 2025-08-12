@@ -41,21 +41,21 @@ public class ModalService : IModalService
 
         try
         {
-            _logger.LogDebug("Handling modal submission with prefix {Prefix} for user {UserId}", 
+            _logger.LogDebug("Handling modal submission with prefix {Prefix} for user {UserId}",
                 context.Prefix, modal.User.Id);
 
             var handled = await handler(modal, context);
-            
+
             if (handled)
             {
                 _logger.LogDebug("Modal submission {CustomId} handled successfully", modal.Data.CustomId);
             }
-            
+
             return handled;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error handling modal submission {CustomId} with prefix {Prefix}", 
+            _logger.LogError(ex, "Error handling modal submission {CustomId} with prefix {Prefix}",
                 modal.Data.CustomId, context.Prefix);
             return false;
         }
@@ -90,7 +90,7 @@ public class ModalService : IModalService
             throw new ArgumentException("Title cannot be null or whitespace", nameof(title));
 
         var customId = GenerateCustomId(prefix, parameters);
-        
+
         return new ModalBuilder()
             .WithTitle(title)
             .WithCustomId(customId);

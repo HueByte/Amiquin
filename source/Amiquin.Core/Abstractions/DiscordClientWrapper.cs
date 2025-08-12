@@ -9,13 +9,13 @@ namespace Amiquin.Core.Abstractions;
 public class DiscordClientWrapper : IDiscordClientWrapper
 {
     private readonly DiscordShardedClient _client;
-    
+
     public DiscordClientWrapper(DiscordShardedClient client)
     {
         _client = client;
     }
-    
+
     public SocketSelfUser? CurrentUser => _client.CurrentUser;
-    
+
     public SocketGuild? GetGuild(ulong id) => _client.GetGuild(id);
 }

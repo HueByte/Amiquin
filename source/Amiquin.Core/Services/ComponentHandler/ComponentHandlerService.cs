@@ -41,21 +41,21 @@ public class ComponentHandlerService : IComponentHandlerService
 
         try
         {
-            _logger.LogDebug("Handling component interaction with prefix {Prefix} for user {UserId}", 
+            _logger.LogDebug("Handling component interaction with prefix {Prefix} for user {UserId}",
                 context.Prefix, component.User.Id);
 
             var handled = await handler(component, context);
-            
+
             if (handled)
             {
                 _logger.LogDebug("Component interaction {CustomId} handled successfully", component.Data.CustomId);
             }
-            
+
             return handled;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error handling component interaction {CustomId} with prefix {Prefix}", 
+            _logger.LogError(ex, "Error handling component interaction {CustomId} with prefix {Prefix}",
                 component.Data.CustomId, context.Prefix);
             return false;
         }
@@ -105,16 +105,16 @@ public class ComponentHandlerService : IComponentHandlerService
 
         return customId;
     }
-    
+
     /// <inheritdoc/>
     public bool WillTriggerModal(string customId)
     {
         var context = ParseCustomId(customId);
         if (context == null) return false;
-        
+
         // Check if the entire prefix is registered as a modal trigger
         if (_modalTriggers.Contains(context.Prefix)) return true;
-        
+
         // Check for specific parameter-based modal triggers
         // Format: "prefix:param1" where param1 determines if it's a modal
         if (context.Parameters.Length > 0)
@@ -122,10 +122,10 @@ public class ComponentHandlerService : IComponentHandlerService
             var specificTrigger = $"{context.Prefix}:{context.Parameters[0]}";
             return _modalTriggers.Contains(specificTrigger);
         }
-        
+
         return false;
     }
-    
+
     /// <inheritdoc/>
     public void RegisterModalTrigger(string prefix)
     {

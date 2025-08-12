@@ -11,17 +11,17 @@ public interface IChatProviderFactory
     /// <param name="providerName">Name of the provider (e.g., "OpenAI", "Gemini", "Grok")</param>
     /// <returns>The requested chat provider</returns>
     IChatProvider GetProvider(string providerName);
-    
+
     /// <summary>
     /// Gets the default chat provider based on configuration
     /// </summary>
     IChatProvider GetDefaultProvider();
-    
+
     /// <summary>
     /// Gets all available providers
     /// </summary>
     IEnumerable<string> GetAvailableProviders();
-    
+
     /// <summary>
     /// Checks if a provider is available
     /// </summary>

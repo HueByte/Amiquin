@@ -28,7 +28,7 @@ public enum NsfwCategory
     Paizuri,
     [ChoiceDisplay("Ecchi")]
     Ecchi,
-    
+
     // Versatile tags (NSFW versions)
     [ChoiceDisplay("Waifu")]
     Waifu,
@@ -40,7 +40,7 @@ public enum NsfwCategory
     Selfies,
     [ChoiceDisplay("Uniform")]
     Uniform,
-    
+
     // Character-specific
     [ChoiceDisplay("Marin Kitagawa")]
     Marin,
@@ -97,7 +97,7 @@ public class NsfwCommands : InteractionModuleBase<ExtendedShardedInteractionCont
             NsfwCategory.Ayaka => ("kamisato-ayaka", "Kamisato Ayaka"),
             _ => ("waifu", "Waifu") // Default fallback
         };
-        
+
         await HandleNsfwRequestAsync(apiTag, displayName);
     }
 
@@ -105,7 +105,7 @@ public class NsfwCommands : InteractionModuleBase<ExtendedShardedInteractionCont
     public async Task GalleryAsync()
     {
         var serverId = Context.Guild?.Id ?? 0;
-        
+
         if (serverId == 0)
         {
             await ModifyOriginalResponseAsync(msg => msg.Content = "❌ NSFW commands can only be used in a server!");
@@ -122,7 +122,7 @@ public class NsfwCommands : InteractionModuleBase<ExtendedShardedInteractionCont
         // Check if NSFW is enabled for the server
         if (!await _funService.IsNsfwEnabledAsync(serverId))
         {
-            await ModifyOriginalResponseAsync(msg => msg.Content = 
+            await ModifyOriginalResponseAsync(msg => msg.Content =
                 "❌ NSFW content is disabled for this server. An administrator can enable it using `/nsfw toggle enable:true`");
             return;
         }
@@ -131,10 +131,10 @@ public class NsfwCommands : InteractionModuleBase<ExtendedShardedInteractionCont
         {
             // Fetch 10 random NSFW images with status information
             var result = await _nsfwApiService.GetNsfwImagesWithStatusAsync(5, 5);
-            
+
             if (!result.IsSuccess)
             {
-                await ModifyOriginalResponseAsync(msg => 
+                await ModifyOriginalResponseAsync(msg =>
                 {
                     msg.Content = CreateGracefulErrorMessage(result);
                     msg.Embed = null;
@@ -147,7 +147,7 @@ public class NsfwCommands : InteractionModuleBase<ExtendedShardedInteractionCont
                 .Select(img => img.Source ?? "Unknown")
                 .Distinct()
                 .Take(3));
-            
+
             var artistInfo = result.Images
                 .Where(img => !string.IsNullOrWhiteSpace(img.Artist))
                 .Select(img => img.Artist!)
@@ -155,13 +155,13 @@ public class NsfwCommands : InteractionModuleBase<ExtendedShardedInteractionCont
                 .Take(3)
                 .ToList();
 
-            var artistText = artistInfo.Count > 0 
+            var artistText = artistInfo.Count > 0
                 ? $"\nArtists: {string.Join(", ", artistInfo)}{(artistInfo.Count == 3 ? " and others" : "")}"
                 : "";
 
             // Add status message if there were issues but we still got some images
             var statusMessage = result.IsTemporaryFailure && !string.IsNullOrEmpty(result.ErrorMessage)
-                ? $"⚠️ {result.ErrorMessage}" 
+                ? $"⚠️ {result.ErrorMessage}"
                 : null;
 
             // Create ComponentsV2 display with media gallery
@@ -182,8 +182,8 @@ public class NsfwCommands : InteractionModuleBase<ExtendedShardedInteractionCont
                         .WithStyle(ButtonStyle.Secondary)
                 ])
                 .Build();
-            
-            await ModifyOriginalResponseAsync(msg => 
+
+            await ModifyOriginalResponseAsync(msg =>
             {
                 msg.Content = statusMessage;
                 msg.Components = components;
@@ -194,7 +194,7 @@ public class NsfwCommands : InteractionModuleBase<ExtendedShardedInteractionCont
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error in NSFW gallery command");
-            await ModifyOriginalResponseAsync(msg => msg.Content = 
+            await ModifyOriginalResponseAsync(msg => msg.Content =
                 "❌ **Oops! Something went wrong** 🤖\n\n" +
                 "The NSFW gallery service is having a temporary hiccup. This usually resolves itself quickly.\n\n" +
                 "**What you can try:**\n" +
@@ -211,7 +211,7 @@ public class NsfwCommands : InteractionModuleBase<ExtendedShardedInteractionCont
         [Summary("enable", "Enable or disable NSFW content (leave empty to check status)")] bool? enable = null)
     {
         var serverId = Context.Guild?.Id ?? 0;
-        
+
         if (serverId == 0)
         {
             await ModifyOriginalResponseAsync(msg => msg.Content = "❌ This command can only be used in a server!");
@@ -221,9 +221,9 @@ public class NsfwCommands : InteractionModuleBase<ExtendedShardedInteractionCont
         if (enable.HasValue)
         {
             // Toggle the NSFW setting
-            await _toggleService.SetServerToggleAsync(serverId, Core.Constants.ToggleNames.EnableNSFW, enable.Value, 
+            await _toggleService.SetServerToggleAsync(serverId, Core.Constants.ToggleNames.EnableNSFW, enable.Value,
                 "Enable or disable NSFW content in this server");
-            
+
             var status = enable.Value ? "enabled" : "disabled";
             await ModifyOriginalResponseAsync(msg => msg.Content = $"✅ NSFW content has been **{status}** for this server!");
         }
@@ -234,7 +234,7 @@ public class NsfwCommands : InteractionModuleBase<ExtendedShardedInteractionCont
             var status = isEnabled ? "enabled" : "disabled";
             var statusIcon = isEnabled ? "🔞" : "🚫";
             var statusColor = isEnabled ? "🔴" : "🟢";
-            
+
             // Create ComponentsV2 display for NSFW status
             var components = new ComponentBuilderV2()
                 .WithTextDisplay($"# {statusIcon} NSFW Status\n## Currently {status}")
@@ -247,8 +247,8 @@ public class NsfwCommands : InteractionModuleBase<ExtendedShardedInteractionCont
                         .WithStyle(isEnabled ? ButtonStyle.Danger : ButtonStyle.Success)
                 ])
                 .Build();
-            
-            await ModifyOriginalResponseAsync(msg => 
+
+            await ModifyOriginalResponseAsync(msg =>
             {
                 msg.Components = components;
                 msg.Flags = MessageFlags.ComponentsV2;
@@ -264,7 +264,7 @@ public class NsfwCommands : InteractionModuleBase<ExtendedShardedInteractionCont
     private async Task HandleNsfwRequestAsync(string nsfwType, string displayName)
     {
         var serverId = Context.Guild?.Id ?? 0;
-        
+
         if (serverId == 0)
         {
             await ModifyOriginalResponseAsync(msg => msg.Content = "❌ NSFW commands can only be used in a server!");
@@ -281,7 +281,7 @@ public class NsfwCommands : InteractionModuleBase<ExtendedShardedInteractionCont
         // Check if NSFW is enabled for the server
         if (!await _funService.IsNsfwEnabledAsync(serverId))
         {
-            await ModifyOriginalResponseAsync(msg => msg.Content = 
+            await ModifyOriginalResponseAsync(msg => msg.Content =
                 "❌ NSFW content is disabled for this server. An administrator can enable it using `/nsfw toggle enable:true`");
             return;
         }
@@ -289,10 +289,10 @@ public class NsfwCommands : InteractionModuleBase<ExtendedShardedInteractionCont
         try
         {
             var imageUrl = await _funService.GetNsfwGifAsync(serverId, nsfwType);
-            
+
             if (string.IsNullOrEmpty(imageUrl))
             {
-                await ModifyOriginalResponseAsync(msg => msg.Content = 
+                await ModifyOriginalResponseAsync(msg => msg.Content =
                     $"🔧 **{displayName} Not Available Right Now** 🤖\n\n" +
                     $"The {displayName.ToLower()} service is having a temporary hiccup!\n\n" +
                     $"**Quick fixes to try:**\n" +
@@ -334,7 +334,7 @@ public class NsfwCommands : InteractionModuleBase<ExtendedShardedInteractionCont
         }
         catch
         {
-            await ModifyOriginalResponseAsync(msg => msg.Content = 
+            await ModifyOriginalResponseAsync(msg => msg.Content =
                 $"🚧 **Oops! {displayName} Service Hiccup** 🤖\n\n" +
                 $"Something went wrong while fetching {displayName.ToLower()} content, but don't worry!\n\n" +
                 $"**What you can do:**\n" +
@@ -354,10 +354,10 @@ public class NsfwCommands : InteractionModuleBase<ExtendedShardedInteractionCont
     {
         if (result.IsRateLimited)
         {
-            var waitTimeMinutes = result.RetryAfter.HasValue 
+            var waitTimeMinutes = result.RetryAfter.HasValue
                 ? Math.Ceiling((result.RetryAfter.Value - DateTime.UtcNow).TotalMinutes)
                 : 5;
-            
+
             return $"⏳ **Taking a quick break!** 🎯\n\n" +
                    $"The NSFW image services are currently rate-limited to ensure fair usage for everyone.\n\n" +
                    $"**When can you try again?**\n" +

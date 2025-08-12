@@ -1,13 +1,13 @@
+using Amiquin.Core.Models;
+using Amiquin.Core.Services.ComponentHandler;
+using Amiquin.Core.Services.Meta;
+using Amiquin.Core.Services.Modal;
+using Amiquin.Core.Services.Pagination;
+using Amiquin.Core.Services.Toggle;
 using Discord;
 using Discord.WebSocket;
 using Microsoft.Extensions.Logging;
-using Amiquin.Core.Services.ComponentHandler;
-using Amiquin.Core.Services.Meta;
-using Amiquin.Core.Services.Toggle;
-using Amiquin.Core.Models;
 using System.Text;
-using Amiquin.Core.Services.Pagination;
-using Amiquin.Core.Services.Modal;
 
 namespace Amiquin.Core.Services.Configuration;
 
@@ -53,22 +53,22 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
 
         // Register main menu handler
         _componentHandler.RegisterHandler(ConfigMenuPrefix, HandleConfigMenuAsync);
-        
+
         // Register action handlers
         _componentHandler.RegisterHandler(ConfigActionPrefix, HandleConfigActionAsync);
-        
+
         // Register quick setup handlers
         _componentHandler.RegisterHandler(QuickSetupPrefix, HandleQuickSetupAsync);
-        
+
         // Register toggle handlers
         _componentHandler.RegisterHandler(TogglePrefix, HandleToggleAsync);
-        
+
         // Register navigation handlers
         _componentHandler.RegisterHandler(NavigationPrefix, HandleNavigationAsync);
 
         // Register modal handlers
         _modalService.RegisterHandler(ModalPrefix, HandleModalSubmissionAsync);
-        
+
         // Register modal triggers (specific interactions that will respond with modals)
         _componentHandler.RegisterModalTrigger($"{QuickSetupPrefix}:persona"); // Quick setup persona
         _componentHandler.RegisterModalTrigger($"{ConfigActionPrefix}:persona"); // Config action persona (if needed)
@@ -86,7 +86,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
             serverMeta = await _serverMetaService.CreateServerMetaAsync(guildId, guild.Name);
             _logger.LogInformation("Created server metadata for new server {ServerName} ({ServerId})", guild.Name, guildId);
         }
-        
+
         // Now ensure all toggles are created for this server
         await _toggleService.CreateServerTogglesIfNotExistsAsync(guildId);
 
@@ -106,10 +106,10 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
 
         // Build status summary
         var statusBuilder = new StringBuilder();
-        
+
         // Persona status
         var personaIcon = !string.IsNullOrWhiteSpace(serverMeta.Persona) ? "✅" : "⚠️";
-        var personaText = !string.IsNullOrWhiteSpace(serverMeta.Persona) 
+        var personaText = !string.IsNullOrWhiteSpace(serverMeta.Persona)
             ? TruncateText(serverMeta.Persona, 50)
             : "Not configured";
         statusBuilder.AppendLine($"{personaIcon} **Persona:** {personaText}");
@@ -126,8 +126,8 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
 
         // AI Provider status
         var providerIcon = !string.IsNullOrWhiteSpace(serverMeta.PreferredProvider) ? "✅" : "ℹ️";
-        var providerText = !string.IsNullOrWhiteSpace(serverMeta.PreferredProvider) 
-            ? serverMeta.PreferredProvider 
+        var providerText = !string.IsNullOrWhiteSpace(serverMeta.PreferredProvider)
+            ? serverMeta.PreferredProvider
             : "Using default";
         statusBuilder.AppendLine($"{providerIcon} **AI Provider:** {providerText}");
 
@@ -153,7 +153,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         tipsBuilder.AppendLine("• Use the **dropdown menu** to navigate sections");
         tipsBuilder.AppendLine("• Click **Quick Setup** buttons for common tasks");
         tipsBuilder.AppendLine("• Toggle features on/off with the buttons");
-        
+
         embedBuilder.AddField("💡 Tips", tipsBuilder.ToString(), inline: false);
 
         return embedBuilder.Build();
@@ -207,7 +207,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         // Most Important Toggles - Each in their own row for prominence
         var toggles = await _toggleService.GetTogglesByServerId(guild.Id);
         var criticalToggles = toggles
-            .Where(t => t.Name == Constants.ToggleNames.EnableChat || 
+            .Where(t => t.Name == Constants.ToggleNames.EnableChat ||
                        t.Name == Constants.ToggleNames.EnableDailyNSFW)
             .ToList();
 
@@ -217,14 +217,14 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
             .ToList();
 
         int toggleRow = 2;
-        
+
         // Critical toggles get their own rows (most important)
         foreach (var toggle in criticalToggles)
         {
             var emoji = toggle.IsEnabled ? "✅" : "❌";
             var style = toggle.IsEnabled ? ButtonStyle.Success : ButtonStyle.Secondary;
             var label = $"{emoji} {FormatToggleName(toggle.Name)}";
-            
+
             builder.WithActionRow([
                 new ButtonBuilder()
                     .WithCustomId(_componentHandler.GenerateCustomId(TogglePrefix, toggle.Name, guild.Id.ToString()))
@@ -244,7 +244,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                 var emoji = toggle.IsEnabled ? "✅" : "❌";
                 var style = toggle.IsEnabled ? ButtonStyle.Success : ButtonStyle.Secondary;
                 var label = $"{emoji} {FormatToggleName(toggle.Name)}";
-                
+
                 importantButtons.Add(
                     new ButtonBuilder()
                         .WithCustomId(_componentHandler.GenerateCustomId(TogglePrefix, toggle.Name, guild.Id.ToString()))
@@ -286,10 +286,10 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         builder.WithTextDisplay($"# 📋 Server Configuration\n## {guild.Name}");
 
         // Server Persona Section
-        var personaContent = !string.IsNullOrWhiteSpace(serverMeta?.Persona) 
+        var personaContent = !string.IsNullOrWhiteSpace(serverMeta?.Persona)
             ? $"**🎭 Persona**\n```\n{TruncateText(serverMeta.Persona, 300)}\n```"
             : "**🎭 Persona**\n*Not configured*";
-        
+
         builder.WithTextDisplay(personaContent);
 
         // Channel and Provider Information
@@ -307,8 +307,8 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
             nsfwChannelText = nsfwChannel != null ? nsfwChannel.Mention : "*Channel not found*";
         }
 
-        var providerText = !string.IsNullOrWhiteSpace(serverMeta?.PreferredProvider) 
-            ? serverMeta.PreferredProvider 
+        var providerText = !string.IsNullOrWhiteSpace(serverMeta?.PreferredProvider)
+            ? serverMeta.PreferredProvider
             : "*Using default*";
 
         builder.WithTextDisplay($"**💬 Primary Channel:** {channelText}\n**🔞 NSFW Channel:** {nsfwChannelText}\n**🤖 AI Provider:** {providerText}");
@@ -478,7 +478,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
             }
 
             var selectedValue = component.Data.Values.FirstOrDefault();
-            
+
             switch (selectedValue)
             {
                 case "persona":
@@ -551,7 +551,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                         await SetPrimaryChannelAsync(component, guildId, channelId);
                     }
                     break;
-                    
+
                 case "set_nsfw_channel":
                     if (component.Data.Values.Any())
                     {
@@ -611,31 +611,31 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                         .WithTitle("Set Server Persona")
                         .WithCustomId(_componentHandler.GenerateCustomId(ModalPrefix, "persona", guildId.ToString()))
                         .AddTextInput("Persona Description", "persona_input", TextInputStyle.Paragraph,
-                            "Describe how the AI should behave in this server...", 
-                            required: true, 
-                            minLength: 10, 
+                            "Describe how the AI should behave in this server...",
+                            required: true,
+                            minLength: 10,
                             maxLength: 2000,
                             value: null)
                         .Build();
-                    
+
                     await component.RespondWithModalAsync(personaModal);
                     break;
-                    
+
                 case "channel":
                     // Component is already deferred by EventHandlerService
                     await ShowChannelConfigurationAsync(component, guildId);
                     break;
-                    
+
                 case "nsfw_channel":
                     // Component is already deferred by EventHandlerService
                     await ShowNsfwChannelConfigurationAsync(component, guildId);
                     break;
-                    
+
                 case "provider":
                     // Component is already deferred by EventHandlerService
                     await ShowProviderConfigurationAsync(component, guildId);
                     break;
-                    
+
                 default:
                     if (component.HasResponded)
                         await component.ModifyOriginalResponseAsync(msg => msg.Content = "❌ Unknown quick setup option.");
@@ -649,7 +649,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error handling quick setup");
-            
+
             try
             {
                 if (component.HasResponded)
@@ -658,7 +658,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                     await component.RespondAsync("❌ An error occurred during quick setup.", ephemeral: true);
             }
             catch { }
-            
+
             return true;
         }
     }
@@ -681,7 +681,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
             // Get current toggle state
             var toggles = await _toggleService.GetTogglesByServerId(guildId);
             var toggle = toggles.FirstOrDefault(t => t.Name == toggleName);
-            
+
             if (toggle != null)
             {
                 // Toggle the state
@@ -749,15 +749,15 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                         });
                     }
                     break;
-                    
+
                 case "export":
                     await ExportConfigurationAsync(component, guildId);
                     break;
-                    
+
                 case "help":
                     await ShowHelpAsync(component);
                     break;
-                    
+
                 default:
                     await component.ModifyOriginalResponseAsync(msg => msg.Content = "❌ Unknown navigation action.");
                     break;
@@ -776,7 +776,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
     private async Task ShowPersonaConfigurationAsync(SocketMessageComponent component, ulong guildId)
     {
         var serverMeta = await _serverMetaService.GetServerMetaAsync(guildId);
-        
+
         var embedBuilder = new EmbedBuilder()
             .WithTitle("🎭 Server Persona Configuration")
             .WithDescription("Configure how the AI assistant behaves in your server")
@@ -800,7 +800,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
             false);
 
         var builder = new ComponentBuilderV2();
-        
+
         // Add action buttons
         builder.WithActionRow([
             new ButtonBuilder()
@@ -846,8 +846,8 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         if (serverMeta?.PrimaryChannelId.HasValue == true)
         {
             var currentChannel = guild.GetTextChannel(serverMeta.PrimaryChannelId.Value);
-            embedBuilder.AddField("Current Primary Channel", 
-                currentChannel != null ? currentChannel.Mention : "*Channel not found*", 
+            embedBuilder.AddField("Current Primary Channel",
+                currentChannel != null ? currentChannel.Mention : "*Channel not found*",
                 false);
         }
         else
@@ -873,7 +873,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                     topic,
                     isDefault: isSelected));
             }
-            
+
             var selectMenu = new SelectMenuBuilder(
                 _componentHandler.GenerateCustomId(ConfigActionPrefix, "set_channel", guildId.ToString()),
                 selectMenuOptions)
@@ -908,17 +908,17 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
     {
         var serverMeta = await _serverMetaService.GetServerMetaAsync(guildId);
         var providers = new[] { "OpenAI", "Anthropic", "Gemini", "Grok" };
-        
+
         var embedBuilder = new EmbedBuilder()
             .WithTitle("🤖 AI Provider Configuration")
             .WithDescription("Choose your preferred AI model provider")
             .WithColor(new Color(52, 152, 219))
             .WithCurrentTimestamp();
 
-        embedBuilder.AddField("Current Provider", 
-            !string.IsNullOrWhiteSpace(serverMeta?.PreferredProvider) 
-                ? $"**{serverMeta.PreferredProvider}**" 
-                : "*Using default*", 
+        embedBuilder.AddField("Current Provider",
+            !string.IsNullOrWhiteSpace(serverMeta?.PreferredProvider)
+                ? $"**{serverMeta.PreferredProvider}**"
+                : "*Using default*",
             false);
 
         embedBuilder.AddField("Available Providers",
@@ -940,14 +940,14 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                 "Grok" => "xAI models",
                 _ => ""
             };
-            
+
             selectMenuOptions.Add(new SelectMenuOptionBuilder(
-                provider, 
-                provider.ToLower(), 
-                description, 
+                provider,
+                provider.ToLower(),
+                description,
                 isDefault: isSelected));
         }
-        
+
         var selectMenu = new SelectMenuBuilder(
             _componentHandler.GenerateCustomId(ConfigActionPrefix, "set_provider", guildId.ToString()),
             selectMenuOptions)
@@ -980,10 +980,10 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
     {
         // Ensure all toggles are created for this server
         await _toggleService.CreateServerTogglesIfNotExistsAsync(guildId);
-        
+
         var toggles = await _toggleService.GetTogglesByServerId(guildId);
         var guild = (component.Channel as SocketGuildChannel)?.Guild;
-        
+
         if (guild == null)
         {
             await component.ModifyOriginalResponseAsync(msg => msg.Content = "❌ Unable to find guild information.");
@@ -992,7 +992,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
 
         // Generate all pages as embeds for pagination
         var embeds = GenerateToggleEmbeds(toggles.ToList(), guildId);
-        
+
         if (embeds.Count == 1)
         {
             // Single page - show directly with buttons
@@ -1006,7 +1006,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         {
             // Multiple pages - use pagination service
             var (embed, messageComponent) = await _paginationService.CreatePaginatedMessageAsync(embeds, component.User.Id);
-            
+
             await component.ModifyOriginalResponseAsync(msg =>
             {
                 msg.Embed = embed;
@@ -1027,7 +1027,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
             var startIndex = page * itemsPerPage;
             var pageToggles = toggles.Skip(startIndex).Take(itemsPerPage).ToList();
             var enabledCount = pageToggles.Count(t => t.IsEnabled);
-            
+
             var embedBuilder = new EmbedBuilder()
                 .WithTitle("🎛️ Feature Toggles")
                 .WithDescription("Enable or disable features for your server")
@@ -1035,7 +1035,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                 .WithCurrentTimestamp()
                 .WithFooter($"Page {page + 1}/{totalPages} • {toggles.Count} total features");
 
-            embedBuilder.AddField("📊 Summary", 
+            embedBuilder.AddField("📊 Summary",
                 $"**Total Enabled:** {totalEnabled}/{toggles.Count} features\n" +
                 $"**On this page:** {enabledCount}/{pageToggles.Count} enabled", false);
 
@@ -1066,11 +1066,11 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
     private MessageComponent GenerateToggleComponents(List<Models.Toggle> toggles, ulong guildId, int currentPage, int totalPages)
     {
         var builder = new ComponentBuilderV2();
-        
+
         // Add toggle buttons - up to 4 per row, max 8 total
         var buttonRows = new List<List<ButtonBuilder>>();
         var currentRowButtons = new List<ButtonBuilder>();
-        
+
         foreach (var toggle in toggles.Take(8)) // Show up to 8 toggles with buttons
         {
             if (currentRowButtons.Count == 4) // Start new row after 4 buttons
@@ -1078,28 +1078,28 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                 buttonRows.Add(currentRowButtons);
                 currentRowButtons = new List<ButtonBuilder>();
             }
-            
+
             var emoji = toggle.IsEnabled ? "✅" : "❌";
             var style = toggle.IsEnabled ? ButtonStyle.Success : ButtonStyle.Secondary;
             var label = FormatToggleName(toggle.Name);
-            
+
             // Truncate label if too long
             if (label.Length > 20)
                 label = label.Substring(0, 17) + "...";
-            
+
             currentRowButtons.Add(
                 new ButtonBuilder()
                     .WithCustomId(_componentHandler.GenerateCustomId(TogglePrefix, toggle.Name, guildId.ToString()))
                     .WithLabel($"{emoji} {label}")
                     .WithStyle(style));
         }
-        
+
         // Add remaining buttons if any
         if (currentRowButtons.Any())
         {
             buttonRows.Add(currentRowButtons);
         }
-        
+
         // Add all button rows
         foreach (var rowButtons in buttonRows)
         {
@@ -1124,9 +1124,9 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
 
         // Ensure all toggles are created for this server
         await _toggleService.CreateServerTogglesIfNotExistsAsync(guildId);
-        
+
         var serverMeta = await _serverMetaService.GetServerMetaAsync(guildId);
-        
+
         // Use the new ComponentsV2 approach
         var components = await BuildCompleteConfigurationComponentsV2Async(serverMeta, guild);
 
@@ -1152,14 +1152,14 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         export.AppendLine($"## Server: {guild.Name}");
         export.AppendLine($"## Date: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC");
         export.AppendLine();
-        
+
         export.AppendLine("### Server Metadata");
         export.AppendLine($"- **Persona:** {serverMeta?.Persona ?? "Not configured"}");
         export.AppendLine($"- **Primary Channel ID:** {serverMeta?.PrimaryChannelId?.ToString() ?? "Not configured"}");
         export.AppendLine($"- **NSFW Channel ID:** {serverMeta?.NsfwChannelId?.ToString() ?? "Not configured"}");
         export.AppendLine($"- **Preferred Provider:** {serverMeta?.PreferredProvider ?? "Default"}");
         export.AppendLine();
-        
+
         export.AppendLine("### Feature Toggles");
         foreach (var toggle in toggles.OrderBy(t => t.Name))
         {
@@ -1171,9 +1171,9 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
 
         // Send as a file
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes(export.ToString()));
-        await component.Channel.SendFileAsync(stream, $"config_export_{guildId}_{DateTime.UtcNow:yyyyMMdd_HHmmss}.md", 
+        await component.Channel.SendFileAsync(stream, $"config_export_{guildId}_{DateTime.UtcNow:yyyyMMdd_HHmmss}.md",
             $"Configuration export for **{guild.Name}**");
-        
+
         await component.ModifyOriginalResponseAsync(msg => msg.Content = "✅ Configuration exported successfully!");
     }
 
@@ -1225,11 +1225,11 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         {
             serverMeta.PrimaryChannelId = channelId;
             await _serverMetaService.UpdateServerMetaAsync(serverMeta);
-            
+
             var channel = (component.Channel as SocketGuildChannel)?.Guild?.GetTextChannel(channelId);
-            await component.ModifyOriginalResponseAsync(msg => 
+            await component.ModifyOriginalResponseAsync(msg =>
                 msg.Content = $"✅ Primary channel set to {channel?.Mention ?? $"<#{channelId}>"}");
-            
+
             // Refresh the interface after a short delay
             await Task.Delay(2000);
             await ShowChannelConfigurationAsync(component, guildId);
@@ -1250,13 +1250,13 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                 "grok" => "Grok",
                 _ => provider
             };
-            
+
             serverMeta.PreferredProvider = normalizedProvider;
             await _serverMetaService.UpdateServerMetaAsync(serverMeta);
-            
-            await component.ModifyOriginalResponseAsync(msg => 
+
+            await component.ModifyOriginalResponseAsync(msg =>
                 msg.Content = $"✅ AI provider set to **{normalizedProvider}**");
-            
+
             // Refresh the interface after a short delay
             await Task.Delay(2000);
             await ShowProviderConfigurationAsync(component, guildId);
@@ -1277,7 +1277,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                     await Task.Delay(2000);
                     await ShowPersonaConfigurationAsync(component, guildId);
                     break;
-                    
+
                 case "channel":
                     serverMeta.PrimaryChannelId = null;
                     await _serverMetaService.UpdateServerMetaAsync(serverMeta);
@@ -1285,7 +1285,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                     await Task.Delay(2000);
                     await ShowChannelConfigurationAsync(component, guildId);
                     break;
-                    
+
                 case "nsfw_channel":
                     serverMeta.NsfwChannelId = null;
                     await _serverMetaService.UpdateServerMetaAsync(serverMeta);
@@ -1293,7 +1293,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                     await Task.Delay(2000);
                     await ShowNsfwChannelConfigurationAsync(component, guildId);
                     break;
-                    
+
                 case "provider":
                     serverMeta.PreferredProvider = null;
                     await _serverMetaService.UpdateServerMetaAsync(serverMeta);
@@ -1318,11 +1318,11 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
             .WithCurrentTimestamp();
 
         // Basic server info
-        embedBuilder.AddField("📅 Created", 
+        embedBuilder.AddField("📅 Created",
             $"<t:{guild.CreatedAt.ToUnixTimeSeconds()}:F>\n<t:{guild.CreatedAt.ToUnixTimeSeconds()}:R>", true);
-        
+
         var owner = guild.Owner;
-        embedBuilder.AddField("👑 Owner", 
+        embedBuilder.AddField("👑 Owner",
             owner != null ? $"{owner.Mention}\n{owner.Username}#{owner.Discriminator}" : "*Not found*", true);
 
         embedBuilder.AddField("🆔 Server ID", guild.Id.ToString(), true);
@@ -1333,7 +1333,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         var botCount = guild.Users.Count(u => u.IsBot);
         var humanCount = memberCount - botCount;
 
-        embedBuilder.AddField("👥 Members", 
+        embedBuilder.AddField("👥 Members",
             $"**Total:** {memberCount:N0}\n**Humans:** {humanCount:N0}\n**Bots:** {botCount:N0}", true);
 
         embedBuilder.AddField("🟢 Online", $"{onlineCount:N0} members", true);
@@ -1350,14 +1350,14 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         var features = guild.Features.ToString().Replace("_", " ").ToLower();
         if (string.IsNullOrEmpty(features) || features == "0")
             features = "*None*";
-        
-        embedBuilder.AddField("✨ Features", 
+
+        embedBuilder.AddField("✨ Features",
             features.Length > 100 ? $"{features[..100]}..." : features, false);
 
         // Server boost info
         if (guild.PremiumSubscriptionCount > 0)
         {
-            embedBuilder.AddField("💎 Boost Level", 
+            embedBuilder.AddField("💎 Boost Level",
                 $"Level {guild.PremiumTier} ({guild.PremiumSubscriptionCount} boosts)", true);
         }
 
@@ -1396,7 +1396,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
 
         // Section 1: Configured Channels (Components V2 style)
         var channelInfo = new StringBuilder();
-        
+
         if (serverMeta?.PrimaryChannelId.HasValue == true)
         {
             var primaryChannel = guild.GetTextChannel(serverMeta.PrimaryChannelId.Value);
@@ -1422,7 +1422,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         // Section 2: AI Related Information
         var aiInfo = new StringBuilder();
         aiInfo.AppendLine($"**🤖 Provider:** {serverMeta?.PreferredProvider ?? "*Using default (OpenAI)*"}");
-        
+
         // TODO: Add actual message count and token estimates when these services are available
         aiInfo.AppendLine($"**💬 Conversation Messages:** *Data not available*");
         aiInfo.AppendLine($"**🧠 Memory Tokens (Est.):** *Data not available*");
@@ -1433,14 +1433,14 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         var enabledToggles = toggles.Where(t => t.IsEnabled).ToList();
         var disabledToggles = toggles.Where(t => !t.IsEnabled).ToList();
 
-        embedBuilder.AddField("🎛️ Feature Summary", 
+        embedBuilder.AddField("🎛️ Feature Summary",
             $"**Enabled:** {enabledToggles.Count}/{toggles.Count}\n" +
             $"**Most Recent:** {toggles.OrderByDescending(t => t.CreatedAt).FirstOrDefault()?.Name ?? "*None*"}", true);
 
         // Server metadata timestamps
         if (serverMeta != null)
         {
-            embedBuilder.AddField("📅 Metadata", 
+            embedBuilder.AddField("📅 Metadata",
                 $"**Created:** <t:{((DateTimeOffset)serverMeta.CreatedAt).ToUnixTimeSeconds()}:R>\n" +
                 $"**Updated:** <t:{((DateTimeOffset)serverMeta.LastUpdated).ToUnixTimeSeconds()}:R>", true);
         }
@@ -1474,29 +1474,29 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         // TODO: When chat session service is properly accessible, get real data
         // For now, show placeholder information with proper structure
 
-        embedBuilder.AddField("📊 Active Sessions", 
+        embedBuilder.AddField("📊 Active Sessions",
             "*Session data not available*\n" +
             "This will show active conversation sessions, participant counts, and session duration.", false);
 
-        embedBuilder.AddField("💬 Message Statistics", 
+        embedBuilder.AddField("💬 Message Statistics",
             "*Message statistics not available*\n" +
             "This will show:\n" +
             "• Recent message count\n" +
             "• Average messages per day\n" +
             "• Most active channels", true);
 
-        embedBuilder.AddField("🧠 Context Memory", 
+        embedBuilder.AddField("🧠 Context Memory",
             "*Context memory data not available*\n" +
             "This will show:\n" +
             "• Current context size\n" +
             "• Token usage estimates\n" +
             "• Memory optimization status", true);
 
-        embedBuilder.AddField("⏱️ Response Times", 
+        embedBuilder.AddField("⏱️ Response Times",
             "*Performance data not available*\n" +
             "This will show average response times and processing stats.", false);
 
-        embedBuilder.AddField("🔗 Recent Interactions", 
+        embedBuilder.AddField("🔗 Recent Interactions",
             "*No recent interaction data available*\n" +
             "This will show the last few interactions with timestamps.", false);
 
@@ -1532,7 +1532,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         {
             // Show the full persona without truncation in a code block for better formatting
             var persona = serverMeta.Persona;
-            
+
             // If the persona is very long, we might need to split it across fields
             if (persona.Length <= 1024)
             {
@@ -1550,19 +1550,19 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
             }
 
             // Persona statistics
-            embedBuilder.AddField("📊 Persona Statistics", 
+            embedBuilder.AddField("📊 Persona Statistics",
                 $"**Length:** {persona.Length:N0} characters\n" +
                 $"**Words:** ~{persona.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length:N0}\n" +
                 $"**Lines:** {persona.Split('\n').Length:N0}", true);
 
             // When was it last updated
-            embedBuilder.AddField("📅 Last Updated", 
+            embedBuilder.AddField("📅 Last Updated",
                 $"<t:{((DateTimeOffset)serverMeta.LastUpdated).ToUnixTimeSeconds()}:F>\n" +
                 $"<t:{((DateTimeOffset)serverMeta.LastUpdated).ToUnixTimeSeconds()}:R>", true);
         }
         else
         {
-            embedBuilder.AddField("🎭 Current Persona", 
+            embedBuilder.AddField("🎭 Current Persona",
                 "*No persona configured for this server.*\n\n" +
                 "A persona helps define how the AI assistant should behave, including:\n" +
                 "• Communication style and tone\n" +
@@ -1570,7 +1570,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                 "• Personality traits\n" +
                 "• Response patterns", false);
 
-            embedBuilder.AddField("💡 Getting Started", 
+            embedBuilder.AddField("💡 Getting Started",
                 "Use the **Set Persona** button to configure how the AI should behave in your server.", false);
         }
 
@@ -1597,12 +1597,12 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
     {
         var result = new List<string>();
         var currentPos = 0;
-        
+
         while (currentPos < text.Length)
         {
             var remainingLength = text.Length - currentPos;
             var chunkLength = Math.Min(maxLength, remainingLength);
-            
+
             if (remainingLength > maxLength)
             {
                 // Try to break at a word boundary
@@ -1612,15 +1612,15 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                     chunkLength = lastSpace - currentPos;
                 }
             }
-            
+
             result.Add(text.Substring(currentPos, chunkLength));
             currentPos += chunkLength;
-            
+
             // Skip the space if we broke at a word boundary
             if (currentPos < text.Length && text[currentPos] == ' ')
                 currentPos++;
         }
-        
+
         return result;
     }
 
@@ -1628,9 +1628,9 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
     {
         if (string.IsNullOrWhiteSpace(text))
             return string.Empty;
-            
-        return text.Length <= maxLength 
-            ? text 
+
+        return text.Length <= maxLength
+            ? text
             : $"{text[..maxLength]}...";
     }
 
@@ -1741,8 +1741,8 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         if (serverMeta?.NsfwChannelId.HasValue == true)
         {
             var currentChannel = guild.GetTextChannel(serverMeta.NsfwChannelId.Value);
-            embedBuilder.AddField("Current NSFW Channel", 
-                currentChannel != null ? currentChannel.Mention : "*Channel not found*", 
+            embedBuilder.AddField("Current NSFW Channel",
+                currentChannel != null ? currentChannel.Mention : "*Channel not found*",
                 false);
         }
         else
@@ -1752,10 +1752,10 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
 
         // Check if Daily NSFW toggle is enabled
         var isDailyNsfwEnabled = await _toggleService.IsEnabledAsync(guildId, Constants.ToggleNames.EnableDailyNSFW);
-        var warningText = isDailyNsfwEnabled 
+        var warningText = isDailyNsfwEnabled
             ? "⚠️ Daily NSFW feature is **enabled**. Set a channel to receive daily content."
             : "ℹ️ Daily NSFW feature is **disabled**. Enable it in Feature Toggles to use this channel.";
-        
+
         embedBuilder.AddField("Daily NSFW Status", warningText, false);
 
         var builder = new ComponentBuilderV2();
@@ -1777,7 +1777,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                     emote: new Emoji("🔞"),
                     isDefault: isSelected));
             }
-            
+
             var selectMenu = new SelectMenuBuilder(
                 _componentHandler.GenerateCustomId(ConfigActionPrefix, "set_nsfw_channel", guildId.ToString()),
                 selectMenuOptions)
@@ -1789,10 +1789,10 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         }
         else
         {
-            embedBuilder.AddField("⚠️ No NSFW Channels Found", 
+            embedBuilder.AddField("⚠️ No NSFW Channels Found",
                 "No NSFW channels were found where the bot has permissions. Please:\n" +
                 "• Create a channel and mark it as NSFW (18+)\n" +
-                "• Ensure the bot has permission to send messages", 
+                "• Ensure the bot has permission to send messages",
                 false);
         }
 
@@ -1831,7 +1831,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         // Verify channel is NSFW
         if (!channel.IsNsfw)
         {
-            await component.ModifyOriginalResponseAsync(msg => 
+            await component.ModifyOriginalResponseAsync(msg =>
                 msg.Content = $"❌ {channel.Mention} is not marked as NSFW. Please mark it as 18+ in channel settings.");
             return;
         }
@@ -1841,10 +1841,10 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         {
             serverMeta.NsfwChannelId = channelId;
             await _serverMetaService.UpdateServerMetaAsync(serverMeta);
-            
-            await component.ModifyOriginalResponseAsync(msg => 
+
+            await component.ModifyOriginalResponseAsync(msg =>
                 msg.Content = $"✅ NSFW channel set to {channel.Mention}");
-            
+
             // Refresh the interface after a short delay
             await Task.Delay(2000);
             await ShowNsfwChannelConfigurationAsync(component, guildId);

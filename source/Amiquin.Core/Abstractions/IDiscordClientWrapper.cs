@@ -12,7 +12,7 @@ public interface IDiscordClientWrapper
     /// Current user of the Discord client
     /// </summary>
     SocketSelfUser? CurrentUser { get; }
-    
+
     /// <summary>
     /// Get a guild by ID
     /// </summary>
@@ -28,7 +28,7 @@ public interface IDiscordGuildWrapper
     /// Guild name
     /// </summary>
     string Name { get; }
-    
+
     /// <summary>
     /// Guild ID
     /// </summary>

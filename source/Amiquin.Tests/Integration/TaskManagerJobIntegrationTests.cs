@@ -22,7 +22,7 @@ public class TaskManagerJobIntegrationTests
         var mockLogger = new Mock<ILogger<JobService>>();
         var mockServiceScopeFactory = new Mock<IServiceScopeFactory>();
         var mockTaskManager = new Mock<ITaskManager>();
-        
+
         var jobOptions = new JobManagerOptions
         {
             EnableAutoRestart = true,
@@ -30,7 +30,7 @@ public class TaskManagerJobIntegrationTests
             MinimumJobIntervalSeconds = 1,
             MaximumJobIntervalSeconds = 3600
         };
-        
+
         var optionsMock = new Mock<IOptions<JobManagerOptions>>();
         optionsMock.Setup(o => o.Value).Returns(jobOptions);
 
@@ -64,13 +64,13 @@ public class TaskManagerJobIntegrationTests
         // Assert
         Assert.True(createResult);
         Assert.Equal(1, jobService.ActiveJobCount);
-        
+
         // The job should be created successfully even though execution will timeout
         var createdJob = jobService.GetJob("timeout-test-job");
         Assert.NotNull(createdJob);
         Assert.Equal("TimeoutTestJob", createdJob.Name);
         Assert.Equal(TimeSpan.FromSeconds(1), createdJob.Interval);
-        
+
         await jobService.DisposeAsync();
     }
 
@@ -81,7 +81,7 @@ public class TaskManagerJobIntegrationTests
         var mockLogger = new Mock<ILogger<JobService>>();
         var mockServiceScopeFactory = new Mock<IServiceScopeFactory>();
         var mockTaskManager = new Mock<ITaskManager>();
-        
+
         var jobOptions = new JobManagerOptions();
         var optionsMock = new Mock<IOptions<JobManagerOptions>>();
         optionsMock.Setup(o => o.Value).Returns(jobOptions);
@@ -100,11 +100,11 @@ public class TaskManagerJobIntegrationTests
             {
                 capturedRequestId = requestId;
                 // Execute the task and return a completed task
-                return Task.FromResult(new TrackedAmiquinJob 
-                { 
-                    Id = "test-job", 
-                    Name = "TestJob", 
-                    Status = JobStatus.Completed 
+                return Task.FromResult(new TrackedAmiquinJob
+                {
+                    Id = "test-job",
+                    Name = "TestJob",
+                    Status = JobStatus.Completed
                 });
             });
 
@@ -135,10 +135,10 @@ public class TaskManagerJobIntegrationTests
 
         // Give a moment for potential async operations
         await Task.Delay(50);
-        
+
         // Verify TaskManager integration points are set up correctly
         Assert.NotNull(capturedRequestId);
-        
+
         await jobService.DisposeAsync();
     }
 
@@ -149,7 +149,7 @@ public class TaskManagerJobIntegrationTests
         var mockLogger = new Mock<ILogger<JobService>>();
         var mockServiceScopeFactory = new Mock<IServiceScopeFactory>();
         var mockTaskManager = new Mock<ITaskManager>();
-        
+
         var jobOptions = new JobManagerOptions();
         var optionsMock = new Mock<IOptions<JobManagerOptions>>();
         optionsMock.Setup(o => o.Value).Returns(jobOptions);
@@ -177,7 +177,7 @@ public class TaskManagerJobIntegrationTests
         // Act & Assert - Pause job
         var pauseResult = jobService.PauseJob("lifecycle-test-job");
         Assert.True(pauseResult);
-        
+
         var pausedJob = jobService.GetJob("lifecycle-test-job");
         Assert.NotNull(pausedJob);
         Assert.Equal(JobStatus.Paused, pausedJob.Status);
@@ -185,7 +185,7 @@ public class TaskManagerJobIntegrationTests
         // Act & Assert - Resume job
         var resumeResult = jobService.ResumeJob("lifecycle-test-job");
         Assert.True(resumeResult);
-        
+
         var resumedJob = jobService.GetJob("lifecycle-test-job");
         Assert.NotNull(resumedJob);
         Assert.Equal(JobStatus.Pending, resumedJob.Status);
@@ -194,7 +194,7 @@ public class TaskManagerJobIntegrationTests
         var cancelResult = jobService.CancelJob("lifecycle-test-job");
         Assert.True(cancelResult);
         Assert.Equal(0, jobService.ActiveJobCount);
-        
+
         var cancelledJob = jobService.GetJob("lifecycle-test-job");
         Assert.Null(cancelledJob); // Should be removed from active jobs
     }

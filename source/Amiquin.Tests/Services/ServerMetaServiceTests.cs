@@ -28,20 +28,20 @@ public class ServerMetaServiceTests
             .Returns(cacheEntryMock.Object);
 
         _serverMetaRepositoryMock = new Mock<IServerMetaRepository>();
-        
+
         _serviceScopeMock = new Mock<IServiceScope>();
         _serviceProviderMock = new Mock<IServiceProvider>();
-        
+
         // Setup the service provider to return the repository when requested
         var scopeServiceProviderMock = new Mock<IServiceProvider>();
         scopeServiceProviderMock
             .Setup(sp => sp.GetRequiredService<IServerMetaRepository>())
             .Returns(_serverMetaRepositoryMock.Object);
-            
+
         _serviceScopeMock
             .Setup(s => s.ServiceProvider)
             .Returns(scopeServiceProviderMock.Object);
-            
+
         _serviceProviderMock
             .Setup(sp => sp.CreateScope())
             .Returns(_serviceScopeMock.Object);

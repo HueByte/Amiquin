@@ -385,7 +385,7 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
         // var amiquinBannerUrl = $"https://cdn.discordapp.com/banners/{Context.Client.CurrentUser.Id}/{Context.Client.CurrentUser.BannerId}?size=512";
 
         var amiquinBannerUrl = "https://cdn.discordapp.com/banners/1350616120838590464/ee9ef09c613404439b9fa64ee6cc6a7a?size=512";
-        
+
         // Create ComponentsV2 display with bot information
         var components = new ComponentBuilderV2()
             .WithTextDisplay("# ☁️ Amiquin Bot Information\n## A modular and extensible Discord bot")
@@ -701,13 +701,13 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
         private async Task ShowSessionSwitchUI(List<Amiquin.Core.Models.ChatSession> sessions)
         {
             var activeSession = sessions.FirstOrDefault(s => s.IsActive);
-            
+
             var selectOptions = sessions.Take(25).Select(session => // Discord limit for select menu options
             {
                 var isActive = session.IsActive;
                 var description = $"{session.MessageCount} msgs, {session.Provider}/{session.Model}";
                 if (isActive) description = $"🟢 ACTIVE • {description}";
-                
+
                 return new SelectMenuOptionBuilder()
                     .WithLabel(session.Name)
                     .WithValue(session.Id)

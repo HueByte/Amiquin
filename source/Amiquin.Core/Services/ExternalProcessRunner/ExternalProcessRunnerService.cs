@@ -28,7 +28,7 @@ public class ExternalProcessRunnerService : IExternalProcessRunnerService, IDisp
     public Process CreatePiperProcess(string piperCommand, string modelPath, string ttsOutputPath)
     {
         if (_disposed) throw new ObjectDisposedException(GetType().Name);
-        
+
         ValidateProcessParameters(piperCommand, nameof(piperCommand));
         ValidateProcessParameters(modelPath, nameof(modelPath));
         ValidateProcessParameters(ttsOutputPath, nameof(ttsOutputPath));
@@ -79,7 +79,7 @@ public class ExternalProcessRunnerService : IExternalProcessRunnerService, IDisp
     public Process CreateFfmpegProcess(string audioPath)
     {
         if (_disposed) throw new ObjectDisposedException(GetType().Name);
-        
+
         ValidateProcessParameters(audioPath, nameof(audioPath));
 
         if (!File.Exists(audioPath))
@@ -136,10 +136,10 @@ public class ExternalProcessRunnerService : IExternalProcessRunnerService, IDisp
 
             process.Start();
             await process.WaitForExitAsync(cancellationToken);
-            
+
             var isValid = process.ExitCode == 0;
             _logger.LogDebug("Executable validation for {Executable}: {IsValid}", executableName, isValid);
-            
+
             return isValid;
         }
         catch (Exception ex)
@@ -180,7 +180,7 @@ public class ExternalProcessRunnerService : IExternalProcessRunnerService, IDisp
     private ManagedProcess CreateManagedProcess(ProcessStartInfo startInfo, ProcessType type)
     {
         var process = new Process { StartInfo = startInfo };
-        
+
         // Set up process exit event handler
         process.EnableRaisingEvents = true;
         process.Exited += (sender, e) =>
@@ -192,12 +192,12 @@ public class ExternalProcessRunnerService : IExternalProcessRunnerService, IDisp
         };
 
         var managedProcess = new ManagedProcess(process, type);
-        
+
         try
         {
             process.Start();
             _managedProcesses.TryAdd(process.Id, managedProcess);
-            
+
             _logger.LogDebug("Created {ProcessType} process with ID {ProcessId}", type, process.Id);
         }
         catch (Exception ex)
@@ -244,10 +244,10 @@ public class ExternalProcessRunnerService : IExternalProcessRunnerService, IDisp
     public void Dispose()
     {
         if (_disposed) return;
-        
+
         _disposed = true;
 
-        _logger.LogInformation("Disposing ExternalProcessRunnerService with {ProcessCount} managed processes", 
+        _logger.LogInformation("Disposing ExternalProcessRunnerService with {ProcessCount} managed processes",
             _managedProcesses.Count);
 
         // Clean up all managed processes
@@ -260,13 +260,13 @@ public class ExternalProcessRunnerService : IExternalProcessRunnerService, IDisp
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Error disposing managed process {ProcessId}", 
+                _logger.LogWarning(ex, "Error disposing managed process {ProcessId}",
                     managedProcess.Process?.Id ?? -1);
             }
         }
 
         _managedProcesses.Clear();
-        
+
         GC.SuppressFinalize(this);
     }
 

@@ -80,7 +80,7 @@ public class InteractionCommands : InteractionModuleBase<ExtendedShardedInteract
         try
         {
             var gifUrl = await _funService.GetInteractionGifAsync(interactionType);
-            
+
             var embed = new EmbedBuilder()
                 .WithDescription($"{emoji} **{Context.User.Mention} {actionText} {targetUser.Mention}!** {emoji}")
                 .WithColor(Color.Purple);

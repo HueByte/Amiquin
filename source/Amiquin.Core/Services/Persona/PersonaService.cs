@@ -77,7 +77,7 @@ public class PersonaService : IPersonaService
     {
         var semaphore = _chatSemaphoreManager.GetOrCreateInstanceSemaphore(serverId);
         await semaphore.WaitAsync();
-        
+
         try
         {
             var cacheKey = StringModifier.CreateCacheKey(Constants.CacheKeys.ComputedPersonaMessageKey, serverId.ToString());
@@ -90,7 +90,7 @@ public class PersonaService : IPersonaService
             personaMessage += $"This is your summary of recent conversations: {updateMessage}";
             // Use the server-specific cache key consistently
             _memoryCache.Set(cacheKey, personaMessage, TimeSpan.FromDays(Constants.PersonaDefaults.PersonaCacheDurationDays));
-            
+
             _logger.LogDebug("Added summary to persona for server {ServerId}: {Summary}", serverId, updateMessage);
         }
         finally
@@ -112,10 +112,10 @@ public class PersonaService : IPersonaService
 
         // Load base persona from Persona.md file
         string basePersona = await LoadBasePersonaAsync();
-        
+
         // Get server-specific persona from metadata
         string? serverPersona = (await _serverMetaService.GetServerMetaAsync(serverId))?.Persona;
-        
+
         // Combine base persona with server-specific persona
         if (!string.IsNullOrEmpty(serverPersona))
         {
@@ -136,11 +136,11 @@ public class PersonaService : IPersonaService
 
         return personaMessage;
     }
-    
+
     private async Task<string> LoadBasePersonaAsync()
     {
         const string basePersonaCacheKey = "BasePersona";
-        
+
         // Check cache first
         if (_memoryCache.TryGetValue(basePersonaCacheKey, out string? cachedBasePersona))
         {
@@ -149,7 +149,7 @@ public class PersonaService : IPersonaService
                 return cachedBasePersona;
             }
         }
-        
+
         try
         {
             // Try to load from Messages/Persona.md file
@@ -216,7 +216,7 @@ public class PersonaService : IPersonaService
             }
 
             var response = await _coreChatService.CoreRequestAsync(
-                sb.ToString(), 
+                sb.ToString(),
                 tokenLimit: Constants.PersonaDefaults.NewsPersonaTokenLimit);
             var personaOpinion = response.Content;
             _logger.LogInformation("Persona Opinion: {personaOpinion}", personaOpinion);
@@ -263,7 +263,7 @@ public class PersonaService : IPersonaService
     {
         if (string.IsNullOrEmpty(message))
             return message;
-            
+
         string name = _botOptions.Name;
         string version = _botOptions.Version;
 

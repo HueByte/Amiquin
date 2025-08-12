@@ -26,7 +26,7 @@ public class ModelAutoCompleteHandler : AutocompleteHandler
             {
                 var model = modelProvider.Key;
                 var provider = modelProvider.Value;
-                
+
                 if (string.IsNullOrWhiteSpace(userInput) || model.ToLowerInvariant().Contains(userInput))
                 {
                     suggestions.Add(new AutocompleteResult($"{model} ({provider})", model));

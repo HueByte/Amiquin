@@ -158,7 +158,7 @@ public class CommandHandlerService : ICommandHandlerService
                 GetCommandName(interaction), interaction.User.Id, guildId);
 
             var result = await _interactionService.ExecuteCommandAsync(extendedContext, scope.ServiceProvider);
-            _logger.LogDebug("Interaction execution result: Success={IsSuccess}, Error={Error}, ErrorReason={ErrorReason}", 
+            _logger.LogDebug("Interaction execution result: Success={IsSuccess}, Error={Error}, ErrorReason={ErrorReason}",
                 result.IsSuccess, result.Error, result.ErrorReason);
 
             // Command executed - BotContextAccessor will be finished in HandleSlashCommandExecuted regardless of success/failure
@@ -288,7 +288,7 @@ public class CommandHandlerService : ICommandHandlerService
 
         // Get the actual command name - need to handle nested subcommand groups properly
         string commandName;
-        
+
         // Check if there's a subcommand group (like "admin config setup")
         var firstOption = command.Data.Options?.FirstOrDefault();
         if (firstOption?.Type == ApplicationCommandOptionType.SubCommandGroup)
@@ -307,10 +307,10 @@ public class CommandHandlerService : ICommandHandlerService
             // This is a top-level command
             commandName = command.Data.Name;
         }
-        
+
         var isModal = !string.IsNullOrEmpty(commandName) && _modalCommands.Contains(commandName);
-        
-        _logger.LogDebug("Checking modal command: '{CommandName}' -> IsModal: {IsModal} (Full structure: {FullCommand})", 
+
+        _logger.LogDebug("Checking modal command: '{CommandName}' -> IsModal: {IsModal} (Full structure: {FullCommand})",
             commandName, isModal, GetFullSlashCommandName(command));
         return isModal;
     }

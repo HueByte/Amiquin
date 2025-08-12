@@ -10,7 +10,7 @@ public class BotOptions : IOption
     public bool PrintLogo { get; set; } = false;
     public int MessageFetchCount { get; set; } = 40;
     public int MaxTokens { get; set; } = 20000;
-    
+
     /// <summary>
     /// Gets the version from the assembly, not from configuration.
     /// </summary>

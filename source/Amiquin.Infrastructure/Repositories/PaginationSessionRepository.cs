@@ -67,13 +67,13 @@ public class PaginationSessionRepository : IPaginationSessionRepository
     public async Task<int> CleanupExpiredAsync(CancellationToken cancellationToken = default)
     {
         var expiredSessions = await GetExpiredAsync(cancellationToken);
-        
+
         if (!expiredSessions.Any())
             return 0;
 
         _context.PaginationSessions.RemoveRange(expiredSessions);
         await _context.SaveChangesAsync(cancellationToken);
-        
+
         return expiredSessions.Count;
     }
 

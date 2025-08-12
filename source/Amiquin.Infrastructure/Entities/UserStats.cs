@@ -56,7 +56,7 @@ public class UserStats : Core.Models.UserStats
     /// Gets the JSON representation of fun statistics.
     /// </summary>
     protected override string GetStatsJson() => FunStatsJson;
-    
+
     /// <summary>
     /// Sets the JSON representation of fun statistics.
     /// </summary>

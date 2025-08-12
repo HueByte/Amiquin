@@ -18,19 +18,19 @@ public class ChannelAutoCompleteHandler : AutocompleteHandler
         try
         {
             var suggestions = new List<AutocompleteResult>();
-            
+
             if (context.Guild == null)
             {
                 return AutocompletionResult.FromSuccess(suggestions);
             }
 
             var userInput = autocompleteInteraction.Data.Current.Value?.ToString()?.ToLowerInvariant() ?? "";
-            
+
             var channels = await context.Guild.GetChannelsAsync();
             var textChannels = channels
                 .OfType<ITextChannel>()
                 .OrderBy(c => c.Position)
-                .Where(c => string.IsNullOrWhiteSpace(userInput) || 
+                .Where(c => string.IsNullOrWhiteSpace(userInput) ||
                            c.Name.ToLowerInvariant().Contains(userInput) ||
                            c.Id.ToString().Contains(userInput));
 

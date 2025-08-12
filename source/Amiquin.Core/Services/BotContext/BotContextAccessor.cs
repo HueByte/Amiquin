@@ -17,7 +17,7 @@ public class BotContextAccessor : IDisposable
     private readonly Timer _timeoutTimer;
     private volatile bool _disposed;
     private volatile bool _isFinished;
-    
+
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromMinutes(5); // 5 minute timeout
 
     /// <summary>
@@ -73,8 +73,8 @@ public class BotContextAccessor : IDisposable
     /// <summary>
     /// Gets the execution duration in milliseconds.
     /// </summary>
-    public long ExecutionTimeMs => _isFinished 
-        ? (long)(FinishedAt - CreatedAt).TotalMilliseconds 
+    public long ExecutionTimeMs => _isFinished
+        ? (long)(FinishedAt - CreatedAt).TotalMilliseconds
         : (long)(DateTime.UtcNow - CreatedAt).TotalMilliseconds;
 
     /// <summary>
@@ -95,11 +95,11 @@ public class BotContextAccessor : IDisposable
     {
         CreatedAt = DateTime.UtcNow;
         _logger = logger;
-        
+
         // Set up timeout timer to automatically finish context after timeout period
         _timeoutTimer = new Timer(OnTimeout, null, DefaultTimeout, Timeout.InfiniteTimeSpan);
-        
-        _logger?.LogTrace("Created new BotContextAccessor with ID: {ContextId} with {Timeout}ms timeout", 
+
+        _logger?.LogTrace("Created new BotContextAccessor with ID: {ContextId} with {Timeout}ms timeout",
             ContextId, DefaultTimeout.TotalMilliseconds);
     }
 
@@ -132,7 +132,7 @@ public class BotContextAccessor : IDisposable
             BotName = config.GetValue<string>(Constants.Environment.BotName) ?? Constants.DefaultValues.BotName;
             BotVersion = config.GetValue<string>(Constants.Environment.BotVersion) ?? Constants.DefaultValues.BotVersion;
 
-            _logger?.LogDebug("Initialized BotContextAccessor {ContextId} for server {ServerId} ({ServerName})", 
+            _logger?.LogDebug("Initialized BotContextAccessor {ContextId} for server {ServerId} ({ServerName})",
                 ContextId, ServerId, serverMeta.ServerName);
         }
     }
@@ -154,11 +154,11 @@ public class BotContextAccessor : IDisposable
 
             FinishedAt = DateTime.UtcNow;
             _isFinished = true;
-            
+
             // Stop the timeout timer since we've finished normally
             _timeoutTimer?.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
 
-            _logger?.LogDebug("Finished BotContextAccessor {ContextId} execution in {ExecutionTime}ms", 
+            _logger?.LogDebug("Finished BotContextAccessor {ContextId} execution in {ExecutionTime}ms",
                 ContextId, ExecutionTimeMs);
         }
     }
@@ -177,7 +177,7 @@ public class BotContextAccessor : IDisposable
             FinishedAt = DateTime.UtcNow;
             _isFinished = true;
 
-            _logger?.LogWarning("BotContextAccessor {ContextId} timed out after {Timeout}ms and was automatically finished", 
+            _logger?.LogWarning("BotContextAccessor {ContextId} timed out after {Timeout}ms and was automatically finished",
                 ContextId, DefaultTimeout.TotalMilliseconds);
         }
     }
@@ -228,7 +228,7 @@ public class BotContextAccessor : IDisposable
 
         var contextKey = $"{ContextId}:{key}";
         _contextData.AddOrUpdate(contextKey, value, (_, _) => value);
-        
+
         _logger?.LogTrace("Set context data {Key} for context {ContextId}", key, ContextId);
     }
 
@@ -259,7 +259,7 @@ public class BotContextAccessor : IDisposable
     public string GetContextSummary()
     {
         var summary = $"Context {ContextId}: ";
-        
+
         if (IsInitialized)
         {
             summary += $"Server={ServerMeta?.ServerName} ({ServerId}), " +
@@ -303,7 +303,7 @@ public class BotContextAccessor : IDisposable
             }
 
             _disposed = true;
-            _logger?.LogTrace("Disposed BotContextAccessor {ContextId} after {ExecutionTime}ms", 
+            _logger?.LogTrace("Disposed BotContextAccessor {ContextId} after {ExecutionTime}ms",
                 ContextId, ExecutionTimeMs);
         }
 

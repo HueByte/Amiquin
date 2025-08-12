@@ -25,7 +25,7 @@ public class SimpleChatServiceTests
         var mockMessageCache = new Mock<IMessageCacheService>();
         var mockSemaphoreManager = new Mock<ISemaphoreManager>();
         var mockProvider = new Mock<IChatProvider>();
-        
+
         var llmOptions = new LLMOptions
         {
             GlobalSystemMessage = "You are a helpful AI assistant",
@@ -63,14 +63,14 @@ public class SimpleChatServiceTests
 
         // Assert
         Assert.Equal("Test response", result.Content);
-        
+
         // Verify the system message contains both base and custom persona
         mockProvider.Verify(x => x.ChatAsync(
-            It.Is<List<SessionMessage>>(msgs => 
-                msgs.Count == 2 && 
-                msgs[0].Role == "system" && 
+            It.Is<List<SessionMessage>>(msgs =>
+                msgs.Count == 2 &&
+                msgs[0].Role == "system" &&
                 msgs[0].Content.Contains("Base persona") &&
-                msgs[0].Content.Contains("Custom persona")), 
+                msgs[0].Content.Contains("Custom persona")),
             It.IsAny<ChatCompletionOptions>()), Times.Once);
     }
 
@@ -82,7 +82,7 @@ public class SimpleChatServiceTests
         var mockProviderFactory = new Mock<IChatProviderFactory>();
         var mockMessageCache = new Mock<IMessageCacheService>();
         var mockSemaphoreManager = new Mock<ISemaphoreManager>();
-        
+
         var llmOptions = new LLMOptions
         {
             GlobalSystemMessage = "You are a helpful AI assistant",
@@ -113,7 +113,7 @@ public class SimpleChatServiceTests
         Assert.Contains("Provider not found", exception.Message);
     }
 
-    [Fact] 
+    [Fact]
     public async Task PersonaChatService_Should_HandleBasicFlow()
     {
         // This is a simplified test that verifies the basic structure without complex mocking
@@ -122,7 +122,7 @@ public class SimpleChatServiceTests
         var mockMessageCache = new Mock<IMessageCacheService>();
         var mockServerMetaService = new Mock<IServerMetaService>();
         var mockServiceProvider = new Mock<IServiceProvider>();
-        
+
         var botOptions = new BotOptions { Name = "TestBot", MaxTokens = 4000 };
         var mockBotOptions = new Mock<IOptions<BotOptions>>();
         mockBotOptions.Setup(x => x.Value).Returns(botOptions);

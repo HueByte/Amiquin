@@ -1,3 +1,4 @@
+using Amiquin.Bot.Commands;
 using Amiquin.Core;
 using Amiquin.Core.Job;
 using Amiquin.Core.Options;
@@ -6,7 +7,6 @@ using Amiquin.Core.Services.CommandHandler;
 using Amiquin.Core.Services.Configuration;
 using Amiquin.Core.Services.EventHandler;
 using Amiquin.Core.Utilities;
-using Amiquin.Bot.Commands;
 using Amiquin.Infrastructure;
 using Discord;
 using Discord.Interactions;
@@ -74,7 +74,7 @@ public class AmiquinHost : IHostedService
         {
             var configurationService = scope.ServiceProvider.GetRequiredService<IConfigurationInteractionService>();
             configurationService.Initialize();
-            
+
             // Initialize session component handlers (scoped service)
             var sessionComponentHandlers = scope.ServiceProvider.GetRequiredService<SessionComponentHandlers>();
             // Handlers are registered in constructor, so just getting the service initializes them

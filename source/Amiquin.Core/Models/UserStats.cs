@@ -33,7 +33,7 @@ public class UserStats : DbModel<int>
     /// This is implemented in the Infrastructure layer.
     /// </summary>
     protected virtual string GetStatsJson() => "{}";
-    
+
     /// <summary>
     /// Sets the JSON representation of fun statistics.
     /// This is implemented in the Infrastructure layer.
@@ -56,7 +56,7 @@ public class UserStats : DbModel<int>
             {
                 try
                 {
-                    _statsCache = JsonSerializer.Deserialize<Dictionary<string, object>>(GetStatsJson()) 
+                    _statsCache = JsonSerializer.Deserialize<Dictionary<string, object>>(GetStatsJson())
                                   ?? new Dictionary<string, object>();
                 }
                 catch
@@ -86,7 +86,7 @@ public class UserStats : DbModel<int>
             {
                 return jsonElement.Deserialize<T>() ?? defaultValue;
             }
-            
+
             return (T)Convert.ChangeType(value, typeof(T)) ?? defaultValue;
         }
         catch
