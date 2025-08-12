@@ -73,7 +73,13 @@ public class ChatSession : DbModel<string>
     public string Provider { get; set; } = "OpenAI";
 
     /// <summary>
-    /// Whether the session is currently active
+    /// Display name for the session (user-friendly identifier)
+    /// </summary>
+    [MaxLength(100)]
+    public string Name { get; set; } = "Default Session";
+
+    /// <summary>
+    /// Whether the session is currently active (selected session for the server)
     /// </summary>
     public bool IsActive { get; set; } = true;
 
@@ -111,8 +117,9 @@ public class ChatSession : DbModel<string>
     /// <param name="serverId">Discord Server ID (for Server scope)</param>
     /// <param name="model">AI model to use for this session</param>
     /// <param name="provider">AI provider to use for this session</param>
+    /// <param name="name">Display name for the session</param>
     /// <returns>A new ChatSession instance</returns>
-    public static ChatSession CreateSession(SessionScope scope, ulong userId = 0, ulong channelId = 0, ulong serverId = 0, string model = "gpt-4o-mini", string provider = "OpenAI")
+    public static ChatSession CreateSession(SessionScope scope, ulong userId = 0, ulong channelId = 0, ulong serverId = 0, string model = "gpt-4o-mini", string provider = "OpenAI", string name = "Default Session")
     {
         var owningEntityId = scope switch
         {
@@ -134,6 +141,7 @@ public class ChatSession : DbModel<string>
             OwningEntityId = owningEntityId,
             Model = model,
             Provider = provider,
+            Name = name,
             CreatedAt = DateTime.UtcNow,
             LastActivityAt = DateTime.UtcNow,
             IsActive = true

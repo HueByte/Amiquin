@@ -185,7 +185,11 @@ public class EventHandlerService : IEventHandlerService
         var toggleService = scope.ServiceProvider.GetRequiredService<IToggleService>();
         var serverMeta = scope.ServiceProvider.GetRequiredService<IServerMetaService>();
 
+        // Create or update server metadata
         await serverMeta.CreateServerMetaAsync(guild.Id, guild.Name);
+        
+        // Ensure toggles exist for this server (this preserves existing toggle values)
+        await toggleService.CreateServerTogglesIfNotExistsAsync(guild.Id);
 
         if (await toggleService.IsEnabledAsync(guild.Id, Constants.ToggleNames.EnableJoinMessage))
         {

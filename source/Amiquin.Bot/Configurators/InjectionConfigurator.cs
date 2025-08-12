@@ -23,14 +23,18 @@ using Amiquin.Core.Services.MessageCache;
 using Amiquin.Core.Services.Nsfw;
 using Amiquin.Core.Services.Meta;
 using Amiquin.Core.Services.Modal;
+using Amiquin.Core.Services.ModelProvider;
 using Amiquin.Core.Services.Nacho;
 using Amiquin.Core.Services.Pagination;
 using Amiquin.Core.Services.Persona;
 using Amiquin.Core.Services.ServerInteraction;
+using Amiquin.Core.Services.SessionManager;
+using Amiquin.Core.Services.Sleep;
 using Amiquin.Core.Services.Toggle;
 using Amiquin.Core.Services.Voice;
 using Amiquin.Infrastructure;
 using Amiquin.Infrastructure.Repositories;
+using Amiquin.Bot.Commands;
 using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
@@ -168,7 +172,11 @@ public class InjectionConfigurator
                  .AddSingleton<IServerMetaService, ServerMetaService>()
                  .AddScoped<INachoService, NachoService>()
                  .AddScoped<IChatSessionService, ChatSessionService>()
-                 .AddScoped<IActivitySessionService, ActivitySessionService>();
+                 .AddScoped<IActivitySessionService, ActivitySessionService>()
+                 .AddScoped<ISessionManagerService, SessionManagerService>()
+                 .AddSingleton<ISleepService, SleepService>()
+                 .AddSingleton<IModelProviderMappingService, ModelProviderMappingService>()
+                 .AddScoped<SessionComponentHandlers>();
 
         // Provider factory and providers for managing LLM providers
         _services.AddScoped<IChatProviderFactory, ChatProviderFactory>()

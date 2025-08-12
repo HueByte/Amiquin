@@ -693,9 +693,9 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
             foreach (var channel in textChannels)
             {
                 var isSelected = serverMeta?.PrimaryChannelId == channel.Id;
-                var topic = channel.Topic != null && channel.Topic.Length > 50 
-                    ? channel.Topic[..50] + "..." 
-                    : channel.Topic ?? "No topic";
+                var topic = !string.IsNullOrWhiteSpace(channel.Topic)
+                    ? (channel.Topic.Length > 50 ? channel.Topic[..50] + "..." : channel.Topic)
+                    : "No topic set";
                 selectMenu.AddOption(
                     $"#{channel.Name}",
                     channel.Id.ToString(),
@@ -1645,9 +1645,9 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
             foreach (var channel in nsfwChannels)
             {
                 var isSelected = serverMeta?.NsfwChannelId == channel.Id;
-                var topic = channel.Topic != null && channel.Topic.Length > 50 
-                    ? channel.Topic[..50] + "..." 
-                    : channel.Topic ?? "No topic";
+                var topic = !string.IsNullOrWhiteSpace(channel.Topic)
+                    ? (channel.Topic.Length > 50 ? channel.Topic[..50] + "..." : channel.Topic)
+                    : "No topic set";
                 selectMenu.AddOption(
                     $"#{channel.Name}",
                     channel.Id.ToString(),

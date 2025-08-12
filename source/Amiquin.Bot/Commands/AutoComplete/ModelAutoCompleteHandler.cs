@@ -1,4 +1,5 @@
 using Amiquin.Core.Services.ChatSession;
+using Amiquin.Core.Services.ModelProvider;
 using Discord;
 using Discord.Interactions;
 using Microsoft.Extensions.DependencyInjection;
@@ -10,30 +11,30 @@ namespace Amiquin.Bot.Commands.AutoComplete;
 /// </summary>
 public class ModelAutoCompleteHandler : AutocompleteHandler
 {
-    public override async Task<AutocompletionResult> GenerateSuggestionsAsync(IInteractionContext context, IAutocompleteInteraction autocompleteInteraction, IParameterInfo parameter, IServiceProvider services)
+    public override Task<AutocompletionResult> GenerateSuggestionsAsync(IInteractionContext context, IAutocompleteInteraction autocompleteInteraction, IParameterInfo parameter, IServiceProvider services)
     {
         try
         {
-            var chatSessionService = services.GetRequiredService<IChatSessionService>();
-            var availableModels = await chatSessionService.GetAvailableModelsAsync();
+            var modelProviderService = services.GetRequiredService<IModelProviderMappingService>();
+            var modelProviderMap = modelProviderService.GetAllModelProviderMappings();
 
             var suggestions = new List<AutocompleteResult>();
             var userInput = autocompleteInteraction.Data.Current.Value?.ToString()?.ToLowerInvariant() ?? "";
 
-            // Flatten all models from all providers
-            foreach (var provider in availableModels)
+            // Create suggestions with provider info
+            foreach (var modelProvider in modelProviderMap)
             {
-                foreach (var model in provider.Value)
+                var model = modelProvider.Key;
+                var provider = modelProvider.Value;
+                
+                if (string.IsNullOrWhiteSpace(userInput) || model.ToLowerInvariant().Contains(userInput))
                 {
-                    if (string.IsNullOrWhiteSpace(userInput) || model.ToLowerInvariant().Contains(userInput))
-                    {
-                        suggestions.Add(new AutocompleteResult($"{model} ({provider.Key})", model));
-                    }
+                    suggestions.Add(new AutocompleteResult($"{model} ({provider})", model));
                 }
             }
 
             // Limit to 25 suggestions as per Discord API limit
-            return AutocompletionResult.FromSuccess(suggestions.Take(25));
+            return Task.FromResult(AutocompletionResult.FromSuccess(suggestions.Take(25)));
         }
         catch
         {
@@ -44,7 +45,7 @@ public class ModelAutoCompleteHandler : AutocompleteHandler
                 new("gpt-4o-mini", "gpt-4o-mini"),
                 new("gpt-4-turbo", "gpt-4-turbo")
             };
-            return AutocompletionResult.FromSuccess(fallbackSuggestions);
+            return Task.FromResult(AutocompletionResult.FromSuccess(fallbackSuggestions));
         }
     }
 }

@@ -92,7 +92,7 @@ public class InteractionCommands : InteractionModuleBase<ExtendedShardedInteract
 
             await ModifyOriginalResponseAsync(msg => msg.Embed = embed.Build());
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             await ModifyOriginalResponseAsync(msg => msg.Content = $"❌ Failed to {interactionType} {targetUser.Mention}. Try again later!");
         }

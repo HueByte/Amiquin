@@ -8,6 +8,8 @@ using Amiquin.Core.Services.ChatContext;
 using Amiquin.Core.Services.ChatSession;
 using Amiquin.Core.Services.Configuration;
 using Amiquin.Core.Services.Meta;
+using Amiquin.Core.Services.ModelProvider;
+using Amiquin.Core.Services.Sleep;
 using Amiquin.Core.Services.Toggle;
 using Discord;
 using Discord.Interactions;
@@ -29,6 +31,8 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
     private readonly IConfigurationInteractionService _configurationService;
     private readonly IChatContextService _chatContextService;
     private readonly IPersonaChatService _personaChatService;
+    private readonly ISleepService _sleepService;
+    private readonly IModelProviderMappingService _modelProviderMappingService;
 
     public AdminCommands(
         ILogger<AdminCommands> logger, 
@@ -38,7 +42,9 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
         BotContextAccessor botContextAccessor,
         IConfigurationInteractionService configurationService,
         IChatContextService chatContextService,
-        IPersonaChatService personaChatService)
+        IPersonaChatService personaChatService,
+        ISleepService sleepService,
+        IModelProviderMappingService modelProviderMappingService)
     {
         _logger = logger;
         _serverMetaService = serverMetaService;
@@ -48,6 +54,8 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
         _configurationService = configurationService;
         _chatContextService = chatContextService;
         _personaChatService = personaChatService;
+        _sleepService = sleepService;
+        _modelProviderMappingService = modelProviderMappingService;
     }
 
     [SlashCommand("set-persona", "Set the server persona")]
@@ -273,12 +281,19 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
 
     [SlashCommand("set-model", "Set the AI model for the server")]
     public async Task SetModelAsync(
-        [Summary("model", "The AI model to use")] [Autocomplete(typeof(ModelAutoCompleteHandler))] string model,
-        [Summary("provider", "The AI provider")] [Choice("OpenAI", "OpenAI")] [Choice("Anthropic", "Anthropic")] [Choice("Gemini", "Gemini")] [Choice("Grok", "Grok")] string provider = "OpenAI")
+        [Summary("model", "The AI model to use")] [Autocomplete(typeof(ModelAutoCompleteHandler))] string model)
     {
         try
         {
             var serverId = Context.Guild.Id;
+            
+            // Auto-detect provider from model
+            var provider = _modelProviderMappingService.GetProviderForModel(model);
+            if (string.IsNullOrEmpty(provider))
+            {
+                await ModifyOriginalResponseAsync(msg => msg.Content = $"❌ Unknown model: **{model}**. Use autocomplete to see available models.");
+                return;
+            }
             
             // Update server meta
             var serverMeta = _botContextAccessor.ServerMeta;
@@ -309,9 +324,96 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error setting model {Model} from {Provider} for server {ServerId}", 
-                model, provider, Context.Guild.Id);
+            _logger.LogError(ex, "Error setting model {Model} for server {ServerId}", 
+                model, Context.Guild.Id);
             await ModifyOriginalResponseAsync(msg => msg.Content = "❌ An error occurred while updating the AI model.");
+        }
+    }
+
+    [SlashCommand("sleep", "Put Amiquin to sleep for a specified duration")]
+    public async Task AdminSleepAsync(
+        [Summary("minutes", "Duration in minutes (max 1440 for 24 hours)")]
+        [MinValue(1)]
+        [MaxValue(1440)]
+        int minutes)
+    {
+        try
+        {
+            // Check if already sleeping
+            if (await _sleepService.IsSleepingAsync(Context.Guild.Id))
+            {
+                var remainingSleep = await _sleepService.GetRemainingSleepTimeAsync(Context.Guild.Id);
+                if (remainingSleep.HasValue)
+                {
+                    var remainingMinutes = (int)remainingSleep.Value.TotalMinutes + 1; // Round up
+                    await RespondAsync($"😴 I'm already sleeping! I'll wake up in about **{remainingMinutes} minutes**.\n" +
+                                     "Use `/admin wake-up` to wake me up early.", ephemeral: true);
+                    return;
+                }
+            }
+
+            // Put bot to sleep
+            var wakeUpTime = await _sleepService.PutToSleepAsync(Context.Guild.Id, minutes);
+
+            var embed = new EmbedBuilder()
+                .WithTitle("😴 Going to Sleep (Admin)")
+                .WithDescription($"I'm going to sleep for **{minutes} minutes** as requested by an admin.")
+                .WithColor(Color.DarkPurple)
+                .AddField("💤 Sleep Duration", $"{minutes} minutes ({TimeSpan.FromMinutes(minutes):h\\:mm})", true)
+                .AddField("⏰ Wake Up Time", $"<t:{((DateTimeOffset)wakeUpTime).ToUnixTimeSeconds()}:F>", true)
+                .AddField("👮 Requested By", Context.User.Mention, true)
+                .WithFooter("Use /admin wake-up to end sleep early")
+                .WithCurrentTimestamp()
+                .Build();
+
+            await RespondAsync(embed: embed);
+
+            _logger.LogInformation("Admin {UserId} put bot to sleep for {Minutes} minutes on server {ServerId}",
+                Context.User.Id, minutes, Context.Guild.Id);
+        }
+        catch (ArgumentException ex)
+        {
+            await RespondAsync($"❌ {ex.Message}", ephemeral: true);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error putting bot to sleep on server {ServerId}", Context.Guild.Id);
+            await RespondAsync("❌ An error occurred while putting the bot to sleep.", ephemeral: true);
+        }
+    }
+
+    [SlashCommand("wake-up", "Wake up Amiquin if it's sleeping")]
+    public async Task WakeUpAsync()
+    {
+        try
+        {
+            var wasAwake = await _sleepService.WakeUpAsync(Context.Guild.Id);
+
+            if (wasAwake)
+            {
+                var embed = new EmbedBuilder()
+                    .WithTitle("☀️ Good Morning!")
+                    .WithDescription("I'm awake now! Thanks for waking me up early.")
+                    .WithColor(Color.Gold)
+                    .AddField("👮 Woken By", Context.User.Mention, true)
+                    .WithFooter("Ready to assist!")
+                    .WithCurrentTimestamp()
+                    .Build();
+
+                await RespondAsync(embed: embed);
+
+                _logger.LogInformation("Admin {UserId} woke up bot on server {ServerId}",
+                    Context.User.Id, Context.Guild.Id);
+            }
+            else
+            {
+                await RespondAsync("☀️ I'm already awake! No need to wake me up.", ephemeral: true);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error waking up bot on server {ServerId}", Context.Guild.Id);
+            await RespondAsync("❌ An error occurred while waking up the bot.", ephemeral: true);
         }
     }
 
@@ -634,7 +736,7 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
                 switch (setting.ToLowerInvariant())
                 {
                     case "persona":
-                        serverMeta.Persona = null;
+                        serverMeta.Persona = string.Empty;
                         embed.WithDescription("Server persona has been reset to default.");
                         break;
 

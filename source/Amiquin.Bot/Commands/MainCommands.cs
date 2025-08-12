@@ -5,6 +5,8 @@ using Amiquin.Core.Services.Chat;
 using Amiquin.Core.Services.ChatContext;
 using Amiquin.Core.Services.Fun;
 using Amiquin.Core.Services.MessageCache;
+using Amiquin.Core.Services.SessionManager;
+using Amiquin.Core.Services.Sleep;
 using Amiquin.Core.Utilities;
 using Discord;
 using Discord.Interactions;
@@ -17,17 +19,23 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
     private readonly IMessageCacheService _messageCacheService;
     private readonly IChatContextService _chatContextService;
     private readonly IFunService _funService;
+    private readonly ISleepService _sleepService;
+    private readonly ISessionManagerService _sessionManagerService;
 
     public MainCommands(
         IPersonaChatService chatService, 
         IMessageCacheService messageCacheService, 
         IChatContextService chatContextService,
-        IFunService funService)
+        IFunService funService,
+        ISleepService sleepService,
+        ISessionManagerService sessionManagerService)
     {
         _chatService = chatService;
         _messageCacheService = messageCacheService;
         _chatContextService = chatContextService;
         _funService = funService;
+        _sleepService = sleepService;
+        _sessionManagerService = sessionManagerService;
     }
 
     [SlashCommand("chat", "Chat with amiquin!")]
@@ -309,5 +317,311 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
             .Build();
 
         await ModifyOriginalResponseAsync(msg => msg.Embed = embed);
+    }
+
+    [SlashCommand("sleep", "Put Amiquin to sleep for 5 minutes")]
+    public async Task SleepAsync()
+    {
+        if (Context.Guild == null)
+        {
+            await RespondAsync("❌ This command can only be used in a server.", ephemeral: true);
+            return;
+        }
+
+        // Check if already sleeping
+        if (await _sleepService.IsSleepingAsync(Context.Guild.Id))
+        {
+            var remainingSleep = await _sleepService.GetRemainingSleepTimeAsync(Context.Guild.Id);
+            if (remainingSleep.HasValue)
+            {
+                var minutes = (int)remainingSleep.Value.TotalMinutes + 1; // Round up
+                await RespondAsync($"😴 I'm already sleeping! I'll wake up in about **{minutes} minutes**.", ephemeral: true);
+                return;
+            }
+        }
+
+        // Put bot to sleep for 5 minutes
+        var wakeUpTime = await _sleepService.PutToSleepAsync(Context.Guild.Id, 5);
+
+        var embed = new EmbedBuilder()
+            .WithTitle("😴 Going to Sleep")
+            .WithDescription("I'm going to take a 5-minute nap. See you in a bit!")
+            .WithColor(Color.Purple)
+            .AddField("💤 Sleep Duration", "5 minutes", true)
+            .AddField("⏰ Wake Up Time", $"<t:{((DateTimeOffset)wakeUpTime).ToUnixTimeSeconds()}:t>", true)
+            .WithFooter($"Requested by {Context.User.GlobalName ?? Context.User.Username}")
+            .WithCurrentTimestamp()
+            .Build();
+
+        await RespondAsync(embed: embed);
+    }
+
+    [Group("session", "Manage chat sessions")]
+    public class SessionCommands : InteractionModuleBase<ExtendedShardedInteractionContext>
+    {
+        private readonly ISessionManagerService _sessionManagerService;
+
+        public SessionCommands(ISessionManagerService sessionManagerService)
+        {
+            _sessionManagerService = sessionManagerService;
+        }
+
+        [SlashCommand("list", "View all sessions for this server")]
+        public async Task ListSessionsAsync()
+        {
+            if (Context.Guild == null)
+            {
+                await RespondAsync("❌ This command can only be used in a server.", ephemeral: true);
+                return;
+            }
+
+            var sessions = await _sessionManagerService.GetServerSessionsAsync(Context.Guild.Id);
+            var activeSession = sessions.FirstOrDefault(s => s.IsActive);
+
+            if (!sessions.Any())
+            {
+                await RespondAsync("❌ No sessions found. This shouldn't happen - creating a default session.", ephemeral: true);
+                return;
+            }
+
+            var embed = new EmbedBuilder()
+                .WithTitle($"💬 Chat Sessions for {Context.Guild.Name}")
+                .WithColor(Color.Blue)
+                .WithFooter($"Total sessions: {sessions.Count}")
+                .WithCurrentTimestamp();
+
+            foreach (var session in sessions.Take(10)) // Limit to 10 sessions for embed space
+            {
+                var statusIcon = session.IsActive ? "🟢" : "⚪";
+                var lastActivity = session.LastActivityAt > DateTime.UtcNow.AddDays(-1) 
+                    ? $"<t:{((DateTimeOffset)session.LastActivityAt).ToUnixTimeSeconds()}:R>"
+                    : session.LastActivityAt.ToString("MMM dd, yyyy");
+
+                embed.AddField(
+                    $"{statusIcon} {session.Name}",
+                    $"**Messages:** {session.MessageCount} | **Last Activity:** {lastActivity}\n" +
+                    $"**Model:** {session.Provider}/{session.Model}",
+                    true);
+            }
+
+            if (sessions.Count > 10)
+            {
+                embed.WithDescription($"*Showing first 10 of {sessions.Count} sessions*");
+            }
+
+            var components = new ComponentBuilder()
+                .WithButton("Switch Session", "session_switch", ButtonStyle.Primary, new Emoji("🔄"))
+                .WithButton("Create New", "session_create", ButtonStyle.Success, new Emoji("➕"))
+                .Build();
+
+            await RespondAsync(embed: embed.Build(), components: components, ephemeral: true);
+        }
+
+        [SlashCommand("switch", "Switch to a different session")]
+        public async Task SwitchSessionAsync()
+        {
+            if (Context.Guild == null)
+            {
+                await RespondAsync("❌ This command can only be used in a server.", ephemeral: true);
+                return;
+            }
+
+            var sessions = await _sessionManagerService.GetServerSessionsAsync(Context.Guild.Id);
+
+            if (!sessions.Any())
+            {
+                await RespondAsync("❌ No sessions found.", ephemeral: true);
+                return;
+            }
+
+            if (sessions.Count == 1)
+            {
+                await RespondAsync("ℹ️ Only one session exists. Use `/session create` to create more sessions.", ephemeral: true);
+                return;
+            }
+
+            await ShowSessionSwitchUI(sessions);
+        }
+
+        [SlashCommand("create", "Create a new chat session")]
+        public async Task CreateSessionAsync([Summary("name", "Name for the new session")] string sessionName)
+        {
+            if (Context.Guild == null)
+            {
+                await RespondAsync("❌ This command can only be used in a server.", ephemeral: true);
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(sessionName) || sessionName.Length > 50)
+            {
+                await RespondAsync("❌ Session name must be between 1-50 characters.", ephemeral: true);
+                return;
+            }
+
+            try
+            {
+                var newSession = await _sessionManagerService.CreateSessionAsync(Context.Guild.Id, sessionName.Trim(), setAsActive: true);
+
+                var embed = new EmbedBuilder()
+                    .WithTitle("✅ Session Created")
+                    .WithDescription($"Created and switched to new session: **{newSession.Name}**")
+                    .WithColor(Color.Green)
+                    .AddField("Session ID", newSession.Id, true)
+                    .AddField("Model", $"{newSession.Provider}/{newSession.Model}", true)
+                    .WithFooter($"Created by {Context.User.GlobalName ?? Context.User.Username}")
+                    .WithCurrentTimestamp()
+                    .Build();
+
+                await RespondAsync(embed: embed, ephemeral: true);
+            }
+            catch (InvalidOperationException ex)
+            {
+                await RespondAsync($"❌ {ex.Message}", ephemeral: true);
+            }
+            catch (Exception)
+            {
+                await RespondAsync("❌ Failed to create session. Try again later.", ephemeral: true);
+            }
+        }
+
+        [SlashCommand("rename", "Rename the current active session")]
+        public async Task RenameSessionAsync([Summary("name", "New name for the session")] string newName)
+        {
+            if (Context.Guild == null)
+            {
+                await RespondAsync("❌ This command can only be used in a server.", ephemeral: true);
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(newName) || newName.Length > 50)
+            {
+                await RespondAsync("❌ Session name must be between 1-50 characters.", ephemeral: true);
+                return;
+            }
+
+            var activeSession = await _sessionManagerService.GetActiveSessionAsync(Context.Guild.Id);
+            if (activeSession == null)
+            {
+                await RespondAsync("❌ No active session found.", ephemeral: true);
+                return;
+            }
+
+            try
+            {
+                var success = await _sessionManagerService.RenameSessionAsync(activeSession.Id, newName.Trim());
+                if (success)
+                {
+                    var embed = new EmbedBuilder()
+                        .WithTitle("✅ Session Renamed")
+                        .WithDescription($"Renamed session from **{activeSession.Name}** to **{newName.Trim()}**")
+                        .WithColor(Color.Green)
+                        .WithFooter($"Renamed by {Context.User.GlobalName ?? Context.User.Username}")
+                        .WithCurrentTimestamp()
+                        .Build();
+
+                    await RespondAsync(embed: embed, ephemeral: true);
+                }
+                else
+                {
+                    await RespondAsync("❌ Failed to rename session.", ephemeral: true);
+                }
+            }
+            catch (InvalidOperationException ex)
+            {
+                await RespondAsync($"❌ {ex.Message}", ephemeral: true);
+            }
+            catch (Exception)
+            {
+                await RespondAsync("❌ Failed to rename session. Try again later.", ephemeral: true);
+            }
+        }
+
+        [SlashCommand("delete", "Delete a session (cannot delete the last session)")]
+        public async Task DeleteSessionAsync([Summary("name", "Name of the session to delete")] string sessionName)
+        {
+            if (Context.Guild == null)
+            {
+                await RespondAsync("❌ This command can only be used in a server.", ephemeral: true);
+                return;
+            }
+
+            var sessions = await _sessionManagerService.GetServerSessionsAsync(Context.Guild.Id);
+            var sessionToDelete = sessions.FirstOrDefault(s => s.Name.Equals(sessionName, StringComparison.OrdinalIgnoreCase));
+
+            if (sessionToDelete == null)
+            {
+                await RespondAsync($"❌ Session '{sessionName}' not found.", ephemeral: true);
+                return;
+            }
+
+            if (sessions.Count <= 1)
+            {
+                await RespondAsync("❌ Cannot delete the last remaining session.", ephemeral: true);
+                return;
+            }
+
+            try
+            {
+                var success = await _sessionManagerService.DeleteSessionAsync(Context.Guild.Id, sessionToDelete.Id);
+                if (success)
+                {
+                    var embed = new EmbedBuilder()
+                        .WithTitle("✅ Session Deleted")
+                        .WithDescription($"Deleted session: **{sessionToDelete.Name}**")
+                        .WithColor(Color.Red)
+                        .WithFooter($"Deleted by {Context.User.GlobalName ?? Context.User.Username}")
+                        .WithCurrentTimestamp()
+                        .Build();
+
+                    await RespondAsync(embed: embed, ephemeral: true);
+                }
+                else
+                {
+                    await RespondAsync("❌ Failed to delete session.", ephemeral: true);
+                }
+            }
+            catch (Exception)
+            {
+                await RespondAsync("❌ Failed to delete session. Try again later.", ephemeral: true);
+            }
+        }
+
+        private async Task ShowSessionSwitchUI(List<Amiquin.Core.Models.ChatSession> sessions)
+        {
+            var activeSession = sessions.FirstOrDefault(s => s.IsActive);
+            var selectMenuBuilder = new SelectMenuBuilder()
+                .WithPlaceholder("Choose a session to switch to...")
+                .WithCustomId("session_switch_select")
+                .WithMinValues(1)
+                .WithMaxValues(1);
+
+            foreach (var session in sessions.Take(25)) // Discord limit for select menu options
+            {
+                var isActive = session.IsActive;
+                var description = $"{session.MessageCount} msgs, {session.Provider}/{session.Model}";
+                if (isActive) description = $"🟢 ACTIVE • {description}";
+
+                selectMenuBuilder.AddOption(
+                    label: session.Name,
+                    value: session.Id,
+                    description: description.Length > 100 ? description[..97] + "..." : description,
+                    isDefault: isActive
+                );
+            }
+
+            var embed = new EmbedBuilder()
+                .WithTitle("🔄 Switch Chat Session")
+                .WithDescription($"**Current session:** {activeSession?.Name ?? "None"}\n\nSelect a session from the dropdown below:")
+                .WithColor(Color.Blue)
+                .WithFooter($"Total sessions: {sessions.Count}")
+                .Build();
+
+            var components = new ComponentBuilder()
+                .WithSelectMenu(selectMenuBuilder)
+                .WithButton("Cancel", "session_cancel", ButtonStyle.Secondary, new Emoji("❌"))
+                .Build();
+
+            await RespondAsync(embed: embed, components: components, ephemeral: true);
+        }
     }
 }

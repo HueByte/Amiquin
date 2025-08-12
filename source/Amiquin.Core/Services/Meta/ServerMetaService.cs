@@ -571,7 +571,7 @@ public class ServerMetaService : IServerMetaService, IDisposable
                     Id = Guid.NewGuid().ToString(),
                     ServerId = serverId,
                     Name = toggleName,
-                    IsEnabled = true,
+                    IsEnabled = false, // Consistent with ToggleService default values
                     Description = string.Empty,
                     CreatedAt = DateTime.UtcNow
                 };

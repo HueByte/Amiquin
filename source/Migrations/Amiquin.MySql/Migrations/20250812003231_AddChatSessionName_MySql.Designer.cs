@@ -3,76 +3,84 @@ using System;
 using Amiquin.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
 
-namespace Amiquin.Sqlite.Migrations
+namespace Amiquin.MySql.Migrations
 {
     [DbContext(typeof(AmiquinContext))]
-    partial class AmiquinContextModelSnapshot : ModelSnapshot
+    [Migration("20250812003231_AddChatSessionName_MySql")]
+    partial class AddChatSessionName_MySql
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder.HasAnnotation("ProductVersion", "9.0.8");
+            modelBuilder
+                .HasAnnotation("ProductVersion", "9.0.8")
+                .HasAnnotation("Relational:MaxIdentifierLength", 64);
+
+            MySqlModelBuilderExtensions.AutoIncrementColumns(modelBuilder);
 
             modelBuilder.Entity("Amiquin.Core.Models.BotStatistics", b =>
                 {
                     b.Property<string>("Id")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("varchar(255)");
 
                     b.Property<float>("AvailableMemoryMB")
-                        .HasColumnType("REAL");
+                        .HasColumnType("float");
 
                     b.Property<double>("AverageCommandExecutionTimeInMs")
-                        .HasColumnType("REAL");
+                        .HasColumnType("double");
 
                     b.Property<string>("BotName")
                         .IsRequired()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("longtext");
 
                     b.Property<int>("CacheItems")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("int");
 
                     b.Property<double>("CpuUsage")
-                        .HasColumnType("REAL");
+                        .HasColumnType("double");
 
                     b.Property<DateTime>("CreatedDate")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<int>("Latency")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("int");
 
                     b.Property<int>("ShardCount")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("int");
 
                     b.Property<int>("TotalChannelsCount")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("int");
 
                     b.Property<int>("TotalCommandsCount")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("int");
 
                     b.Property<int>("TotalErrorsCount")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("int");
 
                     b.Property<int>("TotalServersCount")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("int");
 
                     b.Property<int>("TotalUsersCount")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("int");
 
                     b.Property<int>("UpTimeInSeconds")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("int");
 
                     b.Property<float>("UsedMemoryMB")
-                        .HasColumnType("REAL");
+                        .HasColumnType("float");
 
                     b.Property<float>("UsedMemoryPercentage")
-                        .HasColumnType("REAL");
+                        .HasColumnType("float");
 
                     b.Property<string>("Version")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("longtext");
 
                     b.HasKey("Id");
 
@@ -82,55 +90,55 @@ namespace Amiquin.Sqlite.Migrations
             modelBuilder.Entity("Amiquin.Core.Models.ChatSession", b =>
                 {
                     b.Property<string>("Id")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("varchar(255)");
 
                     b.Property<string>("Context")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("longtext");
 
                     b.Property<int>("ContextTokens")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("int");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<int>("EstimatedTokens")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("int");
 
                     b.Property<bool>("IsActive")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<DateTime>("LastActivityAt")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<int>("MessageCount")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("int");
 
                     b.Property<string>("Metadata")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("longtext");
 
                     b.Property<string>("Model")
                         .IsRequired()
                         .HasMaxLength(50)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("varchar(50)");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("varchar(100)");
 
                     b.Property<ulong>("OwningEntityId")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("bigint unsigned");
 
                     b.Property<string>("Provider")
                         .IsRequired()
                         .HasMaxLength(20)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("varchar(20)");
 
                     b.Property<int>("Scope")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("int");
 
                     b.Property<ulong?>("ServerId")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("bigint unsigned");
 
                     b.HasKey("Id");
 
@@ -152,33 +160,35 @@ namespace Amiquin.Sqlite.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("Command")
                         .IsRequired()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("longtext");
 
                     b.Property<DateTime>("CommandDate")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<int>("Duration")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("int");
 
                     b.Property<string>("ErrorMessage")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("longtext");
 
                     b.Property<bool>("IsSuccess")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<ulong?>("ServerId")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("bigint unsigned");
 
                     b.Property<ulong>("UserId")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("bigint unsigned");
 
                     b.Property<string>("Username")
                         .IsRequired()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("longtext");
 
                     b.HasKey("Id");
 
@@ -190,26 +200,26 @@ namespace Amiquin.Sqlite.Migrations
             modelBuilder.Entity("Amiquin.Core.Models.Message", b =>
                 {
                     b.Property<string>("Id")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("varchar(255)");
 
                     b.Property<ulong>("AuthorId")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("bigint unsigned");
 
                     b.Property<string>("Content")
                         .IsRequired()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("longtext");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<ulong>("GuildId")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("bigint unsigned");
 
                     b.Property<bool>("IsUser")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<ulong>("ServerId")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("bigint unsigned");
 
                     b.HasKey("Id");
 
@@ -222,23 +232,25 @@ namespace Amiquin.Sqlite.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<int>("NachoCount")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("int");
 
                     b.Property<DateTime>("NachoReceivedDate")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<ulong?>("ServerId")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("bigint unsigned");
 
                     b.Property<ulong>("UserId")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("bigint unsigned");
 
                     b.Property<string>("Username")
                         .IsRequired()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("longtext");
 
                     b.HasKey("Id");
 
@@ -250,42 +262,42 @@ namespace Amiquin.Sqlite.Migrations
             modelBuilder.Entity("Amiquin.Core.Models.PaginationSession", b =>
                 {
                     b.Property<string>("Id")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("varchar(255)");
 
                     b.Property<ulong>("ChannelId")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("bigint unsigned");
 
                     b.Property<string>("ContentType")
                         .HasMaxLength(50)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("varchar(50)");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<int>("CurrentPage")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("int");
 
                     b.Property<string>("EmbedData")
                         .IsRequired()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("longtext");
 
                     b.Property<DateTime>("ExpiresAt")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<ulong?>("GuildId")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("bigint unsigned");
 
                     b.Property<bool>("IsActive")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<ulong>("MessageId")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("bigint unsigned");
 
                     b.Property<int>("TotalPages")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("int");
 
                     b.Property<ulong>("UserId")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("bigint unsigned");
 
                     b.HasKey("Id");
 
@@ -303,33 +315,35 @@ namespace Amiquin.Sqlite.Migrations
                 {
                     b.Property<ulong>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("bigint unsigned");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<ulong>("Id"));
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<bool>("IsActive")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<DateTime>("LastUpdated")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<ulong?>("NsfwChannelId")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("bigint unsigned");
 
                     b.Property<string>("Persona")
                         .IsRequired()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("longtext");
 
                     b.Property<string>("PreferredProvider")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("longtext");
 
                     b.Property<ulong?>("PrimaryChannelId")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("bigint unsigned");
 
                     b.Property<string>("ServerName")
                         .IsRequired()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("longtext");
 
                     b.HasKey("Id");
 
@@ -339,36 +353,36 @@ namespace Amiquin.Sqlite.Migrations
             modelBuilder.Entity("Amiquin.Core.Models.SessionMessage", b =>
                 {
                     b.Property<string>("Id")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("varchar(255)");
 
                     b.Property<string>("ChatSessionId")
                         .IsRequired()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("varchar(255)");
 
                     b.Property<string>("Content")
                         .IsRequired()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("longtext");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<string>("DiscordMessageId")
                         .HasMaxLength(20)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("varchar(20)");
 
                     b.Property<int>("EstimatedTokens")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("int");
 
                     b.Property<bool>("IncludeInContext")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<string>("Metadata")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("longtext");
 
                     b.Property<string>("Role")
                         .IsRequired()
                         .HasMaxLength(20)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("varchar(20)");
 
                     b.HasKey("Id");
 
@@ -384,24 +398,24 @@ namespace Amiquin.Sqlite.Migrations
             modelBuilder.Entity("Amiquin.Core.Models.Toggle", b =>
                 {
                     b.Property<string>("Id")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("varchar(255)");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("TEXT");
+                        .HasColumnType("datetime(6)");
 
                     b.Property<string>("Description")
                         .IsRequired()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("longtext");
 
                     b.Property<bool>("IsEnabled")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("tinyint(1)");
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("TEXT");
+                        .HasColumnType("longtext");
 
                     b.Property<ulong>("ServerId")
-                        .HasColumnType("INTEGER");
+                        .HasColumnType("bigint unsigned");
 
                     b.HasKey("Id");
 
@@ -414,11 +428,13 @@ namespace Amiquin.Sqlite.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("int")
                         .HasColumnName("id");
 
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("TEXT")
+                        .HasColumnType("datetime(6)")
                         .HasColumnName("created_at");
 
                     b.Property<string>("FunStatsJson")
@@ -427,15 +443,15 @@ namespace Amiquin.Sqlite.Migrations
                         .HasColumnName("fun_stats");
 
                     b.Property<ulong>("ServerId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("bigint unsigned")
                         .HasColumnName("server_id");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("TEXT")
+                        .HasColumnType("datetime(6)")
                         .HasColumnName("updated_at");
 
                     b.Property<ulong>("UserId")
-                        .HasColumnType("INTEGER")
+                        .HasColumnType("bigint unsigned")
                         .HasColumnName("user_id");
 
                     b.HasKey("Id");

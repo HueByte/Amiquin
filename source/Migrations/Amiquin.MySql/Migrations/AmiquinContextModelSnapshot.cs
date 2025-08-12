@@ -118,6 +118,11 @@ namespace Amiquin.MySql.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("varchar(50)");
 
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
                     b.Property<ulong>("OwningEntityId")
                         .HasColumnType("bigint unsigned");
 

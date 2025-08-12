@@ -34,7 +34,8 @@ public class ToggleService : IToggleService
     /// <inheritdoc/>
     public async Task CreateServerTogglesIfNotExistsAsync(ulong serverId)
     {
-        var serverMeta = await _serverMetaService.GetServerMetaAsync(serverId);
+        // Always fetch with toggles included to get accurate toggle state
+        var serverMeta = await _serverMetaService.GetServerMetaAsync(serverId, includeToggles: true);
         var expectedToggles = Constants.ToggleNames.Toggles;
         if (serverMeta is null || !serverMeta.IsActive)
         {
@@ -42,28 +43,28 @@ public class ToggleService : IToggleService
             return;
         }
 
-        if (serverMeta.Toggles is not null && serverMeta.Toggles.Any())
+        // Remove obsolete toggles first
+        var removedCount = await RemoveObsoleteTogglesAsync(serverId);
+        if (removedCount > 0)
         {
-            // Remove obsolete toggles first
-            var removedCount = await RemoveObsoleteTogglesAsync(serverId);
-            if (removedCount > 0)
-            {
-                // Refresh serverMeta after cleanup
-                serverMeta = await _serverMetaService.GetServerMetaAsync(serverId);
-            }
-            
-            var missingToggles = expectedToggles.Except(serverMeta.Toggles?.Select(t => t.Name) ?? []).ToList();
-            if (missingToggles.Any())
-            {
-                await SetServerTogglesBulkAsync(serverId, missingToggles.ToDictionary(x => x, x => (false, (string?)string.Empty)));
-                _logger.LogInformation("Added missing toggles for serverId {serverId}", serverId);
-            }
-
-            return;
+            // Refresh serverMeta after cleanup
+            serverMeta = await _serverMetaService.GetServerMetaAsync(serverId, includeToggles: true);
         }
-
-        var serverToggles = serverMeta.Toggles ?? [];
-        await SetServerTogglesBulkAsync(serverId, expectedToggles.ToDictionary(x => x, x => (false, (string?)string.Empty)));
+        
+        // Check for missing toggles (only add missing ones, don't overwrite existing)
+        var existingToggleNames = serverMeta.Toggles?.Select(t => t.Name).ToHashSet() ?? new HashSet<string>();
+        var missingToggles = expectedToggles.Except(existingToggleNames).ToList();
+        
+        if (missingToggles.Any())
+        {
+            await SetServerTogglesBulkAsync(serverId, missingToggles.ToDictionary(x => x, x => (false, (string?)string.Empty)));
+            _logger.LogInformation("Added {count} missing toggles for serverId {serverId}: {toggles}", 
+                missingToggles.Count, serverId, string.Join(", ", missingToggles));
+        }
+        else
+        {
+            _logger.LogDebug("All expected toggles already exist for serverId {serverId}", serverId);
+        }
     }
 
     /// <inheritdoc/>
