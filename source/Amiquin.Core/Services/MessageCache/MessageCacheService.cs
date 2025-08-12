@@ -1,6 +1,7 @@
 using Amiquin.Core.IRepositories;
 using Amiquin.Core.Models;
 using Amiquin.Core.Options;
+using Amiquin.Core.Services.SessionManager;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
@@ -72,22 +73,35 @@ public class MessageCacheService : IMessageCacheService
         return await _memoryCache.GetOrCreateAsync<List<ChatMessage>?>(serverId, async entry =>
         {
             entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromDays(Constants.MessageCacheDefaults.MemoryCacheExpirationDays);
-            
+
             // Create a new scope to avoid DbContext concurrency issues
             using var scope = _serviceScopeFactory.CreateScope();
-            var messageRepository = scope.ServiceProvider.GetRequiredService<IMessageRepository>();
+            var sessionManagerService = scope.ServiceProvider.GetRequiredService<ISessionManagerService>();
+
+            // Get the active session for this server
+            var activeSession = await sessionManagerService.GetActiveSessionAsync(serverId);
+            if (activeSession == null)
+            {
+                // No active session found, return empty list
+                return new List<ChatMessage>();
+            }
+
+            // Get the DbContext through the service provider using DbContext base class
+            var dbContext = scope.ServiceProvider.GetRequiredService<DbContext>();
             
-            var messages = await messageRepository.AsQueryable()
-                .Where(x => x.ServerId == serverId)
+            // Query SessionMessages for the active session
+            var sessionMessages = await dbContext.Set<SessionMessage>()
+                .Where(x => x.ChatSessionId == activeSession.Id && x.IncludeInContext)
                 .OrderByDescending(x => x.CreatedAt)
                 .Take(_messageFetchCount) // Get the most recent messages
                 .ToListAsync();
 
             // Reverse to get chronological order (oldest first)
-            messages.Reverse();
+            sessionMessages.Reverse();
 
-            return messages.Select(x =>
-                    x.IsUser
+            // Convert SessionMessages to ChatMessages based on role
+            return sessionMessages.Select(x =>
+                    x.Role.ToLower() == "user"
                         ? (ChatMessage)ChatMessage.CreateUserMessage(x.Content)
                         : ChatMessage.CreateAssistantMessage(x.Content)
                 ).ToList();
@@ -132,6 +146,12 @@ public class MessageCacheService : IMessageCacheService
                 _memoryCache.Set(instanceId, serverMessages, TimeSpan.FromDays(Constants.MessageCacheDefaults.MemoryCacheExpirationDays));
             }
         }
+    }
+
+    /// <inheritdoc/>
+    public void ClearServerMessageCache(ulong serverId)
+    {
+        _memoryCache.Remove(serverId);
     }
 
     /// <inheritdoc/>

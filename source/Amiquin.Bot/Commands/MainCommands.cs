@@ -23,8 +23,8 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
     private readonly ISessionManagerService _sessionManagerService;
 
     public MainCommands(
-        IPersonaChatService chatService, 
-        IMessageCacheService messageCacheService, 
+        IPersonaChatService chatService,
+        IMessageCacheService messageCacheService,
         IChatContextService chatContextService,
         IFunService funService,
         ISleepService sleepService,
@@ -110,16 +110,16 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
     }
 
     #region Fun Commands
-    
+
     [SlashCommand("size", "Check your... size 📏")]
     public async Task SizeAsync([Summary("user", "User to check (defaults to yourself)")] IUser? user = null)
     {
         var targetUser = user ?? Context.User;
-        
+
         try
         {
             var size = await _funService.GetOrGenerateDickSizeAsync(targetUser.Id, Context.Guild.Id);
-            
+
             var sizeDescription = size switch
             {
                 <= 5 => "🤏 Nano",
@@ -129,14 +129,14 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
                 <= 25 => "🍆 Large",
                 _ => "🐋 MASSIVE"
             };
-            
+
             var embed = new EmbedBuilder()
                 .WithTitle("📏 Size Check")
                 .WithDescription($"{targetUser.Mention}'s size: **{size} cm** {sizeDescription}")
                 .WithColor(Color.Purple)
                 .WithFooter("Results are permanent and totally scientific 🧪")
                 .Build();
-                
+
             await ModifyOriginalResponseAsync(msg => msg.Embed = embed);
         }
         catch
@@ -144,23 +144,23 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
             await ModifyOriginalResponseAsync(msg => msg.Content = "❌ Failed to measure size. Try again later!");
         }
     }
-    
+
     [SlashCommand("color", "Display a hex color")]
     public async Task ColorAsync([Summary("hex", "Hex color code (e.g., #FF5733 or FF5733)")] string hexColor)
     {
         try
         {
             using var colorImage = await _funService.GenerateColorImageAsync(hexColor);
-            
+
             var cleanHex = hexColor.TrimStart('#').ToUpper();
             var attachment = new FileAttachment(colorImage, $"color_{cleanHex}.png");
-            
+
             var embed = new EmbedBuilder()
                 .WithTitle($"🎨 Color: #{cleanHex}")
                 .WithImageUrl($"attachment://color_{cleanHex}.png")
                 .WithColor(uint.Parse(cleanHex, System.Globalization.NumberStyles.HexNumber))
                 .Build();
-                
+
             await ModifyOriginalResponseAsync(msg =>
             {
                 msg.Embed = embed;
@@ -172,7 +172,7 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
             await ModifyOriginalResponseAsync(msg => msg.Content = "❌ Invalid hex color format. Use #RRGGBB or RRGGBB format.");
         }
     }
-    
+
     [SlashCommand("palette", "Generate a random color palette")]
     public async Task PaletteAsync([Summary("count", "Number of colors (1-10)")] int count = 5)
     {
@@ -181,23 +181,23 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
             await ModifyOriginalResponseAsync(msg => msg.Content = "❌ Count must be between 1 and 10.");
             return;
         }
-        
+
         try
         {
             var colors = _funService.GenerateColorPalette(count);
-            
+
             var embed = new EmbedBuilder()
                 .WithTitle($"🎨 Random Color Palette ({count} colors)")
                 .WithColor(Color.Gold);
-                
+
             foreach (var color in colors)
             {
                 var colorValue = uint.Parse(color.TrimStart('#'), System.Globalization.NumberStyles.HexNumber);
                 embed.AddField(color.ToUpper(), $"RGB: {(colorValue >> 16) & 255}, {(colorValue >> 8) & 255}, {colorValue & 255}", true);
             }
-            
+
             embed.WithDescription(string.Join(" ", colors.Select(c => $"`{c}`")));
-            
+
             await ModifyOriginalResponseAsync(msg => msg.Embed = embed.Build());
         }
         catch
@@ -205,22 +205,22 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
             await ModifyOriginalResponseAsync(msg => msg.Content = "❌ Failed to generate color palette. Try again later!");
         }
     }
-    
+
     [SlashCommand("avatar", "Get a user's avatar")]
     public async Task AvatarAsync([Summary("user", "User to get avatar from (defaults to yourself)")] IUser? user = null)
     {
         var targetUser = user ?? Context.User;
-        
+
         var embed = new EmbedBuilder()
             .WithTitle($"🖼️ {targetUser.GlobalName ?? targetUser.Username}'s Avatar")
             .WithImageUrl(targetUser.GetDisplayAvatarUrl(ImageFormat.Auto, 512))
             .WithColor(Color.Blue)
             .WithFooter($"Requested by {Context.User.GlobalName ?? Context.User.Username}")
             .Build();
-            
+
         await ModifyOriginalResponseAsync(msg => msg.Embed = embed);
     }
-    
+
     [SlashCommand("nacho", "Give Amiquin a nacho! 🌮")]
     public async Task NachoAsync()
     {
@@ -228,16 +228,16 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
         {
             // Give the nacho and get the total count
             var totalNachos = await _funService.GiveNachoAsync(Context.User.Id, Context.Guild.Id);
-            
+
             // Generate a dynamic, context-aware response using AI
             var response = await _funService.GenerateNachoResponseAsync(
-                Context.User.Id, 
-                Context.Guild.Id, 
+                Context.User.Id,
+                Context.Guild.Id,
                 Context.Channel.Id,
                 Context.User.Username,
                 totalNachos
             );
-            
+
             // Build the embed with the dynamic response
             var embed = new EmbedBuilder()
                 .WithTitle("Nacho Delivery! 🌮")
@@ -247,7 +247,7 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
                 .WithFooter($"Nacho #{totalNachos} from {Context.User.Username}", Context.User.GetAvatarUrl())
                 .WithCurrentTimestamp()
                 .Build();
-                
+
             await ModifyOriginalResponseAsync(msg => msg.Embed = embed);
         }
         catch
@@ -255,7 +255,7 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
             await ModifyOriginalResponseAsync(msg => msg.Content = "❌ Failed to deliver nacho. Try again later!");
         }
     }
-    
+
     [SlashCommand("nacho-leaderboard", "View the nacho leaderboard")]
     public async Task NachoLeaderboardAsync()
     {
@@ -263,13 +263,13 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
         {
             var leaderboardFields = await _funService.GetNachoLeaderboardAsync(Context.Guild.Id, 10);
             var totalNachos = await _funService.GetTotalNachosAsync(Context.Guild.Id);
-            
+
             var embed = new EmbedBuilder()
                 .WithTitle($"🏆 Nacho Leaderboard")
                 .WithDescription($"**Total nachos received:** {totalNachos} 🌮")
                 .WithColor(Color.Gold)
                 .WithThumbnailUrl(Context.Client.CurrentUser.GetDisplayAvatarUrl());
-                
+
             if (!leaderboardFields.Any())
             {
                 embed.AddField("No nachos yet!", "Be the first to give me a nacho with `/nacho`! 🌮", false);
@@ -281,7 +281,7 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
                     embed.AddField(field.Name, field.Value, field.IsInline);
                 }
             }
-            
+
             await ModifyOriginalResponseAsync(msg => msg.Embed = embed.Build());
         }
         catch
@@ -289,7 +289,7 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
             await ModifyOriginalResponseAsync(msg => msg.Content = "❌ Failed to load nacho leaderboard. Try again later!");
         }
     }
-    
+
     #endregion
 
     [SlashCommand("info", "Display bot information including version")]
@@ -371,7 +371,7 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
         {
             if (Context.Guild == null)
             {
-                await RespondAsync("❌ This command can only be used in a server.", ephemeral: true);
+                await ModifyOriginalResponseAsync(msg => msg.Content = "❌ This command can only be used in a server.");
                 return;
             }
 
@@ -380,7 +380,7 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
 
             if (!sessions.Any())
             {
-                await RespondAsync("❌ No sessions found. This shouldn't happen - creating a default session.", ephemeral: true);
+                await ModifyOriginalResponseAsync(msg => msg.Content = "❌ No sessions found. This shouldn't happen - creating a default session.");
                 return;
             }
 
@@ -393,7 +393,7 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
             foreach (var session in sessions.Take(10)) // Limit to 10 sessions for embed space
             {
                 var statusIcon = session.IsActive ? "🟢" : "⚪";
-                var lastActivity = session.LastActivityAt > DateTime.UtcNow.AddDays(-1) 
+                var lastActivity = session.LastActivityAt > DateTime.UtcNow.AddDays(-1)
                     ? $"<t:{((DateTimeOffset)session.LastActivityAt).ToUnixTimeSeconds()}:R>"
                     : session.LastActivityAt.ToString("MMM dd, yyyy");
 
@@ -414,7 +414,11 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
                 .WithButton("Create New", "session_create", ButtonStyle.Success, new Emoji("➕"))
                 .Build();
 
-            await RespondAsync(embed: embed.Build(), components: components, ephemeral: true);
+            await ModifyOriginalResponseAsync(msg =>
+            {
+                msg.Embed = embed.Build();
+                msg.Components = components;
+            });
         }
 
         [SlashCommand("switch", "Switch to a different session")]
@@ -422,7 +426,7 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
         {
             if (Context.Guild == null)
             {
-                await RespondAsync("❌ This command can only be used in a server.", ephemeral: true);
+                await ModifyOriginalResponseAsync(msg => msg.Content = "❌ This command can only be used in a server.");
                 return;
             }
 
@@ -430,13 +434,13 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
 
             if (!sessions.Any())
             {
-                await RespondAsync("❌ No sessions found.", ephemeral: true);
+                await ModifyOriginalResponseAsync(msg => msg.Content = "❌ No sessions found.");
                 return;
             }
 
             if (sessions.Count == 1)
             {
-                await RespondAsync("ℹ️ Only one session exists. Use `/session create` to create more sessions.", ephemeral: true);
+                await ModifyOriginalResponseAsync(msg => msg.Content = "ℹ️ Only one session exists. Use `/session create` to create more sessions.");
                 return;
             }
 
@@ -448,13 +452,13 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
         {
             if (Context.Guild == null)
             {
-                await RespondAsync("❌ This command can only be used in a server.", ephemeral: true);
+                await ModifyOriginalResponseAsync(msg => msg.Content = "❌ This command can only be used in a server.");
                 return;
             }
 
             if (string.IsNullOrWhiteSpace(sessionName) || sessionName.Length > 50)
             {
-                await RespondAsync("❌ Session name must be between 1-50 characters.", ephemeral: true);
+                await ModifyOriginalResponseAsync(msg => msg.Content = "❌ Session name must be between 1-50 characters.");
                 return;
             }
 
@@ -472,15 +476,15 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
                     .WithCurrentTimestamp()
                     .Build();
 
-                await RespondAsync(embed: embed, ephemeral: true);
+                await ModifyOriginalResponseAsync(msg => msg.Embed = embed);
             }
             catch (InvalidOperationException ex)
             {
-                await RespondAsync($"❌ {ex.Message}", ephemeral: true);
+                await ModifyOriginalResponseAsync(msg => msg.Content = $"❌ {ex.Message}");
             }
             catch (Exception)
             {
-                await RespondAsync("❌ Failed to create session. Try again later.", ephemeral: true);
+                await ModifyOriginalResponseAsync(msg => msg.Content = "❌ Failed to create session. Try again later.");
             }
         }
 
@@ -489,20 +493,20 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
         {
             if (Context.Guild == null)
             {
-                await RespondAsync("❌ This command can only be used in a server.", ephemeral: true);
+                await ModifyOriginalResponseAsync(msg => msg.Content = "❌ This command can only be used in a server.");
                 return;
             }
 
             if (string.IsNullOrWhiteSpace(newName) || newName.Length > 50)
             {
-                await RespondAsync("❌ Session name must be between 1-50 characters.", ephemeral: true);
+                await ModifyOriginalResponseAsync(msg => msg.Content = "❌ Session name must be between 1-50 characters.");
                 return;
             }
 
             var activeSession = await _sessionManagerService.GetActiveSessionAsync(Context.Guild.Id);
             if (activeSession == null)
             {
-                await RespondAsync("❌ No active session found.", ephemeral: true);
+                await ModifyOriginalResponseAsync(msg => msg.Content = "❌ No active session found.");
                 return;
             }
 
@@ -519,20 +523,20 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
                         .WithCurrentTimestamp()
                         .Build();
 
-                    await RespondAsync(embed: embed, ephemeral: true);
+                    await ModifyOriginalResponseAsync(msg => msg.Embed = embed);
                 }
                 else
                 {
-                    await RespondAsync("❌ Failed to rename session.", ephemeral: true);
+                    await ModifyOriginalResponseAsync(msg => msg.Content = "❌ Failed to rename session.");
                 }
             }
             catch (InvalidOperationException ex)
             {
-                await RespondAsync($"❌ {ex.Message}", ephemeral: true);
+                await ModifyOriginalResponseAsync(msg => msg.Content = $"❌ {ex.Message}");
             }
             catch (Exception)
             {
-                await RespondAsync("❌ Failed to rename session. Try again later.", ephemeral: true);
+                await ModifyOriginalResponseAsync(msg => msg.Content = "❌ Failed to rename session. Try again later.");
             }
         }
 
@@ -541,7 +545,7 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
         {
             if (Context.Guild == null)
             {
-                await RespondAsync("❌ This command can only be used in a server.", ephemeral: true);
+                await ModifyOriginalResponseAsync(msg => msg.Content = "❌ This command can only be used in a server.");
                 return;
             }
 
@@ -550,13 +554,13 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
 
             if (sessionToDelete == null)
             {
-                await RespondAsync($"❌ Session '{sessionName}' not found.", ephemeral: true);
+                await ModifyOriginalResponseAsync(msg => msg.Content = $"❌ Session '{sessionName}' not found.");
                 return;
             }
 
             if (sessions.Count <= 1)
             {
-                await RespondAsync("❌ Cannot delete the last remaining session.", ephemeral: true);
+                await ModifyOriginalResponseAsync(msg => msg.Content = "❌ Cannot delete the last remaining session.");
                 return;
             }
 
@@ -573,16 +577,16 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
                         .WithCurrentTimestamp()
                         .Build();
 
-                    await RespondAsync(embed: embed, ephemeral: true);
+                    await ModifyOriginalResponseAsync(msg => msg.Embed = embed);
                 }
                 else
                 {
-                    await RespondAsync("❌ Failed to delete session.", ephemeral: true);
+                    await ModifyOriginalResponseAsync(msg => msg.Content = "❌ Failed to delete session.");
                 }
             }
             catch (Exception)
             {
-                await RespondAsync("❌ Failed to delete session. Try again later.", ephemeral: true);
+                await ModifyOriginalResponseAsync(msg => msg.Content = "❌ Failed to delete session. Try again later.");
             }
         }
 
@@ -621,7 +625,11 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
                 .WithButton("Cancel", "session_cancel", ButtonStyle.Secondary, new Emoji("❌"))
                 .Build();
 
-            await RespondAsync(embed: embed, components: components, ephemeral: true);
+            await ModifyOriginalResponseAsync(msg =>
+            {
+                msg.Embed = embed;
+                msg.Components = components;
+            });
         }
     }
 }

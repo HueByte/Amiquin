@@ -1,5 +1,6 @@
 using Amiquin.Core.IRepositories;
 using Amiquin.Core.Models;
+using Amiquin.Core.Services.MessageCache;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using ChatSessionModel = Amiquin.Core.Models.ChatSession;
@@ -12,11 +13,16 @@ namespace Amiquin.Core.Services.SessionManager;
 public class SessionManagerService : ISessionManagerService
 {
     private readonly IChatSessionRepository _sessionRepository;
+    private readonly IMessageCacheService _messageCacheService;
     private readonly ILogger<SessionManagerService> _logger;
 
-    public SessionManagerService(IChatSessionRepository sessionRepository, ILogger<SessionManagerService> logger)
+    public SessionManagerService(
+        IChatSessionRepository sessionRepository,
+        IMessageCacheService messageCacheService,
+        ILogger<SessionManagerService> logger)
     {
         _sessionRepository = sessionRepository;
+        _messageCacheService = messageCacheService;
         _logger = logger;
     }
 
@@ -34,8 +40,8 @@ public class SessionManagerService : ISessionManagerService
     public async Task<ChatSessionModel?> GetActiveSessionAsync(ulong serverId)
     {
         return await _sessionRepository.AsQueryable()
-            .FirstOrDefaultAsync(s => s.Scope == SessionScope.Server && 
-                                     s.OwningEntityId == serverId && 
+            .FirstOrDefaultAsync(s => s.Scope == SessionScope.Server &&
+                                     s.OwningEntityId == serverId &&
                                      s.IsActive);
     }
 
@@ -47,8 +53,8 @@ public class SessionManagerService : ISessionManagerService
 
         // Check if a session with this name already exists
         var existingSession = await _sessionRepository.AsQueryable()
-            .FirstOrDefaultAsync(s => s.Scope == SessionScope.Server && 
-                                     s.OwningEntityId == serverId && 
+            .FirstOrDefaultAsync(s => s.Scope == SessionScope.Server &&
+                                     s.OwningEntityId == serverId &&
                                      s.Name == sessionName);
 
         if (existingSession != null)
@@ -58,14 +64,17 @@ public class SessionManagerService : ISessionManagerService
         if (setAsActive)
         {
             await DeactivateAllSessionsAsync(serverId);
+
+            // Clear the message cache to refresh with the new session's messages
+            _messageCacheService.ClearServerMessageCache(serverId);
         }
 
         // Create the new session
         var newSession = ChatSessionModel.CreateSession(
-            scope: SessionScope.Server, 
-            serverId: serverId, 
-            model: model, 
-            provider: provider, 
+            scope: SessionScope.Server,
+            serverId: serverId,
+            model: model,
+            provider: provider,
             name: sessionName);
 
         newSession.IsActive = setAsActive;
@@ -82,8 +91,8 @@ public class SessionManagerService : ISessionManagerService
     public async Task<bool> SwitchSessionAsync(ulong serverId, string sessionId)
     {
         var targetSession = await _sessionRepository.AsQueryable()
-            .FirstOrDefaultAsync(s => s.Id == sessionId && 
-                                     s.Scope == SessionScope.Server && 
+            .FirstOrDefaultAsync(s => s.Id == sessionId &&
+                                     s.Scope == SessionScope.Server &&
                                      s.OwningEntityId == serverId);
 
         if (targetSession == null)
@@ -95,6 +104,9 @@ public class SessionManagerService : ISessionManagerService
         // Deactivate all other sessions for this server
         await DeactivateAllSessionsAsync(serverId);
 
+        // Clear the message cache to refresh with the new session's messages
+        _messageCacheService.ClearServerMessageCache(serverId);
+
         // Activate the target session
         targetSession.IsActive = true;
         targetSession.LastActivityAt = DateTime.UtcNow;
@@ -102,7 +114,7 @@ public class SessionManagerService : ISessionManagerService
         await _sessionRepository.UpdateAsync(targetSession);
         await _sessionRepository.SaveChangesAsync();
 
-        _logger.LogInformation("Switched to session '{SessionName}' ({SessionId}) on server {ServerId}", 
+        _logger.LogInformation("Switched to session '{SessionName}' ({SessionId}) on server {ServerId}",
             targetSession.Name, sessionId, serverId);
 
         return true;
@@ -123,9 +135,9 @@ public class SessionManagerService : ISessionManagerService
 
         // Check if a session with this name already exists on the same server
         var existingSession = await _sessionRepository.AsQueryable()
-            .FirstOrDefaultAsync(s => s.Scope == SessionScope.Server && 
-                                     s.OwningEntityId == session.OwningEntityId && 
-                                     s.Name == newName && 
+            .FirstOrDefaultAsync(s => s.Scope == SessionScope.Server &&
+                                     s.OwningEntityId == session.OwningEntityId &&
+                                     s.Name == newName &&
                                      s.Id != sessionId);
 
         if (existingSession != null)
@@ -147,8 +159,8 @@ public class SessionManagerService : ISessionManagerService
     public async Task<bool> DeleteSessionAsync(ulong serverId, string sessionId)
     {
         var session = await _sessionRepository.AsQueryable()
-            .FirstOrDefaultAsync(s => s.Id == sessionId && 
-                                     s.Scope == SessionScope.Server && 
+            .FirstOrDefaultAsync(s => s.Id == sessionId &&
+                                     s.Scope == SessionScope.Server &&
                                      s.OwningEntityId == serverId);
 
         if (session == null)
@@ -171,8 +183,8 @@ public class SessionManagerService : ISessionManagerService
         if (session.IsActive)
         {
             var otherSession = await _sessionRepository.AsQueryable()
-                .Where(s => s.Scope == SessionScope.Server && 
-                           s.OwningEntityId == serverId && 
+                .Where(s => s.Scope == SessionScope.Server &&
+                           s.OwningEntityId == serverId &&
                            s.Id != sessionId)
                 .OrderByDescending(s => s.LastActivityAt)
                 .FirstOrDefaultAsync();
@@ -181,13 +193,16 @@ public class SessionManagerService : ISessionManagerService
             {
                 otherSession.IsActive = true;
                 await _sessionRepository.UpdateAsync(otherSession);
+
+                // Clear the message cache since we're switching to a different session
+                _messageCacheService.ClearServerMessageCache(serverId);
             }
         }
 
         await _sessionRepository.RemoveAsync(session);
         await _sessionRepository.SaveChangesAsync();
 
-        _logger.LogInformation("Deleted session '{SessionName}' ({SessionId}) on server {ServerId}", 
+        _logger.LogInformation("Deleted session '{SessionName}' ({SessionId}) on server {ServerId}",
             session.Name, sessionId, serverId);
 
         return true;
@@ -228,8 +243,8 @@ public class SessionManagerService : ISessionManagerService
         if (session.IsActive)
         {
             var otherSession = await _sessionRepository.AsQueryable()
-                .Where(s => s.Scope == SessionScope.Server && 
-                           s.OwningEntityId == session.OwningEntityId && 
+                .Where(s => s.Scope == SessionScope.Server &&
+                           s.OwningEntityId == session.OwningEntityId &&
                            s.Id != sessionId)
                 .OrderByDescending(s => s.LastActivityAt)
                 .FirstOrDefaultAsync();
@@ -238,6 +253,9 @@ public class SessionManagerService : ISessionManagerService
             {
                 otherSession.IsActive = true;
                 await _sessionRepository.UpdateAsync(otherSession);
+
+                // Clear the message cache since we're switching to a different session
+                _messageCacheService.ClearServerMessageCache(session.OwningEntityId);
             }
         }
 
@@ -253,8 +271,8 @@ public class SessionManagerService : ISessionManagerService
     private async Task DeactivateAllSessionsAsync(ulong serverId)
     {
         var activeSessions = await _sessionRepository.AsQueryable()
-            .Where(s => s.Scope == SessionScope.Server && 
-                       s.OwningEntityId == serverId && 
+            .Where(s => s.Scope == SessionScope.Server &&
+                       s.OwningEntityId == serverId &&
                        s.IsActive)
             .ToListAsync();
 

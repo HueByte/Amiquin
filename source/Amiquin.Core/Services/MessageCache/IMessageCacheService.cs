@@ -56,6 +56,13 @@ public interface IMessageCacheService
     int GetChatMessageCount(ulong instanceId);
 
     /// <summary>
+    /// Clears the cached chat messages for a specific server.
+    /// This should be called when switching sessions to ensure fresh message history.
+    /// </summary>
+    /// <param name="serverId">The Discord server ID to clear cached messages for.</param>
+    void ClearServerMessageCache(ulong serverId);
+
+    /// <summary>
     /// Modifies or sets a message in the cache with a specified expiration time.
     /// </summary>
     /// <param name="key">The cache key for the message.</param>
