@@ -142,19 +142,18 @@ public class NsfwCommands : InteractionModuleBase<ExtendedShardedInteractionCont
                 return;
             }
 
-            // Build the gallery using ComponentsV2 MediaGallery
-            var components = BuildNsfwGalleryComponents(result.Images);
+            // Build the gallery using embed
+            var embed = BuildNsfwGalleryEmbed(result.Images);
             
             // Add status message if there were issues but we still got some images
             var statusMessage = result.IsTemporaryFailure && !string.IsNullOrEmpty(result.ErrorMessage)
                 ? $"⚠️ {result.ErrorMessage}" 
-                : null; // Message content is now in the ComponentsV2 display
+                : null;
             
             await ModifyOriginalResponseAsync(msg => 
             {
                 msg.Content = statusMessage;
-                msg.Embed = null; // Clear any existing embed
-                msg.Components = components;
+                msg.Embed = embed;
             });
         }
         catch (Exception ex)
@@ -282,13 +281,10 @@ public class NsfwCommands : InteractionModuleBase<ExtendedShardedInteractionCont
     }
 
     /// <summary>
-    /// Builds ComponentsV2 with native MediaGallery for displaying NSFW images.
+    /// Builds embed for displaying NSFW images.
     /// </summary>
-    private MessageComponent BuildNsfwGalleryComponents(List<Core.Models.NsfwImage> images)
+    private Embed BuildNsfwGalleryEmbed(List<Core.Models.NsfwImage> images)
     {
-        // Extract image URLs for the media gallery (limit to 10 as per Discord's MediaGallery limit)
-        var imageUrls = images.Take(10).Select(img => img.Url).ToArray();
-        
         // Build source information for display
         var sourceInfo = string.Join(", ", images
             .Select(img => img.Source ?? "Unknown")
@@ -303,15 +299,23 @@ public class NsfwCommands : InteractionModuleBase<ExtendedShardedInteractionCont
             .ToList();
 
         var artistText = artistInfo.Count > 0 
-            ? $"\n-# Artists: {string.Join(", ", artistInfo)}{(artistInfo.Count == 3 ? " and others" : "")}"
+            ? $"\nArtists: {string.Join(", ", artistInfo)}{(artistInfo.Count == 3 ? " and others" : "")}"
             : "";
 
-        return new ComponentBuilderV2()
-            .WithTextDisplay($"# 🔞 NSFW Gallery")
-            .WithTextDisplay($"-# {images.Count} images • Sources: {sourceInfo}{artistText}")
-            .WithMediaGallery(imageUrls)
-            .WithTextDisplay($"-# Requested by {Context.User.Username} • Enjoy responsibly")
-            .Build();
+        var embed = new EmbedBuilder()
+            .WithTitle("🔞 NSFW Gallery")
+            .WithDescription($"{images.Count} images • Sources: {sourceInfo}{artistText}")
+            .WithColor(Color.Red)
+            .WithFooter($"Requested by {Context.User.Username} • Enjoy responsibly", Context.User.GetAvatarUrl())
+            .WithCurrentTimestamp();
+
+        // Add the first image as thumbnail if available
+        if (images.Count > 0)
+        {
+            embed.WithImageUrl(images[0].Url);
+        }
+        
+        return embed.Build();
     }
 
     /// <summary>
