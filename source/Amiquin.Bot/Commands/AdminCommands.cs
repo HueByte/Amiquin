@@ -440,8 +440,8 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
             _configurationService = configurationService;
         }
 
-        [SlashCommand("setup", "Open interactive configuration interface")]
-        public async Task SetupAsync()
+        [SlashCommand("server-manager", "Open interactive server configuration interface with detailed view")]
+        public async Task ServerManagerAsync()
         {
             try
             {
@@ -453,99 +453,16 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
                 {
                     msg.Embed = embed;
                     msg.Components = components;
+                    msg.Flags = MessageFlags.ComponentsV2;
                 });
 
-                _logger.LogInformation("Admin {UserId} opened configuration interface for server {ServerId}",
+                _logger.LogInformation("Admin {UserId} opened server manager interface for server {ServerId}",
                     Context.User.Id, Context.Guild.Id);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error opening configuration interface for server {ServerId}", Context.Guild.Id);
-                await ModifyOriginalResponseAsync(msg => msg.Content = "❌ An error occurred while loading the configuration interface.");
-            }
-        }
-
-        [SlashCommand("view", "View current server configuration")]
-        public async Task ViewConfigAsync()
-        {
-            try
-            {
-                // Ensure server metadata exists first
-                var serverMeta = await _serverMetaService.GetServerMetaAsync(Context.Guild.Id);
-                if (serverMeta == null)
-                {
-                    // Create server metadata if it doesn't exist
-                    serverMeta = await _serverMetaService.CreateServerMetaAsync(Context.Guild.Id, Context.Guild.Name);
-                }
-                
-                // Ensure all toggles are created for this server
-                await _toggleService.CreateServerTogglesIfNotExistsAsync(Context.Guild.Id);
-                
-                // Refresh serverMeta after toggle creation
-                serverMeta = await _serverMetaService.GetServerMetaAsync(Context.Guild.Id);
-                var toggles = await _toggleService.GetTogglesByServerId(Context.Guild.Id);
-
-                var embed = new EmbedBuilder()
-                    .WithTitle($"⚙️ Configuration for {Context.Guild.Name}")
-                    .WithThumbnailUrl(Context.Guild.IconUrl)
-                    .WithColor(Color.Blue)
-                    .WithCurrentTimestamp();
-
-                // Server metadata
-                embed.AddField("🎭 Persona", 
-                    !string.IsNullOrWhiteSpace(serverMeta?.Persona) 
-                        ? serverMeta.Persona.Length > 100 
-                            ? $"{serverMeta.Persona[..100]}..." 
-                            : serverMeta.Persona
-                        : "*Not configured*", 
-                    false);
-
-                // Primary channel
-                if (serverMeta?.PrimaryChannelId.HasValue == true)
-                {
-                    var channel = Context.Guild.GetTextChannel(serverMeta.PrimaryChannelId.Value);
-                    embed.AddField("💬 Primary Channel", channel?.Mention ?? "*Channel not found*", true);
-                }
-                else
-                {
-                    embed.AddField("💬 Primary Channel", "*Not configured*", true);
-                }
-
-                // AI Provider
-                embed.AddField("🤖 AI Provider", 
-                    !string.IsNullOrWhiteSpace(serverMeta?.PreferredProvider) 
-                        ? serverMeta.PreferredProvider 
-                        : "*Using default*", 
-                    true);
-
-                // Toggles summary
-                var enabledCount = toggles.Count(t => t.IsEnabled);
-                embed.AddField("🎛️ Features", $"{enabledCount}/{toggles.Count} enabled", true);
-
-                // List all toggles with their status
-                if (toggles.Any())
-                {
-                    var togglesList = toggles
-                        .OrderBy(t => t.Name)
-                        .Select(t => $"{(t.IsEnabled ? "✅" : "❌")} {FormatToggleName(t.Name)}")
-                        .ToList();
-                    
-                    // Split into multiple fields if there are many toggles
-                    var togglesPerField = 10;
-                    for (int i = 0; i < togglesList.Count; i += togglesPerField)
-                    {
-                        var batch = togglesList.Skip(i).Take(togglesPerField);
-                        var fieldName = i == 0 ? "Available Features" : "Available Features (cont.)";
-                        embed.AddField(fieldName, string.Join("\n", batch), true);
-                    }
-                }
-
-                await ModifyOriginalResponseAsync(msg => msg.Embed = embed.Build());
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error viewing config for server {ServerId}", Context.Guild.Id);
-                await ModifyOriginalResponseAsync(msg => msg.Content = "❌ An error occurred while retrieving the configuration.");
+                _logger.LogError(ex, "Error opening server manager interface for server {ServerId}", Context.Guild.Id);
+                await ModifyOriginalResponseAsync(msg => msg.Content = "❌ An error occurred while loading the server manager interface.");
             }
         }
 

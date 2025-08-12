@@ -90,8 +90,9 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         // Now ensure all toggles are created for this server
         await _toggleService.CreateServerTogglesIfNotExistsAsync(guildId);
 
-        var embed = await BuildConfigurationEmbedAsync(serverMeta, guild);
-        var components = await BuildConfigurationComponentsAsync(serverMeta, guild);
+        // Show complete configuration view by default
+        var embed = await BuildCompleteConfigurationEmbedAsync(serverMeta, guild);
+        var components = await BuildCompleteConfigurationComponentsAsync(serverMeta, guild);
 
         return (embed, components);
     }
@@ -274,6 +275,133 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                 .WithLabel("Help")
                 .WithStyle(ButtonStyle.Secondary)
                 .WithEmote(new Emoji("❓"))
+        ]);
+
+        return builder.Build();
+    }
+
+    private async Task<Embed> BuildCompleteConfigurationEmbedAsync(Models.ServerMeta serverMeta, SocketGuild guild)
+    {
+        var toggles = await _toggleService.GetTogglesByServerId(guild.Id);
+
+        var embedBuilder = new EmbedBuilder()
+            .WithTitle("📋 Complete Server Configuration")
+            .WithDescription($"All settings for **{guild.Name}**")
+            .WithColor(new Color(155, 89, 182))
+            .WithThumbnailUrl(guild.IconUrl)
+            .WithCurrentTimestamp();
+
+        // Server Meta
+        embedBuilder.AddField("🎭 Persona", 
+            !string.IsNullOrWhiteSpace(serverMeta?.Persona) 
+                ? $"```{TruncateText(serverMeta.Persona, 200)}```" 
+                : "*Not configured*", 
+            false);
+
+        // Primary Channel
+        var channelText = "*Not configured*";
+        if (serverMeta?.PrimaryChannelId.HasValue == true)
+        {
+            var channel = guild.GetTextChannel(serverMeta.PrimaryChannelId.Value);
+            channelText = channel != null ? channel.Mention : "*Channel not found*";
+        }
+        embedBuilder.AddField("💬 Primary Channel", channelText, true);
+
+        // AI Provider
+        embedBuilder.AddField("🤖 AI Provider", 
+            !string.IsNullOrWhiteSpace(serverMeta?.PreferredProvider) 
+                ? serverMeta.PreferredProvider 
+                : "*Using default*", 
+            true);
+
+        // NSFW Channel
+        var nsfwChannelText = "*Not configured*";
+        if (serverMeta?.NsfwChannelId.HasValue == true)
+        {
+            var nsfwChannel = guild.GetTextChannel(serverMeta.NsfwChannelId.Value);
+            nsfwChannelText = nsfwChannel != null ? nsfwChannel.Mention : "*Channel not found*";
+        }
+        embedBuilder.AddField("🔞 NSFW Channel", nsfwChannelText, true);
+
+        // Feature Toggles
+        var enabledToggles = toggles.Where(t => t.IsEnabled).Select(t => FormatToggleName(t.Name));
+        var disabledToggles = toggles.Where(t => !t.IsEnabled).Select(t => FormatToggleName(t.Name));
+
+        if (enabledToggles.Any())
+        {
+            embedBuilder.AddField("✅ Enabled Features", 
+                string.Join("\n", enabledToggles.Take(10)), 
+                true);
+        }
+
+        if (disabledToggles.Any())
+        {
+            embedBuilder.AddField("❌ Disabled Features", 
+                string.Join("\n", disabledToggles.Take(10)), 
+                true);
+        }
+
+        return embedBuilder.Build();
+    }
+
+    private async Task<MessageComponent> BuildCompleteConfigurationComponentsAsync(Models.ServerMeta serverMeta, SocketGuild guild)
+    {
+        var builder = new ComponentBuilderV2();
+
+        // Main Navigation Menu
+        var selectMenu = new SelectMenuBuilder()
+            .WithCustomId(_componentHandler.GenerateCustomId(ConfigMenuPrefix, guild.Id.ToString()))
+            .WithPlaceholder("Configure specific settings...")
+            .AddOption("Server Persona", "persona", "Configure AI assistant behavior", new Emoji("🎭"))
+            .AddOption("Primary Channel", "channel", "Set main bot channel", new Emoji("💬"))
+            .AddOption("NSFW Channel", "nsfw_channel", "Set NSFW content channel", new Emoji("🔞"))
+            .AddOption("AI Provider", "provider", "Choose AI model provider", new Emoji("🤖"))
+            .AddOption("Feature Toggles", "toggles", "Enable/disable features", new Emoji("🎛️"))
+            .AddOption("Discord Server Info", "server_info", "Discord server details and statistics", new Emoji("ℹ️"))
+            .AddOption("Amiquin Metadata", "amiquin_metadata", "Bot configuration and AI settings", new Emoji("⚙️"))
+            .AddOption("Session Context", "session_context", "Current conversation context and stats", new Emoji("💭"))
+            .AddOption("Server Persona Details", "persona_details", "Full server persona configuration", new Emoji("📖"));
+
+        builder.WithActionRow([selectMenu]);
+
+        // Quick Actions Row
+        builder.WithActionRow([
+            new ButtonBuilder()
+                .WithCustomId(_componentHandler.GenerateCustomId(QuickSetupPrefix, "persona", guild.Id.ToString()))
+                .WithLabel("Set Persona")
+                .WithStyle(ButtonStyle.Primary)
+                .WithEmote(new Emoji("🎭")),
+            new ButtonBuilder()
+                .WithCustomId(_componentHandler.GenerateCustomId(QuickSetupPrefix, "channel", guild.Id.ToString()))
+                .WithLabel("Set Channel")
+                .WithStyle(ButtonStyle.Primary)
+                .WithEmote(new Emoji("💬")),
+            new ButtonBuilder()
+                .WithCustomId(_componentHandler.GenerateCustomId(QuickSetupPrefix, "provider", guild.Id.ToString()))
+                .WithLabel("Set Provider")
+                .WithStyle(ButtonStyle.Primary)
+                .WithEmote(new Emoji("🤖")),
+            new ButtonBuilder()
+                .WithCustomId(_componentHandler.GenerateCustomId(QuickSetupPrefix, "nsfw_channel", guild.Id.ToString()))
+                .WithLabel("Set NSFW Channel")
+                .WithStyle(ButtonStyle.Secondary)
+                .WithEmote(new Emoji("🔞"))
+        ]);
+
+        // Export and Refresh Actions
+        builder.WithActionRow([
+            new ButtonBuilder()
+                .WithCustomId(_componentHandler.GenerateCustomId(NavigationPrefix, "export", guild.Id.ToString()))
+                .WithLabel("📤 Export")
+                .WithStyle(ButtonStyle.Primary),
+            new ButtonBuilder()
+                .WithCustomId(_componentHandler.GenerateCustomId(NavigationPrefix, "refresh", guild.Id.ToString()))
+                .WithLabel("🔄 Refresh")
+                .WithStyle(ButtonStyle.Secondary),
+            new ButtonBuilder()
+                .WithCustomId(_componentHandler.GenerateCustomId(NavigationPrefix, "help", guild.Id.ToString()))
+                .WithLabel("❓ Help")
+                .WithStyle(ButtonStyle.Secondary)
         ]);
 
         return builder.Build();
@@ -944,68 +1072,12 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         await _toggleService.CreateServerTogglesIfNotExistsAsync(guildId);
         
         var serverMeta = await _serverMetaService.GetServerMetaAsync(guildId);
-        var toggles = await _toggleService.GetTogglesByServerId(guildId);
-
-        var embedBuilder = new EmbedBuilder()
-            .WithTitle("📋 Complete Server Configuration")
-            .WithDescription($"All settings for **{guild.Name}**")
-            .WithColor(new Color(155, 89, 182))
-            .WithThumbnailUrl(guild.IconUrl)
-            .WithCurrentTimestamp();
-
-        // Server Meta
-        embedBuilder.AddField("🎭 Persona", 
-            !string.IsNullOrWhiteSpace(serverMeta?.Persona) 
-                ? $"```{TruncateText(serverMeta.Persona, 200)}```" 
-                : "*Not configured*", 
-            false);
-
-        // Primary Channel
-        var channelText = "*Not configured*";
-        if (serverMeta?.PrimaryChannelId.HasValue == true)
-        {
-            var channel = guild.GetTextChannel(serverMeta.PrimaryChannelId.Value);
-            channelText = channel != null ? channel.Mention : "*Channel not found*";
-        }
-        embedBuilder.AddField("💬 Primary Channel", channelText, true);
-
-        // AI Provider
-        embedBuilder.AddField("🤖 AI Provider", 
-            !string.IsNullOrWhiteSpace(serverMeta?.PreferredProvider) 
-                ? serverMeta.PreferredProvider 
-                : "*Using default*", 
-            true);
-
-        // NSFW Channel
-        var nsfwChannelText = "*Not configured*";
-        if (serverMeta?.NsfwChannelId.HasValue == true)
-        {
-            var nsfwChannel = guild.GetTextChannel(serverMeta.NsfwChannelId.Value);
-            nsfwChannelText = nsfwChannel != null ? nsfwChannel.Mention : "*Channel not found*";
-        }
-        embedBuilder.AddField("🔞 NSFW Channel", nsfwChannelText, true);
-
-        // Feature Toggles
-        var enabledToggles = toggles.Where(t => t.IsEnabled).Select(t => FormatToggleName(t.Name));
-        var disabledToggles = toggles.Where(t => !t.IsEnabled).Select(t => FormatToggleName(t.Name));
-
-        if (enabledToggles.Any())
-        {
-            embedBuilder.AddField("✅ Enabled Features", 
-                string.Join("\n", enabledToggles.Take(10)), 
-                true);
-        }
-
-        if (disabledToggles.Any())
-        {
-            embedBuilder.AddField("❌ Disabled Features", 
-                string.Join("\n", disabledToggles.Take(10)), 
-                true);
-        }
+        
+        var embed = await BuildCompleteConfigurationEmbedAsync(serverMeta, guild);
 
         var builder = new ComponentBuilderV2();
         
-        // Add export and navigation buttons
+        // Add export and back buttons for navigation within the menu
         builder.WithActionRow([
             new ButtonBuilder()
                 .WithCustomId(_componentHandler.GenerateCustomId(NavigationPrefix, "export", guildId.ToString()))
@@ -1019,7 +1091,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
 
         await component.ModifyOriginalResponseAsync(msg =>
         {
-            msg.Embed = embedBuilder.Build();
+            msg.Embed = embed;
             msg.Components = builder.Build();
         });
     }
