@@ -243,11 +243,11 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
             var selectedHarmony = harmony ?? (ColorHarmonyType)Random.Shared.Next(0, 7);
             var palette = await _funService.GenerateColorTheoryPaletteAsync(selectedHarmony, baseHue);
 
-            // Generate color images for each color in the palette
+            // Generate color images for each color in the palette in parallel
             var colorImages = new List<FileAttachment>();
             var imageUrls = new List<string>();
 
-            foreach (var color in palette.Colors)
+            var imageGenerationTasks = palette.Colors.Select(async color =>
             {
                 try
                 {
@@ -257,13 +257,23 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
                     var imageUrl = $"attachment://{fileName}";
 
                     var attachment = new FileAttachment(colorImage, fileName);
-                    colorImages.Add(attachment);
-                    imageUrls.Add(imageUrl);
+                    return (success: true, attachment, imageUrl);
                 }
                 catch
                 {
-                    // Skip this color if image generation fails
-                    continue;
+                    // Return failure for this color
+                    return (success: false, attachment: (FileAttachment?)null, imageUrl: (string?)null);
+                }
+            });
+
+            var results = await Task.WhenAll(imageGenerationTasks);
+            
+            foreach (var result in results)
+            {
+                if (result.success && result.attachment.HasValue && result.imageUrl != null)
+                {
+                    colorImages.Add(result.attachment.Value);
+                    imageUrls.Add(result.imageUrl);
                 }
             }
 
@@ -299,6 +309,7 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
         }
         catch
         {
+            // Error will be logged by CommandHandlerService
             await ModifyOriginalResponseAsync(msg => msg.Content = "❌ Failed to generate color palette. Try again later!");
         }
     }
