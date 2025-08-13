@@ -104,66 +104,147 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         var toggles = await _toggleService.GetTogglesByServerId(guild.Id);
         var builder = new ComponentBuilderV2();
 
-        // Header with server name
-        builder.WithTextDisplay($"# 📋 Server Configuration\n## {guild.Name}");
-
-        // Server Persona Section
-        var personaContent = !string.IsNullOrWhiteSpace(serverMeta?.Persona)
-            ? $"**🎭 Persona**\n```\n{TruncateText(serverMeta.Persona, 300)}\n```"
-            : "**🎭 Persona**\n*Not configured*";
-
-        builder.WithTextDisplay(personaContent);
-
-        // Channel and Provider Information
-        var channelText = "*Not configured*";
-        if (serverMeta?.PrimaryChannelId.HasValue == true)
+        builder.WithContainer(container =>
         {
-            var channel = guild.GetTextChannel(serverMeta.PrimaryChannelId.Value);
-            channelText = channel != null ? channel.Mention : "*Channel not found*";
-        }
+            container.WithAccentColor(new Color(52, 152, 219));
 
-        var nsfwChannelText = "*Not configured*";
-        if (serverMeta?.NsfwChannelId.HasValue == true)
-        {
-            var nsfwChannel = guild.GetTextChannel(serverMeta.NsfwChannelId.Value);
-            nsfwChannelText = nsfwChannel != null ? nsfwChannel.Mention : "*Channel not found*";
-        }
+            // Header section
+            container.WithTextDisplay($"# 📋 Server Configuration\n## {guild.Name}");
 
-        var providerText = !string.IsNullOrWhiteSpace(serverMeta?.PreferredProvider)
-            ? serverMeta.PreferredProvider
-            : "*Using default*";
+            // Server Persona Section with navigation
+            var personaContent = !string.IsNullOrWhiteSpace(serverMeta?.Persona)
+                ? $"**🎭 Server Persona**\n```\n{TruncateText(serverMeta.Persona, 200)}\n```\n*Click button below to view full persona or edit*"
+                : "**🎭 Server Persona**\n*Not configured - click button below to set up*";
 
-        builder.WithTextDisplay($"**💬 Primary Channel:** {channelText}\n**🔞 NSFW Channel:** {nsfwChannelText}\n**🤖 AI Provider:** {providerText}");
+            container.AddComponent(new SectionBuilder()
+                .AddComponent(new TextDisplayBuilder()
+                    .WithContent(personaContent))
+                .WithAccessory(new ButtonBuilder()
+                    .WithCustomId(_componentHandler.GenerateCustomId(ConfigMenuPrefix, "persona", guild.Id.ToString()))
+                    .WithLabel("Configure Persona")
+                    .WithStyle(ButtonStyle.Primary)
+                    .WithEmote(new Emoji("🎭"))));
 
-        // Feature Toggles
-        var enabledToggles = toggles.Where(t => t.IsEnabled).Select(t => FormatToggleName(t.Name)).ToList();
-        var disabledToggles = toggles.Where(t => !t.IsEnabled).Select(t => FormatToggleName(t.Name)).ToList();
+            // Channel Configuration Section
+            var channelText = "*Not configured*";
+            if (serverMeta?.PrimaryChannelId.HasValue == true)
+            {
+                var channel = guild.GetTextChannel(serverMeta.PrimaryChannelId.Value);
+                channelText = channel != null ? channel.Mention : "*Channel not found*";
+            }
 
-        if (enabledToggles.Any())
-        {
-            var enabledText = $"**✅ Enabled Features**\n{string.Join("\n", enabledToggles.Take(10))}";
-            builder.WithTextDisplay(enabledText);
-        }
+            var nsfwChannelText = "*Not configured*";
+            if (serverMeta?.NsfwChannelId.HasValue == true)
+            {
+                var nsfwChannel = guild.GetTextChannel(serverMeta.NsfwChannelId.Value);
+                nsfwChannelText = nsfwChannel != null ? nsfwChannel.Mention : "*Channel not found*";
+            }
 
-        if (disabledToggles.Any())
-        {
-            var disabledText = $"**❌ Disabled Features**\n{string.Join("\n", disabledToggles.Take(10))}";
-            builder.WithTextDisplay(disabledText);
-        }
+            var channelContent = $"**💬 Channel Configuration**\n" +
+                $"**Primary:** {channelText}\n" +
+                $"**NSFW:** {nsfwChannelText}";
+
+            container.AddComponent(new SectionBuilder()
+                .AddComponent(new TextDisplayBuilder()
+                    .WithContent(channelContent))
+                .WithAccessory(new ButtonBuilder()
+                    .WithCustomId(_componentHandler.GenerateCustomId(ConfigMenuPrefix, "channels", guild.Id.ToString()))
+                    .WithLabel("Configure Channels")
+                    .WithStyle(ButtonStyle.Primary)
+                    .WithEmote(new Emoji("💬"))));
+
+            // AI Provider Section
+            var providerText = !string.IsNullOrWhiteSpace(serverMeta?.PreferredProvider)
+                ? serverMeta.PreferredProvider
+                : "*Using default (OpenAI)*";
+
+            var providerContent = $"**🤖 AI Provider**\n{providerText}";
+
+            container.AddComponent(new SectionBuilder()
+                .AddComponent(new TextDisplayBuilder()
+                    .WithContent(providerContent))
+                .WithAccessory(new ButtonBuilder()
+                    .WithCustomId(_componentHandler.GenerateCustomId(ConfigMenuPrefix, "provider", guild.Id.ToString()))
+                    .WithLabel("Configure Provider")
+                    .WithStyle(ButtonStyle.Primary)
+                    .WithEmote(new Emoji("🤖"))));
+
+            // Feature Toggles Summary Section
+            var enabledToggles = toggles.Where(t => t.IsEnabled).ToList();
+            var disabledToggles = toggles.Where(t => !t.IsEnabled).ToList();
+
+            var toggleSummaryContent = $"**🎛️ Feature Toggles**\n" +
+                $"**Enabled:** {enabledToggles.Count}/{toggles.Count}\n" +
+                $"**Top Features:** {(enabledToggles.Any() ? string.Join(", ", enabledToggles.Take(3).Select(t => FormatToggleName(t.Name))) : "*None enabled*")}";
+
+            if (enabledToggles.Count > 3)
+            {
+                toggleSummaryContent += $"\n*...and {enabledToggles.Count - 3} more*";
+            }
+
+            container.AddComponent(new SectionBuilder()
+                .AddComponent(new TextDisplayBuilder()
+                    .WithContent(toggleSummaryContent))
+                .WithAccessory(new ButtonBuilder()
+                    .WithCustomId(_componentHandler.GenerateCustomId(ConfigMenuPrefix, "toggles", guild.Id.ToString()))
+                    .WithLabel("Manage Features")
+                    .WithStyle(ButtonStyle.Primary)
+                    .WithEmote(new Emoji("🎛️"))));
+
+            // Quick Actions Section
+            container.AddComponent(new SectionBuilder()
+                .AddComponent(new TextDisplayBuilder()
+                    .WithContent("**⚡ Quick Actions**\nRapid configuration options"))
+                .WithAccessory(new SelectMenuBuilder()
+                    .WithCustomId(_componentHandler.GenerateCustomId(QuickSetupPrefix, "quick_action", guild.Id.ToString()))
+                    .WithPlaceholder("Choose a quick action...")
+                    .AddOption("Set Persona", "persona", "Quick persona setup", new Emoji("🎭"))
+                    .AddOption("Set Primary Channel", "channel", "Quick channel setup", new Emoji("💬"))
+                    .AddOption("Set NSFW Channel", "nsfw_channel", "Quick NSFW channel setup", new Emoji("🔞"))
+                    .AddOption("Change Provider", "provider", "Quick provider change", new Emoji("🤖"))));
+
+            // Information Sections
+            container.AddComponent(new SectionBuilder()
+                .AddComponent(new TextDisplayBuilder()
+                    .WithContent("**ℹ️ Server Information**\nView Discord server details and statistics"))
+                .WithAccessory(new ButtonBuilder()
+                    .WithCustomId(_componentHandler.GenerateCustomId(ConfigMenuPrefix, "server_info", guild.Id.ToString()))
+                    .WithLabel("Server Info")
+                    .WithStyle(ButtonStyle.Secondary)
+                    .WithEmote(new Emoji("ℹ️"))));
+
+            container.AddComponent(new SectionBuilder()
+                .AddComponent(new TextDisplayBuilder()
+                    .WithContent("**⚙️ Bot Metadata**\nView Amiquin configuration and AI settings"))
+                .WithAccessory(new ButtonBuilder()
+                    .WithCustomId(_componentHandler.GenerateCustomId(ConfigMenuPrefix, "amiquin_metadata", guild.Id.ToString()))
+                    .WithLabel("Bot Metadata")
+                    .WithStyle(ButtonStyle.Secondary)
+                    .WithEmote(new Emoji("⚙️"))));
+
+            container.AddComponent(new SectionBuilder()
+                .AddComponent(new TextDisplayBuilder()
+                    .WithContent("**💭 Session Context**\nView current conversation context and statistics"))
+                .WithAccessory(new ButtonBuilder()
+                    .WithCustomId(_componentHandler.GenerateCustomId(ConfigMenuPrefix, "session_context", guild.Id.ToString()))
+                    .WithLabel("Session Context")
+                    .WithStyle(ButtonStyle.Secondary)
+                    .WithEmote(new Emoji("💭"))));
+        });
 
         // Interactive Components - Navigation Menu
         var selectMenu = new SelectMenuBuilder()
-            .WithCustomId(_componentHandler.GenerateCustomId(ConfigMenuPrefix, guild.Id.ToString()))
-            .WithPlaceholder("Configure specific settings...")
-            .AddOption("Server Persona", "persona", "Configure AI assistant behavior", new Emoji("🎭"))
-            .AddOption("Primary Channel", "channel", "Set main bot channel", new Emoji("💬"))
-            .AddOption("NSFW Channel", "nsfw_channel", "Set NSFW content channel", new Emoji("🔞"))
-            .AddOption("AI Provider", "provider", "Choose AI model provider", new Emoji("🤖"))
-            .AddOption("Feature Toggles", "toggles", "Enable/disable features", new Emoji("🎛️"))
-            .AddOption("Discord Server Info", "server_info", "Discord server details and statistics", new Emoji("ℹ️"))
-            .AddOption("Amiquin Metadata", "amiquin_metadata", "Bot configuration and AI settings", new Emoji("⚙️"))
-            .AddOption("Session Context", "session_context", "Current conversation context and stats", new Emoji("💭"))
-            .AddOption("Server Persona Details", "persona_details", "Full server persona configuration", new Emoji("📖"));
+        .WithCustomId(_componentHandler.GenerateCustomId(ConfigMenuPrefix, guild.Id.ToString()))
+        .WithPlaceholder("Configure specific settings...")
+        .AddOption("Server Persona", "persona", "Configure AI assistant behavior", new Emoji("🎭"))
+        .AddOption("Primary Channel", "channel", "Set main bot channel", new Emoji("💬"))
+        .AddOption("NSFW Channel", "nsfw_channel", "Set NSFW content channel", new Emoji("🔞"))
+        .AddOption("AI Provider", "provider", "Choose AI model provider", new Emoji("🤖"))
+        .AddOption("Feature Toggles", "toggles", "Enable/disable features", new Emoji("🎛️"))
+        .AddOption("Discord Server Info", "server_info", "Discord server details and statistics", new Emoji("ℹ️"))
+        .AddOption("Amiquin Metadata", "amiquin_metadata", "Bot configuration and AI settings", new Emoji("⚙️"))
+        .AddOption("Session Context", "session_context", "Current conversation context and stats", new Emoji("💭"))
+        .AddOption("Server Persona Details", "persona_details", "Full server persona configuration", new Emoji("📖"));
 
         builder.WithActionRow([selectMenu]);
 
@@ -215,6 +296,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
 
         return builder.Build();
     }
+
 
 
     private async Task<bool> HandleConfigMenuAsync(SocketMessageComponent component, ComponentContext context)
@@ -559,17 +641,11 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         var components = new ComponentBuilderV2()
             .WithContainer(container =>
             {
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent($"# {title}\n{description}")));
+                container.WithTextDisplay($"# {title}\n{description}");
 
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent($"**Current Persona**\n{currentPersonaText}")));
+                container.WithTextDisplay($"**Current Persona**\n{currentPersonaText}");
 
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent(tipsContent)));
+                container.WithTextDisplay(tipsContent);
 
                 // Add interaction components
                 var builtComponents = builder.Build();
@@ -586,9 +662,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                 var actionRows = builtComponents.Components.OfType<ActionRowComponent>();
                 if (!actionRows.Any() || !actionRows.SelectMany(r => r.Components).Any())
                 {
-                    container.AddComponent(new SectionBuilder()
-                        .AddComponent(new TextDisplayBuilder()
-                            .WithContent("Configuration options will appear here.")));
+                    container.WithTextDisplay("Configuration options will appear here.");
                 }
             })
             .Build();
@@ -672,13 +746,9 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         var components = new ComponentBuilderV2()
             .WithContainer(container =>
             {
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent($"# {title}\n{description}")));
+                container.WithTextDisplay($"# {title}\n{description}");
 
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent(currentChannelContent)));
+                container.WithTextDisplay(currentChannelContent);
 
                 // Add interaction components
                 var builtComponents = builder.Build();
@@ -695,9 +765,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                 var actionRows = builtComponents.Components.OfType<ActionRowComponent>();
                 if (!actionRows.Any() || !actionRows.SelectMany(r => r.Components).Any())
                 {
-                    container.AddComponent(new SectionBuilder()
-                        .AddComponent(new TextDisplayBuilder()
-                            .WithContent("Configuration options will appear here.")));
+                    container.WithTextDisplay("Configuration options will appear here.");
                 }
             })
             .Build();
@@ -777,18 +845,12 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                 container.WithAccentColor(new Color(52, 152, 219));
 
                 // Add main title and description section
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent($"# {title}\n{description}")));
+                container.WithTextDisplay($"# {title}\n{description}");
 
                 // Add content sections
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent(currentProviderContent)));
+                container.WithTextDisplay(currentProviderContent);
 
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent(availableProvidersContent)));
+                container.WithTextDisplay(availableProvidersContent);
 
                 // Add components from the traditional ComponentBuilder
                 var builtComponents = builder.Build();
@@ -816,9 +878,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                 // Ensure we have at least one section if none were added
                 if (!actionRows.Any() || !actionRows.SelectMany(r => r.Components).Any())
                 {
-                    container.AddComponent(new SectionBuilder()
-                        .AddComponent(new TextDisplayBuilder()
-                            .WithContent("Configuration options will appear here.")));
+                    container.WithTextDisplay("Configuration options will appear here.");
                 }
             })
             .Build();
@@ -854,15 +914,11 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
             var components = new ComponentBuilderV2()
                 .WithContainer(container =>
                 {
-                    container.AddComponent(new SectionBuilder()
-                        .AddComponent(new TextDisplayBuilder()
-                            .WithContent($"# {page.Title}\n{page.Content}")));
+                    container.WithTextDisplay($"# {page.Title}\n{page.Content}");
 
                     foreach (var section in page.Sections)
                     {
-                        container.AddComponent(new SectionBuilder()
-                            .AddComponent(new TextDisplayBuilder()
-                                .WithContent($"**{section.Title}**\n{section.Content}")));
+                        container.WithTextDisplay($"**{section.Title}**\n{section.Content}");
                     }
 
                     // Add toggle buttons directly to container
@@ -1072,29 +1128,17 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         var components = new ComponentBuilderV2()
             .WithContainer(container =>
             {
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent($"# {title}\n{description}")));
+                container.WithTextDisplay($"# {title}\n{description}");
 
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent(serverPersonaContent)));
+                container.WithTextDisplay(serverPersonaContent);
 
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent(primaryChannelContent)));
+                container.WithTextDisplay(primaryChannelContent);
 
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent(aiProviderContent)));
+                container.WithTextDisplay(aiProviderContent);
 
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent(featureTogglesContent)));
+                container.WithTextDisplay(featureTogglesContent);
 
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent(needMoreHelpContent)));
+                container.WithTextDisplay(needMoreHelpContent);
             })
             .Build();
 
@@ -1260,48 +1304,28 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         var components = new ComponentBuilderV2()
             .WithContainer(container =>
             {
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent($"# {title}\n{description}")));
+                container.WithTextDisplay($"# {title}\n{description}");
 
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent(createdContent)));
+                container.WithTextDisplay(createdContent);
 
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent(ownerContent)));
+                container.WithTextDisplay(ownerContent);
 
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent(serverIdContent)));
+                container.WithTextDisplay(serverIdContent);
 
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent(membersContent)));
+                container.WithTextDisplay(membersContent);
 
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent(onlineContent)));
+                container.WithTextDisplay(onlineContent);
 
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent(channelsContent)));
+                container.WithTextDisplay(channelsContent);
 
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent(featuresContent)));
+                container.WithTextDisplay(featuresContent);
 
                 if (!string.IsNullOrEmpty(boostContent))
                 {
-                    container.AddComponent(new SectionBuilder()
-                        .AddComponent(new TextDisplayBuilder()
-                            .WithContent(boostContent)));
+                    container.WithTextDisplay(boostContent);
                 }
 
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent(verificationContent)));
+                container.WithTextDisplay(verificationContent);
 
                 // Add interaction components
                 var builtComponents = builder.Build();
@@ -1318,9 +1342,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                 var actionRows = builtComponents.Components.OfType<ActionRowComponent>();
                 if (!actionRows.Any() || !actionRows.SelectMany(r => r.Components).Any())
                 {
-                    container.AddComponent(new SectionBuilder()
-                        .AddComponent(new TextDisplayBuilder()
-                            .WithContent("Configuration options will appear here.")));
+                    container.WithTextDisplay("Configuration options will appear here.");
                 }
             })
             .Build();
@@ -1407,27 +1429,17 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         var components = new ComponentBuilderV2()
             .WithContainer(container =>
             {
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent($"# {title}\n{description}")));
+                container.WithTextDisplay($"# {title}\n{description}");
 
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent(configuredChannelsContent)));
+                container.WithTextDisplay(configuredChannelsContent);
 
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent(aiConfigContent)));
+                container.WithTextDisplay(aiConfigContent);
 
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent(featureSummaryContent)));
+                container.WithTextDisplay(featureSummaryContent);
 
                 if (!string.IsNullOrEmpty(metadataContent))
                 {
-                    container.AddComponent(new SectionBuilder()
-                        .AddComponent(new TextDisplayBuilder()
-                            .WithContent(metadataContent)));
+                    container.WithTextDisplay(metadataContent);
                 }
 
                 // Add interaction components
@@ -1445,9 +1457,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                 var actionRows = builtComponents.Components.OfType<ActionRowComponent>();
                 if (!actionRows.Any() || !actionRows.SelectMany(r => r.Components).Any())
                 {
-                    container.AddComponent(new SectionBuilder()
-                        .AddComponent(new TextDisplayBuilder()
-                            .WithContent("Configuration options will appear here.")));
+                    container.WithTextDisplay("Configuration options will appear here.");
                 }
             })
             .Build();
@@ -1508,29 +1518,17 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         var components = new ComponentBuilderV2()
             .WithContainer(container =>
             {
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent($"# {title}\n{description}")));
+                container.WithTextDisplay($"# {title}\n{description}");
 
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent(activeSessionsContent)));
+                container.WithTextDisplay(activeSessionsContent);
 
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent(messageStatsContent)));
+                container.WithTextDisplay(messageStatsContent);
 
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent(contextMemoryContent)));
+                container.WithTextDisplay(contextMemoryContent);
 
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent(responseTimesContent)));
+                container.WithTextDisplay(responseTimesContent);
 
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent(recentInteractionsContent)));
+                container.WithTextDisplay(recentInteractionsContent);
 
                 // Add interaction components
                 var builtComponents = builder.Build();
@@ -1547,9 +1545,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                 var actionRows = builtComponents.Components.OfType<ActionRowComponent>();
                 if (!actionRows.Any() || !actionRows.SelectMany(r => r.Components).Any())
                 {
-                    container.AddComponent(new SectionBuilder()
-                        .AddComponent(new TextDisplayBuilder()
-                            .WithContent("Configuration options will appear here.")));
+                    container.WithTextDisplay("Configuration options will appear here.");
                 }
             })
             .Build();
@@ -1639,15 +1635,11 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         var components = new ComponentBuilderV2()
             .WithContainer(container =>
             {
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent($"# {title}\n{description}")));
+                container.WithTextDisplay($"# {title}\n{description}");
 
                 foreach (var sectionContent in contentSections)
                 {
-                    container.AddComponent(new SectionBuilder()
-                        .AddComponent(new TextDisplayBuilder()
-                            .WithContent(sectionContent)));
+                    container.WithTextDisplay(sectionContent);
                 }
 
                 // Add interaction components
@@ -1665,9 +1657,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                 var actionRows = builtComponents.Components.OfType<ActionRowComponent>();
                 if (!actionRows.Any() || !actionRows.SelectMany(r => r.Components).Any())
                 {
-                    container.AddComponent(new SectionBuilder()
-                        .AddComponent(new TextDisplayBuilder()
-                            .WithContent("Configuration options will appear here.")));
+                    container.WithTextDisplay("Configuration options will appear here.");
                 }
             })
             .Build();
@@ -1764,13 +1754,9 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                             var successComponents = new ComponentBuilderV2()
                                 .WithContainer(container =>
                                 {
-                                    container.AddComponent(new SectionBuilder()
-                                        .AddComponent(new TextDisplayBuilder()
-                                            .WithContent($"# {successTitle}\n{successDescription}")));
+                                    container.WithTextDisplay($"# {successTitle}\n{successDescription}");
 
-                                    container.AddComponent(new SectionBuilder()
-                                        .AddComponent(new TextDisplayBuilder()
-                                            .WithContent(newPersonaContent)));
+                                    container.WithTextDisplay(newPersonaContent);
                                 })
                                 .Build();
 
@@ -1897,17 +1883,11 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         var components = new ComponentBuilderV2()
             .WithContainer(container =>
             {
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent($"# {title}\n{description}")));
+                container.WithTextDisplay($"# {title}\n{description}");
 
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent(currentNsfwChannelContent)));
+                container.WithTextDisplay(currentNsfwChannelContent);
 
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent(dailyNsfwStatusContent)));
+                container.WithTextDisplay(dailyNsfwStatusContent);
 
                 // Add interaction components
                 var builtComponents = builder.Build();
@@ -1924,9 +1904,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                 var actionRows = builtComponents.Components.OfType<ActionRowComponent>();
                 if (!actionRows.Any() || !actionRows.SelectMany(r => r.Components).Any())
                 {
-                    container.AddComponent(new SectionBuilder()
-                        .AddComponent(new TextDisplayBuilder()
-                            .WithContent("Configuration options will appear here.")));
+                    container.WithTextDisplay("Configuration options will appear here.");
                 }
             })
             .Build();

@@ -162,13 +162,9 @@ public class DailyNsfwJob : IRunnableJob
             .WithContainer(container =>
             {
                 // Header
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent("# 🔞 Daily NSFW Gallery")));
+                container.WithTextDisplay("# 🔞 Daily NSFW Gallery");
 
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent($"Today's curated collection of **{images.Count}** images from various sources")));
+                container.WithTextDisplay($"Today's curated collection of **{images.Count}** images from various sources");
 
                 // Show up to 3 random images as a preview
                 var previewImages = images.OrderBy(x => Guid.NewGuid()).Take(3).ToList();
@@ -176,9 +172,7 @@ public class DailyNsfwJob : IRunnableJob
                 // Add main gallery image
                 if (previewImages.Any())
                 {
-                    container.AddComponent(new SectionBuilder()
-                        .AddComponent(new TextDisplayBuilder()
-                            .WithContent($"**Featured Image:** [View]({previewImages.First().Url})")));
+                    container.WithTextDisplay($"**Featured Image:** [View]({previewImages.First().Url})");
                 }
 
                 // Add preview information
@@ -197,21 +191,15 @@ public class DailyNsfwJob : IRunnableJob
                         imageInfo += $"\n**Tags:** {img.Tags}";
                     }
 
-                    container.AddComponent(new SectionBuilder()
-                        .AddComponent(new TextDisplayBuilder()
-                            .WithContent(imageInfo)));
+                    container.WithTextDisplay(imageInfo);
                 }
 
                 if (images.Count > 3)
                 {
-                    container.AddComponent(new SectionBuilder()
-                        .AddComponent(new TextDisplayBuilder()
-                            .WithContent($"**📋 Full Gallery**\n**{images.Count - 3}** more images available!\n**Sources:** {string.Join(", ", images.Select(i => i.Source).Distinct())}")));
+                    container.WithTextDisplay($"**📋 Full Gallery**\n**{images.Count - 3}** more images available!\n**Sources:** {string.Join(", ", images.Select(i => i.Source).Distinct())}");
                 }
 
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent("*Daily NSFW Gallery • Enjoy responsibly*")));
+                container.WithTextDisplay("*Daily NSFW Gallery • Enjoy responsibly*");
             });
 
         return componentsBuilder.Build();

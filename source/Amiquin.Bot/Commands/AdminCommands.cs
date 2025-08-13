@@ -79,15 +79,9 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
         var components = new ComponentBuilderV2()
             .WithContainer(container =>
             {
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent("# ✅ Persona Updated")));
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent("Server persona has been updated successfully.")));
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent($"**New Persona:**\n{(persona.Length > 500 ? $"{persona[..500]}..." : persona)}")));
+                container.WithTextDisplay("# ✅ Persona Updated");
+                container.WithTextDisplay("Server persona has been updated successfully.");
+                container.WithTextDisplay($"**New Persona:**\n{(persona.Length > 500 ? $"{persona[..500]}..." : persona)}");
             })
             .Build();
 
@@ -134,25 +128,17 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
         var componentsBuilder = new ComponentBuilderV2()
             .WithContainer(container =>
             {
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent($"# {title}")));
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent(message)));
+                container.WithTextDisplay($"# {title}");
+                container.WithTextDisplay(message);
 
                 if (!string.IsNullOrWhiteSpace(thumbnail))
                 {
-                    container.AddComponent(new SectionBuilder()
-                        .AddComponent(new TextDisplayBuilder()
-                            .WithContent($"**Image:** [View]({thumbnail})")));
+                    container.WithTextDisplay($"**Image:** [View]({thumbnail})");
                 }
 
                 if (withAuthor)
                 {
-                    container.AddComponent(new SectionBuilder()
-                        .AddComponent(new TextDisplayBuilder()
-                            .WithContent($"**Author:** {Context.User.Username}")));
+                    container.WithTextDisplay($"**Author:** {Context.User.Username}");
                 }
             });
 
@@ -214,15 +200,9 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
                 var components = new ComponentBuilderV2()
                     .WithContainer(container =>
                     {
-                        container.AddComponent(new SectionBuilder()
-                            .AddComponent(new TextDisplayBuilder()
-                                .WithContent("# 🗑️ Messages Deleted")));
-                        container.AddComponent(new SectionBuilder()
-                            .AddComponent(new TextDisplayBuilder()
-                                .WithContent($"Successfully deleted **{messagesToDelete.Count}** messages.")));
-                        container.AddComponent(new SectionBuilder()
-                            .AddComponent(new TextDisplayBuilder()
-                                .WithContent($"*Requested by {Context.User.Username}*")));
+                        container.WithTextDisplay("# 🗑️ Messages Deleted");
+                        container.WithTextDisplay($"Successfully deleted **{messagesToDelete.Count}** messages.");
+                        container.WithTextDisplay($"*Requested by {Context.User.Username}*");
                     })
                     .Build();
 
@@ -263,21 +243,11 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
             var components = new ComponentBuilderV2()
                 .WithContainer(container =>
                 {
-                    container.AddComponent(new SectionBuilder()
-                        .AddComponent(new TextDisplayBuilder()
-                            .WithContent("# 😌 Calming Down...")));
-                    container.AddComponent(new SectionBuilder()
-                        .AddComponent(new TextDisplayBuilder()
-                            .WithContent($"**Avatar:** [View]({Context.Client.CurrentUser.GetDisplayAvatarUrl()})")));
-                    container.AddComponent(new SectionBuilder()
-                        .AddComponent(new TextDisplayBuilder()
-                            .WithContent("I'll take it easy for a bit. My engagement has been reset to baseline.")));
-                    container.AddComponent(new SectionBuilder()
-                        .AddComponent(new TextDisplayBuilder()
-                            .WithContent($"**Engagement Level:** Reset to {currentLevel:F1}x (baseline)\n**Context:** Cleared all conversation context\n**Status:** 🌙 Relaxed mode activated")));
-                    container.AddComponent(new SectionBuilder()
-                        .AddComponent(new TextDisplayBuilder()
-                            .WithContent("*Use mentions to re-engage me if needed*")));
+                    container.WithTextDisplay("# 😌 Calming Down...");
+                    container.WithTextDisplay($"**Avatar:** [View]({Context.Client.CurrentUser.GetDisplayAvatarUrl()})");
+                    container.WithTextDisplay("I'll take it easy for a bit. My engagement has been reset to baseline.");
+                    container.WithTextDisplay($"**Engagement Level:** Reset to {currentLevel:F1}x (baseline)\n**Context:** Cleared all conversation context\n**Status:** 🌙 Relaxed mode activated");
+                    container.WithTextDisplay("*Use mentions to re-engage me if needed*");
                 })
                 .Build();
 
@@ -313,33 +283,19 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
             var components = new ComponentBuilderV2()
                 .WithContainer(container =>
                 {
-                    container.AddComponent(new SectionBuilder()
-                        .AddComponent(new TextDisplayBuilder()
-                            .WithContent($"# {(success ? "📦 History Compacted" : "⚠️ Compaction Issue")}")));
-                    container.AddComponent(new SectionBuilder()
-                        .AddComponent(new TextDisplayBuilder()
-                            .WithContent($"**Avatar:** [View]({Context.Client.CurrentUser.GetDisplayAvatarUrl()})")));
-                    container.AddComponent(new SectionBuilder()
-                        .AddComponent(new TextDisplayBuilder()
-                            .WithContent(message)));
+                    container.WithTextDisplay($"# {(success ? "📦 History Compacted" : "⚠️ Compaction Issue")}");
+                    container.WithTextDisplay($"**Avatar:** [View]({Context.Client.CurrentUser.GetDisplayAvatarUrl()})");
+                    container.WithTextDisplay(message);
 
                     if (success)
                     {
-                        container.AddComponent(new SectionBuilder()
-                            .AddComponent(new TextDisplayBuilder()
-                                .WithContent("**💾 Benefits:**\n• Reduced memory usage\n• Faster response times\n• Lower token costs")));
-                        container.AddComponent(new SectionBuilder()
-                            .AddComponent(new TextDisplayBuilder()
-                                .WithContent("**🔄 What happened:**\n• Older messages summarized\n• Recent messages preserved\n• Context maintained")));
-                        container.AddComponent(new SectionBuilder()
-                            .AddComponent(new TextDisplayBuilder()
-                                .WithContent("*History optimization helps maintain performance*")));
+                        container.WithTextDisplay("**💾 Benefits:**\n• Reduced memory usage\n• Faster response times\n• Lower token costs");
+                        container.WithTextDisplay("**🔄 What happened:**\n• Older messages summarized\n• Recent messages preserved\n• Context maintained");
+                        container.WithTextDisplay("*History optimization helps maintain performance*");
                     }
                     else
                     {
-                        container.AddComponent(new SectionBuilder()
-                            .AddComponent(new TextDisplayBuilder()
-                                .WithContent("*Try again later or check if there are enough messages to compact*")));
+                        container.WithTextDisplay("*Try again later or check if there are enough messages to compact*");
                     }
                 })
                 .Build();
@@ -594,15 +550,9 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
                         componentsBuilder = new ComponentBuilderV2()
                             .WithContainer(container =>
                             {
-                                container.AddComponent(new SectionBuilder()
-                                    .AddComponent(new TextDisplayBuilder()
-                                        .WithContent("# ✅ Persona Updated")));
-                                container.AddComponent(new SectionBuilder()
-                                    .AddComponent(new TextDisplayBuilder()
-                                        .WithContent("Server persona has been updated successfully.")));
-                                container.AddComponent(new SectionBuilder()
-                                    .AddComponent(new TextDisplayBuilder()
-                                        .WithContent($"**New Persona:**\n{(value.Length > 500 ? $"{value[..500]}..." : value)}")));
+                                container.WithTextDisplay("# ✅ Persona Updated");
+                                container.WithTextDisplay("Server persona has been updated successfully.");
+                                container.WithTextDisplay($"**New Persona:**\n{(value.Length > 500 ? $"{value[..500]}..." : value)}");
                             });
                         break;
 
@@ -641,15 +591,9 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
                         componentsBuilder = new ComponentBuilderV2()
                             .WithContainer(container =>
                             {
-                                container.AddComponent(new SectionBuilder()
-                                    .AddComponent(new TextDisplayBuilder()
-                                        .WithContent("# ✅ Primary Channel Updated")));
-                                container.AddComponent(new SectionBuilder()
-                                    .AddComponent(new TextDisplayBuilder()
-                                        .WithContent($"Primary channel has been set to {channel.Mention}")));
-                                container.AddComponent(new SectionBuilder()
-                                    .AddComponent(new TextDisplayBuilder()
-                                        .WithContent($"**Channel:** {channel.Mention}\n**Channel ID:** {channelId}")));
+                                container.WithTextDisplay("# ✅ Primary Channel Updated");
+                                container.WithTextDisplay($"Primary channel has been set to {channel.Mention}");
+                                container.WithTextDisplay($"**Channel:** {channel.Mention}\n**Channel ID:** {channelId}");
                             });
                         break;
 
@@ -671,15 +615,9 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
                         componentsBuilder = new ComponentBuilderV2()
                             .WithContainer(container =>
                             {
-                                container.AddComponent(new SectionBuilder()
-                                    .AddComponent(new TextDisplayBuilder()
-                                        .WithContent("# ✅ Provider Updated")));
-                                container.AddComponent(new SectionBuilder()
-                                    .AddComponent(new TextDisplayBuilder()
-                                        .WithContent($"AI provider has been set to **{matchedProvider}**")));
-                                container.AddComponent(new SectionBuilder()
-                                    .AddComponent(new TextDisplayBuilder()
-                                        .WithContent($"**Provider:** {matchedProvider}")));
+                                container.WithTextDisplay("# ✅ Provider Updated");
+                                container.WithTextDisplay($"AI provider has been set to **{matchedProvider}**");
+                                container.WithTextDisplay($"**Provider:** {matchedProvider}");
                             });
                         break;
 
@@ -723,15 +661,9 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
                         componentsBuilder = new ComponentBuilderV2()
                             .WithContainer(container =>
                             {
-                                container.AddComponent(new SectionBuilder()
-                                    .AddComponent(new TextDisplayBuilder()
-                                        .WithContent("# ✅ NSFW Channel Updated")));
-                                container.AddComponent(new SectionBuilder()
-                                    .AddComponent(new TextDisplayBuilder()
-                                        .WithContent($"NSFW channel has been set to {nsfwChannel.Mention}")));
-                                container.AddComponent(new SectionBuilder()
-                                    .AddComponent(new TextDisplayBuilder()
-                                        .WithContent($"**Channel:** {nsfwChannel.Mention}\n**Channel ID:** {nsfwChannelId}")));
+                                container.WithTextDisplay("# ✅ NSFW Channel Updated");
+                                container.WithTextDisplay($"NSFW channel has been set to {nsfwChannel.Mention}");
+                                container.WithTextDisplay($"**Channel:** {nsfwChannel.Mention}\n**Channel ID:** {nsfwChannelId}");
                             });
                         break;
 
@@ -793,15 +725,9 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
                         componentsBuilder = new ComponentBuilderV2()
                             .WithContainer(container =>
                             {
-                                container.AddComponent(new SectionBuilder()
-                                    .AddComponent(new TextDisplayBuilder()
-                                        .WithContent("# 🔄 Configuration Reset")));
-                                container.AddComponent(new SectionBuilder()
-                                    .AddComponent(new TextDisplayBuilder()
-                                        .WithContent($"**{settingDisplayName}** has been reset to default.")));
-                                container.AddComponent(new SectionBuilder()
-                                    .AddComponent(new TextDisplayBuilder()
-                                        .WithContent("The server persona is now empty and will use the global default.")));
+                                container.WithTextDisplay("# 🔄 Configuration Reset");
+                                container.WithTextDisplay($"**{settingDisplayName}** has been reset to default.");
+                                container.WithTextDisplay("The server persona is now empty and will use the global default.");
                             });
                         break;
 
@@ -813,15 +739,9 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
                         componentsBuilder = new ComponentBuilderV2()
                             .WithContainer(container =>
                             {
-                                container.AddComponent(new SectionBuilder()
-                                    .AddComponent(new TextDisplayBuilder()
-                                        .WithContent("# 🔄 Configuration Reset")));
-                                container.AddComponent(new SectionBuilder()
-                                    .AddComponent(new TextDisplayBuilder()
-                                        .WithContent($"**{settingDisplayName}** has been reset.")));
-                                container.AddComponent(new SectionBuilder()
-                                    .AddComponent(new TextDisplayBuilder()
-                                        .WithContent("The bot will now respond in any channel where it's mentioned.")));
+                                container.WithTextDisplay("# 🔄 Configuration Reset");
+                                container.WithTextDisplay($"**{settingDisplayName}** has been reset.");
+                                container.WithTextDisplay("The bot will now respond in any channel where it's mentioned.");
                             });
                         break;
 
@@ -831,15 +751,9 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
                         componentsBuilder = new ComponentBuilderV2()
                             .WithContainer(container =>
                             {
-                                container.AddComponent(new SectionBuilder()
-                                    .AddComponent(new TextDisplayBuilder()
-                                        .WithContent("# 🔄 Configuration Reset")));
-                                container.AddComponent(new SectionBuilder()
-                                    .AddComponent(new TextDisplayBuilder()
-                                        .WithContent($"**{settingDisplayName}** has been reset to default.")));
-                                container.AddComponent(new SectionBuilder()
-                                    .AddComponent(new TextDisplayBuilder()
-                                        .WithContent("The server will now use the global default AI provider.")));
+                                container.WithTextDisplay("# 🔄 Configuration Reset");
+                                container.WithTextDisplay($"**{settingDisplayName}** has been reset to default.");
+                                container.WithTextDisplay("The server will now use the global default AI provider.");
                             });
                         break;
 
@@ -850,15 +764,9 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
                         componentsBuilder = new ComponentBuilderV2()
                             .WithContainer(container =>
                             {
-                                container.AddComponent(new SectionBuilder()
-                                    .AddComponent(new TextDisplayBuilder()
-                                        .WithContent("# 🔄 Configuration Reset")));
-                                container.AddComponent(new SectionBuilder()
-                                    .AddComponent(new TextDisplayBuilder()
-                                        .WithContent($"**{settingDisplayName}** has been reset.")));
-                                container.AddComponent(new SectionBuilder()
-                                    .AddComponent(new TextDisplayBuilder()
-                                        .WithContent("NSFW features are now disabled for this server.")));
+                                container.WithTextDisplay("# 🔄 Configuration Reset");
+                                container.WithTextDisplay($"**{settingDisplayName}** has been reset.");
+                                container.WithTextDisplay("NSFW features are now disabled for this server.");
                             });
                         break;
 

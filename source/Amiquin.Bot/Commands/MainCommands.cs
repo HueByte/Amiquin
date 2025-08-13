@@ -10,6 +10,7 @@ using Amiquin.Core.Services.SessionManager;
 using Amiquin.Core.Services.Sleep;
 using Discord;
 using Discord.Interactions;
+using Microsoft.Extensions.Logging;
 using System.Reflection;
 namespace Amiquin.Bot.Commands;
 
@@ -21,6 +22,7 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
     private readonly IFunService _funService;
     private readonly ISleepService _sleepService;
     private readonly ISessionManagerService _sessionManagerService;
+    private readonly ILogger<MainCommands> _logger;
 
     public MainCommands(
         IPersonaChatService chatService,
@@ -28,7 +30,8 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
         IChatContextService chatContextService,
         IFunService funService,
         ISleepService sleepService,
-        ISessionManagerService sessionManagerService)
+        ISessionManagerService sessionManagerService,
+        ILogger<MainCommands> logger)
     {
         _chatService = chatService;
         _messageCacheService = messageCacheService;
@@ -36,6 +39,7 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
         _funService = funService;
         _sleepService = sleepService;
         _sessionManagerService = sessionManagerService;
+        _logger = logger;
     }
 
     [SlashCommand("chat", "Chat with amiquin!")]
@@ -124,15 +128,9 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
             var components = new ComponentBuilderV2()
                 .WithContainer(container =>
                 {
-                    container.AddComponent(new SectionBuilder()
-                        .AddComponent(new TextDisplayBuilder()
-                            .WithContent("# 📏 Size Check")));
-                    container.AddComponent(new SectionBuilder()
-                        .AddComponent(new TextDisplayBuilder()
-                            .WithContent($"{targetUser.Mention}'s size: **{size} cm** {sizeDescription}")));
-                    container.AddComponent(new SectionBuilder()
-                        .AddComponent(new TextDisplayBuilder()
-                            .WithContent("*Results are permanent and totally scientific 🧪*")));
+                    container.WithTextDisplay("# 📏 Size Check");
+                    container.WithTextDisplay($"{targetUser.Mention}'s size: **{size} cm** {sizeDescription}");
+                    container.WithTextDisplay("*Results are permanent and totally scientific 🧪*");
                 })
                 .Build();
 
@@ -250,10 +248,11 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
         [Summary("harmony", "Type of color harmony")] ColorHarmonyType? harmony = null,
         [Summary("base_hue", "Base hue (0-360 degrees)")] float? baseHue = null)
     {
+        // Generate a color theory palette
+        var selectedHarmony = harmony ?? (ColorHarmonyType)Random.Shared.Next(0, 7);
+        
         try
         {
-            // Generate a color theory palette
-            var selectedHarmony = harmony ?? (ColorHarmonyType)Random.Shared.Next(0, 7);
             var palette = await _funService.GenerateColorTheoryPaletteAsync(selectedHarmony, baseHue);
 
             // Create interactive palette with ComponentsV2
@@ -268,10 +267,12 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
                 msg.Content = null;
             });
         }
-        catch
+        catch (Exception ex)
         {
-            // Error will be logged by CommandHandlerService
-            await ModifyOriginalResponseAsync(msg => msg.Content = "❌ Failed to generate color palette. Try again later!");
+            _logger.LogError(ex, "Failed to generate color palette for user {UserId} with harmony {Harmony} and baseHue {BaseHue}", 
+                Context.User.Id, selectedHarmony, baseHue);
+            
+            await ModifyOriginalResponseAsync(msg => msg.Content = $"❌ Failed to generate color palette: {ex.Message}");
         }
     }
 
@@ -286,17 +287,11 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
         var components = new ComponentBuilderV2()
             .WithContainer(container =>
             {
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent($"# 🖼️ {displayName}'s Avatar")));
+                container.WithTextDisplay($"# 🖼️ {displayName}'s Avatar");
 
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent($"**User ID:** {targetUser.Id}\n**Account Created:** <t:{targetUser.CreatedAt.ToUnixTimeSeconds()}:D>")));
+                container.WithTextDisplay($"**User ID:** {targetUser.Id}\n**Account Created:** <t:{targetUser.CreatedAt.ToUnixTimeSeconds()}:D>");
 
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent($"**Avatar:** [View Full Size]({avatarUrl})")));
+                container.WithTextDisplay($"**Avatar:** [View Full Size]({avatarUrl})");
 
                 container.AddComponent(new SectionBuilder()
                     .WithAccessory(new ButtonBuilder()
@@ -304,9 +299,7 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
                         .WithStyle(ButtonStyle.Link)
                         .WithUrl(avatarUrl)));
 
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent($"*Requested by {Context.User.GlobalName ?? Context.User.Username}*")));
+                container.WithTextDisplay($"*Requested by {Context.User.GlobalName ?? Context.User.Username}*");
             })
             .Build();
 
@@ -339,21 +332,13 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
             var components = new ComponentBuilderV2()
                 .WithContainer(container =>
                 {
-                    container.AddComponent(new SectionBuilder()
-                        .AddComponent(new TextDisplayBuilder()
-                            .WithContent("# Nacho Delivery! 🌮")));
+                    container.WithTextDisplay("# Nacho Delivery! 🌮");
 
-                    container.AddComponent(new SectionBuilder()
-                        .AddComponent(new TextDisplayBuilder()
-                            .WithContent(response)));
+                    container.WithTextDisplay(response);
 
-                    container.AddComponent(new SectionBuilder()
-                        .AddComponent(new TextDisplayBuilder()
-                            .WithContent($"**Your total nachos given:** {totalNachos}")));
+                    container.WithTextDisplay($"**Your total nachos given:** {totalNachos}");
 
-                    container.AddComponent(new SectionBuilder()
-                        .AddComponent(new TextDisplayBuilder()
-                            .WithContent($"*Nacho #{totalNachos} from {Context.User.Username}*")));
+                    container.WithTextDisplay($"*Nacho #{totalNachos} from {Context.User.Username}*");
                 })
                 .Build();
 
@@ -381,27 +366,19 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
             var components = new ComponentBuilderV2()
                 .WithContainer(container =>
                 {
-                    container.AddComponent(new SectionBuilder()
-                        .AddComponent(new TextDisplayBuilder()
-                            .WithContent($"# 🏆 Nacho Leaderboard")));
+                    container.WithTextDisplay($"# 🏆 Nacho Leaderboard");
 
-                    container.AddComponent(new SectionBuilder()
-                        .AddComponent(new TextDisplayBuilder()
-                            .WithContent($"**Total nachos received:** {totalNachos} 🌮")));
+                    container.WithTextDisplay($"**Total nachos received:** {totalNachos} 🌮");
 
                     if (!leaderboardFields.Any())
                     {
-                        container.AddComponent(new SectionBuilder()
-                            .AddComponent(new TextDisplayBuilder()
-                                .WithContent("**No nachos yet!**\nBe the first to give me a nacho with `/nacho`! 🌮")));
+                        container.WithTextDisplay("**No nachos yet!**\nBe the first to give me a nacho with `/nacho`! 🌮");
                     }
                     else
                     {
                         foreach (var field in leaderboardFields.Take(10))
                         {
-                            container.AddComponent(new SectionBuilder()
-                                .AddComponent(new TextDisplayBuilder()
-                                    .WithContent($"**{field.Name}**\n{field.Value}")));
+                            container.WithTextDisplay($"**{field.Name}**\n{field.Value}");
                         }
                     }
                 })
@@ -489,21 +466,13 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
         var components = new ComponentBuilderV2()
             .WithContainer(container =>
             {
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent("# 😴 Going to Sleep")));
+                container.WithTextDisplay("# 😴 Going to Sleep");
 
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent("I'm going to take a 5-minute nap. See you in a bit!")));
+                container.WithTextDisplay("I'm going to take a 5-minute nap. See you in a bit!");
 
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent($"💤 **Sleep Duration:** 5 minutes\n⏰ **Wake Up Time:** <t:{((DateTimeOffset)wakeUpTime).ToUnixTimeSeconds()}:t>")));
+                container.WithTextDisplay($"💤 **Sleep Duration:** 5 minutes\n⏰ **Wake Up Time:** <t:{((DateTimeOffset)wakeUpTime).ToUnixTimeSeconds()}:t>");
 
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent($"*Requested by {Context.User.GlobalName ?? Context.User.Username}*")));
+                container.WithTextDisplay($"*Requested by {Context.User.GlobalName ?? Context.User.Username}*");
             })
             .Build();
 
@@ -541,15 +510,11 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
             var components = new ComponentBuilderV2()
                 .WithContainer(container =>
                 {
-                    container.AddComponent(new SectionBuilder()
-                        .AddComponent(new TextDisplayBuilder()
-                            .WithContent($"# 💬 Chat Sessions for {Context.Guild.Name}")));
+                    container.WithTextDisplay($"# 💬 Chat Sessions for {Context.Guild.Name}");
 
                     if (sessions.Count > 10)
                     {
-                        container.AddComponent(new SectionBuilder()
-                            .AddComponent(new TextDisplayBuilder()
-                                .WithContent($"*Showing first 10 of {sessions.Count} sessions*")));
+                        container.WithTextDisplay($"*Showing first 10 of {sessions.Count} sessions*");
                     }
 
                     foreach (var session in sessions.Take(10)) // Limit to 10 sessions
@@ -559,16 +524,12 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
                             ? $"<t:{((DateTimeOffset)session.LastActivityAt).ToUnixTimeSeconds()}:R>"
                             : session.LastActivityAt.ToString("MMM dd, yyyy");
 
-                        container.AddComponent(new SectionBuilder()
-                            .AddComponent(new TextDisplayBuilder()
-                                .WithContent($"{statusIcon} **{session.Name}**\n" +
+                        container.WithTextDisplay($"{statusIcon} **{session.Name}**\n" +
                                            $"**Messages:** {session.MessageCount} | **Last Activity:** {lastActivity}\n" +
-                                           $"**Model:** {session.Provider}/{session.Model}")));
+                                           $"**Model:** {session.Provider}/{session.Model}");
                     }
 
-                    container.AddComponent(new SectionBuilder()
-                        .AddComponent(new TextDisplayBuilder()
-                            .WithContent($"*Total sessions: {sessions.Count}*")));
+                    container.WithTextDisplay($"*Total sessions: {sessions.Count}*");
 
                     // Add navigation buttons
                     container.AddComponent(new SectionBuilder()
@@ -641,21 +602,13 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
                 var components = new ComponentBuilderV2()
                     .WithContainer(container =>
                     {
-                        container.AddComponent(new SectionBuilder()
-                            .AddComponent(new TextDisplayBuilder()
-                                .WithContent("# ✅ Session Created")));
+                        container.WithTextDisplay("# ✅ Session Created");
 
-                        container.AddComponent(new SectionBuilder()
-                            .AddComponent(new TextDisplayBuilder()
-                                .WithContent($"Created and switched to new session: **{newSession.Name}**")));
+                        container.WithTextDisplay($"Created and switched to new session: **{newSession.Name}**");
 
-                        container.AddComponent(new SectionBuilder()
-                            .AddComponent(new TextDisplayBuilder()
-                                .WithContent($"**Session ID:** {newSession.Id}\n**Model:** {newSession.Provider}/{newSession.Model}")));
+                        container.WithTextDisplay($"**Session ID:** {newSession.Id}\n**Model:** {newSession.Provider}/{newSession.Model}");
 
-                        container.AddComponent(new SectionBuilder()
-                            .AddComponent(new TextDisplayBuilder()
-                                .WithContent($"*Created by {Context.User.GlobalName ?? Context.User.Username}*")));
+                        container.WithTextDisplay($"*Created by {Context.User.GlobalName ?? Context.User.Username}*");
                     })
                     .Build();
 
@@ -706,17 +659,11 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
                     var components = new ComponentBuilderV2()
                         .WithContainer(container =>
                         {
-                            container.AddComponent(new SectionBuilder()
-                                .AddComponent(new TextDisplayBuilder()
-                                    .WithContent("# ✅ Session Renamed")));
+                            container.WithTextDisplay("# ✅ Session Renamed");
 
-                            container.AddComponent(new SectionBuilder()
-                                .AddComponent(new TextDisplayBuilder()
-                                    .WithContent($"Renamed session from **{activeSession.Name}** to **{newName.Trim()}**")));
+                            container.WithTextDisplay($"Renamed session from **{activeSession.Name}** to **{newName.Trim()}**");
 
-                            container.AddComponent(new SectionBuilder()
-                                .AddComponent(new TextDisplayBuilder()
-                                    .WithContent($"*Renamed by {Context.User.GlobalName ?? Context.User.Username}*")));
+                            container.WithTextDisplay($"*Renamed by {Context.User.GlobalName ?? Context.User.Username}*");
                         })
                         .Build();
 
@@ -774,17 +721,11 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
                     var components = new ComponentBuilderV2()
                         .WithContainer(container =>
                         {
-                            container.AddComponent(new SectionBuilder()
-                                .AddComponent(new TextDisplayBuilder()
-                                    .WithContent("# ✅ Session Deleted")));
+                            container.WithTextDisplay("# ✅ Session Deleted");
 
-                            container.AddComponent(new SectionBuilder()
-                                .AddComponent(new TextDisplayBuilder()
-                                    .WithContent($"Deleted session: **{sessionToDelete.Name}**")));
+                            container.WithTextDisplay($"Deleted session: **{sessionToDelete.Name}**");
 
-                            container.AddComponent(new SectionBuilder()
-                                .AddComponent(new TextDisplayBuilder()
-                                    .WithContent($"*Deleted by {Context.User.GlobalName ?? Context.User.Username}*")));
+                            container.WithTextDisplay($"*Deleted by {Context.User.GlobalName ?? Context.User.Username}*");
                         })
                         .Build();
 
@@ -826,17 +767,11 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
             var components = new ComponentBuilderV2()
                 .WithContainer(container =>
                 {
-                    container.AddComponent(new SectionBuilder()
-                        .AddComponent(new TextDisplayBuilder()
-                            .WithContent("# 🔄 Switch Chat Session")));
+                    container.WithTextDisplay("# 🔄 Switch Chat Session");
 
-                    container.AddComponent(new SectionBuilder()
-                        .AddComponent(new TextDisplayBuilder()
-                            .WithContent($"**Current session:** {activeSession?.Name ?? "None"}")));
+                    container.WithTextDisplay($"**Current session:** {activeSession?.Name ?? "None"}");
 
-                    container.AddComponent(new SectionBuilder()
-                        .AddComponent(new TextDisplayBuilder()
-                            .WithContent("Select a session from the dropdown below:")));
+                    container.WithTextDisplay("Select a session from the dropdown below:");
                 })
                 .WithActionRow([
                     new SelectMenuBuilder(

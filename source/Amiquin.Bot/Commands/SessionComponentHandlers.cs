@@ -99,18 +99,10 @@ public class SessionComponentHandlers
                 var components = new ComponentBuilderV2()
                     .WithContainer(container =>
                     {
-                        container.AddComponent(new SectionBuilder()
-                            .AddComponent(new TextDisplayBuilder()
-                                .WithContent("# ✅ Session Switched")));
-                        container.AddComponent(new SectionBuilder()
-                            .AddComponent(new TextDisplayBuilder()
-                                .WithContent($"Successfully switched to session: **{stats?.Name ?? "Unknown"}**")));
-                        container.AddComponent(new SectionBuilder()
-                            .AddComponent(new TextDisplayBuilder()
-                                .WithContent($"**Messages:** {stats?.MessageCount ?? 0}\n**Model:** {stats?.Provider}/{stats?.Model}")));
-                        container.AddComponent(new SectionBuilder()
-                            .AddComponent(new TextDisplayBuilder()
-                                .WithContent($"*Switched by {component.User.GlobalName ?? component.User.Username}*")));
+                        container.WithTextDisplay("# ✅ Session Switched");
+                        container.WithTextDisplay($"Successfully switched to session: **{stats?.Name ?? "Unknown"}**");
+                        container.WithTextDisplay($"**Messages:** {stats?.MessageCount ?? 0}\n**Model:** {stats?.Provider}/{stats?.Model}");
+                        container.WithTextDisplay($"*Switched by {component.User.GlobalName ?? component.User.Username}*");
                     })
                     .Build();
 
@@ -143,12 +135,8 @@ public class SessionComponentHandlers
         var components = new ComponentBuilderV2()
             .WithContainer(container =>
             {
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent("# ❌ Session Switch Cancelled")));
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent("Session switching was cancelled.")));
+                container.WithTextDisplay("# ❌ Session Switch Cancelled");
+                container.WithTextDisplay("Session switching was cancelled.");
             })
             .Build();
 
@@ -186,21 +174,13 @@ public class SessionComponentHandlers
         var components = new ComponentBuilderV2()
             .WithContainer(container =>
             {
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent("# 🔄 Switch Chat Session")));
+                container.WithTextDisplay("# 🔄 Switch Chat Session");
 
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent($"**Current session:** {activeSession?.Name ?? "None"}")));
+                container.WithTextDisplay($"**Current session:** {activeSession?.Name ?? "None"}");
 
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent("Select a session from the dropdown below:")));
+                container.WithTextDisplay("Select a session from the dropdown below:");
 
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent($"*Total sessions: {sessions.Count}*")));
+                container.WithTextDisplay($"*Total sessions: {sessions.Count}*");
             })
             .WithActionRow([
                 new SelectMenuBuilder(

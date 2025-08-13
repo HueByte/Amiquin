@@ -84,18 +84,12 @@ public class InteractionCommands : InteractionModuleBase<ExtendedShardedInteract
             var componentsBuilder = new ComponentBuilderV2()
                 .WithContainer(container =>
                 {
-                    container.AddComponent(new SectionBuilder()
-                        .AddComponent(new TextDisplayBuilder()
-                            .WithContent($"# {emoji} Interaction")));
-                    container.AddComponent(new SectionBuilder()
-                        .AddComponent(new TextDisplayBuilder()
-                            .WithContent($"**{Context.User.Mention} {actionText} {targetUser.Mention}!**")));
+                    container.WithTextDisplay($"# {emoji} Interaction");
+                    container.WithTextDisplay($"**{Context.User.Mention} {actionText} {targetUser.Mention}!**");
 
                     if (!string.IsNullOrEmpty(gifUrl))
                     {
-                        container.AddComponent(new SectionBuilder()
-                            .AddComponent(new TextDisplayBuilder()
-                                .WithContent($"**GIF:** [View]({gifUrl})")));
+                        container.WithTextDisplay($"**GIF:** [View]({gifUrl})");
                     }
                 });
 

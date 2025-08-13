@@ -84,12 +84,8 @@ Streams: {voiceState.AudioClient?.GetStreams().ToDictionary(x => x.Key, x => x.V
         var components = new ComponentBuilderV2()
             .WithContainer(container =>
             {
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent("# 🔊 Voice Debug")));
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent(data)));
+                container.WithTextDisplay("# 🔊 Voice Debug");
+                container.WithTextDisplay(data);
             })
             .Build();
 
@@ -110,27 +106,17 @@ Streams: {voiceState.AudioClient?.GetStreams().ToDictionary(x => x.Key, x => x.V
         var components = new ComponentBuilderV2()
             .WithContainer(container =>
             {
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent("# 🤖 Computed Persona")));
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent($"**Avatar:** [View]({Context.Client.CurrentUser.GetAvatarUrl()})")));
+                container.WithTextDisplay("# 🤖 Computed Persona");
+                container.WithTextDisplay($"**Avatar:** [View]({Context.Client.CurrentUser.GetAvatarUrl()})");
 
                 if (fullPersonaMessage?.Length > 3000)
                 {
-                    container.AddComponent(new SectionBuilder()
-                        .AddComponent(new TextDisplayBuilder()
-                            .WithContent("Persona message is too long. Here's the first part:")));
-                    container.AddComponent(new SectionBuilder()
-                        .AddComponent(new TextDisplayBuilder()
-                            .WithContent(fullPersonaMessage.Substring(0, 3000) + "...")));
+                    container.WithTextDisplay("Persona message is too long. Here's the first part:");
+                    container.WithTextDisplay(fullPersonaMessage.Substring(0, 3000) + "...");
                 }
                 else
                 {
-                    container.AddComponent(new SectionBuilder()
-                        .AddComponent(new TextDisplayBuilder()
-                            .WithContent(fullPersonaMessage ?? "No persona available")));
+                    container.WithTextDisplay(fullPersonaMessage ?? "No persona available");
                 }
             })
             .Build();
@@ -498,15 +484,9 @@ Streams: {voiceState.AudioClient?.GetStreams().ToDictionary(x => x.Key, x => x.V
             var components = new ComponentBuilderV2()
                 .WithContainer(container =>
                 {
-                    container.AddComponent(new SectionBuilder()
-                        .AddComponent(new TextDisplayBuilder()
-                            .WithContent("# ✅ Server Metadata Removed")));
-                    container.AddComponent(new SectionBuilder()
-                        .AddComponent(new TextDisplayBuilder()
-                            .WithContent($"Successfully removed server metadata for **{serverName}**")));
-                    container.AddComponent(new SectionBuilder()
-                        .AddComponent(new TextDisplayBuilder()
-                            .WithContent($"**Server ID:** {serverIdLong}\n**Server Name:** {serverName}")));
+                    container.WithTextDisplay("# ✅ Server Metadata Removed");
+                    container.WithTextDisplay($"Successfully removed server metadata for **{serverName}**");
+                    container.WithTextDisplay($"**Server ID:** {serverIdLong}\n**Server Name:** {serverName}");
                 })
                 .Build();
 

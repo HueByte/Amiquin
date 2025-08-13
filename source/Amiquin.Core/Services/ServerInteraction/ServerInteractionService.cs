@@ -38,12 +38,8 @@ public class ServerInteractionService : IServerInteractionService
         var components = new ComponentBuilderV2()
             .WithContainer(container =>
             {
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent($"# ✨ Hello I'm {botName}! ✨")));
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent(joinMessage)));
+                container.WithTextDisplay($"# ✨ Hello I'm {botName}! ✨");
+                container.WithTextDisplay(joinMessage);
             })
             .Build();
 

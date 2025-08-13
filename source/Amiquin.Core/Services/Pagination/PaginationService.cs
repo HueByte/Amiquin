@@ -190,17 +190,13 @@ public class PaginationService : IPaginationService
                 // Add title if present
                 if (!string.IsNullOrWhiteSpace(page.Title))
                 {
-                    container.AddComponent(new SectionBuilder()
-                        .AddComponent(new TextDisplayBuilder()
-                            .WithContent($"# {page.Title}")));
+                    container.WithTextDisplay($"# {page.Title}");
                 }
 
                 // Add main content
                 if (!string.IsNullOrWhiteSpace(page.Content))
                 {
-                    container.AddComponent(new SectionBuilder()
-                        .AddComponent(new TextDisplayBuilder()
-                            .WithContent(page.Content)));
+                    container.WithTextDisplay(page.Content);
                 }
 
                 // Add sections
@@ -210,30 +206,22 @@ public class PaginationService : IPaginationService
                         ? $"**{section.Title}**\n{section.Content}"
                         : section.Content;
 
-                    container.AddComponent(new SectionBuilder()
-                        .AddComponent(new TextDisplayBuilder()
-                            .WithContent(sectionContent)));
+                    container.WithTextDisplay(sectionContent);
                 }
 
                 // Add image links if present
                 if (!string.IsNullOrWhiteSpace(page.ThumbnailUrl))
                 {
-                    container.AddComponent(new SectionBuilder()
-                        .AddComponent(new TextDisplayBuilder()
-                            .WithContent($"**Thumbnail:** [View]({page.ThumbnailUrl})")));
+                    container.WithTextDisplay($"**Thumbnail:** [View]({page.ThumbnailUrl})");
                 }
 
                 if (!string.IsNullOrWhiteSpace(page.ImageUrl))
                 {
-                    container.AddComponent(new SectionBuilder()
-                        .AddComponent(new TextDisplayBuilder()
-                            .WithContent($"**Image:** [View]({page.ImageUrl})")));
+                    container.WithTextDisplay($"**Image:** [View]({page.ImageUrl})");
                 }
 
                 // Add pagination info and navigation buttons
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent($"*Page {currentPageIndex + 1} of {totalPages}*")));
+                container.WithTextDisplay($"*Page {currentPageIndex + 1} of {totalPages}*");
 
                 // Create navigation buttons
                 var navSection = new SectionBuilder();
