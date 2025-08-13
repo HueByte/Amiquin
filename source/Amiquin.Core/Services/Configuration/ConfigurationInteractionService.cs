@@ -847,9 +847,9 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
             {
                 container.AddComponent(new SectionBuilder()
                     .AddComponent(new TextDisplayBuilder()
-                        .WithContent($"# {embedBuilder.Title}\n{embedBuilder.Description}")));
+                        .WithContent($"# {title}\n{description}")));
                 
-                foreach (var field in embedBuilder.Fields)
+                foreach (var field in new List<EmbedFieldBuilder>())
                 {
                     container.AddComponent(new SectionBuilder()
                         .AddComponent(new TextDisplayBuilder()
@@ -963,9 +963,9 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
             {
                 container.AddComponent(new SectionBuilder()
                     .AddComponent(new TextDisplayBuilder()
-                        .WithContent($"# {embedBuilder.Title}\n{embedBuilder.Description}")));
+                        .WithContent($"# {title}\n{description}")));
                 
-                foreach (var field in embedBuilder.Fields)
+                foreach (var field in new List<EmbedFieldBuilder>())
                 {
                     container.AddComponent(new SectionBuilder()
                         .AddComponent(new TextDisplayBuilder()
@@ -1076,10 +1076,10 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                 // Add main title and description section
                 container.AddComponent(new SectionBuilder()
                     .AddComponent(new TextDisplayBuilder()
-                        .WithContent($"# {embedBuilder.Title}\n{embedBuilder.Description}")));
+                        .WithContent($"# {title}\n{description}")));
 
                 // Add fields as additional text displays in sections
-                foreach (var field in embedBuilder.Fields)
+                foreach (var field in new List<EmbedFieldBuilder>())
                 {
                     container.AddComponent(new SectionBuilder()
                         .AddComponent(new TextDisplayBuilder()
@@ -1131,25 +1131,25 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
             return;
         }
 
-        // Generate all pages as embeds for pagination
-        var embeds = GenerateToggleEmbeds(toggles.ToList(), guildId);
+        // Generate all pages for pagination
+        var pages = GenerateTogglePages(toggles.ToList(), guildId);
 
-        if (embeds.Count == 1)
+        if (pages.Count == 1)
         {
             // Single page - convert embed to ComponentsV2
-            var embed = embeds[0];
+            var page = pages[0];
             var components = new ComponentBuilderV2()
                 .WithContainer(container =>
                 {
                     container.AddComponent(new SectionBuilder()
                         .AddComponent(new TextDisplayBuilder()
-                            .WithContent($"# {embed.Title}\n{embed.Description}")));
+                            .WithContent($"# {page.Title}\n{page.Content}")));
                     
-                    foreach (var field in embed.Fields)
+                    foreach (var section in page.Sections)
                     {
                         container.AddComponent(new SectionBuilder()
                             .AddComponent(new TextDisplayBuilder()
-                                .WithContent($"**{field.Name}**\n{field.Value}")));
+                                .WithContent($"**{section.Title}**\n{section.Content}")));
                     }
                     
                     // Add toggle buttons
@@ -1175,7 +1175,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         else
         {
             // Multiple pages - use pagination service with ComponentsV2
-            var messageComponent = await _paginationService.CreatePaginatedMessageFromEmbedsAsync(embeds, component.User.Id);
+            var messageComponent = await _paginationService.CreatePaginatedMessageAsync(pages, component.User.Id);
 
             await component.ModifyOriginalResponseAsync(msg =>
             {
@@ -1186,10 +1186,10 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         }
     }
 
-    private List<Embed> GenerateToggleEmbeds(List<Models.Toggle> toggles, ulong guildId)
+    private List<PaginationPage> GenerateTogglePages(List<Models.Toggle> toggles, ulong guildId)
     {
         const int itemsPerPage = 8;
-        var embeds = new List<Embed>();
+        var pages = new List<PaginationPage>();
         var totalPages = (int)Math.Ceiling((double)toggles.Count / itemsPerPage);
         var totalEnabled = toggles.Count(t => t.IsEnabled);
 
@@ -1199,16 +1199,22 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
             var pageToggles = toggles.Skip(startIndex).Take(itemsPerPage).ToList();
             var enabledCount = pageToggles.Count(t => t.IsEnabled);
 
-            var embedBuilder = new EmbedBuilder()
-                .WithTitle("🎛️ Feature Toggles")
-                .WithDescription("Enable or disable features for your server")
-                .WithColor(new Color(241, 196, 15))
-                .WithCurrentTimestamp()
-                .WithFooter($"Page {page + 1}/{totalPages} • {toggles.Count} total features");
+            var paginationPage = new PaginationPage
+            {
+                Title = "🎛️ Feature Toggles",
+                Content = "Enable or disable features for your server",
+                Color = new Color(241, 196, 15),
+                Timestamp = DateTimeOffset.UtcNow,
+                Sections = new List<PageSection>()
+            };
 
-            embedBuilder.AddField("📊 Summary",
-                $"**Total Enabled:** {totalEnabled}/{toggles.Count} features\n" +
-                $"**On this page:** {enabledCount}/{pageToggles.Count} enabled", false);
+            // Add summary section
+            paginationPage.Sections.Add(new PageSection
+            {
+                Title = "📊 Summary",
+                Content = $"**Total Enabled:** {totalEnabled}/{toggles.Count} features\n" +
+                         $"**On this page:** {enabledCount}/{pageToggles.Count} enabled"
+            });
 
             // Group toggles by status for better organization
             var enabledToggles = pageToggles.Where(t => t.IsEnabled).ToList();
@@ -1216,22 +1222,28 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
 
             if (enabledToggles.Any())
             {
-                embedBuilder.AddField("✅ Enabled Features",
-                    string.Join("\n", enabledToggles.Select(t => $"• **{FormatToggleName(t.Name)}**")),
-                    true);
+                paginationPage.Sections.Add(new PageSection
+                {
+                    Title = "✅ Enabled Features",
+                    Content = string.Join("\n", enabledToggles.Select(t => $"• **{FormatToggleName(t.Name)}**")),
+                    IsInline = true
+                });
             }
 
             if (disabledToggles.Any())
             {
-                embedBuilder.AddField("❌ Disabled Features",
-                    string.Join("\n", disabledToggles.Select(t => $"• {FormatToggleName(t.Name)}")),
-                    true);
+                paginationPage.Sections.Add(new PageSection
+                {
+                    Title = "❌ Disabled Features",
+                    Content = string.Join("\n", disabledToggles.Select(t => $"• {FormatToggleName(t.Name)}")),
+                    IsInline = true
+                });
             }
 
-            embeds.Add(embedBuilder.Build());
+            pages.Add(paginationPage);
         }
 
-        return embeds;
+        return pages;
     }
 
     private MessageComponent GenerateToggleComponents(List<Models.Toggle> toggles, ulong guildId, int currentPage, int totalPages)
@@ -1350,51 +1362,56 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
 
     private async Task ShowHelpAsync(SocketMessageComponent component)
     {
-        var embedBuilder = new EmbedBuilder()
-            .WithTitle("❓ Configuration Help")
-            .WithDescription("Learn how to configure your server settings")
-            .WithColor(new Color(155, 89, 182))
-            .WithCurrentTimestamp();
+        var title = "❓ Configuration Help";
+        var description = "Learn how to configure your server settings";
 
-        embedBuilder.AddField("🎭 Server Persona",
+        var serverPersonaContent = "**🎭 Server Persona**\n" +
             "The persona defines how the AI assistant behaves in your server. " +
-            "A good persona includes the assistant's role, expertise, communication style, and any specific guidelines.",
-            false);
+            "A good persona includes the assistant's role, expertise, communication style, and any specific guidelines.";
 
-        embedBuilder.AddField("💬 Primary Channel",
+        var primaryChannelContent = "**💬 Primary Channel**\n" +
             "The primary channel is where the bot will be most active. " +
-            "This is typically your main chat channel where members interact with the bot.",
-            false);
+            "This is typically your main chat channel where members interact with the bot.";
 
-        embedBuilder.AddField("🤖 AI Provider",
+        var aiProviderContent = "**🤖 AI Provider**\n" +
             "Choose which AI model provider to use for generating responses. " +
-            "Different providers may have different capabilities and response styles.",
-            false);
+            "Different providers may have different capabilities and response styles.";
 
-        embedBuilder.AddField("🎛️ Feature Toggles",
+        var featureTogglesContent = "**🎛️ Feature Toggles**\n" +
             "Enable or disable specific bot features for your server. " +
-            "This allows you to customize which functionalities are available to your members.",
-            false);
+            "This allows you to customize which functionalities are available to your members.";
 
-        embedBuilder.AddField("📚 Need More Help?",
+        var needMoreHelpContent = "**📚 Need More Help?**\n" +
             "• Use `/help` for command information\n" +
             "• Visit our [documentation](https://github.com/HueByte/Amiquin/wiki)\n" +
-            "• Join our support server for assistance",
-            false);
+            "• Join our support server for assistance";
 
         var components = new ComponentBuilderV2()
             .WithContainer(container =>
             {
                 container.AddComponent(new SectionBuilder()
                     .AddComponent(new TextDisplayBuilder()
-                        .WithContent($"# {embedBuilder.Title}\n{embedBuilder.Description}")));
+                        .WithContent($"# {title}\n{description}")));
                 
-                foreach (var field in embedBuilder.Fields)
-                {
-                    container.AddComponent(new SectionBuilder()
-                        .AddComponent(new TextDisplayBuilder()
-                            .WithContent($"**{field.Name}**\n{field.Value}")));
-                }
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent(serverPersonaContent)));
+                        
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent(primaryChannelContent)));
+                        
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent(aiProviderContent)));
+                        
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent(featureTogglesContent)));
+                        
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent(needMoreHelpContent)));
             })
             .Build();
 
@@ -1565,9 +1582,9 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
             {
                 container.AddComponent(new SectionBuilder()
                     .AddComponent(new TextDisplayBuilder()
-                        .WithContent($"# {embedBuilder.Title}\n{embedBuilder.Description}")));
+                        .WithContent($"# {title}\n{description}")));
                 
-                foreach (var field in embedBuilder.Fields)
+                foreach (var field in new List<EmbedFieldBuilder>())
                 {
                     container.AddComponent(new SectionBuilder()
                         .AddComponent(new TextDisplayBuilder()
@@ -1612,12 +1629,8 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         var serverMeta = await _serverMetaService.GetServerMetaAsync(guildId);
         var toggles = await _toggleService.GetTogglesByServerId(guildId);
 
-        var embedBuilder = new EmbedBuilder()
-            .WithTitle("⚙️ Amiquin Metadata & Configuration")
-            .WithDescription($"Bot configuration and AI settings for **{guild.Name}**")
-            .WithColor(new Color(88, 101, 242)) // Discord blurple
-            .WithThumbnailUrl("https://cdn.discordapp.com/avatars/YOUR_BOT_ID/avatar.png") // Replace with actual bot avatar
-            .WithCurrentTimestamp();
+        var title = "⚙️ Amiquin Metadata & Configuration";
+        var description = $"Bot configuration and AI settings for **{guild.Name}**";
 
         // Section 1: Configured Channels (Components V2 style)
         var channelInfo = new StringBuilder();
@@ -1642,7 +1655,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
             channelInfo.AppendLine("**🔞 NSFW:** *Not configured*");
         }
 
-        embedBuilder.AddField("📺 Configured Channels", channelInfo.ToString().TrimEnd(), false);
+        var configuredChannelsContent = $"**📺 Configured Channels**\n{channelInfo.ToString().TrimEnd()}";
 
         // Section 2: AI Related Information
         var aiInfo = new StringBuilder();
@@ -1652,22 +1665,23 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         aiInfo.AppendLine($"**💬 Conversation Messages:** *Data not available*");
         aiInfo.AppendLine($"**🧠 Memory Tokens (Est.):** *Data not available*");
 
-        embedBuilder.AddField("🤖 AI Configuration", aiInfo.ToString().TrimEnd(), false);
+        var aiConfigContent = $"**🤖 AI Configuration**\n{aiInfo.ToString().TrimEnd()}";
 
         // Feature Toggle Summary
         var enabledToggles = toggles.Where(t => t.IsEnabled).ToList();
         var disabledToggles = toggles.Where(t => !t.IsEnabled).ToList();
 
-        embedBuilder.AddField("🎛️ Feature Summary",
+        var featureSummaryContent = $"**🎛️ Feature Summary**\n" +
             $"**Enabled:** {enabledToggles.Count}/{toggles.Count}\n" +
-            $"**Most Recent:** {toggles.OrderByDescending(t => t.CreatedAt).FirstOrDefault()?.Name ?? "*None*"}", true);
+            $"**Most Recent:** {toggles.OrderByDescending(t => t.CreatedAt).FirstOrDefault()?.Name ?? "*None*"}";
 
         // Server metadata timestamps
+        var metadataContent = "";
         if (serverMeta != null)
         {
-            embedBuilder.AddField("📅 Metadata",
+            metadataContent = $"**📅 Metadata**\n" +
                 $"**Created:** <t:{((DateTimeOffset)serverMeta.CreatedAt).ToUnixTimeSeconds()}:R>\n" +
-                $"**Updated:** <t:{((DateTimeOffset)serverMeta.LastUpdated).ToUnixTimeSeconds()}:R>", true);
+                $"**Updated:** <t:{((DateTimeOffset)serverMeta.LastUpdated).ToUnixTimeSeconds()}:R>";
         }
 
         var builder = new ComponentBuilderV2()
@@ -1683,13 +1697,25 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
             {
                 container.AddComponent(new SectionBuilder()
                     .AddComponent(new TextDisplayBuilder()
-                        .WithContent($"# {embedBuilder.Title}\n{embedBuilder.Description}")));
+                        .WithContent($"# {title}\n{description}")));
                 
-                foreach (var field in embedBuilder.Fields)
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent(configuredChannelsContent)));
+                        
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent(aiConfigContent)));
+                        
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent(featureSummaryContent)));
+                        
+                if (!string.IsNullOrEmpty(metadataContent))
                 {
                     container.AddComponent(new SectionBuilder()
                         .AddComponent(new TextDisplayBuilder()
-                            .WithContent($"**{field.Name}**\n{field.Value}")));
+                            .WithContent(metadataContent)));
                 }
                 
                 // Add interaction components
@@ -1775,9 +1801,9 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
             {
                 container.AddComponent(new SectionBuilder()
                     .AddComponent(new TextDisplayBuilder()
-                        .WithContent($"# {embedBuilder.Title}\n{embedBuilder.Description}")));
+                        .WithContent($"# {title}\n{description}")));
                 
-                foreach (var field in embedBuilder.Fields)
+                foreach (var field in new List<EmbedFieldBuilder>())
                 {
                     container.AddComponent(new SectionBuilder()
                         .AddComponent(new TextDisplayBuilder()
@@ -1890,9 +1916,9 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
             {
                 container.AddComponent(new SectionBuilder()
                     .AddComponent(new TextDisplayBuilder()
-                        .WithContent($"# {embedBuilder.Title}\n{embedBuilder.Description}")));
+                        .WithContent($"# {title}\n{description}")));
                 
-                foreach (var field in embedBuilder.Fields)
+                foreach (var field in new List<EmbedFieldBuilder>())
                 {
                     container.AddComponent(new SectionBuilder()
                         .AddComponent(new TextDisplayBuilder()
@@ -2005,13 +2031,9 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                             serverMeta.Persona = personaInput;
                             await _serverMetaService.UpdateServerMetaAsync(serverMeta);
 
-                            var embed = new EmbedBuilder()
-                                .WithTitle("✅ Persona Updated Successfully")
-                                .WithDescription("The server persona has been updated.")
-                                .AddField("New Persona", personaInput.Length > 500 ? $"{personaInput[..500]}..." : personaInput, false)
-                                .WithColor(Color.Green)
-                                .WithCurrentTimestamp()
-                                .Build();
+                            var successTitle = "✅ Persona Updated Successfully";
+                            var successDescription = "The server persona has been updated.";
+                            var newPersonaContent = $"**New Persona**\n{(personaInput.Length > 500 ? $"{personaInput[..500]}..." : personaInput)}";
 
                             // Show success message first
                             var successComponents = new ComponentBuilderV2()
@@ -2019,14 +2041,11 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                                 {
                                     container.AddComponent(new SectionBuilder()
                                         .AddComponent(new TextDisplayBuilder()
-                                            .WithContent($"# {embed.Title}\n{embed.Description}")));
+                                            .WithContent($"# {successTitle}\n{successDescription}")));
                                     
-                                    foreach (var field in embed.Fields)
-                                    {
-                                        container.AddComponent(new SectionBuilder()
-                                            .AddComponent(new TextDisplayBuilder()
-                                                .WithContent($"**{field.Name}**\n{field.Value}")));
-                                    }
+                                    container.AddComponent(new SectionBuilder()
+                                        .AddComponent(new TextDisplayBuilder()
+                                            .WithContent(newPersonaContent)));
                                 })
                                 .Build();
                                 
@@ -2086,22 +2105,18 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
             .Take(25)
             .ToList();
 
-        var embedBuilder = new EmbedBuilder()
-            .WithTitle("🔞 NSFW Channel Configuration")
-            .WithDescription("Set the channel for NSFW content (daily galleries, etc.)\n**⚠️ Only NSFW-marked channels are shown**")
-            .WithColor(new Color(255, 0, 100))
-            .WithCurrentTimestamp();
+        var title = "🔞 NSFW Channel Configuration";
+        var description = "Set the channel for NSFW content (daily galleries, etc.)\n**⚠️ Only NSFW-marked channels are shown**";
 
+        var currentNsfwChannelContent = "**Current NSFW Channel**\n";
         if (serverMeta?.NsfwChannelId.HasValue == true)
         {
             var currentChannel = guild.GetTextChannel(serverMeta.NsfwChannelId.Value);
-            embedBuilder.AddField("Current NSFW Channel",
-                currentChannel != null ? currentChannel.Mention : "*Channel not found*",
-                false);
+            currentNsfwChannelContent += currentChannel != null ? currentChannel.Mention : "*Channel not found*";
         }
         else
         {
-            embedBuilder.AddField("Current NSFW Channel", "*Not configured*", false);
+            currentNsfwChannelContent += "*Not configured*";
         }
 
         // Check if Daily NSFW toggle is enabled
@@ -2110,7 +2125,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
             ? "⚠️ Daily NSFW feature is **enabled**. Set a channel to receive daily content."
             : "ℹ️ Daily NSFW feature is **disabled**. Enable it in Feature Toggles to use this channel.";
 
-        embedBuilder.AddField("Daily NSFW Status", warningText, false);
+        var dailyNsfwStatusContent = $"**Daily NSFW Status**\n{warningText}";
 
         var builder = new ComponentBuilderV2();
 
@@ -2141,13 +2156,13 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
 
             builder.WithActionRow([selectMenu]);
         }
-        else
+        var noNsfwChannelsContent = "";
+        if (!nsfwChannels.Any())
         {
-            embedBuilder.AddField("⚠️ No NSFW Channels Found",
+            noNsfwChannelsContent = "**⚠️ No NSFW Channels Found**\n" +
                 "No NSFW channels were found where the bot has permissions. Please:\n" +
                 "• Create a channel and mark it as NSFW (18+)\n" +
-                "• Ensure the bot has permission to send messages",
-                false);
+                "• Ensure the bot has permission to send messages";
         }
 
         // Add navigation buttons
@@ -2168,9 +2183,9 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
             {
                 container.AddComponent(new SectionBuilder()
                     .AddComponent(new TextDisplayBuilder()
-                        .WithContent($"# {embedBuilder.Title}\n{embedBuilder.Description}")));
+                        .WithContent($"# {title}\n{description}")));
                 
-                foreach (var field in embedBuilder.Fields)
+                foreach (var field in new List<EmbedFieldBuilder>())
                 {
                     container.AddComponent(new SectionBuilder()
                         .AddComponent(new TextDisplayBuilder()

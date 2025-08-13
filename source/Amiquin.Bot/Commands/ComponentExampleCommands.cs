@@ -44,13 +44,26 @@ public class ComponentExampleCommands : InteractionModuleBase<SocketInteractionC
             .WithButton(button)
             .Build();
 
-        var embed = new EmbedBuilder()
-            .WithTitle("Component Example")
-            .WithDescription("This button uses the new Components V2 system!")
-            .WithColor(Color.Blue)
+        var componentsV2 = new ComponentBuilderV2()
+            .WithContainer(container =>
+            {
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent("# Component Example")));
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent("This button uses the new Components V2 system!")));
+                container.AddComponent(new SectionBuilder()
+                    .WithAccessory(button));
+            })
             .Build();
 
-        await ModifyOriginalResponseAsync(msg => { msg.Embed = embed; msg.Components = component; });
+        await ModifyOriginalResponseAsync(msg =>
+        {
+            msg.Components = componentsV2;
+            msg.Flags = MessageFlags.ComponentsV2;
+            msg.Embed = null;
+        });
     }
 
     [SlashCommand("select", "Creates a select menu using the new component system")]
@@ -69,13 +82,25 @@ public class ComponentExampleCommands : InteractionModuleBase<SocketInteractionC
             .WithSelectMenu(selectMenu)
             .Build();
 
-        var embed = new EmbedBuilder()
-            .WithTitle("Select Menu Example")
-            .WithDescription("This select menu uses the new Components V2 system!")
-            .WithColor(Color.Green)
+        var componentsV2 = new ComponentBuilderV2()
+            .WithContainer(container =>
+            {
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent("# Select Menu Example")));
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent("This select menu uses the new Components V2 system!")));
+            })
+            .WithActionRow([selectMenu])
             .Build();
 
-        await ModifyOriginalResponseAsync(msg => { msg.Embed = embed; msg.Components = component; });
+        await ModifyOriginalResponseAsync(msg =>
+        {
+            msg.Components = componentsV2;
+            msg.Flags = MessageFlags.ComponentsV2;
+            msg.Embed = null;
+        });
     }
 
     [SlashCommand("modal", "Shows a modal using the new modal system")]
@@ -94,27 +119,34 @@ public class ComponentExampleCommands : InteractionModuleBase<SocketInteractionC
     {
         var userId = context.GetParameter<ulong>(0);
 
-        var embed = new EmbedBuilder()
-            .WithTitle("Button Clicked!")
-            .WithDescription($"Button was clicked by <@{component.User.Id}>")
-            .WithColor(Color.Orange)
-            .WithTimestamp(DateTimeOffset.UtcNow)
-            .Build();
-
         // Create a new button for another interaction
         var newButton = new ButtonBuilder()
             .WithLabel("Click Again!")
             .WithStyle(ButtonStyle.Success)
             .WithCustomId(_componentHandlerService.GenerateCustomId("example_button", userId.ToString()));
 
-        var newComponent = new ComponentBuilder()
-            .WithButton(newButton)
+        var componentsV2 = new ComponentBuilderV2()
+            .WithContainer(container =>
+            {
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent("# Button Clicked!")));
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent($"Button was clicked by <@{component.User.Id}>")));
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent($"*Timestamp: <t:{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}:F>*")));
+                container.AddComponent(new SectionBuilder()
+                    .WithAccessory(newButton));
+            })
             .Build();
 
         await component.ModifyOriginalResponseAsync(msg =>
         {
-            msg.Embed = embed;
-            msg.Components = newComponent;
+            msg.Components = componentsV2;
+            msg.Flags = MessageFlags.ComponentsV2;
+            msg.Embed = null;
         });
 
         _logger.LogInformation("Example button handled for user {UserId}", component.User.Id);
@@ -126,17 +158,26 @@ public class ComponentExampleCommands : InteractionModuleBase<SocketInteractionC
         var userId = context.GetParameter<ulong>(0);
         var selectedValue = component.Data.Values.FirstOrDefault() ?? "none";
 
-        var embed = new EmbedBuilder()
-            .WithTitle("Selection Made!")
-            .WithDescription($"<@{component.User.Id}> selected: **{selectedValue}**")
-            .WithColor(Color.Purple)
-            .WithTimestamp(DateTimeOffset.UtcNow)
+        var componentsV2 = new ComponentBuilderV2()
+            .WithContainer(container =>
+            {
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent("# Selection Made!")));
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent($"<@{component.User.Id}> selected: **{selectedValue}**")));
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent($"*Timestamp: <t:{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}:F>*")));
+            })
             .Build();
 
         await component.ModifyOriginalResponseAsync(msg =>
         {
-            msg.Embed = embed;
-            msg.Components = null; // Remove the select menu
+            msg.Components = componentsV2;
+            msg.Flags = MessageFlags.ComponentsV2;
+            msg.Embed = null;
         });
 
         _logger.LogInformation("Example select handled for user {UserId}, selected: {Value}", component.User.Id, selectedValue);
@@ -149,15 +190,25 @@ public class ComponentExampleCommands : InteractionModuleBase<SocketInteractionC
         var name = _modalService.GetComponentValue(modal, "name_input") ?? "Unknown";
         var feedback = _modalService.GetComponentValue(modal, "feedback_input") ?? "No feedback provided";
 
-        var embed = new EmbedBuilder()
-            .WithTitle("Modal Submitted!")
-            .WithDescription($"Thank you for your submission, **{name}**!")
-            .AddField("Feedback", feedback)
-            .WithColor(Color.Gold)
-            .WithTimestamp(DateTimeOffset.UtcNow)
+        var componentsV2 = new ComponentBuilderV2()
+            .WithContainer(container =>
+            {
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent("# Modal Submitted!")));
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent($"Thank you for your submission, **{name}**!")));
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent($"**Feedback**\n{feedback}")));
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent($"*Timestamp: <t:{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}:F>*")));
+            })
             .Build();
 
-        await modal.RespondAsync(embed: embed, ephemeral: true);
+        await modal.RespondAsync(components: componentsV2, flags: MessageFlags.ComponentsV2, ephemeral: true);
 
         _logger.LogInformation("Example modal handled for user {UserId}, name: {Name}", modal.User.Id, name);
         return true;

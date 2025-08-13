@@ -108,65 +108,41 @@ Streams: {voiceState.AudioClient?.GetStreams().ToDictionary(x => x.Key, x => x.V
     {
         var fullPersonaMessage = await _personaService.GetPersonaAsync(Context.Guild.Id);
 
-        List<Embed> chunks = new();
-        if (fullPersonaMessage?.Length > Constants.Limits.EmbedDescriptionMaxLength)
-        {
-            chunks.AddRange(ChunkMessage(fullPersonaMessage, "Computed Persona"));
-        }
-        else
-        {
-            var components = new ComponentBuilderV2()
-                .WithContainer(container =>
+        var components = new ComponentBuilderV2()
+            .WithContainer(container =>
+            {
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent("# 🤖 Computed Persona")));
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent($"**Avatar:** [View]({Context.Client.CurrentUser.GetAvatarUrl()})")));
+                
+                if (fullPersonaMessage?.Length > 3000)
                 {
                     container.AddComponent(new SectionBuilder()
                         .AddComponent(new TextDisplayBuilder()
-                            .WithContent("# 🤖 Computed Persona")));
+                            .WithContent("Persona message is too long. Here's the first part:")));
                     container.AddComponent(new SectionBuilder()
                         .AddComponent(new TextDisplayBuilder()
-                            .WithContent($"**Avatar:** [View]({Context.Client.CurrentUser.GetAvatarUrl()})")));
+                            .WithContent(fullPersonaMessage.Substring(0, 3000) + "...")));
+                }
+                else
+                {
                     container.AddComponent(new SectionBuilder()
                         .AddComponent(new TextDisplayBuilder()
                             .WithContent(fullPersonaMessage ?? "No persona available")));
-                })
-                .Build();
+                }
+            })
+            .Build();
 
-            await ModifyOriginalResponseAsync(msg =>
-            {
-                msg.Components = components;
-                msg.Flags = MessageFlags.ComponentsV2;
-                msg.Embed = null;
-                msg.Content = null;
-            });
-            return;
-        }
-
-        if (chunks.Count > 1)
+        await ModifyOriginalResponseAsync(msg =>
         {
-            var firstComponents = new ComponentBuilderV2()
-                .WithContainer(container =>
-                {
-                    container.AddComponent(new SectionBuilder()
-                        .AddComponent(new TextDisplayBuilder()
-                            .WithContent("# 🤖 Computed Persona (Chunked)")));
-                    container.AddComponent(new SectionBuilder()
-                        .AddComponent(new TextDisplayBuilder()
-                            .WithContent("Sending my persona below in multiple messages")));
-                })
-                .Build();
-
-            await ModifyOriginalResponseAsync(msg =>
-            {
-                msg.Components = firstComponents;
-                msg.Flags = MessageFlags.ComponentsV2;
-                msg.Embed = null;
-                msg.Content = null;
-            });
-
-            foreach (var chunk in chunks)
-            {
-                await Context.Channel.SendMessageAsync(embed: chunk);
-            }
-        }
+            msg.Components = components;
+            msg.Flags = MessageFlags.ComponentsV2;
+            msg.Embed = null;
+            msg.Content = null;
+        });
     }
 
     [SlashCommand("join", "Join a voice channel")]
@@ -591,17 +567,5 @@ Streams: {voiceState.AudioClient?.GetStreams().ToDictionary(x => x.Key, x => x.V
         return chunks;
     }
 
-    private Embed[] ChunkMessage(string message, string title)
-    {
-        var chunkSize = 2048;
-        var chunks = StringModifier.Chunkify(message, chunkSize);
-        return chunks.Select((msg, i) => new EmbedBuilder()
-                .WithTitle(title)
-                .WithThumbnailUrl(Context.Client.CurrentUser.GetAvatarUrl())
-                .WithColor(Color.DarkTeal)
-                .WithDescription(msg)
-                .WithFooter($"Part {i + 1}/{chunks.Count}")
-                .Build())
-            .ToArray();
-    }
+    // ChunkMessage method removed - now using ComponentsV2 directly
 }

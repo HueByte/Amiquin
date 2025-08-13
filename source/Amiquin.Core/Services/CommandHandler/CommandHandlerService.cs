@@ -406,7 +406,7 @@ public class CommandHandlerService : ICommandHandlerService
     {
         try
         {
-            var embed = CreateErrorEmbed(result);
+            // Error components will be created later when sending the response
 
             if (result.Error == InteractionCommandError.Exception && result is ExecuteResult execResult)
             {
@@ -415,7 +415,13 @@ public class CommandHandlerService : ICommandHandlerService
                     interactionContext.Guild?.Name ?? "DM");
             }
 
-            await interactionContext.Interaction.ModifyOriginalResponseAsync(msg => msg.Embed = embed.Build());
+            var errorComponents = CreateErrorComponents(result);
+            await interactionContext.Interaction.ModifyOriginalResponseAsync(msg =>
+            {
+                msg.Components = errorComponents;
+                msg.Flags = MessageFlags.ComponentsV2;
+                msg.Embed = null;
+            });
         }
         catch (Exception ex)
         {
@@ -424,37 +430,38 @@ public class CommandHandlerService : ICommandHandlerService
     }
 
     /// <summary>
-    /// Creates an error embed based on the command execution result.
+    /// Creates error components based on the command execution result.
     /// </summary>
     /// <param name="result">The command execution result.</param>
-    /// <returns>An EmbedBuilder configured with error information.</returns>
-    private static EmbedBuilder CreateErrorEmbed(IResult result)
+    /// <returns>MessageComponent configured with error information.</returns>
+    private static MessageComponent CreateErrorComponents(IResult result)
     {
-        var embed = new EmbedBuilder()
-            .WithCurrentTimestamp()
-            .WithColor(Color.Red);
-
-        return result.Error switch
+        var (title, description) = result.Error switch
         {
-            InteractionCommandError.UnmetPrecondition => embed
-                .WithTitle("Unmet Precondition")
-                .WithDescription(result.ErrorReason),
-            InteractionCommandError.UnknownCommand => embed
-                .WithTitle("Unknown Command")
-                .WithDescription(result.ErrorReason),
-            InteractionCommandError.BadArgs => embed
-                .WithTitle("Invalid Arguments")
-                .WithDescription(result.ErrorReason),
-            InteractionCommandError.Exception => embed
-                .WithTitle("Command Exception")
-                .WithDescription(result.ErrorReason),
-            InteractionCommandError.Unsuccessful => embed
-                .WithTitle("Command Failed")
-                .WithDescription(result.ErrorReason),
-            _ => embed
-                .WithTitle("Something Went Wrong")
-                .WithDescription(result.ErrorReason)
+            InteractionCommandError.UnmetPrecondition => ("❌ Unmet Precondition", result.ErrorReason),
+            InteractionCommandError.UnknownCommand => ("❓ Unknown Command", result.ErrorReason),
+            InteractionCommandError.BadArgs => ("⚠️ Invalid Arguments", result.ErrorReason),
+            InteractionCommandError.Exception => ("💥 Command Exception", result.ErrorReason),
+            InteractionCommandError.Unsuccessful => ("❌ Command Failed", result.ErrorReason),
+            _ => ("⚠️ Something Went Wrong", result.ErrorReason)
         };
+
+        return new ComponentBuilderV2()
+            .WithContainer(container =>
+            {
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent($"# {title}")));
+                
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent(description ?? "An unexpected error occurred.")));
+                
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent($"*Error occurred at <t:{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}:F>*")));
+            })
+            .Build();
     }
 
     /// <summary>

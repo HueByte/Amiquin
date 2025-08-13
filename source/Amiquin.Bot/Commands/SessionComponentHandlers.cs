@@ -182,15 +182,26 @@ public class SessionComponentHandlers
                 .WithDefault(isActive);
         }).ToList();
 
-        // Keep the embed for this UI since it has interactive components mixed with ComponentsV2
-        var embed = new EmbedBuilder()
-            .WithTitle("🔄 Switch Chat Session")
-            .WithDescription($"**Current session:** {activeSession?.Name ?? "None"}\n\nSelect a session from the dropdown below:")
-            .WithColor(Color.Blue)
-            .WithFooter($"Total sessions: {sessions.Count}")
-            .Build();
-
+        // Create ComponentsV2 with session switch UI
         var components = new ComponentBuilderV2()
+            .WithContainer(container =>
+            {
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent("# 🔄 Switch Chat Session")));
+                
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent($"**Current session:** {activeSession?.Name ?? "None"}")));
+                
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent("Select a session from the dropdown below:")));
+                
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent($"*Total sessions: {sessions.Count}*")));
+            })
             .WithActionRow([
                 new SelectMenuBuilder(
                     customId: "session_switch_select",
@@ -211,8 +222,9 @@ public class SessionComponentHandlers
 
         await component.ModifyOriginalResponseAsync(msg =>
         {
-            msg.Embed = embed;
             msg.Components = components;
+            msg.Flags = MessageFlags.ComponentsV2;
+            msg.Embed = null;
         });
     }
 }

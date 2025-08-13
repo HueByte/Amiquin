@@ -73,41 +73,38 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
         int messageCount = _messageCacheService.GetChatMessageCount(Context.Guild.Id);
         var hasContext = !string.IsNullOrWhiteSpace(context);
 
-        // User Embed
-        Embed userEmbed = new EmbedBuilder()
-            .WithDescription(message)
-            .WithAuthor(Context.User)
-            .WithColor(Color.Teal)
+        // Create ComponentsV2 chat response
+        var footerText = hasContext
+            ? "☁️ Using conversation context ☁️"
+            : $"☁️ Remembering last {messageCount} messages ☁️";
+
+        var components = new ComponentBuilderV2()
+            .WithContainer(container =>
+            {
+                // User message section
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent($"**{Context.User.GlobalName ?? Context.User.Username}**\n{message}")));
+                
+                // Bot response section
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent($"**{Context.Client.CurrentUser.Username}**\n{response}")));
+                
+                // Footer section
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent($"*{footerText}*")));
+            })
             .Build();
 
-        var botEmbeds = DiscordUtilities.ChunkMessageAsEmbeds(response, (chunk, chunkIndex, chunkCount) =>
+        await ModifyOriginalResponseAsync(msg =>
         {
-            var footerText = hasContext
-                ? $"☁️ Using conversation context ☁️ {chunkIndex}/{chunkCount}"
-                : $"☁️ Remembering last {messageCount} messages ☁️ {chunkIndex}/{chunkCount}";
-
-            return new EmbedBuilder()
-                .WithDescription(chunk)
-                .WithAuthor(Context.Client.CurrentUser)
-                .WithColor(Color.Purple)
-                .WithFooter(footerText)
-                .Build();
-        }).ToList();
-
-
-        if (botEmbeds.Count == 1)
-        {
-            await ModifyOriginalResponseAsync((msg) => { msg.Embeds = new Embed[] { userEmbed, botEmbeds.First() }; });
-            return;
-        }
-        else
-        {
-            await ModifyOriginalResponseAsync((msg) => { msg.Embeds = new Embed[] { userEmbed }; });
-            foreach (var botEmbed in botEmbeds)
-            {
-                await Context.Channel.SendMessageAsync(embed: botEmbed);
-            }
-        }
+            msg.Components = components;
+            msg.Flags = MessageFlags.ComponentsV2;
+            msg.Embed = null;
+            msg.Embeds = null;
+        });
     }
 
     #region Fun Commands
@@ -131,14 +128,27 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
                 _ => "🐋 MASSIVE"
             };
 
-            var embed = new EmbedBuilder()
-                .WithTitle("📏 Size Check")
-                .WithDescription($"{targetUser.Mention}'s size: **{size} cm** {sizeDescription}")
-                .WithColor(Color.Purple)
-                .WithFooter("Results are permanent and totally scientific 🧪")
+            var components = new ComponentBuilderV2()
+                .WithContainer(container =>
+                {
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent("# 📏 Size Check")));
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent($"{targetUser.Mention}'s size: **{size} cm** {sizeDescription}")));
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent("*Results are permanent and totally scientific 🧪*")));
+                })
                 .Build();
 
-            await ModifyOriginalResponseAsync(msg => msg.Embed = embed);
+            await ModifyOriginalResponseAsync(msg =>
+            {
+                msg.Components = components;
+                msg.Flags = MessageFlags.ComponentsV2;
+                msg.Embed = null;
+            });
         }
         catch
         {
@@ -279,30 +289,39 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
         var displayName = targetUser.GlobalName ?? targetUser.Username;
         var avatarUrl = targetUser.GetDisplayAvatarUrl(ImageFormat.Auto, 1024);
 
-        // Create embed with avatar information
-        var embed = new EmbedBuilder()
-            .WithTitle($"🖼️ {displayName}'s Avatar")
-            .WithDescription($"**User ID:** {targetUser.Id}\n**Account Created:** <t:{targetUser.CreatedAt.ToUnixTimeSeconds()}:D>")
-            .WithImageUrl(avatarUrl)
-            .WithColor(Color.Blue)
-            .WithFooter($"Requested by {Context.User.GlobalName ?? Context.User.Username}", Context.User.GetAvatarUrl())
-            .WithCurrentTimestamp()
-            .Build();
-
-        // Create button for direct link using ComponentBuilderV2
+        // Create ComponentsV2 with avatar information
         var components = new ComponentBuilderV2()
-            .WithActionRow([
-                new ButtonBuilder()
-                    .WithLabel("Open in Browser")
-                    .WithStyle(ButtonStyle.Link)
-                    .WithUrl(avatarUrl)
-            ])
+            .WithContainer(container =>
+            {
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent($"# 🖼️ {displayName}'s Avatar")));
+                        
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent($"**User ID:** {targetUser.Id}\n**Account Created:** <t:{targetUser.CreatedAt.ToUnixTimeSeconds()}:D>")));
+                        
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent($"**Avatar:** [View Full Size]({avatarUrl})")));
+                        
+                container.AddComponent(new SectionBuilder()
+                    .WithAccessory(new ButtonBuilder()
+                        .WithLabel("Open in Browser")
+                        .WithStyle(ButtonStyle.Link)
+                        .WithUrl(avatarUrl)));
+                        
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent($"*Requested by {Context.User.GlobalName ?? Context.User.Username}*")));
+            })
             .Build();
 
         await ModifyOriginalResponseAsync(msg =>
         {
-            msg.Embed = embed;
             msg.Components = components;
+            msg.Flags = MessageFlags.ComponentsV2;
+            msg.Embed = null;
         });
     }
 
@@ -323,17 +342,34 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
                 totalNachos
             );
 
-            // Build the embed with the dynamic response
-            var embed = new EmbedBuilder()
-                .WithTitle("Nacho Delivery! 🌮")
-                .WithDescription($"{response}\n\n**Your total nachos given:** {totalNachos}")
-                .WithColor(Color.Orange)
-                .WithThumbnailUrl(Context.Client.CurrentUser.GetDisplayAvatarUrl())
-                .WithFooter($"Nacho #{totalNachos} from {Context.User.Username}", Context.User.GetAvatarUrl())
-                .WithCurrentTimestamp()
+            // Build ComponentsV2 with the dynamic response
+            var components = new ComponentBuilderV2()
+                .WithContainer(container =>
+                {
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent("# Nacho Delivery! 🌮")));
+                    
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent(response)));
+                    
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent($"**Your total nachos given:** {totalNachos}")));
+                    
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent($"*Nacho #{totalNachos} from {Context.User.Username}*")));
+                })
                 .Build();
 
-            await ModifyOriginalResponseAsync(msg => msg.Embed = embed);
+            await ModifyOriginalResponseAsync(msg =>
+            {
+                msg.Components = components;
+                msg.Flags = MessageFlags.ComponentsV2;
+                msg.Embed = null;
+            });
         }
         catch
         {
@@ -349,25 +385,41 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
             var leaderboardFields = await _funService.GetNachoLeaderboardAsync(Context.Guild.Id, 10);
             var totalNachos = await _funService.GetTotalNachosAsync(Context.Guild.Id);
 
-            var embed = new EmbedBuilder()
-                .WithTitle($"🏆 Nacho Leaderboard")
-                .WithDescription($"**Total nachos received:** {totalNachos} 🌮")
-                .WithColor(Color.Gold)
-                .WithThumbnailUrl(Context.Client.CurrentUser.GetDisplayAvatarUrl());
-
-            if (!leaderboardFields.Any())
-            {
-                embed.AddField("No nachos yet!", "Be the first to give me a nacho with `/nacho`! 🌮", false);
-            }
-            else
-            {
-                foreach (var field in leaderboardFields.Take(10))
+            var components = new ComponentBuilderV2()
+                .WithContainer(container =>
                 {
-                    embed.AddField(field.Name, field.Value, field.IsInline);
-                }
-            }
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent($"# 🏆 Nacho Leaderboard")));
+                    
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent($"**Total nachos received:** {totalNachos} 🌮")));
 
-            await ModifyOriginalResponseAsync(msg => msg.Embed = embed.Build());
+                    if (!leaderboardFields.Any())
+                    {
+                        container.AddComponent(new SectionBuilder()
+                            .AddComponent(new TextDisplayBuilder()
+                                .WithContent("**No nachos yet!**\nBe the first to give me a nacho with `/nacho`! 🌮")));
+                    }
+                    else
+                    {
+                        foreach (var field in leaderboardFields.Take(10))
+                        {
+                            container.AddComponent(new SectionBuilder()
+                                .AddComponent(new TextDisplayBuilder()
+                                    .WithContent($"**{field.Name}**\n{field.Value}")));
+                        }
+                    }
+                })
+                .Build();
+
+            await ModifyOriginalResponseAsync(msg =>
+            {
+                msg.Components = components;
+                msg.Flags = MessageFlags.ComponentsV2;
+                msg.Embed = null;
+            });
         }
         catch
         {
@@ -441,17 +493,28 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
         // Put bot to sleep for 5 minutes
         var wakeUpTime = await _sleepService.PutToSleepAsync(Context.Guild.Id, 5);
 
-        var embed = new EmbedBuilder()
-            .WithTitle("😴 Going to Sleep")
-            .WithDescription("I'm going to take a 5-minute nap. See you in a bit!")
-            .WithColor(Color.Purple)
-            .AddField("💤 Sleep Duration", "5 minutes", true)
-            .AddField("⏰ Wake Up Time", $"<t:{((DateTimeOffset)wakeUpTime).ToUnixTimeSeconds()}:t>", true)
-            .WithFooter($"Requested by {Context.User.GlobalName ?? Context.User.Username}")
-            .WithCurrentTimestamp()
+        var components = new ComponentBuilderV2()
+            .WithContainer(container =>
+            {
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent("# 😴 Going to Sleep")));
+                
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent("I'm going to take a 5-minute nap. See you in a bit!")));
+                
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent($"💤 **Sleep Duration:** 5 minutes\n⏰ **Wake Up Time:** <t:{((DateTimeOffset)wakeUpTime).ToUnixTimeSeconds()}:t>")));
+                
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent($"*Requested by {Context.User.GlobalName ?? Context.User.Username}*")));
+            })
             .Build();
 
-        await RespondAsync(embed: embed);
+        await RespondAsync(components: components, flags: MessageFlags.ComponentsV2);
     }
 
     [Group("session", "Manage chat sessions")]
@@ -482,50 +545,58 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
                 return;
             }
 
-            var embed = new EmbedBuilder()
-                .WithTitle($"💬 Chat Sessions for {Context.Guild.Name}")
-                .WithColor(Color.Blue)
-                .WithFooter($"Total sessions: {sessions.Count}")
-                .WithCurrentTimestamp();
-
-            foreach (var session in sessions.Take(10)) // Limit to 10 sessions for embed space
-            {
-                var statusIcon = session.IsActive ? "🟢" : "⚪";
-                var lastActivity = session.LastActivityAt > DateTime.UtcNow.AddDays(-1)
-                    ? $"<t:{((DateTimeOffset)session.LastActivityAt).ToUnixTimeSeconds()}:R>"
-                    : session.LastActivityAt.ToString("MMM dd, yyyy");
-
-                embed.AddField(
-                    $"{statusIcon} {session.Name}",
-                    $"**Messages:** {session.MessageCount} | **Last Activity:** {lastActivity}\n" +
-                    $"**Model:** {session.Provider}/{session.Model}",
-                    true);
-            }
-
-            if (sessions.Count > 10)
-            {
-                embed.WithDescription($"*Showing first 10 of {sessions.Count} sessions*");
-            }
-
             var components = new ComponentBuilderV2()
-                .WithActionRow([
-                    new ButtonBuilder()
-                        .WithLabel("Switch Session")
-                        .WithCustomId("session_switch")
-                        .WithStyle(ButtonStyle.Primary)
-                        .WithEmote(new Emoji("🔄")),
-                    new ButtonBuilder()
-                        .WithLabel("Create New")
-                        .WithCustomId("session_create")
-                        .WithStyle(ButtonStyle.Success)
-                        .WithEmote(new Emoji("➕"))
-                ])
+                .WithContainer(container =>
+                {
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent($"# 💬 Chat Sessions for {Context.Guild.Name}")));
+                    
+                    if (sessions.Count > 10)
+                    {
+                        container.AddComponent(new SectionBuilder()
+                            .AddComponent(new TextDisplayBuilder()
+                                .WithContent($"*Showing first 10 of {sessions.Count} sessions*")));
+                    }
+
+                    foreach (var session in sessions.Take(10)) // Limit to 10 sessions
+                    {
+                        var statusIcon = session.IsActive ? "🟢" : "⚪";
+                        var lastActivity = session.LastActivityAt > DateTime.UtcNow.AddDays(-1)
+                            ? $"<t:{((DateTimeOffset)session.LastActivityAt).ToUnixTimeSeconds()}:R>"
+                            : session.LastActivityAt.ToString("MMM dd, yyyy");
+
+                        container.AddComponent(new SectionBuilder()
+                            .AddComponent(new TextDisplayBuilder()
+                                .WithContent($"{statusIcon} **{session.Name}**\n" +
+                                           $"**Messages:** {session.MessageCount} | **Last Activity:** {lastActivity}\n" +
+                                           $"**Model:** {session.Provider}/{session.Model}")));
+                    }
+                    
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent($"*Total sessions: {sessions.Count}*")));
+                            
+                    // Add navigation buttons
+                    container.AddComponent(new SectionBuilder()
+                        .WithAccessory(new ButtonBuilder()
+                            .WithLabel("Switch Session")
+                            .WithCustomId("session_switch")
+                            .WithStyle(ButtonStyle.Primary)
+                            .WithEmote(new Emoji("🔄")))
+                        .WithAccessory(new ButtonBuilder()
+                            .WithLabel("Create New")
+                            .WithCustomId("session_create")
+                            .WithStyle(ButtonStyle.Success)
+                            .WithEmote(new Emoji("➕"))));
+                })
                 .Build();
 
             await ModifyOriginalResponseAsync(msg =>
             {
-                msg.Embed = embed.Build();
                 msg.Components = components;
+                msg.Flags = MessageFlags.ComponentsV2;
+                msg.Embed = null;
             });
         }
 
@@ -574,17 +645,33 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
             {
                 var newSession = await _sessionManagerService.CreateSessionAsync(Context.Guild.Id, sessionName.Trim(), setAsActive: true);
 
-                var embed = new EmbedBuilder()
-                    .WithTitle("✅ Session Created")
-                    .WithDescription($"Created and switched to new session: **{newSession.Name}**")
-                    .WithColor(Color.Green)
-                    .AddField("Session ID", newSession.Id, true)
-                    .AddField("Model", $"{newSession.Provider}/{newSession.Model}", true)
-                    .WithFooter($"Created by {Context.User.GlobalName ?? Context.User.Username}")
-                    .WithCurrentTimestamp()
+                var components = new ComponentBuilderV2()
+                    .WithContainer(container =>
+                    {
+                        container.AddComponent(new SectionBuilder()
+                            .AddComponent(new TextDisplayBuilder()
+                                .WithContent("# ✅ Session Created")));
+                        
+                        container.AddComponent(new SectionBuilder()
+                            .AddComponent(new TextDisplayBuilder()
+                                .WithContent($"Created and switched to new session: **{newSession.Name}**")));
+                        
+                        container.AddComponent(new SectionBuilder()
+                            .AddComponent(new TextDisplayBuilder()
+                                .WithContent($"**Session ID:** {newSession.Id}\n**Model:** {newSession.Provider}/{newSession.Model}")));
+                        
+                        container.AddComponent(new SectionBuilder()
+                            .AddComponent(new TextDisplayBuilder()
+                                .WithContent($"*Created by {Context.User.GlobalName ?? Context.User.Username}*")));
+                    })
                     .Build();
 
-                await ModifyOriginalResponseAsync(msg => msg.Embed = embed);
+                await ModifyOriginalResponseAsync(msg =>
+                {
+                    msg.Components = components;
+                    msg.Flags = MessageFlags.ComponentsV2;
+                    msg.Embed = null;
+                });
             }
             catch (InvalidOperationException ex)
             {
@@ -623,15 +710,29 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
                 var success = await _sessionManagerService.RenameSessionAsync(activeSession.Id, newName.Trim());
                 if (success)
                 {
-                    var embed = new EmbedBuilder()
-                        .WithTitle("✅ Session Renamed")
-                        .WithDescription($"Renamed session from **{activeSession.Name}** to **{newName.Trim()}**")
-                        .WithColor(Color.Green)
-                        .WithFooter($"Renamed by {Context.User.GlobalName ?? Context.User.Username}")
-                        .WithCurrentTimestamp()
+                    var components = new ComponentBuilderV2()
+                        .WithContainer(container =>
+                        {
+                            container.AddComponent(new SectionBuilder()
+                                .AddComponent(new TextDisplayBuilder()
+                                    .WithContent("# ✅ Session Renamed")));
+                            
+                            container.AddComponent(new SectionBuilder()
+                                .AddComponent(new TextDisplayBuilder()
+                                    .WithContent($"Renamed session from **{activeSession.Name}** to **{newName.Trim()}**")));
+                            
+                            container.AddComponent(new SectionBuilder()
+                                .AddComponent(new TextDisplayBuilder()
+                                    .WithContent($"*Renamed by {Context.User.GlobalName ?? Context.User.Username}*")));
+                        })
                         .Build();
 
-                    await ModifyOriginalResponseAsync(msg => msg.Embed = embed);
+                    await ModifyOriginalResponseAsync(msg =>
+                    {
+                        msg.Components = components;
+                        msg.Flags = MessageFlags.ComponentsV2;
+                        msg.Embed = null;
+                    });
                 }
                 else
                 {
@@ -677,15 +778,29 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
                 var success = await _sessionManagerService.DeleteSessionAsync(Context.Guild.Id, sessionToDelete.Id);
                 if (success)
                 {
-                    var embed = new EmbedBuilder()
-                        .WithTitle("✅ Session Deleted")
-                        .WithDescription($"Deleted session: **{sessionToDelete.Name}**")
-                        .WithColor(Color.Red)
-                        .WithFooter($"Deleted by {Context.User.GlobalName ?? Context.User.Username}")
-                        .WithCurrentTimestamp()
+                    var components = new ComponentBuilderV2()
+                        .WithContainer(container =>
+                        {
+                            container.AddComponent(new SectionBuilder()
+                                .AddComponent(new TextDisplayBuilder()
+                                    .WithContent("# ✅ Session Deleted")));
+                            
+                            container.AddComponent(new SectionBuilder()
+                                .AddComponent(new TextDisplayBuilder()
+                                    .WithContent($"Deleted session: **{sessionToDelete.Name}**")));
+                            
+                            container.AddComponent(new SectionBuilder()
+                                .AddComponent(new TextDisplayBuilder()
+                                    .WithContent($"*Deleted by {Context.User.GlobalName ?? Context.User.Username}*")));
+                        })
                         .Build();
 
-                    await ModifyOriginalResponseAsync(msg => msg.Embed = embed);
+                    await ModifyOriginalResponseAsync(msg =>
+                    {
+                        msg.Components = components;
+                        msg.Flags = MessageFlags.ComponentsV2;
+                        msg.Embed = null;
+                    });
                 }
                 else
                 {
@@ -715,14 +830,21 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
                     .WithDefault(isActive);
             }).ToList();
 
-            var embed = new EmbedBuilder()
-                .WithTitle("🔄 Switch Chat Session")
-                .WithDescription($"**Current session:** {activeSession?.Name ?? "None"}\n\nSelect a session from the dropdown below:")
-                .WithColor(Color.Blue)
-                .WithFooter($"Total sessions: {sessions.Count}")
-                .Build();
-
             var components = new ComponentBuilderV2()
+                .WithContainer(container =>
+                {
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent("# 🔄 Switch Chat Session")));
+                    
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent($"**Current session:** {activeSession?.Name ?? "None"}")));
+                    
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent("Select a session from the dropdown below:")));
+                })
                 .WithActionRow([
                     new SelectMenuBuilder(
                         customId: "session_switch_select",
@@ -743,8 +865,9 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
 
             await ModifyOriginalResponseAsync(msg =>
             {
-                msg.Embed = embed;
                 msg.Components = components;
+                msg.Flags = MessageFlags.ComponentsV2;
+                msg.Embed = null;
             });
         }
     }
