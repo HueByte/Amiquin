@@ -94,70 +94,6 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         return await BuildCompleteConfigurationComponentsV2Async(serverMeta, guild);
     }
 
-    private async Task<Embed> BuildConfigurationEmbedAsync(Models.ServerMeta serverMeta, SocketGuild guild)
-    {
-        var embedBuilder = new EmbedBuilder()
-            .WithTitle($"⚙️ Server Configuration")
-            .WithDescription($"Configure settings for **{guild.Name}**")
-            .WithColor(new Color(88, 101, 242)) // Discord blurple
-            .WithThumbnailUrl(guild.IconUrl)
-            .WithCurrentTimestamp()
-            .WithFooter("Use the components below to configure your server");
-
-        // Build status summary
-        var statusBuilder = new StringBuilder();
-
-        // Persona status
-        var personaIcon = !string.IsNullOrWhiteSpace(serverMeta.Persona) ? "✅" : "⚠️";
-        var personaText = !string.IsNullOrWhiteSpace(serverMeta.Persona)
-            ? TruncateText(serverMeta.Persona, 50)
-            : "Not configured";
-        statusBuilder.AppendLine($"{personaIcon} **Persona:** {personaText}");
-
-        // Primary channel status
-        var channelIcon = serverMeta.PrimaryChannelId.HasValue ? "✅" : "⚠️";
-        var channelText = "Not configured";
-        if (serverMeta.PrimaryChannelId.HasValue)
-        {
-            var channel = guild.GetTextChannel(serverMeta.PrimaryChannelId.Value);
-            channelText = channel != null ? channel.Mention : "Channel not found";
-        }
-        statusBuilder.AppendLine($"{channelIcon} **Primary Channel:** {channelText}");
-
-        // AI Provider status
-        var providerIcon = !string.IsNullOrWhiteSpace(serverMeta.PreferredProvider) ? "✅" : "ℹ️";
-        var providerText = !string.IsNullOrWhiteSpace(serverMeta.PreferredProvider)
-            ? serverMeta.PreferredProvider
-            : "Using default";
-        statusBuilder.AppendLine($"{providerIcon} **AI Provider:** {providerText}");
-
-        // NSFW Channel status
-        var nsfwChannelIcon = serverMeta.NsfwChannelId.HasValue ? "✅" : "⚠️";
-        var nsfwChannelText = "Not configured";
-        if (serverMeta.NsfwChannelId.HasValue)
-        {
-            var nsfwChannel = guild.GetTextChannel(serverMeta.NsfwChannelId.Value);
-            nsfwChannelText = nsfwChannel != null ? nsfwChannel.Mention : "Channel not found";
-        }
-        statusBuilder.AppendLine($"{nsfwChannelIcon} **NSFW Channel:** {nsfwChannelText}");
-
-        // Get toggle count
-        var toggles = await _toggleService.GetTogglesByServerId(guild.Id);
-        var enabledCount = toggles.Count(t => t.IsEnabled);
-        statusBuilder.AppendLine($"🎛️ **Features:** {enabledCount}/{toggles.Count} enabled");
-
-        embedBuilder.AddField("📊 Current Configuration", statusBuilder.ToString(), inline: false);
-
-        // Add helpful tips
-        var tipsBuilder = new StringBuilder();
-        tipsBuilder.AppendLine("• Use the **dropdown menu** to navigate sections");
-        tipsBuilder.AppendLine("• Click **Quick Setup** buttons for common tasks");
-        tipsBuilder.AppendLine("• Toggle features on/off with the buttons");
-
-        embedBuilder.AddField("💡 Tips", tipsBuilder.ToString(), inline: false);
-
-        return embedBuilder.Build();
-    }
 
     private async Task<MessageComponent> BuildConfigurationComponentsAsync(Models.ServerMeta serverMeta, SocketGuild guild)
     {
@@ -801,27 +737,19 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
     {
         var serverMeta = await _serverMetaService.GetServerMetaAsync(guildId);
 
-        var embedBuilder = new EmbedBuilder()
-            .WithTitle("🎭 Server Persona Configuration")
-            .WithDescription("Configure how the AI assistant behaves in your server")
-            .WithColor(new Color(155, 89, 182))
-            .WithCurrentTimestamp();
+        var title = "🎭 Server Persona Configuration";
+        var description = "Configure how the AI assistant behaves in your server";
+        
+        // Prepare content sections
+        var currentPersonaText = !string.IsNullOrWhiteSpace(serverMeta?.Persona) 
+            ? $"```{TruncateText(serverMeta.Persona, 1000)}```" 
+            : "*Not configured*";
 
-        if (!string.IsNullOrWhiteSpace(serverMeta?.Persona))
-        {
-            embedBuilder.AddField("Current Persona", $"```{TruncateText(serverMeta.Persona, 1000)}```", false);
-        }
-        else
-        {
-            embedBuilder.AddField("Current Persona", "*Not configured*", false);
-        }
-
-        embedBuilder.AddField("💡 Tips for Writing a Good Persona",
+        var tipsContent = "💡 **Tips for Writing a Good Persona**\n" +
             "• Be specific about the assistant's role and expertise\n" +
             "• Include desired communication style and tone\n" +
             "• Mention any specific knowledge areas or restrictions\n" +
-            "• Keep it concise but comprehensive (under 2000 characters)",
-            false);
+            "• Keep it concise but comprehensive (under 2000 characters)";
 
         var builder = new ComponentBuilderV2();
 
@@ -847,14 +775,15 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
             {
                 container.AddComponent(new SectionBuilder()
                     .AddComponent(new TextDisplayBuilder()
-                        .WithContent($"# {embedBuilder.Title}\n{embedBuilder.Description}")));
+                        .WithContent($"# {title}\n{description}")));
                 
-                foreach (var field in new List<EmbedFieldBuilder>())
-                {
-                    container.AddComponent(new SectionBuilder()
-                        .AddComponent(new TextDisplayBuilder()
-                            .WithContent($"**{field.Name}**\n{field.Value}")));
-                }
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent($"**Current Persona**\n{currentPersonaText}")));
+                        
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent(tipsContent)));
                 
                 // Add interaction components
                 var builtComponents = builder.Build();
@@ -898,22 +827,18 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
             .Take(25)
             .ToList();
 
-        var embedBuilder = new EmbedBuilder()
-            .WithTitle("💬 Primary Channel Configuration")
-            .WithDescription("Set the main channel where the bot will be most active")
-            .WithColor(new Color(46, 204, 113))
-            .WithCurrentTimestamp();
-
+        var title = "💬 Primary Channel Configuration";
+        var description = "Set the main channel where the bot will be most active";
+        
+        var currentChannelContent = "**Current Primary Channel**\n";
         if (serverMeta?.PrimaryChannelId.HasValue == true)
         {
             var currentChannel = guild.GetTextChannel(serverMeta.PrimaryChannelId.Value);
-            embedBuilder.AddField("Current Primary Channel",
-                currentChannel != null ? currentChannel.Mention : "*Channel not found*",
-                false);
+            currentChannelContent += currentChannel != null ? currentChannel.Mention : "*Channel not found*";
         }
         else
         {
-            embedBuilder.AddField("Current Primary Channel", "*Not configured*", false);
+            currentChannelContent += "*Not configured*";
         }
 
         var builder = new ComponentBuilderV2();
@@ -963,14 +888,11 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
             {
                 container.AddComponent(new SectionBuilder()
                     .AddComponent(new TextDisplayBuilder()
-                        .WithContent($"# {embedBuilder.Title}\n{embedBuilder.Description}")));
+                        .WithContent($"# {title}\n{description}")));
                 
-                foreach (var field in new List<EmbedFieldBuilder>())
-                {
-                    container.AddComponent(new SectionBuilder()
-                        .AddComponent(new TextDisplayBuilder()
-                            .WithContent($"**{field.Name}**\n{field.Value}")));
-                }
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent(currentChannelContent)));
                 
                 // Add interaction components
                 var builtComponents = builder.Build();
@@ -1007,21 +929,16 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         var serverMeta = await _serverMetaService.GetServerMetaAsync(guildId);
         var providers = new[] { "OpenAI", "Anthropic", "Gemini", "Grok" };
 
-        var embedBuilder = new EmbedBuilder()
-            .WithTitle("🤖 AI Provider Configuration")
-            .WithDescription("Choose your preferred AI model provider")
-            .WithColor(new Color(52, 152, 219))
-            .WithCurrentTimestamp();
-
-        embedBuilder.AddField("Current Provider",
-            !string.IsNullOrWhiteSpace(serverMeta?.PreferredProvider)
+        var title = "🤖 AI Provider Configuration";
+        var description = "Choose your preferred AI model provider";
+        
+        var currentProviderContent = "**Current Provider**\n" +
+            (!string.IsNullOrWhiteSpace(serverMeta?.PreferredProvider)
                 ? $"**{serverMeta.PreferredProvider}**"
-                : "*Using default*",
-            false);
+                : "*Using default*");
 
-        embedBuilder.AddField("Available Providers",
-            string.Join("\n", providers.Select(p => $"• **{p}**")),
-            false);
+        var availableProvidersContent = "**Available Providers**\n" +
+            string.Join("\n", providers.Select(p => $"• **{p}**"));
 
         var builder = new ComponentBuilderV2();
 
@@ -1030,7 +947,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         foreach (var provider in providers)
         {
             var isSelected = serverMeta?.PreferredProvider == provider;
-            var description = provider switch
+            var providerDescription = provider switch
             {
                 "OpenAI" => "GPT models",
                 "Anthropic" => "Claude models",
@@ -1042,7 +959,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
             selectMenuOptions.Add(new SelectMenuOptionBuilder(
                 provider,
                 provider.ToLower(),
-                description,
+                providerDescription,
                 isDefault: isSelected));
         }
 
@@ -1076,15 +993,16 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                 // Add main title and description section
                 container.AddComponent(new SectionBuilder()
                     .AddComponent(new TextDisplayBuilder()
-                        .WithContent($"# {embedBuilder.Title}\n{embedBuilder.Description}")));
+                        .WithContent($"# {title}\n{description}")));
 
-                // Add fields as additional text displays in sections
-                foreach (var field in new List<EmbedFieldBuilder>())
-                {
-                    container.AddComponent(new SectionBuilder()
-                        .AddComponent(new TextDisplayBuilder()
-                            .WithContent($"**{field.Name}**\n{field.Value}")));
-                }
+                // Add content sections
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent(currentProviderContent)));
+                        
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent(availableProvidersContent)));
 
                 // Add components from the traditional ComponentBuilder
                 var builtComponents = builder.Build();
@@ -1515,22 +1433,18 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         var guild = (component.Channel as SocketGuildChannel)?.Guild;
         if (guild == null) return;
 
-        var embedBuilder = new EmbedBuilder()
-            .WithTitle("ℹ️ Discord Server Information")
-            .WithDescription($"Details and statistics for **{guild.Name}**")
-            .WithColor(new Color(114, 137, 218)) // Discord blue
-            .WithThumbnailUrl(guild.IconUrl)
-            .WithCurrentTimestamp();
-
+        var title = "ℹ️ Discord Server Information";
+        var description = $"Details and statistics for **{guild.Name}**";
+        
         // Basic server info
-        embedBuilder.AddField("📅 Created",
-            $"<t:{guild.CreatedAt.ToUnixTimeSeconds()}:F>\n<t:{guild.CreatedAt.ToUnixTimeSeconds()}:R>", true);
+        var createdContent = "**📅 Created**\n" +
+            $"<t:{guild.CreatedAt.ToUnixTimeSeconds()}:F>\n<t:{guild.CreatedAt.ToUnixTimeSeconds()}:R>";
 
         var owner = guild.Owner;
-        embedBuilder.AddField("👑 Owner",
-            owner != null ? $"{owner.Mention}\n{owner.Username}#{owner.Discriminator}" : "*Not found*", true);
+        var ownerContent = "**👑 Owner**\n" +
+            (owner != null ? $"{owner.Mention}\n{owner.Username}#{owner.Discriminator}" : "*Not found*");
 
-        embedBuilder.AddField("🆔 Server ID", guild.Id.ToString(), true);
+        var serverIdContent = $"**🆔 Server ID**\n{guild.Id}";
 
         // Member statistics
         var memberCount = guild.MemberCount;
@@ -1538,36 +1452,37 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         var botCount = guild.Users.Count(u => u.IsBot);
         var humanCount = memberCount - botCount;
 
-        embedBuilder.AddField("👥 Members",
-            $"**Total:** {memberCount:N0}\n**Humans:** {humanCount:N0}\n**Bots:** {botCount:N0}", true);
+        var membersContent = "**👥 Members**\n" +
+            $"**Total:** {memberCount:N0}\n**Humans:** {humanCount:N0}\n**Bots:** {botCount:N0}";
 
-        embedBuilder.AddField("🟢 Online", $"{onlineCount:N0} members", true);
+        var onlineContent = $"**🟢 Online**\n{onlineCount:N0} members";
 
         // Channel statistics
         var textChannels = guild.TextChannels.Count;
         var voiceChannels = guild.VoiceChannels.Count;
         var categories = guild.CategoryChannels.Count;
 
-        embedBuilder.AddField("📺 Channels",
-            $"**Text:** {textChannels}\n**Voice:** {voiceChannels}\n**Categories:** {categories}", true);
+        var channelsContent = "**📺 Channels**\n" +
+            $"**Text:** {textChannels}\n**Voice:** {voiceChannels}\n**Categories:** {categories}";
 
         // Server features
         var features = guild.Features.ToString().Replace("_", " ").ToLower();
         if (string.IsNullOrEmpty(features) || features == "0")
             features = "*None*";
 
-        embedBuilder.AddField("✨ Features",
-            features.Length > 100 ? $"{features[..100]}..." : features, false);
+        var featuresContent = "**✨ Features**\n" +
+            (features.Length > 100 ? $"{features[..100]}..." : features);
 
         // Server boost info
+        var boostContent = "";
         if (guild.PremiumSubscriptionCount > 0)
         {
-            embedBuilder.AddField("💎 Boost Level",
-                $"Level {guild.PremiumTier} ({guild.PremiumSubscriptionCount} boosts)", true);
+            boostContent = "**💎 Boost Level**\n" +
+                $"Level {guild.PremiumTier} ({guild.PremiumSubscriptionCount} boosts)";
         }
 
         // Verification level
-        embedBuilder.AddField("🛡️ Verification", guild.VerificationLevel.ToString(), true);
+        var verificationContent = $"**🛡️ Verification**\n{guild.VerificationLevel}";
 
         var builder = new ComponentBuilderV2()
             .WithActionRow([
@@ -1582,14 +1497,46 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
             {
                 container.AddComponent(new SectionBuilder()
                     .AddComponent(new TextDisplayBuilder()
-                        .WithContent($"# {embedBuilder.Title}\n{embedBuilder.Description}")));
+                        .WithContent($"# {title}\n{description}")));
                 
-                foreach (var field in new List<EmbedFieldBuilder>())
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent(createdContent)));
+                        
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent(ownerContent)));
+                        
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent(serverIdContent)));
+                        
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent(membersContent)));
+                        
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent(onlineContent)));
+                        
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent(channelsContent)));
+                        
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent(featuresContent)));
+                        
+                if (!string.IsNullOrEmpty(boostContent))
                 {
                     container.AddComponent(new SectionBuilder()
                         .AddComponent(new TextDisplayBuilder()
-                            .WithContent($"**{field.Name}**\n{field.Value}")));
+                            .WithContent(boostContent)));
                 }
+                        
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent(verificationContent)));
                 
                 // Add interaction components
                 var builtComponents = builder.Build();
@@ -1753,40 +1700,37 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         var guild = (component.Channel as SocketGuildChannel)?.Guild;
         if (guild == null) return;
 
-        var embedBuilder = new EmbedBuilder()
-            .WithTitle("💭 Session Context & Statistics")
-            .WithDescription($"Current conversation context and session stats for **{guild.Name}**")
-            .WithColor(new Color(46, 204, 113)) // Green
-            .WithCurrentTimestamp();
-
+        var title = "💭 Session Context & Statistics";
+        var description = $"Current conversation context and session stats for **{guild.Name}**";
+        
         // TODO: When chat session service is properly accessible, get real data
         // For now, show placeholder information with proper structure
 
-        embedBuilder.AddField("📊 Active Sessions",
+        var activeSessionsContent = "**📊 Active Sessions**\n" +
             "*Session data not available*\n" +
-            "This will show active conversation sessions, participant counts, and session duration.", false);
+            "This will show active conversation sessions, participant counts, and session duration.";
 
-        embedBuilder.AddField("💬 Message Statistics",
+        var messageStatsContent = "**💬 Message Statistics**\n" +
             "*Message statistics not available*\n" +
             "This will show:\n" +
             "• Recent message count\n" +
             "• Average messages per day\n" +
-            "• Most active channels", true);
+            "• Most active channels";
 
-        embedBuilder.AddField("🧠 Context Memory",
+        var contextMemoryContent = "**🧠 Context Memory**\n" +
             "*Context memory data not available*\n" +
             "This will show:\n" +
             "• Current context size\n" +
             "• Token usage estimates\n" +
-            "• Memory optimization status", true);
+            "• Memory optimization status";
 
-        embedBuilder.AddField("⏱️ Response Times",
+        var responseTimesContent = "**⏱️ Response Times**\n" +
             "*Performance data not available*\n" +
-            "This will show average response times and processing stats.", false);
+            "This will show average response times and processing stats.";
 
-        embedBuilder.AddField("🔗 Recent Interactions",
+        var recentInteractionsContent = "**🔗 Recent Interactions**\n" +
             "*No recent interaction data available*\n" +
-            "This will show the last few interactions with timestamps.", false);
+            "This will show the last few interactions with timestamps.";
 
         var builder = new ComponentBuilderV2()
             .WithActionRow([
@@ -1801,14 +1745,27 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
             {
                 container.AddComponent(new SectionBuilder()
                     .AddComponent(new TextDisplayBuilder()
-                        .WithContent($"# {embedBuilder.Title}\n{embedBuilder.Description}")));
+                        .WithContent($"# {title}\n{description}")));
                 
-                foreach (var field in new List<EmbedFieldBuilder>())
-                {
-                    container.AddComponent(new SectionBuilder()
-                        .AddComponent(new TextDisplayBuilder()
-                            .WithContent($"**{field.Name}**\n{field.Value}")));
-                }
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent(activeSessionsContent)));
+                        
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent(messageStatsContent)));
+                        
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent(contextMemoryContent)));
+                        
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent(responseTimesContent)));
+                        
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent(recentInteractionsContent)));
                 
                 // Add interaction components
                 var builtComponents = builder.Build();
@@ -1847,56 +1804,59 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
 
         var serverMeta = await _serverMetaService.GetServerMetaAsync(guildId);
 
-        var embedBuilder = new EmbedBuilder()
-            .WithTitle("📖 Server Persona Details")
-            .WithDescription($"Complete persona configuration for **{guild.Name}**")
-            .WithColor(new Color(155, 89, 182)) // Purple
-            .WithCurrentTimestamp();
+        var title = "📖 Server Persona Details";
+        var description = $"Complete persona configuration for **{guild.Name}**";
+        
+        var contentSections = new List<string>();
 
         if (!string.IsNullOrWhiteSpace(serverMeta?.Persona))
         {
             // Show the full persona without truncation in a code block for better formatting
             var persona = serverMeta.Persona;
 
-            // If the persona is very long, we might need to split it across fields
+            // If the persona is very long, we might need to split it across sections
             if (persona.Length <= 1024)
             {
-                embedBuilder.AddField("🎭 Current Persona", $"```{persona}```", false);
+                contentSections.Add($"**🎭 Current Persona**\n```{persona}```");
             }
             else
             {
-                // Split into multiple fields if too long for one field
+                // Split into multiple sections if too long for one section
                 var chunks = SplitText(persona, 1000); // Leave some room for the code block markers
                 for (int i = 0; i < chunks.Count; i++)
                 {
-                    var fieldName = i == 0 ? "🎭 Current Persona" : $"🎭 Persona (cont. {i + 1})";
-                    embedBuilder.AddField(fieldName, $"```{chunks[i]}```", false);
+                    var sectionName = i == 0 ? "🎭 Current Persona" : $"🎭 Persona (cont. {i + 1})";
+                    contentSections.Add($"**{sectionName}**\n```{chunks[i]}```");
                 }
             }
 
             // Persona statistics
-            embedBuilder.AddField("📊 Persona Statistics",
+            var personaStatsContent = "**📊 Persona Statistics**\n" +
                 $"**Length:** {persona.Length:N0} characters\n" +
                 $"**Words:** ~{persona.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length:N0}\n" +
-                $"**Lines:** {persona.Split('\n').Length:N0}", true);
+                $"**Lines:** {persona.Split('\n').Length:N0}";
+            contentSections.Add(personaStatsContent);
 
             // When was it last updated
-            embedBuilder.AddField("📅 Last Updated",
+            var lastUpdatedContent = "**📅 Last Updated**\n" +
                 $"<t:{((DateTimeOffset)serverMeta.LastUpdated).ToUnixTimeSeconds()}:F>\n" +
-                $"<t:{((DateTimeOffset)serverMeta.LastUpdated).ToUnixTimeSeconds()}:R>", true);
+                $"<t:{((DateTimeOffset)serverMeta.LastUpdated).ToUnixTimeSeconds()}:R>";
+            contentSections.Add(lastUpdatedContent);
         }
         else
         {
-            embedBuilder.AddField("🎭 Current Persona",
+            var noPersonaContent = "**🎭 Current Persona**\n" +
                 "*No persona configured for this server.*\n\n" +
                 "A persona helps define how the AI assistant should behave, including:\n" +
                 "• Communication style and tone\n" +
                 "• Areas of expertise or focus\n" +
                 "• Personality traits\n" +
-                "• Response patterns", false);
+                "• Response patterns";
+            contentSections.Add(noPersonaContent);
 
-            embedBuilder.AddField("💡 Getting Started",
-                "Use the **Set Persona** button to configure how the AI should behave in your server.", false);
+            var gettingStartedContent = "**💡 Getting Started**\n" +
+                "Use the **Set Persona** button to configure how the AI should behave in your server.";
+            contentSections.Add(gettingStartedContent);
         }
 
         var builder = new ComponentBuilderV2()
@@ -1916,13 +1876,13 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
             {
                 container.AddComponent(new SectionBuilder()
                     .AddComponent(new TextDisplayBuilder()
-                        .WithContent($"# {embedBuilder.Title}\n{embedBuilder.Description}")));
+                        .WithContent($"# {title}\n{description}")));
                 
-                foreach (var field in new List<EmbedFieldBuilder>())
+                foreach (var sectionContent in contentSections)
                 {
                     container.AddComponent(new SectionBuilder()
                         .AddComponent(new TextDisplayBuilder()
-                            .WithContent($"**{field.Name}**\n{field.Value}")));
+                            .WithContent(sectionContent)));
                 }
                 
                 // Add interaction components
