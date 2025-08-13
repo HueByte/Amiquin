@@ -1,4 +1,6 @@
 using Amiquin.Core.Services.Nsfw;
+using Amiquin.Core.Services.Nsfw.Providers;
+using Amiquin.Core.Models;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Moq.Protected;
@@ -12,9 +14,7 @@ namespace Amiquin.Tests.Services.Nsfw;
 public class NsfwApiServiceTests : IDisposable
 {
     private readonly Mock<ILogger<NsfwApiService>> _loggerMock;
-    private readonly Mock<HttpMessageHandler> _httpMessageHandlerMock;
-    private readonly HttpClient _httpClient;
-    private readonly Mock<EHentaiService> _eHentaiServiceMock;
+    private readonly Mock<INsfwProvider> _mockProvider;
     private readonly NsfwApiService _nsfwApiService;
 
     public NsfwApiServiceTests()
@@ -23,18 +23,20 @@ public class NsfwApiServiceTests : IDisposable
         ResetStaticRateLimitState();
 
         _loggerMock = new Mock<ILogger<NsfwApiService>>();
-        _httpMessageHandlerMock = new Mock<HttpMessageHandler>();
-        _httpClient = new HttpClient(_httpMessageHandlerMock.Object);
-        _eHentaiServiceMock = new Mock<EHentaiService>(Mock.Of<ILogger<EHentaiService>>(), Mock.Of<HttpClient>());
+        _mockProvider = new Mock<INsfwProvider>();
+        
+        // Setup mock provider
+        _mockProvider.Setup(p => p.Name).Returns("TestProvider");
+        _mockProvider.Setup(p => p.IsAvailable).Returns(true);
 
-        _nsfwApiService = new NsfwApiService(_loggerMock.Object, _httpClient, _eHentaiServiceMock.Object);
+        var providers = new List<INsfwProvider> { _mockProvider.Object };
+        _nsfwApiService = new NsfwApiService(_loggerMock.Object, providers);
     }
 
     public void Dispose()
     {
         // Reset static state after each test to ensure isolation
         ResetStaticRateLimitState();
-        _httpClient?.Dispose();
     }
 
     private void ResetStaticRateLimitState()
@@ -50,38 +52,21 @@ public class NsfwApiServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task GetWaifuImagesAsync_UsesSearchEndpoint_NotFavEndpoint()
+    public async Task GetWaifuImagesAsync_ReturnsImagesFromProvider()
     {
         // Arrange
-        var expectedResponse = @"{
-            ""images"": [
-                {
-                    ""url"": ""https://example.com/image1.jpg"",
-                    ""width"": 1920,
-                    ""height"": 1080,
-                    ""artist"": {
-                        ""name"": ""TestArtist""
-                    }
-                }
-            ]
-        }";
+        var expectedImage = new NsfwImage
+        {
+            Url = "https://example.com/image1.jpg",
+            Source = "TestProvider",
+            Tags = "test",
+            Width = 1920,
+            Height = 1080
+        };
 
-        _httpMessageHandlerMock
-            .Protected()
-            .Setup<Task<HttpResponseMessage>>(
-                "SendAsync",
-                ItExpr.Is<HttpRequestMessage>(req =>
-                    req.Method == HttpMethod.Get &&
-                    req.RequestUri != null &&
-                    req.RequestUri.ToString().Contains("/search") &&
-                    !req.RequestUri.ToString().Contains("/fav") &&
-                    req.RequestUri.ToString().Contains("is_nsfw=true")),
-                ItExpr.IsAny<CancellationToken>())
-            .ReturnsAsync(new HttpResponseMessage
-            {
-                StatusCode = HttpStatusCode.OK,
-                Content = new StringContent(expectedResponse, Encoding.UTF8, "application/json")
-            });
+        _mockProvider
+            .Setup(p => p.FetchImageAsync())
+            .ReturnsAsync(expectedImage);
 
         // Act
         var result = await _nsfwApiService.GetWaifuImagesAsync(1);
@@ -90,141 +75,76 @@ public class NsfwApiServiceTests : IDisposable
         Assert.NotNull(result);
         Assert.Single(result);
         Assert.Equal("https://example.com/image1.jpg", result[0].Url);
-        Assert.Equal("waifu.im", result[0].Source);
+        Assert.Equal("TestProvider", result[0].Source);
 
-        // Verify the request was made to /search endpoint
-        _httpMessageHandlerMock.Protected().Verify(
-            "SendAsync",
-            Times.AtLeastOnce(),
-            ItExpr.Is<HttpRequestMessage>(req =>
-                req.RequestUri != null &&
-                req.RequestUri.ToString().Contains("/search") &&
-                !req.RequestUri.ToString().Contains("/fav")),
-            ItExpr.IsAny<CancellationToken>());
+        // Verify the provider was called
+        _mockProvider.Verify(p => p.FetchImageAsync(), Times.AtLeastOnce);
     }
 
     [Fact]
-    public async Task GetWaifuImagesAsync_AddsVersionHeader_NoAuthentication()
+    public async Task GetWaifuImagesAsync_HandlesUnavailableProvider()
     {
         // Arrange
-        var expectedResponse = @"{
-            ""images"": [
-                {
-                    ""url"": ""https://example.com/image1.jpg""
-                }
-            ]
-        }";
-
-        HttpRequestMessage? capturedRequest = null;
-        _httpMessageHandlerMock
-            .Protected()
-            .Setup<Task<HttpResponseMessage>>(
-                "SendAsync",
-                ItExpr.IsAny<HttpRequestMessage>(),
-                ItExpr.IsAny<CancellationToken>())
-            .Callback<HttpRequestMessage, CancellationToken>((req, _) => capturedRequest = req)
-            .ReturnsAsync(new HttpResponseMessage
-            {
-                StatusCode = HttpStatusCode.OK,
-                Content = new StringContent(expectedResponse, Encoding.UTF8, "application/json")
-            });
+        _mockProvider.Setup(p => p.IsAvailable).Returns(false);
 
         // Act
-        await _nsfwApiService.GetWaifuImagesAsync(1);
-
-        // Assert
-        Assert.NotNull(capturedRequest);
-        Assert.False(capturedRequest.Headers.Contains("Authorization"));
-        Assert.Contains("v5", capturedRequest.Headers.GetValues("Accept-Version"));
-    }
-
-    [Fact]
-    public async Task GetWaifuImagesAsync_HandlesRateLimiting_WithRetryAfterHeader()
-    {
-        // Arrange
-        var rateLimitResponse = new HttpResponseMessage(HttpStatusCode.TooManyRequests);
-        rateLimitResponse.Headers.RetryAfter = new System.Net.Http.Headers.RetryConditionHeaderValue(TimeSpan.FromSeconds(60));
-
-        _httpMessageHandlerMock
-            .Protected()
-            .Setup<Task<HttpResponseMessage>>(
-                "SendAsync",
-                ItExpr.IsAny<HttpRequestMessage>(),
-                ItExpr.IsAny<CancellationToken>())
-            .ReturnsAsync(rateLimitResponse);
-
-        // Act
-        var result = await _nsfwApiService.GetWaifuImagesAsync(5);
-
-        // Assert
-        Assert.Empty(result);
-
-        // Verify rate limit warning was logged
-        _loggerMock.Verify(
-            x => x.Log(
-                LogLevel.Warning,
-                It.IsAny<EventId>(),
-                It.Is<It.IsAnyType>((v, t) => v.ToString()!.Contains("Rate limited")),
-                It.IsAny<Exception>(),
-                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
-            Times.AtLeastOnce);
-    }
-
-    [Fact]
-    public async Task GetNsfwImagesWithStatusAsync_ReturnsRateLimitedStatus_AfterReceiving429()
-    {
-        // Arrange - First trigger rate limiting with a 429 response
-        var rateLimitResponse = new HttpResponseMessage(HttpStatusCode.TooManyRequests);
-
-        _httpMessageHandlerMock
-            .Protected()
-            .Setup<Task<HttpResponseMessage>>(
-                "SendAsync",
-                ItExpr.IsAny<HttpRequestMessage>(),
-                ItExpr.IsAny<CancellationToken>())
-            .ReturnsAsync(rateLimitResponse);
-
-        // First call to trigger rate limiting
-        await _nsfwApiService.GetWaifuImagesAsync(1);
-
-        // Act - Second call should detect rate limiting
-        var result = await _nsfwApiService.GetNsfwImagesWithStatusAsync(5, 5);
+        var result = await _nsfwApiService.GetWaifuImagesAsync(1);
 
         // Assert
         Assert.NotNull(result);
-        Assert.True(result.IsRateLimited);
-        Assert.True(result.IsTemporaryFailure);
-        Assert.Contains("rate-limited", result.ErrorMessage);
+        Assert.Empty(result);
+
+        // Verify the provider was not called because it's unavailable
+        _mockProvider.Verify(p => p.FetchImageAsync(), Times.Never);
     }
 
+    [Fact]
+    public async Task GetNsfwImagesWithStatusAsync_ReturnsSuccessWithImages()
+    {
+        // Arrange
+        var expectedImage = new NsfwImage
+        {
+            Url = "https://example.com/image1.jpg",
+            Source = "TestProvider",
+            Tags = "test"
+        };
+
+        _mockProvider
+            .Setup(p => p.FetchImageAsync())
+            .ReturnsAsync(expectedImage);
+
+        // Act
+        var result = await _nsfwApiService.GetNsfwImagesWithStatusAsync(1, 1);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.True(result.IsSuccess);
+        Assert.Single(result.Images);
+        Assert.Null(result.ErrorMessage);
+        Assert.False(result.IsRateLimited);
+    }
 
     [Fact]
-    public async Task GetAlternativeNsfwImagesAsync_UsesFallbackApis_WithRandomizedProviders()
+    public async Task GetAlternativeNsfwImagesAsync_ReturnsImagesFromProviders()
     {
-        // Arrange - Mock purrbot response
-        var purrbotResponse = @"{
-            ""link"": ""https://purrbot.site/image1.jpg""
-        }";
+        // Arrange
+        var expectedImage = new NsfwImage
+        {
+            Url = "https://example.com/image1.jpg",
+            Source = "TestProvider",
+            Tags = "test"
+        };
 
-        _httpMessageHandlerMock
-            .Protected()
-            .Setup<Task<HttpResponseMessage>>(
-                "SendAsync",
-                ItExpr.Is<HttpRequestMessage>(req =>
-                    req.RequestUri != null &&
-                    req.RequestUri.ToString().Contains("purrbot.site")),
-                ItExpr.IsAny<CancellationToken>())
-            .ReturnsAsync(new HttpResponseMessage
-            {
-                StatusCode = HttpStatusCode.OK,
-                Content = new StringContent(purrbotResponse, Encoding.UTF8, "application/json")
-            });
+        _mockProvider
+            .Setup(p => p.FetchImageAsync())
+            .ReturnsAsync(expectedImage);
 
         // Act
         var result = await _nsfwApiService.GetAlternativeNsfwImagesAsync(1);
 
         // Assert
         Assert.NotNull(result);
-        Assert.True(result.Count >= 0); // May get 0 or more depending on which providers respond
+        Assert.Single(result);
+        Assert.Equal("https://example.com/image1.jpg", result[0].Url);
     }
 }
