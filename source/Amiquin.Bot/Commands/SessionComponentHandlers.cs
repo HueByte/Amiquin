@@ -97,11 +97,21 @@ public class SessionComponentHandlers
                 var stats = await _sessionManagerService.GetSessionStatsAsync(selectedSessionId);
 
                 var components = new ComponentBuilderV2()
-                    .WithTextDisplay("✅ Session Switched")
-                    .WithTextDisplay($"Successfully switched to session: **{stats?.Name ?? "Unknown"}**")
-                    .WithTextDisplay($"**Messages:** {stats?.MessageCount ?? 0}")
-                    .WithTextDisplay($"**Model:** {stats?.Provider}/{stats?.Model}")
-                    .WithTextDisplay($"*Switched by {component.User.GlobalName ?? component.User.Username}*")
+                    .WithContainer(container =>
+                    {
+                        container.AddComponent(new SectionBuilder()
+                            .AddComponent(new TextDisplayBuilder()
+                                .WithContent("# ✅ Session Switched")));
+                        container.AddComponent(new SectionBuilder()
+                            .AddComponent(new TextDisplayBuilder()
+                                .WithContent($"Successfully switched to session: **{stats?.Name ?? "Unknown"}**")));
+                        container.AddComponent(new SectionBuilder()
+                            .AddComponent(new TextDisplayBuilder()
+                                .WithContent($"**Messages:** {stats?.MessageCount ?? 0}\n**Model:** {stats?.Provider}/{stats?.Model}")));
+                        container.AddComponent(new SectionBuilder()
+                            .AddComponent(new TextDisplayBuilder()
+                                .WithContent($"*Switched by {component.User.GlobalName ?? component.User.Username}*")));
+                    })
                     .Build();
 
                 await component.ModifyOriginalResponseAsync(msg =>
@@ -131,8 +141,15 @@ public class SessionComponentHandlers
     private async Task<bool> HandleSessionCancelAsync(SocketMessageComponent component, ComponentContext context)
     {
         var components = new ComponentBuilderV2()
-            .WithTextDisplay("# ❌ Session Switch Cancelled")
-            .WithTextDisplay("Session switching was cancelled.")
+            .WithContainer(container =>
+            {
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent("# ❌ Session Switch Cancelled")));
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent("Session switching was cancelled.")));
+            })
             .Build();
 
         await component.ModifyOriginalResponseAsync(msg =>

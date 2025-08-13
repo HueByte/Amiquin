@@ -36,8 +36,15 @@ public class ServerInteractionService : IServerInteractionService
         var botName = _botOptions.Name;
         var joinMessage = await _messageCacheService.GetServerJoinMessage();
         var components = new ComponentBuilderV2()
-            .WithTextDisplay($"# ✨ Hello I'm {botName}! ✨")
-            .WithTextDisplay(joinMessage)
+            .WithContainer(container =>
+            {
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent($"# ✨ Hello I'm {botName}! ✨")));
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent(joinMessage)));
+            })
             .Build();
 
         _logger.LogInformation("Sending join message to {GuildName} in default channel {channel}", guild.Name, guild.DefaultChannel.Name);

@@ -83,8 +83,15 @@ Streams: {voiceState.AudioClient?.GetStreams().ToDictionary(x => x.Key, x => x.V
 ";
 
         var components = new ComponentBuilderV2()
-            .WithTextDisplay("# 🔊 Voice Debug")
-            .WithTextDisplay(data)
+            .WithContainer(container =>
+            {
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent("# 🔊 Voice Debug")));
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent(data)));
+            })
             .Build();
 
         await ModifyOriginalResponseAsync(msg =>
@@ -109,9 +116,18 @@ Streams: {voiceState.AudioClient?.GetStreams().ToDictionary(x => x.Key, x => x.V
         else
         {
             var components = new ComponentBuilderV2()
-                .WithTextDisplay("# 🤖 Computed Persona")
-                .WithMediaGallery([Context.Client.CurrentUser.GetAvatarUrl()])
-                .WithTextDisplay(fullPersonaMessage ?? "No persona available")
+                .WithContainer(container =>
+                {
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent("# 🤖 Computed Persona")));
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent($"**Avatar:** [View]({Context.Client.CurrentUser.GetAvatarUrl()})")));
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent(fullPersonaMessage ?? "No persona available")));
+                })
                 .Build();
 
             await ModifyOriginalResponseAsync(msg =>
@@ -127,8 +143,15 @@ Streams: {voiceState.AudioClient?.GetStreams().ToDictionary(x => x.Key, x => x.V
         if (chunks.Count > 1)
         {
             var firstComponents = new ComponentBuilderV2()
-                .WithTextDisplay("# 🤖 Computed Persona (Chunked)")
-                .WithTextDisplay("Sending my persona below in multiple messages")
+                .WithContainer(container =>
+                {
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent("# 🤖 Computed Persona (Chunked)")));
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent("Sending my persona below in multiple messages")));
+                })
                 .Build();
 
             await ModifyOriginalResponseAsync(msg =>
@@ -484,10 +507,18 @@ Streams: {voiceState.AudioClient?.GetStreams().ToDictionary(x => x.Key, x => x.V
             await _serverMetaService.DeleteServerMetaAsync(serverIdLong);
 
             var components = new ComponentBuilderV2()
-                .WithTextDisplay("# ✅ Server Metadata Removed")
-                .WithTextDisplay($"Successfully removed server metadata for **{serverName}**")
-                .WithTextDisplay($"**Server ID:** {serverIdLong}")
-                .WithTextDisplay($"**Server Name:** {serverName}")
+                .WithContainer(container =>
+                {
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent("# ✅ Server Metadata Removed")));
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent($"Successfully removed server metadata for **{serverName}**")));
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent($"**Server ID:** {serverIdLong}\n**Server Name:** {serverName}")));
+                })
                 .Build();
 
             await ModifyOriginalResponseAsync(msg =>

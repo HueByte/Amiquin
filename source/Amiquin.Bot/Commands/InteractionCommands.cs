@@ -82,13 +82,22 @@ public class InteractionCommands : InteractionModuleBase<ExtendedShardedInteract
             var gifUrl = await _funService.GetInteractionGifAsync(interactionType);
 
             var componentsBuilder = new ComponentBuilderV2()
-                .WithTextDisplay($"# {emoji} Interaction")
-                .WithTextDisplay($"**{Context.User.Mention} {actionText} {targetUser.Mention}!**");
-
-            if (!string.IsNullOrEmpty(gifUrl))
-            {
-                componentsBuilder.WithMediaGallery([gifUrl]);
-            }
+                .WithContainer(container =>
+                {
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent($"# {emoji} Interaction")));
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent($"**{Context.User.Mention} {actionText} {targetUser.Mention}!**")));
+                    
+                    if (!string.IsNullOrEmpty(gifUrl))
+                    {
+                        container.AddComponent(new SectionBuilder()
+                            .AddComponent(new TextDisplayBuilder()
+                                .WithContent($"**GIF:** [View]({gifUrl})")));
+                    }
+                });
 
             var components = componentsBuilder.Build();
 

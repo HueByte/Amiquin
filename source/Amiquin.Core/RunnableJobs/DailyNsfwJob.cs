@@ -160,43 +160,60 @@ public class DailyNsfwJob : IRunnableJob
     private MessageComponent BuildNsfwGalleryComponents(List<NsfwImage> images)
     {
         var componentsBuilder = new ComponentBuilderV2()
-            .WithTextDisplay("# 🔞 Daily NSFW Gallery")
-            .WithTextDisplay($"Today's curated collection of **{images.Count}** images from various sources");
-
-        // Show up to 3 random images as a preview
-        var previewImages = images.OrderBy(x => Guid.NewGuid()).Take(3).ToList();
-
-        // Add main gallery image
-        if (previewImages.Any())
-        {
-            componentsBuilder.WithMediaGallery([previewImages.First().Url]);
-        }
-
-        // Add preview information
-        for (int i = 0; i < previewImages.Count; i++)
-        {
-            var img = previewImages[i];
-            var imageInfo = $"**Image {i + 1} • {img.Source}**\n[View Image]({img.Url})";
-
-            if (!string.IsNullOrWhiteSpace(img.Artist))
+            .WithContainer(container =>
             {
-                imageInfo += $"\n**Artist:** {img.Artist}";
-            }
+                // Header
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent("# 🔞 Daily NSFW Gallery")));
+                
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent($"Today's curated collection of **{images.Count}** images from various sources")));
 
-            if (!string.IsNullOrWhiteSpace(img.Tags))
-            {
-                imageInfo += $"\n**Tags:** {img.Tags}";
-            }
+                // Show up to 3 random images as a preview
+                var previewImages = images.OrderBy(x => Guid.NewGuid()).Take(3).ToList();
 
-            componentsBuilder.WithTextDisplay(imageInfo);
-        }
+                // Add main gallery image
+                if (previewImages.Any())
+                {
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent($"**Featured Image:** [View]({previewImages.First().Url})")));
+                }
 
-        if (images.Count > 3)
-        {
-            componentsBuilder.WithTextDisplay($"**📋 Full Gallery**\n**{images.Count - 3}** more images available!\n**Sources:** {string.Join(", ", images.Select(i => i.Source).Distinct())}");
-        }
+                // Add preview information
+                for (int i = 0; i < previewImages.Count; i++)
+                {
+                    var img = previewImages[i];
+                    var imageInfo = $"**Image {i + 1} • {img.Source}**\n[View Image]({img.Url})";
 
-        componentsBuilder.WithTextDisplay("*Daily NSFW Gallery • Enjoy responsibly*");
+                    if (!string.IsNullOrWhiteSpace(img.Artist))
+                    {
+                        imageInfo += $"\n**Artist:** {img.Artist}";
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(img.Tags))
+                    {
+                        imageInfo += $"\n**Tags:** {img.Tags}";
+                    }
+
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent(imageInfo)));
+                }
+
+                if (images.Count > 3)
+                {
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent($"**📋 Full Gallery**\n**{images.Count - 3}** more images available!\n**Sources:** {string.Join(", ", images.Select(i => i.Source).Distinct())}")));
+                }
+
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent("*Daily NSFW Gallery • Enjoy responsibly*")));
+            });
 
         return componentsBuilder.Build();
     }

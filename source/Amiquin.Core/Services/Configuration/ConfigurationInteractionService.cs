@@ -842,10 +842,38 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                 .WithStyle(ButtonStyle.Secondary)
         ]);
 
+        var components = new ComponentBuilderV2()
+            .WithContainer(container =>
+            {
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent($"# {embedBuilder.Title}\n{embedBuilder.Description}")));
+                
+                foreach (var field in embedBuilder.Fields)
+                {
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent($"**{field.Name}**\n{field.Value}")));
+                }
+                
+                // Add interaction components
+                var builtComponents = builder.Build();
+                foreach (var row in builtComponents.Components.OfType<ActionRowComponent>())
+                {
+                    foreach (var comp in row.Components)
+                    {
+                        container.AddComponent(new SectionBuilder()
+                            .WithAccessory(ConvertToBuilder(comp)));
+                    }
+                }
+            })
+            .Build();
+
         await component.ModifyOriginalResponseAsync(msg =>
         {
-            msg.Embed = embedBuilder.Build();
-            msg.Components = builder.Build();
+            msg.Components = components;
+            msg.Flags = MessageFlags.ComponentsV2;
+            msg.Embed = null;
         });
     }
 
@@ -921,10 +949,38 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                 .WithStyle(ButtonStyle.Secondary)
         ]);
 
+        var components = new ComponentBuilderV2()
+            .WithContainer(container =>
+            {
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent($"# {embedBuilder.Title}\n{embedBuilder.Description}")));
+                
+                foreach (var field in embedBuilder.Fields)
+                {
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent($"**{field.Name}**\n{field.Value}")));
+                }
+                
+                // Add interaction components
+                var builtComponents = builder.Build();
+                foreach (var row in builtComponents.Components.OfType<ActionRowComponent>())
+                {
+                    foreach (var comp in row.Components)
+                    {
+                        container.AddComponent(new SectionBuilder()
+                            .WithAccessory(ConvertToBuilder(comp)));
+                    }
+                }
+            })
+            .Build();
+
         await component.ModifyOriginalResponseAsync(msg =>
         {
-            msg.Embed = embedBuilder.Build();
-            msg.Components = builder.Build();
+            msg.Components = components;
+            msg.Flags = MessageFlags.ComponentsV2;
+            msg.Embed = null;
         });
     }
 
@@ -1270,10 +1326,27 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
             "• Join our support server for assistance",
             false);
 
+        var components = new ComponentBuilderV2()
+            .WithContainer(container =>
+            {
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent($"# {embedBuilder.Title}\n{embedBuilder.Description}")));
+                
+                foreach (var field in embedBuilder.Fields)
+                {
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent($"**{field.Name}**\n{field.Value}")));
+                }
+            })
+            .Build();
+
         await component.ModifyOriginalResponseAsync(msg =>
         {
-            msg.Embed = embedBuilder.Build();
-            msg.Components = null;
+            msg.Components = components;
+            msg.Flags = MessageFlags.ComponentsV2;
+            msg.Embed = null;
         });
     }
 
@@ -1431,10 +1504,38 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                     .WithStyle(ButtonStyle.Secondary)
             ]);
 
+        var components = new ComponentBuilderV2()
+            .WithContainer(container =>
+            {
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent($"# {embedBuilder.Title}\n{embedBuilder.Description}")));
+                
+                foreach (var field in embedBuilder.Fields)
+                {
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent($"**{field.Name}**\n{field.Value}")));
+                }
+                
+                // Add interaction components
+                var builtComponents = builder.Build();
+                foreach (var row in builtComponents.Components.OfType<ActionRowComponent>())
+                {
+                    foreach (var comp in row.Components)
+                    {
+                        container.AddComponent(new SectionBuilder()
+                            .WithAccessory(ConvertToBuilder(comp)));
+                    }
+                }
+            })
+            .Build();
+
         await component.ModifyOriginalResponseAsync(msg =>
         {
-            msg.Embed = embedBuilder.Build();
-            msg.Components = builder.Build();
+            msg.Components = components;
+            msg.Flags = MessageFlags.ComponentsV2;
+            msg.Embed = null;
         });
     }
 
@@ -1512,10 +1613,38 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                     .WithStyle(ButtonStyle.Secondary)
             ]);
 
+        var components = new ComponentBuilderV2()
+            .WithContainer(container =>
+            {
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent($"# {embedBuilder.Title}\n{embedBuilder.Description}")));
+                
+                foreach (var field in embedBuilder.Fields)
+                {
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent($"**{field.Name}**\n{field.Value}")));
+                }
+                
+                // Add interaction components
+                var builtComponents = builder.Build();
+                foreach (var row in builtComponents.Components.OfType<ActionRowComponent>())
+                {
+                    foreach (var comp in row.Components)
+                    {
+                        container.AddComponent(new SectionBuilder()
+                            .WithAccessory(ConvertToBuilder(comp)));
+                    }
+                }
+            })
+            .Build();
+
         await component.ModifyOriginalResponseAsync(msg =>
         {
-            msg.Embed = embedBuilder.Build();
-            msg.Components = builder.Build();
+            msg.Components = components;
+            msg.Flags = MessageFlags.ComponentsV2;
+            msg.Embed = null;
         });
     }
 
@@ -1567,10 +1696,38 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                     .WithStyle(ButtonStyle.Secondary)
             ]);
 
+        var components = new ComponentBuilderV2()
+            .WithContainer(container =>
+            {
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent($"# {embedBuilder.Title}\n{embedBuilder.Description}")));
+                
+                foreach (var field in embedBuilder.Fields)
+                {
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent($"**{field.Name}**\n{field.Value}")));
+                }
+                
+                // Add interaction components
+                var builtComponents = builder.Build();
+                foreach (var row in builtComponents.Components.OfType<ActionRowComponent>())
+                {
+                    foreach (var comp in row.Components)
+                    {
+                        container.AddComponent(new SectionBuilder()
+                            .WithAccessory(ConvertToBuilder(comp)));
+                    }
+                }
+            })
+            .Build();
+
         await component.ModifyOriginalResponseAsync(msg =>
         {
-            msg.Embed = embedBuilder.Build();
-            msg.Components = builder.Build();
+            msg.Components = components;
+            msg.Flags = MessageFlags.ComponentsV2;
+            msg.Embed = null;
         });
     }
 
@@ -1645,10 +1802,38 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                     .WithStyle(ButtonStyle.Secondary)
             ]);
 
+        var components = new ComponentBuilderV2()
+            .WithContainer(container =>
+            {
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent($"# {embedBuilder.Title}\n{embedBuilder.Description}")));
+                
+                foreach (var field in embedBuilder.Fields)
+                {
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent($"**{field.Name}**\n{field.Value}")));
+                }
+                
+                // Add interaction components
+                var builtComponents = builder.Build();
+                foreach (var row in builtComponents.Components.OfType<ActionRowComponent>())
+                {
+                    foreach (var comp in row.Components)
+                    {
+                        container.AddComponent(new SectionBuilder()
+                            .WithAccessory(ConvertToBuilder(comp)));
+                    }
+                }
+            })
+            .Build();
+
         await component.ModifyOriginalResponseAsync(msg =>
         {
-            msg.Embed = embedBuilder.Build();
-            msg.Components = builder.Build();
+            msg.Components = components;
+            msg.Flags = MessageFlags.ComponentsV2;
+            msg.Embed = null;
         });
     }
 
@@ -1868,10 +2053,38 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                 .WithStyle(ButtonStyle.Secondary)
         ]);
 
+        var components = new ComponentBuilderV2()
+            .WithContainer(container =>
+            {
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent($"# {embedBuilder.Title}\n{embedBuilder.Description}")));
+                
+                foreach (var field in embedBuilder.Fields)
+                {
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent($"**{field.Name}**\n{field.Value}")));
+                }
+                
+                // Add interaction components
+                var builtComponents = builder.Build();
+                foreach (var row in builtComponents.Components.OfType<ActionRowComponent>())
+                {
+                    foreach (var comp in row.Components)
+                    {
+                        container.AddComponent(new SectionBuilder()
+                            .WithAccessory(ConvertToBuilder(comp)));
+                    }
+                }
+            })
+            .Build();
+
         await component.ModifyOriginalResponseAsync(msg =>
         {
-            msg.Embed = embedBuilder.Build();
-            msg.Components = builder.Build();
+            msg.Components = components;
+            msg.Flags = MessageFlags.ComponentsV2;
+            msg.Embed = null;
         });
     }
 

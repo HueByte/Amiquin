@@ -78,9 +78,18 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
         await _serverMetaService.UpdateServerMetaAsync(serverMeta);
 
         var components = new ComponentBuilderV2()
-            .WithTextDisplay("# ✅ Persona Updated")
-            .WithTextDisplay("Server persona has been updated successfully.")
-            .WithTextDisplay($"**New Persona:**\n{(persona.Length > 500 ? $"{persona[..500]}..." : persona)}")
+            .WithContainer(container =>
+            {
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent("# ✅ Persona Updated")));
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent("Server persona has been updated successfully.")));
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent($"**New Persona:**\n{(persona.Length > 500 ? $"{persona[..500]}..." : persona)}")));
+            })
             .Build();
 
         await ModifyOriginalResponseAsync(msg =>
@@ -124,14 +133,29 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
         message = message.Replace("\\n", "\n").Trim();
 
         var componentsBuilder = new ComponentBuilderV2()
-            .WithTextDisplay($"# {title}")
-            .WithTextDisplay(message);
-
-        if (!string.IsNullOrWhiteSpace(thumbnail))
-            componentsBuilder.WithMediaGallery([thumbnail]);
-
-        if (withAuthor)
-            componentsBuilder.WithTextDisplay($"**Author:** {Context.User.Username}");
+            .WithContainer(container =>
+            {
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent($"# {title}")));
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent(message)));
+                
+                if (!string.IsNullOrWhiteSpace(thumbnail))
+                {
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent($"**Image:** [View]({thumbnail})")));
+                }
+                
+                if (withAuthor)
+                {
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent($"**Author:** {Context.User.Username}")));
+                }
+            });
 
         var components = componentsBuilder.Build();
 
@@ -149,10 +173,18 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
         await _toggleService.SetServerToggleAsync(Context.Guild.Id, toggleName, isEnabled, description);
 
         var components = new ComponentBuilderV2()
-            .WithTextDisplay("# ⚙️ Toggle Updated")
-            .WithTextDisplay("Feature toggle has been updated successfully.")
-            .WithTextDisplay($"**Feature:** {toggleName}")
-            .WithTextDisplay($"**Status:** {(isEnabled ? "✅ Enabled" : "❌ Disabled")}")
+            .WithContainer(container =>
+            {
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent("# ⚙️ Toggle Updated")));
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent("Feature toggle has been updated successfully.")));
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent($"**Feature:** {toggleName}\n**Status:** {(isEnabled ? "✅ Enabled" : "❌ Disabled")}"))); 
+            })
             .Build();
 
         await ModifyOriginalResponseAsync(msg =>
@@ -187,9 +219,18 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
                 await ((ITextChannel)Context.Channel).DeleteMessagesAsync(messagesToDelete);
 
                 var components = new ComponentBuilderV2()
-                    .WithTextDisplay("# 🗑️ Messages Deleted")
-                    .WithTextDisplay($"Successfully deleted **{messagesToDelete.Count}** messages.")
-                    .WithTextDisplay($"*Requested by {Context.User.Username}*")
+                    .WithContainer(container =>
+                    {
+                        container.AddComponent(new SectionBuilder()
+                            .AddComponent(new TextDisplayBuilder()
+                                .WithContent("# 🗑️ Messages Deleted")));
+                        container.AddComponent(new SectionBuilder()
+                            .AddComponent(new TextDisplayBuilder()
+                                .WithContent($"Successfully deleted **{messagesToDelete.Count}** messages.")));
+                        container.AddComponent(new SectionBuilder()
+                            .AddComponent(new TextDisplayBuilder()
+                                .WithContent($"*Requested by {Context.User.Username}*")));
+                    })
                     .Build();
 
                 await ModifyOriginalResponseAsync(msg =>
@@ -227,13 +268,24 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
             var currentLevel = _chatContextService.GetEngagementMultiplier(guildId);
 
             var components = new ComponentBuilderV2()
-                .WithTextDisplay("# 😌 Calming Down...")
-                .WithMediaGallery([Context.Client.CurrentUser.GetDisplayAvatarUrl()])
-                .WithTextDisplay("I'll take it easy for a bit. My engagement has been reset to baseline.")
-                .WithTextDisplay($"**Engagement Level:** Reset to {currentLevel:F1}x (baseline)")
-                .WithTextDisplay($"**Context:** Cleared all conversation context")
-                .WithTextDisplay($"**Status:** 🌙 Relaxed mode activated")
-                .WithTextDisplay("*Use mentions to re-engage me if needed*")
+                .WithContainer(container =>
+                {
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent("# 😌 Calming Down...")));
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent($"**Avatar:** [View]({Context.Client.CurrentUser.GetDisplayAvatarUrl()})"))); 
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent("I'll take it easy for a bit. My engagement has been reset to baseline.")));
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent($"**Engagement Level:** Reset to {currentLevel:F1}x (baseline)\n**Context:** Cleared all conversation context\n**Status:** 🌙 Relaxed mode activated")));
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent("*Use mentions to re-engage me if needed*")));
+                })
                 .Build();
 
             await ModifyOriginalResponseAsync(msg =>
@@ -265,24 +317,39 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
             // Trigger history optimization for this guild's chat sessions
             var (success, message) = await _personaChatService.TriggerHistoryOptimizationAsync(guildId);
 
-            var componentsBuilder = new ComponentBuilderV2()
-                .WithTextDisplay($"# {(success ? "📦 History Compacted" : "⚠️ Compaction Issue")}")
-                .WithMediaGallery([Context.Client.CurrentUser.GetDisplayAvatarUrl()])
-                .WithTextDisplay(message);
-
-            if (success)
-            {
-                componentsBuilder
-                    .WithTextDisplay("**💾 Benefits:**\n• Reduced memory usage\n• Faster response times\n• Lower token costs")
-                    .WithTextDisplay("**🔄 What happened:**\n• Older messages summarized\n• Recent messages preserved\n• Context maintained")
-                    .WithTextDisplay("*History optimization helps maintain performance*");
-            }
-            else
-            {
-                componentsBuilder.WithTextDisplay("*Try again later or check if there are enough messages to compact*");
-            }
-
-            var components = componentsBuilder.Build();
+            var components = new ComponentBuilderV2()
+                .WithContainer(container =>
+                {
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent($"# {(success ? "📦 History Compacted" : "⚠️ Compaction Issue")}")));
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent($"**Avatar:** [View]({Context.Client.CurrentUser.GetDisplayAvatarUrl()})"))); 
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent(message)));
+                    
+                    if (success)
+                    {
+                        container.AddComponent(new SectionBuilder()
+                            .AddComponent(new TextDisplayBuilder()
+                                .WithContent("**💾 Benefits:**\n• Reduced memory usage\n• Faster response times\n• Lower token costs")));
+                        container.AddComponent(new SectionBuilder()
+                            .AddComponent(new TextDisplayBuilder()
+                                .WithContent("**🔄 What happened:**\n• Older messages summarized\n• Recent messages preserved\n• Context maintained")));
+                        container.AddComponent(new SectionBuilder()
+                            .AddComponent(new TextDisplayBuilder()
+                                .WithContent("*History optimization helps maintain performance*")));
+                    }
+                    else
+                    {
+                        container.AddComponent(new SectionBuilder()
+                            .AddComponent(new TextDisplayBuilder()
+                                .WithContent("*Try again later or check if there are enough messages to compact*")));
+                    }
+                })
+                .Build();
 
             await ModifyOriginalResponseAsync(msg =>
             {
@@ -517,9 +584,7 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
                     _botContextAccessor.SetServerMeta(serverMeta);
                 }
 
-                var embed = new EmbedBuilder()
-                    .WithColor(Color.Blue)
-                    .WithCurrentTimestamp();
+                ComponentBuilderV2? componentsBuilder = null;
 
                 switch (setting.ToLowerInvariant())
                 {
@@ -533,9 +598,19 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
                         serverMeta.Persona = value;
                         await _serverMetaService.UpdateServerMetaAsync(serverMeta);
 
-                        embed.WithTitle("✅ Persona Updated")
-                            .WithDescription("Server persona has been updated successfully.")
-                            .AddField("New Persona", value.Length > 200 ? $"{value[..200]}..." : value, false);
+                        componentsBuilder = new ComponentBuilderV2()
+                            .WithContainer(container =>
+                            {
+                                container.AddComponent(new SectionBuilder()
+                                    .AddComponent(new TextDisplayBuilder()
+                                        .WithContent("# ✅ Persona Updated")));
+                                container.AddComponent(new SectionBuilder()
+                                    .AddComponent(new TextDisplayBuilder()
+                                        .WithContent("Server persona has been updated successfully.")));
+                                container.AddComponent(new SectionBuilder()
+                                    .AddComponent(new TextDisplayBuilder()
+                                        .WithContent($"**New Persona:**\n{(value.Length > 500 ? $"{value[..500]}..." : value)}")));
+                            });
                         break;
 
                     case "primary-channel":
@@ -570,10 +645,19 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
                         serverMeta.PrimaryChannelId = channelId;
                         await _serverMetaService.UpdateServerMetaAsync(serverMeta);
 
-                        embed.WithTitle("✅ Primary Channel Updated")
-                            .WithDescription($"Primary channel has been set to {channel.Mention}")
-                            .AddField("Channel", channel.Mention, true)
-                            .AddField("Channel ID", channelId.ToString(), true);
+                        componentsBuilder = new ComponentBuilderV2()
+                            .WithContainer(container =>
+                            {
+                                container.AddComponent(new SectionBuilder()
+                                    .AddComponent(new TextDisplayBuilder()
+                                        .WithContent("# ✅ Primary Channel Updated")));
+                                container.AddComponent(new SectionBuilder()
+                                    .AddComponent(new TextDisplayBuilder()
+                                        .WithContent($"Primary channel has been set to {channel.Mention}")));
+                                container.AddComponent(new SectionBuilder()
+                                    .AddComponent(new TextDisplayBuilder()
+                                        .WithContent($"**Channel:** {channel.Mention}\n**Channel ID:** {channelId}")));
+                            });
                         break;
 
                     case "provider":
@@ -591,9 +675,19 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
                         serverMeta.PreferredProvider = matchedProvider;
                         await _serverMetaService.UpdateServerMetaAsync(serverMeta);
 
-                        embed.WithTitle("✅ Provider Updated")
-                            .WithDescription($"AI provider has been set to **{matchedProvider}**")
-                            .AddField("Provider", matchedProvider, true);
+                        componentsBuilder = new ComponentBuilderV2()
+                            .WithContainer(container =>
+                            {
+                                container.AddComponent(new SectionBuilder()
+                                    .AddComponent(new TextDisplayBuilder()
+                                        .WithContent("# ✅ Provider Updated")));
+                                container.AddComponent(new SectionBuilder()
+                                    .AddComponent(new TextDisplayBuilder()
+                                        .WithContent($"AI provider has been set to **{matchedProvider}**")));
+                                container.AddComponent(new SectionBuilder()
+                                    .AddComponent(new TextDisplayBuilder()
+                                        .WithContent($"**Provider:** {matchedProvider}")));
+                            });
                         break;
 
                     case "nsfw-channel":
@@ -633,10 +727,19 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
                         serverMeta.NsfwChannelId = nsfwChannelId;
                         await _serverMetaService.UpdateServerMetaAsync(serverMeta);
 
-                        embed.WithTitle("✅ NSFW Channel Updated")
-                            .WithDescription($"NSFW channel has been set to {nsfwChannel.Mention}")
-                            .AddField("Channel", nsfwChannel.Mention, true)
-                            .AddField("Channel ID", nsfwChannelId.ToString(), true);
+                        componentsBuilder = new ComponentBuilderV2()
+                            .WithContainer(container =>
+                            {
+                                container.AddComponent(new SectionBuilder()
+                                    .AddComponent(new TextDisplayBuilder()
+                                        .WithContent("# ✅ NSFW Channel Updated")));
+                                container.AddComponent(new SectionBuilder()
+                                    .AddComponent(new TextDisplayBuilder()
+                                        .WithContent($"NSFW channel has been set to {nsfwChannel.Mention}")));
+                                container.AddComponent(new SectionBuilder()
+                                    .AddComponent(new TextDisplayBuilder()
+                                        .WithContent($"**Channel:** {nsfwChannel.Mention}\n**Channel ID:** {nsfwChannelId}")));
+                            });
                         break;
 
                     default:
@@ -644,7 +747,17 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
                         return;
                 }
 
-                await ModifyOriginalResponseAsync(msg => msg.Embed = embed.Build());
+                if (componentsBuilder != null)
+                {
+                    var components = componentsBuilder.Build();
+                    await ModifyOriginalResponseAsync(msg =>
+                    {
+                        msg.Components = components;
+                        msg.Flags = MessageFlags.ComponentsV2;
+                        msg.Embed = null;
+                        msg.Content = null;
+                    });
+                }
 
                 _logger.LogInformation("Admin {UserId} updated setting {Setting} to {Value} for server {ServerId}",
                     Context.User.Id, setting, value, Context.Guild.Id);
@@ -676,34 +789,84 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
                     _botContextAccessor.SetServerMeta(serverMeta);
                 }
 
-                var embed = new EmbedBuilder()
-                    .WithTitle("🔄 Configuration Reset")
-                    .WithColor(Color.Orange)
-                    .WithCurrentTimestamp();
+                ComponentBuilderV2? componentsBuilder = null;
+                string settingDisplayName = setting.ToLowerInvariant();
 
                 switch (setting.ToLowerInvariant())
                 {
                     case "persona":
                         serverMeta.Persona = string.Empty;
-                        embed.WithDescription("Server persona has been reset to default.");
+                        settingDisplayName = "Server Persona";
+                        componentsBuilder = new ComponentBuilderV2()
+                            .WithContainer(container =>
+                            {
+                                container.AddComponent(new SectionBuilder()
+                                    .AddComponent(new TextDisplayBuilder()
+                                        .WithContent("# 🔄 Configuration Reset")));
+                                container.AddComponent(new SectionBuilder()
+                                    .AddComponent(new TextDisplayBuilder()
+                                        .WithContent($"**{settingDisplayName}** has been reset to default.")));
+                                container.AddComponent(new SectionBuilder()
+                                    .AddComponent(new TextDisplayBuilder()
+                                        .WithContent("The server persona is now empty and will use the global default.")));
+                            });
                         break;
 
                     case "primary-channel":
                     case "main-channel":
                     case "channel":
                         serverMeta.PrimaryChannelId = null;
-                        embed.WithDescription("Primary channel has been reset.");
+                        settingDisplayName = "Primary Channel";
+                        componentsBuilder = new ComponentBuilderV2()
+                            .WithContainer(container =>
+                            {
+                                container.AddComponent(new SectionBuilder()
+                                    .AddComponent(new TextDisplayBuilder()
+                                        .WithContent("# 🔄 Configuration Reset")));
+                                container.AddComponent(new SectionBuilder()
+                                    .AddComponent(new TextDisplayBuilder()
+                                        .WithContent($"**{settingDisplayName}** has been reset.")));
+                                container.AddComponent(new SectionBuilder()
+                                    .AddComponent(new TextDisplayBuilder()
+                                        .WithContent("The bot will now respond in any channel where it's mentioned.")));
+                            });
                         break;
 
                     case "provider":
                         serverMeta.PreferredProvider = null;
-                        embed.WithDescription("AI provider has been reset to default.");
+                        settingDisplayName = "AI Provider";
+                        componentsBuilder = new ComponentBuilderV2()
+                            .WithContainer(container =>
+                            {
+                                container.AddComponent(new SectionBuilder()
+                                    .AddComponent(new TextDisplayBuilder()
+                                        .WithContent("# 🔄 Configuration Reset")));
+                                container.AddComponent(new SectionBuilder()
+                                    .AddComponent(new TextDisplayBuilder()
+                                        .WithContent($"**{settingDisplayName}** has been reset to default.")));
+                                container.AddComponent(new SectionBuilder()
+                                    .AddComponent(new TextDisplayBuilder()
+                                        .WithContent("The server will now use the global default AI provider.")));
+                            });
                         break;
 
                     case "nsfw-channel":
                     case "nsfw_channel":
                         serverMeta.NsfwChannelId = null;
-                        embed.WithDescription("NSFW channel has been reset.");
+                        settingDisplayName = "NSFW Channel";
+                        componentsBuilder = new ComponentBuilderV2()
+                            .WithContainer(container =>
+                            {
+                                container.AddComponent(new SectionBuilder()
+                                    .AddComponent(new TextDisplayBuilder()
+                                        .WithContent("# 🔄 Configuration Reset")));
+                                container.AddComponent(new SectionBuilder()
+                                    .AddComponent(new TextDisplayBuilder()
+                                        .WithContent($"**{settingDisplayName}** has been reset.")));
+                                container.AddComponent(new SectionBuilder()
+                                    .AddComponent(new TextDisplayBuilder()
+                                        .WithContent("NSFW features are now disabled for this server.")));
+                            });
                         break;
 
                     default:
@@ -712,7 +875,18 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
                 }
 
                 await _serverMetaService.UpdateServerMetaAsync(serverMeta);
-                await ModifyOriginalResponseAsync(msg => msg.Embed = embed.Build());
+
+                if (componentsBuilder != null)
+                {
+                    var components = componentsBuilder.Build();
+                    await ModifyOriginalResponseAsync(msg =>
+                    {
+                        msg.Components = components;
+                        msg.Flags = MessageFlags.ComponentsV2;
+                        msg.Embed = null;
+                        msg.Content = null;
+                    });
+                }
 
                 _logger.LogInformation("Admin {UserId} reset setting {Setting} for server {ServerId}",
                     Context.User.Id, setting, Context.Guild.Id);
