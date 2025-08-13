@@ -296,21 +296,22 @@ Streams: {voiceState.AudioClient?.GetStreams().ToDictionary(x => x.Key, x => x.V
         try
         {
             var guildId = Context.Guild.Id;
-            var embeds = await CreateDebugEmbedsAsync(guildId);
+            var pages = await CreateDebugPagesAsync(guildId);
 
-            if (embeds.Count == 0)
+            if (pages.Count == 0)
             {
                 await ModifyOriginalResponseAsync((msg) => msg.Content = "No conversation data available for this server.");
                 return;
             }
 
-            var (embed, component) = await _paginationService.CreatePaginatedMessageAsync(embeds, Context.User.Id);
+            var component = await _paginationService.CreatePaginatedMessageAsync(pages, Context.User.Id);
 
             await ModifyOriginalResponseAsync((msg) =>
             {
                 msg.Content = null;
-                msg.Embed = embed;
+                msg.Embed = null;
                 msg.Components = component;
+                msg.Flags = MessageFlags.ComponentsV2;
             });
         }
         catch (Exception ex)
@@ -319,9 +320,9 @@ Streams: {voiceState.AudioClient?.GetStreams().ToDictionary(x => x.Key, x => x.V
         }
     }
 
-    private async Task<List<Embed>> CreateDebugEmbedsAsync(ulong guildId)
+    private async Task<List<PaginationPage>> CreateDebugPagesAsync(ulong guildId)
     {
-        var embeds = new List<Embed>();
+        var pages = new List<PaginationPage>();
 
         // Get context messages from ChatContextService
         var contextMessages = _chatContextService.GetContextMessages(guildId);
@@ -335,23 +336,27 @@ Streams: {voiceState.AudioClient?.GetStreams().ToDictionary(x => x.Key, x => x.V
         var channelSession = await _chatSessionRepository.GetActiveSessionAsync(SessionScope.Channel, channelId: Context.Channel.Id);
 
         // Page 1: Server Information and Statistics
-        var serverInfoEmbed = new EmbedBuilder()
-            .WithTitle("🔍 Conversation Debug - Server Information")
-            .WithColor(Color.Blue)
-            .WithThumbnailUrl(Context.Guild.IconUrl)
-            .AddField("Server Name", Context.Guild.Name, true)
-            .AddField("Server ID", Context.Guild.Id, true)
-            .AddField("Member Count", Context.Guild.MemberCount, true)
-            .AddField("Current Activity Level", $"{currentActivity:F2}", true)
-            .AddField("Engagement Multiplier", $"{engagementMultiplier:F2}", true)
-            .AddField("Context Messages Count", contextMessages.Length, true)
-            .AddField("Server Session", serverSession != null ? $"{serverSession.Model} ({serverSession.Provider})" : "None", true)
-            .AddField("User Session", userSession != null ? $"{userSession.Model} ({userSession.Provider})" : "None", true)
-            .AddField("Channel Session", channelSession != null ? $"{channelSession.Model} ({channelSession.Provider})" : "None", true)
-            .WithTimestamp(DateTimeOffset.UtcNow)
-            .Build();
+        var serverInfoPage = new PaginationPage
+        {
+            Title = "🔍 Conversation Debug - Server Information",
+            ThumbnailUrl = Context.Guild.IconUrl,
+            Color = Color.Blue,
+            Timestamp = DateTimeOffset.UtcNow,
+            Sections = new List<PageSection>
+            {
+                new() { Title = "Server Name", Content = Context.Guild.Name, IsInline = true },
+                new() { Title = "Server ID", Content = Context.Guild.Id.ToString(), IsInline = true },
+                new() { Title = "Member Count", Content = Context.Guild.MemberCount.ToString(), IsInline = true },
+                new() { Title = "Current Activity Level", Content = $"{currentActivity:F2}", IsInline = true },
+                new() { Title = "Engagement Multiplier", Content = $"{engagementMultiplier:F2}", IsInline = true },
+                new() { Title = "Context Messages Count", Content = contextMessages.Length.ToString(), IsInline = true },
+                new() { Title = "Server Session", Content = serverSession != null ? $"{serverSession.Model} ({serverSession.Provider})" : "None", IsInline = true },
+                new() { Title = "User Session", Content = userSession != null ? $"{userSession.Model} ({userSession.Provider})" : "None", IsInline = true },
+                new() { Title = "Channel Session", Content = channelSession != null ? $"{channelSession.Model} ({channelSession.Provider})" : "None", IsInline = true }
+            }
+        };
 
-        embeds.Add(serverInfoEmbed);
+        pages.Add(serverInfoPage);
 
         // Page 2: Raw Context Messages
         if (contextMessages.Length > 0)
@@ -363,35 +368,38 @@ Streams: {voiceState.AudioClient?.GetStreams().ToDictionary(x => x.Key, x => x.V
                 var chunks = ChunkText(rawMessagesContent, 4000);
                 for (int i = 0; i < chunks.Count; i++)
                 {
-                    var embed = new EmbedBuilder()
-                        .WithTitle($"📝 Raw Context Messages (Part {i + 1}/{chunks.Count})")
-                        .WithColor(Color.Green)
-                        .WithDescription($"```\n{chunks[i]}\n```")
-                        .WithTimestamp(DateTimeOffset.UtcNow)
-                        .Build();
-                    embeds.Add(embed);
+                    var page = new PaginationPage
+                    {
+                        Title = $"📝 Raw Context Messages (Part {i + 1}/{chunks.Count})",
+                        Content = $"```\n{chunks[i]}\n```",
+                        Color = Color.Green,
+                        Timestamp = DateTimeOffset.UtcNow
+                    };
+                    pages.Add(page);
                 }
             }
             else
             {
-                var embed = new EmbedBuilder()
-                    .WithTitle("📝 Raw Context Messages")
-                    .WithColor(Color.Green)
-                    .WithDescription($"```\n{rawMessagesContent}\n```")
-                    .WithTimestamp(DateTimeOffset.UtcNow)
-                    .Build();
-                embeds.Add(embed);
+                var page = new PaginationPage
+                {
+                    Title = "📝 Raw Context Messages",
+                    Content = $"```\n{rawMessagesContent}\n```",
+                    Color = Color.Green,
+                    Timestamp = DateTimeOffset.UtcNow
+                };
+                pages.Add(page);
             }
         }
         else
         {
-            var embed = new EmbedBuilder()
-                .WithTitle("📝 Raw Context Messages")
-                .WithColor(Color.Orange)
-                .WithDescription("No context messages available.")
-                .WithTimestamp(DateTimeOffset.UtcNow)
-                .Build();
-            embeds.Add(embed);
+            var page = new PaginationPage
+            {
+                Title = "📝 Raw Context Messages",
+                Content = "No context messages available.",
+                Color = Color.Orange,
+                Timestamp = DateTimeOffset.UtcNow
+            };
+            pages.Add(page);
         }
 
         // Page 3: Formatted AI Context
@@ -402,35 +410,38 @@ Streams: {voiceState.AudioClient?.GetStreams().ToDictionary(x => x.Key, x => x.V
                 var chunks = ChunkText(formattedContext, 4000);
                 for (int i = 0; i < chunks.Count; i++)
                 {
-                    var embed = new EmbedBuilder()
-                        .WithTitle($"🤖 Formatted AI Context (Part {i + 1}/{chunks.Count})")
-                        .WithColor(Color.Purple)
-                        .WithDescription($"```\n{chunks[i]}\n```")
-                        .WithTimestamp(DateTimeOffset.UtcNow)
-                        .Build();
-                    embeds.Add(embed);
+                    var page = new PaginationPage
+                    {
+                        Title = $"🤖 Formatted AI Context (Part {i + 1}/{chunks.Count})",
+                        Content = $"```\n{chunks[i]}\n```",
+                        Color = Color.Purple,
+                        Timestamp = DateTimeOffset.UtcNow
+                    };
+                    pages.Add(page);
                 }
             }
             else
             {
-                var embed = new EmbedBuilder()
-                    .WithTitle("🤖 Formatted AI Context")
-                    .WithColor(Color.Purple)
-                    .WithDescription($"```\n{formattedContext}\n```")
-                    .WithTimestamp(DateTimeOffset.UtcNow)
-                    .Build();
-                embeds.Add(embed);
+                var page = new PaginationPage
+                {
+                    Title = "🤖 Formatted AI Context",
+                    Content = $"```\n{formattedContext}\n```",
+                    Color = Color.Purple,
+                    Timestamp = DateTimeOffset.UtcNow
+                };
+                pages.Add(page);
             }
         }
         else
         {
-            var embed = new EmbedBuilder()
-                .WithTitle("🤖 Formatted AI Context")
-                .WithColor(Color.Orange)
-                .WithDescription("No formatted context available.")
-                .WithTimestamp(DateTimeOffset.UtcNow)
-                .Build();
-            embeds.Add(embed);
+            var page = new PaginationPage
+            {
+                Title = "🤖 Formatted AI Context",
+                Content = "No formatted context available.",
+                Color = Color.Orange,
+                Timestamp = DateTimeOffset.UtcNow
+            };
+            pages.Add(page);
         }
 
         // Page 4: Conversation Session Messages
@@ -449,38 +460,41 @@ Streams: {voiceState.AudioClient?.GetStreams().ToDictionary(x => x.Key, x => x.V
                 var chunks = ChunkText(sessionMessagesContent, 4000);
                 for (int i = 0; i < chunks.Count; i++)
                 {
-                    var embed = new EmbedBuilder()
-                        .WithTitle($"💬 Session Messages (Part {i + 1}/{chunks.Count})")
-                        .WithColor(Color.Orange)
-                        .WithDescription($"```\n{chunks[i]}\n```")
-                        .WithTimestamp(DateTimeOffset.UtcNow)
-                        .Build();
-                    embeds.Add(embed);
+                    var page = new PaginationPage
+                    {
+                        Title = $"💬 Session Messages (Part {i + 1}/{chunks.Count})",
+                        Content = $"```\n{chunks[i]}\n```",
+                        Color = Color.Orange,
+                        Timestamp = DateTimeOffset.UtcNow
+                    };
+                    pages.Add(page);
                 }
             }
             else
             {
-                var embed = new EmbedBuilder()
-                    .WithTitle("💬 Session Messages")
-                    .WithColor(Color.Orange)
-                    .WithDescription($"```\n{sessionMessagesContent}\n```")
-                    .WithTimestamp(DateTimeOffset.UtcNow)
-                    .Build();
-                embeds.Add(embed);
+                var page = new PaginationPage
+                {
+                    Title = "💬 Session Messages",
+                    Content = $"```\n{sessionMessagesContent}\n```",
+                    Color = Color.Orange,
+                    Timestamp = DateTimeOffset.UtcNow
+                };
+                pages.Add(page);
             }
         }
         else
         {
-            var embed = new EmbedBuilder()
-                .WithTitle("💬 Session Messages")
-                .WithColor(Color.Orange)
-                .WithDescription("No active server session or messages found.")
-                .WithTimestamp(DateTimeOffset.UtcNow)
-                .Build();
-            embeds.Add(embed);
+            var page = new PaginationPage
+            {
+                Title = "💬 Session Messages",
+                Content = "No active server session or messages found.",
+                Color = Color.Orange,
+                Timestamp = DateTimeOffset.UtcNow
+            };
+            pages.Add(page);
         }
 
-        return embeds;
+        return pages;
     }
 
     [SlashCommand("remove-server-meta", "Remove server metadata by server ID")]

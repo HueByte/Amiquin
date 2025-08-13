@@ -1174,13 +1174,14 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         }
         else
         {
-            // Multiple pages - use pagination service (still uses embeds for now)
-            var (embed, messageComponent) = await _paginationService.CreatePaginatedMessageAsync(embeds, component.User.Id);
+            // Multiple pages - use pagination service with ComponentsV2
+            var messageComponent = await _paginationService.CreatePaginatedMessageFromEmbedsAsync(embeds, component.User.Id);
 
             await component.ModifyOriginalResponseAsync(msg =>
             {
-                msg.Embed = embed;
+                msg.Embed = null;
                 msg.Components = messageComponent;
+                msg.Flags = MessageFlags.ComponentsV2;
             });
         }
     }

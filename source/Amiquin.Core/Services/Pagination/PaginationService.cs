@@ -33,44 +33,40 @@ public class PaginationService : IPaginationService
         _componentHandlerService.RegisterHandler(ComponentPrefix, HandlePaginationInteractionAsync);
     }
 
-    public async Task<(Embed Embed, MessageComponent Component)> CreatePaginatedMessageAsync(
-        IReadOnlyList<Embed> embeds,
+    public async Task<MessageComponent> CreatePaginatedMessageAsync(
+        IReadOnlyList<PaginationPage> pages,
         ulong userId,
         TimeSpan? timeout = null)
     {
-        if (embeds.Count == 0)
-            throw new ArgumentException("Must provide at least one embed", nameof(embeds));
+        if (pages.Count == 0)
+            throw new ArgumentException("Must provide at least one page", nameof(pages));
 
         var sessionId = CreateSessionId(userId);
-        var timeoutSpan = timeout ?? TimeSpan.FromMinutes(15); // Extended timeout for database persistence
+        var timeoutSpan = timeout ?? TimeSpan.FromMinutes(15);
 
-        // Serialize the embeds to JSON for database storage
-        var embedsData = embeds.Select(e => new
+        // Serialize the pages to JSON for database storage
+        var pagesData = pages.Select(p => new
         {
-            Title = e.Title,
-            Description = e.Description,
-            Color = e.Color?.RawValue,
-            Timestamp = e.Timestamp?.ToString("O"),
-            ThumbnailUrl = e.Thumbnail?.Url,
-            ImageUrl = e.Image?.Url,
-            Author = e.Author?.Name != null ? new { Name = e.Author.Value.Name, IconUrl = e.Author.Value.IconUrl, Url = e.Author.Value.Url } : null,
-            Footer = e.Footer?.Text != null ? new { Text = e.Footer.Value.Text, IconUrl = e.Footer.Value.IconUrl } : null,
-            Fields = e.Fields.Select(f => new { Name = f.Name, Value = f.Value, Inline = f.Inline }).ToArray()
+            Title = p.Title,
+            Content = p.Content,
+            Color = p.Color?.RawValue,
+            Timestamp = p.Timestamp?.ToString("O"),
+            ThumbnailUrl = p.ThumbnailUrl,
+            ImageUrl = p.ImageUrl,
+            Sections = p.Sections.Select(s => new { s.Title, s.Content, s.IconUrl, s.IsInline }).ToArray()
         }).ToArray();
 
-        var embedJson = JsonSerializer.Serialize(embedsData);
+        var pagesJson = JsonSerializer.Serialize(pagesData);
 
-        // Note: We'll need to update this with message/channel info after the Discord message is sent
-        // For now, we'll create with placeholder values and update later if needed
         var dbSession = Core.Models.PaginationSession.CreateSession(
             userId: userId,
-            guildId: null, // Will be updated if needed
-            channelId: 0,  // Will be updated after message is sent
-            messageId: 0,  // Will be updated after message is sent
-            embedData: embedJson,
-            totalPages: embeds.Count,
+            guildId: null,
+            channelId: 0,
+            messageId: 0,
+            embedData: pagesJson,
+            totalPages: pages.Count,
             timeout: timeoutSpan,
-            contentType: "debug"
+            contentType: "componentsv2"
         );
         dbSession.Id = sessionId;
 
@@ -78,13 +74,21 @@ public class PaginationService : IPaginationService
         var paginationRepository = scope.ServiceProvider.GetRequiredService<IPaginationSessionRepository>();
         await paginationRepository.CreateAsync(dbSession);
 
-        var embed = CreateEmbedWithPageInfo(embeds[0], 1, embeds.Count);
-        var component = CreateNavigationComponent(sessionId, 0, embeds.Count);
+        var component = CreatePaginatedComponentsV2(pages[0], sessionId, 0, pages.Count);
 
         _logger.LogDebug("Created pagination session {SessionId} for user {UserId} with {PageCount} pages",
-            sessionId, userId, embeds.Count);
+            sessionId, userId, pages.Count);
 
-        return (embed, component);
+        return component;
+    }
+
+    public async Task<MessageComponent> CreatePaginatedMessageFromEmbedsAsync(
+        IReadOnlyList<Embed> embeds,
+        ulong userId,
+        TimeSpan? timeout = null)
+    {
+        var pages = embeds.Select(PaginationPage.FromEmbed).ToList();
+        return await CreatePaginatedMessageAsync(pages, userId, timeout);
     }
 
     public async Task<bool> HandleInteractionAsync(SocketMessageComponent component)
@@ -157,15 +161,15 @@ public class PaginationService : IPaginationService
         session.UpdatePage(newPage);
         await paginationRepository.UpdateAsync(session);
 
-        // Deserialize embeds from the database
-        var embeds = await DeserializeEmbedsFromSession(session);
-        var embed = CreateEmbedWithPageInfo(embeds[newPage], newPage + 1, session.TotalPages);
-        var newComponent = CreateNavigationComponent(sessionId, newPage, session.TotalPages);
+        // Deserialize pages from the database
+        var pages = await DeserializePagesFromSession(session);
+        var newComponent = CreatePaginatedComponentsV2(pages[newPage], sessionId, newPage, session.TotalPages);
 
         await component.ModifyOriginalResponseAsync(properties =>
         {
-            properties.Embed = embed;
             properties.Components = newComponent;
+            properties.Flags = MessageFlags.ComponentsV2;
+            properties.Embed = null;
         });
 
         _logger.LogDebug("Updated pagination session {SessionId} from page {OldPage} to page {NewPage}",
@@ -179,140 +183,195 @@ public class PaginationService : IPaginationService
         return $"{userId}_{DateTime.UtcNow.Ticks}";
     }
 
-    private Embed CreateEmbedWithPageInfo(Embed originalEmbed, int currentPage, int totalPages)
+    private MessageComponent CreatePaginatedComponentsV2(PaginationPage page, string sessionId, int currentPageIndex, int totalPages)
     {
-        var builder = new EmbedBuilder()
-            .WithTitle(originalEmbed.Title)
-            .WithDescription(originalEmbed.Description)
-            .WithColor(originalEmbed.Color ?? Color.Default)
-            .WithTimestamp(originalEmbed.Timestamp ?? DateTimeOffset.UtcNow)
-            .WithFooter($"Page {currentPage}/{totalPages} • {originalEmbed.Footer?.Text ?? ""}");
-
-        if (originalEmbed.Author.HasValue)
-            builder.WithAuthor(originalEmbed.Author.Value.Name, originalEmbed.Author.Value.IconUrl, originalEmbed.Author.Value.Url);
-
-        if (!string.IsNullOrEmpty(originalEmbed.Thumbnail?.Url))
-            builder.WithThumbnailUrl(originalEmbed.Thumbnail.Value.Url);
-
-        if (!string.IsNullOrEmpty(originalEmbed.Image?.Url))
-            builder.WithImageUrl(originalEmbed.Image.Value.Url);
-
-        foreach (var field in originalEmbed.Fields)
-        {
-            builder.AddField(field.Name, field.Value, field.Inline);
-        }
-
-        return builder.Build();
-    }
-
-    private MessageComponent CreateNavigationComponent(string sessionId, int currentPage, int totalPages)
-    {
-        var buttons = new List<ButtonBuilder>
-        {
-            // First page button
-            new ButtonBuilder()
-                .WithCustomId(_componentHandlerService.GenerateCustomId(ComponentPrefix, sessionId, "first"))
-                .WithLabel("⏪")
-                .WithStyle(ButtonStyle.Secondary)
-                .WithDisabled(currentPage == 0),
-            
-            // Previous page button
-            new ButtonBuilder()
-                .WithCustomId(_componentHandlerService.GenerateCustomId(ComponentPrefix, sessionId, "prev"))
-                .WithLabel("◀️")
-                .WithStyle(ButtonStyle.Primary)
-                .WithDisabled(currentPage == 0),
-            
-            // Next page button
-            new ButtonBuilder()
-                .WithCustomId(_componentHandlerService.GenerateCustomId(ComponentPrefix, sessionId, "next"))
-                .WithLabel("▶️")
-                .WithStyle(ButtonStyle.Primary)
-                .WithDisabled(currentPage == totalPages - 1),
-            
-            // Last page button
-            new ButtonBuilder()
-                .WithCustomId(_componentHandlerService.GenerateCustomId(ComponentPrefix, sessionId, "last"))
-                .WithLabel("⏩")
-                .WithStyle(ButtonStyle.Secondary)
-                .WithDisabled(currentPage == totalPages - 1)
-        };
-
-        return new ComponentBuilderV2()
-            .WithActionRow(buttons)
-            .Build();
-    }
-
-    private async Task<List<Embed>> DeserializeEmbedsFromSession(Core.Models.PaginationSession session)
-    {
-        var embedsData = JsonSerializer.Deserialize<JsonElement[]>(session.EmbedData);
-        var embeds = new List<Embed>();
-
-        if (embedsData == null) return embeds;
-
-        foreach (var embedData in embedsData)
-        {
-            var builder = new EmbedBuilder();
-
-            if (embedData.TryGetProperty("Title", out var titleProp) && titleProp.ValueKind == JsonValueKind.String)
+        var componentsBuilder = new ComponentBuilderV2()
+            .WithContainer(container =>
             {
-                var title = titleProp.GetString();
-                if (!string.IsNullOrEmpty(title))
-                    builder.WithTitle(title);
-            }
+                // Add title if present
+                if (!string.IsNullOrWhiteSpace(page.Title))
+                {
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent($"# {page.Title}")));
+                }
 
-            if (embedData.TryGetProperty("Description", out var descProp) && descProp.ValueKind == JsonValueKind.String)
-                builder.WithDescription(descProp.GetString());
+                // Add main content
+                if (!string.IsNullOrWhiteSpace(page.Content))
+                {
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent(page.Content)));
+                }
 
-            if (embedData.TryGetProperty("Color", out var colorProp) && colorProp.ValueKind == JsonValueKind.Number)
-                builder.WithColor(new Color(colorProp.GetUInt32()));
+                // Add sections
+                foreach (var section in page.Sections)
+                {
+                    var sectionContent = !string.IsNullOrWhiteSpace(section.Title) 
+                        ? $"**{section.Title}**\n{section.Content}"
+                        : section.Content;
+                        
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent(sectionContent)));
+                }
 
-            if (embedData.TryGetProperty("Timestamp", out var timestampProp) && timestampProp.ValueKind == JsonValueKind.String)
+                // Add image links if present
+                if (!string.IsNullOrWhiteSpace(page.ThumbnailUrl))
+                {
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent($"**Thumbnail:** [View]({page.ThumbnailUrl})")));
+                }
+
+                if (!string.IsNullOrWhiteSpace(page.ImageUrl))
+                {
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent($"**Image:** [View]({page.ImageUrl})")));
+                }
+
+                // Add pagination info and navigation buttons
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent($"*Page {currentPageIndex + 1} of {totalPages}*")));
+
+                // Create navigation buttons
+                var navSection = new SectionBuilder();
+                
+                // First page button
+                navSection.WithAccessory(new ButtonBuilder()
+                    .WithCustomId(_componentHandlerService.GenerateCustomId(ComponentPrefix, sessionId, "first"))
+                    .WithLabel("⏪ First")
+                    .WithStyle(ButtonStyle.Secondary)
+                    .WithDisabled(currentPageIndex == 0));
+                
+                // Previous page button
+                navSection.WithAccessory(new ButtonBuilder()
+                    .WithCustomId(_componentHandlerService.GenerateCustomId(ComponentPrefix, sessionId, "prev"))
+                    .WithLabel("◀️ Previous")
+                    .WithStyle(ButtonStyle.Primary)
+                    .WithDisabled(currentPageIndex == 0));
+                
+                // Next page button
+                navSection.WithAccessory(new ButtonBuilder()
+                    .WithCustomId(_componentHandlerService.GenerateCustomId(ComponentPrefix, sessionId, "next"))
+                    .WithLabel("Next ▶️")
+                    .WithStyle(ButtonStyle.Primary)
+                    .WithDisabled(currentPageIndex == totalPages - 1));
+                
+                // Last page button
+                navSection.WithAccessory(new ButtonBuilder()
+                    .WithCustomId(_componentHandlerService.GenerateCustomId(ComponentPrefix, sessionId, "last"))
+                    .WithLabel("Last ⏩")
+                    .WithStyle(ButtonStyle.Secondary)
+                    .WithDisabled(currentPageIndex == totalPages - 1));
+                    
+                container.AddComponent(navSection);
+            });
+
+        return componentsBuilder.Build();
+    }
+
+    // Navigation component creation is now integrated into CreatePaginatedComponentsV2
+
+    private async Task<List<PaginationPage>> DeserializePagesFromSession(Core.Models.PaginationSession session)
+    {
+        var pagesData = JsonSerializer.Deserialize<JsonElement[]>(session.EmbedData);
+        var pages = new List<PaginationPage>();
+
+        if (pagesData == null) return pages;
+
+        foreach (var pageData in pagesData)
+        {
+            var page = new PaginationPage();
+
+            if (pageData.TryGetProperty("Title", out var titleProp) && titleProp.ValueKind == JsonValueKind.String)
+                page.Title = titleProp.GetString();
+
+            if (pageData.TryGetProperty("Content", out var contentProp) && contentProp.ValueKind == JsonValueKind.String)
+                page.Content = contentProp.GetString() ?? string.Empty;
+            else if (pageData.TryGetProperty("Description", out var descProp) && descProp.ValueKind == JsonValueKind.String)
+                page.Content = descProp.GetString() ?? string.Empty; // Backward compatibility
+
+            if (pageData.TryGetProperty("Color", out var colorProp) && colorProp.ValueKind == JsonValueKind.Number)
+                page.Color = new Color(colorProp.GetUInt32());
+
+            if (pageData.TryGetProperty("Timestamp", out var timestampProp) && timestampProp.ValueKind == JsonValueKind.String)
             {
                 if (DateTimeOffset.TryParse(timestampProp.GetString(), out var timestamp))
-                    builder.WithTimestamp(timestamp);
+                    page.Timestamp = timestamp;
             }
 
-            if (embedData.TryGetProperty("ThumbnailUrl", out var thumbProp) && thumbProp.ValueKind == JsonValueKind.String)
-                builder.WithThumbnailUrl(thumbProp.GetString());
+            if (pageData.TryGetProperty("ThumbnailUrl", out var thumbProp) && thumbProp.ValueKind == JsonValueKind.String)
+                page.ThumbnailUrl = thumbProp.GetString();
 
-            if (embedData.TryGetProperty("ImageUrl", out var imageProp) && imageProp.ValueKind == JsonValueKind.String)
-                builder.WithImageUrl(imageProp.GetString());
+            if (pageData.TryGetProperty("ImageUrl", out var imageProp) && imageProp.ValueKind == JsonValueKind.String)
+                page.ImageUrl = imageProp.GetString();
 
-            if (embedData.TryGetProperty("Author", out var authorProp) && authorProp.ValueKind == JsonValueKind.Object)
+            // Handle sections (new format)
+            if (pageData.TryGetProperty("Sections", out var sectionsProp) && sectionsProp.ValueKind == JsonValueKind.Array)
             {
-                var name = authorProp.TryGetProperty("Name", out var nameProp) ? nameProp.GetString() : null;
-                var iconUrl = authorProp.TryGetProperty("IconUrl", out var iconProp) ? iconProp.GetString() : null;
-                var url = authorProp.TryGetProperty("Url", out var urlProp) ? urlProp.GetString() : null;
-                if (name != null)
-                    builder.WithAuthor(name, iconUrl, url);
-            }
-
-            if (embedData.TryGetProperty("Footer", out var footerProp) && footerProp.ValueKind == JsonValueKind.Object)
-            {
-                var text = footerProp.TryGetProperty("Text", out var textProp) ? textProp.GetString() : null;
-                var iconUrl = footerProp.TryGetProperty("IconUrl", out var iconProp) ? iconProp.GetString() : null;
-                if (text != null)
-                    builder.WithFooter(text, iconUrl);
-            }
-
-            if (embedData.TryGetProperty("Fields", out var fieldsProp) && fieldsProp.ValueKind == JsonValueKind.Array)
-            {
-                foreach (var field in fieldsProp.EnumerateArray())
+                foreach (var section in sectionsProp.EnumerateArray())
                 {
-                    var name = field.TryGetProperty("Name", out var nameProp) ? nameProp.GetString() : null;
-                    var value = field.TryGetProperty("Value", out var valueProp) ? valueProp.GetString() : null;
-                    var inline = field.TryGetProperty("Inline", out var inlineProp) && inlineProp.GetBoolean();
+                    var pageSection = new PageSection();
+                    if (section.TryGetProperty("Title", out var sectTitleProp))
+                        pageSection.Title = sectTitleProp.GetString() ?? string.Empty;
+                    if (section.TryGetProperty("Content", out var sectContentProp))
+                        pageSection.Content = sectContentProp.GetString() ?? string.Empty;
+                    if (section.TryGetProperty("IconUrl", out var sectIconProp))
+                        pageSection.IconUrl = sectIconProp.GetString();
+                    if (section.TryGetProperty("IsInline", out var sectInlineProp))
+                        pageSection.IsInline = sectInlineProp.GetBoolean();
+                    
+                    page.Sections.Add(pageSection);
+                }
+            }
+            // Handle old embed format for backward compatibility
+            else
+            {
+                // Convert Author to section
+                if (pageData.TryGetProperty("Author", out var authorProp) && authorProp.ValueKind == JsonValueKind.Object)
+                {
+                    var name = authorProp.TryGetProperty("Name", out var nameProp) ? nameProp.GetString() : null;
+                    var iconUrl = authorProp.TryGetProperty("IconUrl", out var iconProp) ? iconProp.GetString() : null;
+                    if (name != null)
+                    {
+                        page.Sections.Add(new PageSection
+                        {
+                            Title = "Author",
+                            Content = name,
+                            IconUrl = iconUrl
+                        });
+                    }
+                }
 
-                    if (name != null && value != null)
-                        builder.AddField(name, value, inline);
+                // Convert Fields to sections
+                if (pageData.TryGetProperty("Fields", out var fieldsProp) && fieldsProp.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var field in fieldsProp.EnumerateArray())
+                    {
+                        var name = field.TryGetProperty("Name", out var nameProp) ? nameProp.GetString() : null;
+                        var value = field.TryGetProperty("Value", out var valueProp) ? valueProp.GetString() : null;
+                        var inline = field.TryGetProperty("Inline", out var inlineProp) && inlineProp.GetBoolean();
+
+                        if (name != null && value != null)
+                        {
+                            page.Sections.Add(new PageSection
+                            {
+                                Title = name,
+                                Content = value,
+                                IsInline = inline
+                            });
+                        }
+                    }
                 }
             }
 
-            embeds.Add(builder.Build());
+            pages.Add(page);
         }
 
-        return embeds;
+        return pages;
     }
 
     /// <summary>
