@@ -81,16 +81,24 @@ public class InteractionCommands : InteractionModuleBase<ExtendedShardedInteract
         {
             var gifUrl = await _funService.GetInteractionGifAsync(interactionType);
 
-            var embed = new EmbedBuilder()
-                .WithDescription($"{emoji} **{Context.User.Mention} {actionText} {targetUser.Mention}!** {emoji}")
-                .WithColor(Color.Purple);
+            var componentsBuilder = new ComponentBuilderV2()
+                .WithTextDisplay($"# {emoji} Interaction")
+                .WithTextDisplay($"**{Context.User.Mention} {actionText} {targetUser.Mention}!**");
 
             if (!string.IsNullOrEmpty(gifUrl))
             {
-                embed.WithImageUrl(gifUrl);
+                componentsBuilder.WithMediaGallery([gifUrl]);
             }
 
-            await ModifyOriginalResponseAsync(msg => msg.Embed = embed.Build());
+            var components = componentsBuilder.Build();
+
+            await ModifyOriginalResponseAsync(msg =>
+            {
+                msg.Components = components;
+                msg.Flags = MessageFlags.ComponentsV2;
+                msg.Embed = null;
+                msg.Content = null;
+            });
         }
         catch (Exception)
         {

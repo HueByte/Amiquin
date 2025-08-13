@@ -512,7 +512,19 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                     await ShowPersonaDetailsAsync(component, guildId);
                     break;
                 default:
-                    await component.ModifyOriginalResponseAsync(msg => msg.Content = "❌ Unknown configuration option.");
+                    var errorV2 = new ComponentBuilderV2()
+                        .WithContainer(container =>
+                        {
+                            container.AddComponent(new SectionBuilder()
+                                .AddComponent(new TextDisplayBuilder()
+                                    .WithContent("# ❌ Error\nUnknown configuration option.")));
+                        })
+                        .Build();
+                    await component.ModifyOriginalResponseAsync(msg =>
+                    {
+                        msg.Components = errorV2;
+                        msg.Flags = MessageFlags.ComponentsV2;
+                    });
                     break;
             }
 
@@ -521,7 +533,19 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error handling config menu interaction");
-            await component.ModifyOriginalResponseAsync(msg => msg.Content = "❌ An error occurred while processing your selection.");
+            var errorV2 = new ComponentBuilderV2()
+                .WithContainer(container =>
+                {
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent("# ❌ Error\nAn error occurred while processing your selection.")));
+                })
+                .Build();
+            await component.ModifyOriginalResponseAsync(msg =>
+            {
+                msg.Components = errorV2;
+                msg.Flags = MessageFlags.ComponentsV2;
+            });
             return true;
         }
     }
@@ -969,10 +993,45 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                 .WithStyle(ButtonStyle.Secondary)
         ]);
 
+        // Implement proper Components V2 with containers and sections
+        var v2Components = new ComponentBuilderV2()
+            .WithContainer(container =>
+            {
+                container.WithAccentColor(new Color(52, 152, 219));
+
+                // Add main title and description section
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent($"# {embedBuilder.Title}\n{embedBuilder.Description}")));
+
+                // Add fields as additional text displays in sections
+                foreach (var field in embedBuilder.Fields)
+                {
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent($"**{field.Name}**\n{field.Value}")));
+                }
+
+                // Add components from the traditional ComponentBuilder
+                var builtComponents = builder.Build();
+                var actionRows = builtComponents.Components.OfType<ActionRowComponent>();
+
+                foreach (var row in actionRows)
+                {
+                    foreach (var component in row.Components)
+                    {
+                        // Create a section with this component as accessory
+                        container.AddComponent(new SectionBuilder()
+                            .WithAccessory(ConvertToBuilder(component)));
+                    }
+                }
+            })
+            .Build();
+
         await component.ModifyOriginalResponseAsync(msg =>
         {
-            msg.Embed = embedBuilder.Build();
-            msg.Components = builder.Build();
+            msg.Components = v2Components;
+            msg.Flags = MessageFlags.ComponentsV2;
         });
     }
 
@@ -1849,5 +1908,35 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
             await Task.Delay(2000);
             await ShowNsfwChannelConfigurationAsync(component, guildId);
         }
+    }
+
+    /// <summary>
+    /// Converts a Discord component to its builder equivalent for Components V2
+    /// </summary>
+    private static IMessageComponentBuilder ConvertToBuilder(IMessageComponent component)
+    {
+        return component switch
+        {
+            ButtonComponent btn => new ButtonBuilder()
+                .WithLabel(btn.Label)
+                .WithCustomId(btn.CustomId)
+                .WithStyle(btn.Style)
+                .WithEmote(btn.Emote)
+                .WithUrl(btn.Url)
+                .WithDisabled(btn.IsDisabled),
+            SelectMenuComponent menu => new SelectMenuBuilder()
+                .WithCustomId(menu.CustomId)
+                .WithPlaceholder(menu.Placeholder)
+                .WithMinValues(menu.MinValues)
+                .WithMaxValues(menu.MaxValues)
+                .WithDisabled(menu.IsDisabled)
+                .WithOptions(menu.Options.Select(opt => new SelectMenuOptionBuilder()
+                    .WithLabel(opt.Label)
+                    .WithValue(opt.Value)
+                    .WithDescription(opt.Description)
+                    .WithEmote(opt.Emote)
+                    .WithDefault(opt.IsDefault ?? false)).ToList()),
+            _ => throw new ArgumentException($"Unsupported component type: {component.GetType()}")
+        };
     }
 }

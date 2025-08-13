@@ -131,10 +131,10 @@ public class DailyNsfwJob : IRunnableJob
                         continue;
                     }
 
-                    // Build the gallery embed
-                    var embed = BuildNsfwGalleryEmbed(images);
+                    // Build the gallery components
+                    var components = BuildNsfwGalleryComponents(images);
 
-                    await channel.SendMessageAsync(embed: embed);
+                    await channel.SendMessageAsync(components: components, flags: MessageFlags.ComponentsV2);
                     successCount++;
 
                     _logger.LogInformation("Successfully sent daily NSFW gallery to guild {ServerId}", serverId);
@@ -157,51 +157,47 @@ public class DailyNsfwJob : IRunnableJob
         }
     }
 
-    private Embed BuildNsfwGalleryEmbed(List<NsfwImage> images)
+    private MessageComponent BuildNsfwGalleryComponents(List<NsfwImage> images)
     {
-        var embedBuilder = new EmbedBuilder()
-            .WithTitle("🔞 Daily NSFW Gallery")
-            .WithDescription($"Today's curated collection of {images.Count} images from various sources")
-            .WithColor(new Color(255, 0, 100))
-            .WithCurrentTimestamp()
-            .WithFooter("Daily NSFW Gallery • Enjoy responsibly");
+        var componentsBuilder = new ComponentBuilderV2()
+            .WithTextDisplay("# 🔞 Daily NSFW Gallery")
+            .WithTextDisplay($"Today's curated collection of **{images.Count}** images from various sources");
 
         // Show up to 3 random images as a preview
         var previewImages = images.OrderBy(x => Guid.NewGuid()).Take(3).ToList();
 
+        // Add main gallery image
+        if (previewImages.Any())
+        {
+            componentsBuilder.WithMediaGallery([previewImages.First().Url]);
+        }
+
+        // Add preview information
         for (int i = 0; i < previewImages.Count; i++)
         {
             var img = previewImages[i];
-            var fieldTitle = $"Image {i + 1} • {img.Source}";
-            var fieldValue = $"[View Image]({img.Url})";
+            var imageInfo = $"**Image {i + 1} • {img.Source}**\n[View Image]({img.Url})";
 
             if (!string.IsNullOrWhiteSpace(img.Artist))
             {
-                fieldValue += $"\nArtist: {img.Artist}";
+                imageInfo += $"\n**Artist:** {img.Artist}";
             }
 
             if (!string.IsNullOrWhiteSpace(img.Tags))
             {
-                fieldValue += $"\nTags: {img.Tags}";
+                imageInfo += $"\n**Tags:** {img.Tags}";
             }
 
-            embedBuilder.AddField(fieldTitle, fieldValue, inline: true);
+            componentsBuilder.WithTextDisplay(imageInfo);
         }
 
         if (images.Count > 3)
         {
-            embedBuilder.AddField("📋 Full Gallery",
-                $"**{images.Count - 3} more images available!**\n" +
-                $"Sources: {string.Join(", ", images.Select(i => i.Source).Distinct())}",
-                inline: false);
+            componentsBuilder.WithTextDisplay($"**📋 Full Gallery**\n**{images.Count - 3}** more images available!\n**Sources:** {string.Join(", ", images.Select(i => i.Source).Distinct())}");
         }
 
-        // Set main image to first preview image
-        if (previewImages.Any())
-        {
-            embedBuilder.WithImageUrl(previewImages.First().Url);
-        }
+        componentsBuilder.WithTextDisplay("*Daily NSFW Gallery • Enjoy responsibly*");
 
-        return embedBuilder.Build();
+        return componentsBuilder.Build();
     }
 }

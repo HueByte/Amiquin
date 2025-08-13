@@ -82,13 +82,18 @@ Streams: {voiceState.AudioClient?.GetStreams().ToDictionary(x => x.Key, x => x.V
 ```
 ";
 
-        Embed embed = new EmbedBuilder()
-            .WithTitle("Voice Debug")
-            .WithDescription(data)
-            .WithColor(Color.DarkPurple)
+        var components = new ComponentBuilderV2()
+            .WithTextDisplay("# 🔊 Voice Debug")
+            .WithTextDisplay(data)
             .Build();
 
-        await ModifyOriginalResponseAsync((msg) => msg.Embeds = new[] { embed });
+        await ModifyOriginalResponseAsync(msg =>
+        {
+            msg.Components = components;
+            msg.Flags = MessageFlags.ComponentsV2;
+            msg.Embed = null;
+            msg.Content = null;
+        });
     }
 
     [SlashCommand("persona", "Get persona message")]
@@ -103,18 +108,41 @@ Streams: {voiceState.AudioClient?.GetStreams().ToDictionary(x => x.Key, x => x.V
         }
         else
         {
-            chunks.Add(new EmbedBuilder()
-                .WithTitle("Computed Persona")
-                .WithThumbnailUrl(Context.Client.CurrentUser.GetAvatarUrl())
-                .WithColor(Color.DarkPurple)
-                .WithDescription(fullPersonaMessage)
-                .Build());
+            var components = new ComponentBuilderV2()
+                .WithTextDisplay("# 🤖 Computed Persona")
+                .WithMediaGallery([Context.Client.CurrentUser.GetAvatarUrl()])
+                .WithTextDisplay(fullPersonaMessage ?? "No persona available")
+                .Build();
+
+            await ModifyOriginalResponseAsync(msg =>
+            {
+                msg.Components = components;
+                msg.Flags = MessageFlags.ComponentsV2;
+                msg.Embed = null;
+                msg.Content = null;
+            });
+            return;
         }
 
-        foreach (var chunk in chunks)
+        if (chunks.Count > 1)
         {
-            await ModifyOriginalResponseAsync((msg) => msg.Embed = new EmbedBuilder().WithDescription("Sending my persona below").Build());
-            await Context.Channel.SendMessageAsync(embed: chunk);
+            var firstComponents = new ComponentBuilderV2()
+                .WithTextDisplay("# 🤖 Computed Persona (Chunked)")
+                .WithTextDisplay("Sending my persona below in multiple messages")
+                .Build();
+
+            await ModifyOriginalResponseAsync(msg =>
+            {
+                msg.Components = firstComponents;
+                msg.Flags = MessageFlags.ComponentsV2;
+                msg.Embed = null;
+                msg.Content = null;
+            });
+
+            foreach (var chunk in chunks)
+            {
+                await Context.Channel.SendMessageAsync(embed: chunk);
+            }
         }
     }
 
@@ -455,16 +483,20 @@ Streams: {voiceState.AudioClient?.GetStreams().ToDictionary(x => x.Key, x => x.V
             var serverName = serverMeta.ServerName ?? "Unknown";
             await _serverMetaService.DeleteServerMetaAsync(serverIdLong);
 
-            var embed = new EmbedBuilder()
-                .WithTitle("✅ Server Metadata Removed")
-                .WithDescription($"Successfully removed server metadata for **{serverName}**")
-                .WithColor(Color.Green)
-                .AddField("Server ID", serverIdLong.ToString(), true)
-                .AddField("Server Name", serverName, true)
-                .WithTimestamp(DateTimeOffset.UtcNow)
+            var components = new ComponentBuilderV2()
+                .WithTextDisplay("# ✅ Server Metadata Removed")
+                .WithTextDisplay($"Successfully removed server metadata for **{serverName}**")
+                .WithTextDisplay($"**Server ID:** {serverIdLong}")
+                .WithTextDisplay($"**Server Name:** {serverName}")
                 .Build();
 
-            await ModifyOriginalResponseAsync(msg => msg.Embed = embed);
+            await ModifyOriginalResponseAsync(msg =>
+            {
+                msg.Components = components;
+                msg.Flags = MessageFlags.ComponentsV2;
+                msg.Embed = null;
+                msg.Content = null;
+            });
         }
         catch (Exception ex)
         {

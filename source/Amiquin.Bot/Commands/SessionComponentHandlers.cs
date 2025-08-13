@@ -96,22 +96,19 @@ public class SessionComponentHandlers
                 // Get session details for confirmation
                 var stats = await _sessionManagerService.GetSessionStatsAsync(selectedSessionId);
 
-                var embed = new EmbedBuilder()
-                    .WithTitle("✅ Session Switched")
-                    .WithDescription($"Successfully switched to session: **{stats?.Name ?? "Unknown"}**")
-                    .WithColor(Color.Green)
-                    .AddField("Session Info",
-                        $"**Messages:** {stats?.MessageCount ?? 0}\n" +
-                        $"**Model:** {stats?.Provider}/{stats?.Model}",
-                        true)
-                    .WithFooter($"Switched by {component.User.GlobalName ?? component.User.Username}")
-                    .WithCurrentTimestamp()
+                var components = new ComponentBuilderV2()
+                    .WithTextDisplay("✅ Session Switched")
+                    .WithTextDisplay($"Successfully switched to session: **{stats?.Name ?? "Unknown"}**")
+                    .WithTextDisplay($"**Messages:** {stats?.MessageCount ?? 0}")
+                    .WithTextDisplay($"**Model:** {stats?.Provider}/{stats?.Model}")
+                    .WithTextDisplay($"*Switched by {component.User.GlobalName ?? component.User.Username}*")
                     .Build();
 
                 await component.ModifyOriginalResponseAsync(msg =>
                 {
-                    msg.Embed = embed;
-                    msg.Components = null; // Remove the interaction components
+                    msg.Components = components;
+                    msg.Flags = MessageFlags.ComponentsV2;
+                    msg.Embed = null;
                 });
             }
             else
@@ -133,17 +130,16 @@ public class SessionComponentHandlers
     /// </summary>
     private async Task<bool> HandleSessionCancelAsync(SocketMessageComponent component, ComponentContext context)
     {
-        var embed = new EmbedBuilder()
-            .WithTitle("❌ Session Switch Cancelled")
-            .WithDescription("Session switching was cancelled.")
-            .WithColor(Color.Red)
-            .WithCurrentTimestamp()
+        var components = new ComponentBuilderV2()
+            .WithTextDisplay("# ❌ Session Switch Cancelled")
+            .WithTextDisplay("Session switching was cancelled.")
             .Build();
 
         await component.ModifyOriginalResponseAsync(msg =>
         {
-            msg.Embed = embed;
-            msg.Components = null; // Remove the interaction components
+            msg.Components = components;
+            msg.Flags = MessageFlags.ComponentsV2;
+            msg.Embed = null;
         });
 
         return true;
@@ -169,6 +165,7 @@ public class SessionComponentHandlers
                 .WithDefault(isActive);
         }).ToList();
 
+        // Keep the embed for this UI since it has interactive components mixed with ComponentsV2
         var embed = new EmbedBuilder()
             .WithTitle("🔄 Switch Chat Session")
             .WithDescription($"**Current session:** {activeSession?.Name ?? "None"}\n\nSelect a session from the dropdown below:")

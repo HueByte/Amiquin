@@ -35,12 +35,12 @@ public class ServerInteractionService : IServerInteractionService
     {
         var botName = _botOptions.Name;
         var joinMessage = await _messageCacheService.GetServerJoinMessage();
-        var embed = new EmbedBuilder().WithTitle($"✨ Hello I'm {botName}! ✨")
-                                     .WithColor(Color.Teal)
-                                     .WithDescription(joinMessage)
-                                     .WithCurrentTimestamp();
+        var components = new ComponentBuilderV2()
+            .WithTextDisplay($"# ✨ Hello I'm {botName}! ✨")
+            .WithTextDisplay(joinMessage)
+            .Build();
 
         _logger.LogInformation("Sending join message to {GuildName} in default channel {channel}", guild.Name, guild.DefaultChannel.Name);
-        await guild.DefaultChannel.SendMessageAsync(null, false, embed.Build());
+        await guild.DefaultChannel.SendMessageAsync(components: components, flags: MessageFlags.ComponentsV2);
     }
 }

@@ -77,15 +77,19 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
         serverMeta.Persona = persona;
         await _serverMetaService.UpdateServerMetaAsync(serverMeta);
 
-        var embed = new EmbedBuilder()
-            .WithTitle("✅ Persona Updated")
-            .WithDescription($"Server persona has been updated successfully.")
-            .AddField("New Persona", persona.Length > 100 ? $"{persona[..100]}..." : persona, false)
-            .WithColor(Color.Green)
-            .WithCurrentTimestamp()
+        var components = new ComponentBuilderV2()
+            .WithTextDisplay("# ✅ Persona Updated")
+            .WithTextDisplay("Server persona has been updated successfully.")
+            .WithTextDisplay($"**New Persona:**\n{(persona.Length > 500 ? $"{persona[..500]}..." : persona)}")
             .Build();
 
-        await ModifyOriginalResponseAsync(msg => msg.Embed = embed);
+        await ModifyOriginalResponseAsync(msg =>
+        {
+            msg.Components = components;
+            msg.Flags = MessageFlags.ComponentsV2;
+            msg.Embed = null;
+            msg.Content = null;
+        });
         _logger.LogInformation("Admin {UserId} set server persona for guild {GuildId}", Context.User.Id, Context.Guild.Id);
     }
 
@@ -119,19 +123,19 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
 
         message = message.Replace("\\n", "\n").Trim();
 
-        var embedBuilder = new EmbedBuilder()
-            .WithTitle(title)
-            .WithDescription(message)
-            .WithColor(Color.Magenta);
+        var componentsBuilder = new ComponentBuilderV2()
+            .WithTextDisplay($"# {title}")
+            .WithTextDisplay(message);
 
         if (!string.IsNullOrWhiteSpace(thumbnail))
-            embedBuilder.WithThumbnailUrl(thumbnail);
+            componentsBuilder.WithMediaGallery([thumbnail]);
 
         if (withAuthor)
-            embedBuilder.WithAuthor(Context.User.Username, Context.User.GetAvatarUrl() ?? Context.User.GetDefaultAvatarUrl());
+            componentsBuilder.WithTextDisplay($"**Author:** {Context.User.Username}");
 
-        var embed = embedBuilder.Build();
-        await Context.Channel.SendMessageAsync(embed: embed);
+        var components = componentsBuilder.Build();
+
+        await Context.Channel.SendMessageAsync(components: components, flags: MessageFlags.ComponentsV2);
         await ModifyOriginalResponseAsync(msg => msg.Content = "✅ Embed sent successfully.");
     }
 
@@ -144,16 +148,20 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
     {
         await _toggleService.SetServerToggleAsync(Context.Guild.Id, toggleName, isEnabled, description);
 
-        var embed = new EmbedBuilder()
-            .WithTitle("⚙️ Toggle Updated")
-            .WithDescription($"Feature toggle has been updated successfully.")
-            .AddField("Feature", toggleName, true)
-            .AddField("Status", isEnabled ? "✅ Enabled" : "❌ Disabled", true)
-            .WithColor(isEnabled ? Color.Green : Color.Red)
-            .WithCurrentTimestamp()
+        var components = new ComponentBuilderV2()
+            .WithTextDisplay("# ⚙️ Toggle Updated")
+            .WithTextDisplay("Feature toggle has been updated successfully.")
+            .WithTextDisplay($"**Feature:** {toggleName}")
+            .WithTextDisplay($"**Status:** {(isEnabled ? "✅ Enabled" : "❌ Disabled")}")
             .Build();
 
-        await ModifyOriginalResponseAsync(msg => msg.Embed = embed);
+        await ModifyOriginalResponseAsync(msg =>
+        {
+            msg.Components = components;
+            msg.Flags = MessageFlags.ComponentsV2;
+            msg.Embed = null;
+            msg.Content = null;
+        });
         _logger.LogInformation("Admin {UserId} toggled {Toggle} to {State} for guild {GuildId}",
             Context.User.Id, toggleName, isEnabled, Context.Guild.Id);
     }
@@ -178,15 +186,19 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
             {
                 await ((ITextChannel)Context.Channel).DeleteMessagesAsync(messagesToDelete);
 
-                var embed = new EmbedBuilder()
-                    .WithTitle("🗑️ Messages Deleted")
-                    .WithDescription($"Successfully deleted {messagesToDelete.Count} messages.")
-                    .WithColor(Color.Orange)
-                    .WithFooter($"Requested by {Context.User.Username}")
-                    .WithCurrentTimestamp()
+                var components = new ComponentBuilderV2()
+                    .WithTextDisplay("# 🗑️ Messages Deleted")
+                    .WithTextDisplay($"Successfully deleted **{messagesToDelete.Count}** messages.")
+                    .WithTextDisplay($"*Requested by {Context.User.Username}*")
                     .Build();
 
-                await ModifyOriginalResponseAsync(msg => msg.Embed = embed);
+                await ModifyOriginalResponseAsync(msg =>
+                {
+                    msg.Components = components;
+                    msg.Flags = MessageFlags.ComponentsV2;
+                    msg.Embed = null;
+                    msg.Content = null;
+                });
             }
             else
             {
@@ -214,19 +226,23 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
             // Get the current engagement level for display
             var currentLevel = _chatContextService.GetEngagementMultiplier(guildId);
 
-            var embed = new EmbedBuilder()
-                .WithTitle("😌 Calming Down...")
-                .WithDescription("I'll take it easy for a bit. My engagement has been reset to baseline.")
-                .AddField("Engagement Level", $"Reset to {currentLevel:F1}x (baseline)", true)
-                .AddField("Context", "Cleared all conversation context", true)
-                .AddField("Status", "🌙 Relaxed mode activated", false)
-                .WithColor(new Color(135, 206, 235)) // Sky blue for calm
-                .WithThumbnailUrl(Context.Client.CurrentUser.GetDisplayAvatarUrl())
-                .WithFooter("Use mentions to re-engage me if needed")
-                .WithCurrentTimestamp()
+            var components = new ComponentBuilderV2()
+                .WithTextDisplay("# 😌 Calming Down...")
+                .WithMediaGallery([Context.Client.CurrentUser.GetDisplayAvatarUrl()])
+                .WithTextDisplay("I'll take it easy for a bit. My engagement has been reset to baseline.")
+                .WithTextDisplay($"**Engagement Level:** Reset to {currentLevel:F1}x (baseline)")
+                .WithTextDisplay($"**Context:** Cleared all conversation context")
+                .WithTextDisplay($"**Status:** 🌙 Relaxed mode activated")
+                .WithTextDisplay("*Use mentions to re-engage me if needed*")
                 .Build();
 
-            await ModifyOriginalResponseAsync(msg => msg.Embed = embed);
+            await ModifyOriginalResponseAsync(msg =>
+            {
+                msg.Components = components;
+                msg.Flags = MessageFlags.ComponentsV2;
+                msg.Embed = null;
+                msg.Content = null;
+            });
 
             _logger.LogInformation("Admin {UserId} reset engagement for guild {GuildId}",
                 Context.User.Id, guildId);
@@ -249,25 +265,32 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
             // Trigger history optimization for this guild's chat sessions
             var (success, message) = await _personaChatService.TriggerHistoryOptimizationAsync(guildId);
 
-            var embed = new EmbedBuilder()
-                .WithTitle(success ? "📦 History Compacted" : "⚠️ Compaction Issue")
-                .WithDescription(message)
-                .WithColor(success ? new Color(46, 204, 113) : new Color(231, 76, 60)) // Green for success, red for failure
-                .WithThumbnailUrl(Context.Client.CurrentUser.GetDisplayAvatarUrl())
-                .WithCurrentTimestamp();
+            var componentsBuilder = new ComponentBuilderV2()
+                .WithTextDisplay($"# {(success ? "📦 History Compacted" : "⚠️ Compaction Issue")}")
+                .WithMediaGallery([Context.Client.CurrentUser.GetDisplayAvatarUrl()])
+                .WithTextDisplay(message);
 
             if (success)
             {
-                embed.AddField("💾 Benefits", "• Reduced memory usage\n• Faster response times\n• Lower token costs", true);
-                embed.AddField("🔄 What happened", "• Older messages summarized\n• Recent messages preserved\n• Context maintained", true);
-                embed.WithFooter("History optimization helps maintain performance");
+                componentsBuilder
+                    .WithTextDisplay("**💾 Benefits:**\n• Reduced memory usage\n• Faster response times\n• Lower token costs")
+                    .WithTextDisplay("**🔄 What happened:**\n• Older messages summarized\n• Recent messages preserved\n• Context maintained")
+                    .WithTextDisplay("*History optimization helps maintain performance*");
             }
             else
             {
-                embed.WithFooter("Try again later or check if there are enough messages to compact");
+                componentsBuilder.WithTextDisplay("*Try again later or check if there are enough messages to compact*");
             }
 
-            await ModifyOriginalResponseAsync(msg => msg.Embed = embed.Build());
+            var components = componentsBuilder.Build();
+
+            await ModifyOriginalResponseAsync(msg =>
+            {
+                msg.Components = components;
+                msg.Flags = MessageFlags.ComponentsV2;
+                msg.Embed = null;
+                msg.Content = null;
+            });
 
             _logger.LogInformation("Admin {UserId} triggered history optimization for guild {GuildId} - Success: {Success}",
                 Context.User.Id, guildId, success);
@@ -306,18 +329,22 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
             // Update active sessions
             var updatedCount = await _chatSessionService.UpdateServerSessionModelAsync(serverId, model, provider);
 
-            var embed = new EmbedBuilder()
-                .WithTitle("✅ AI Model Updated")
-                .WithDescription(updatedCount > 0
-                    ? $"Updated {updatedCount} active session(s) to use **{model}** from **{provider}**"
+            var components = new ComponentBuilderV2()
+                .WithTextDisplay("# ✅ AI Model Updated")
+                .WithTextDisplay(updatedCount > 0
+                    ? $"Updated **{updatedCount}** active session(s) to use **{model}** from **{provider}**"
                     : $"Server will now use **{model}** from **{provider}** for new chat sessions")
-                .AddField("Model", model, true)
-                .AddField("Provider", provider, true)
-                .WithColor(Color.Green)
-                .WithCurrentTimestamp()
+                .WithTextDisplay($"**Model:** {model}")
+                .WithTextDisplay($"**Provider:** {provider}")
                 .Build();
 
-            await ModifyOriginalResponseAsync(msg => msg.Embed = embed);
+            await ModifyOriginalResponseAsync(msg =>
+            {
+                msg.Components = components;
+                msg.Flags = MessageFlags.ComponentsV2;
+                msg.Embed = null;
+                msg.Content = null;
+            });
 
             _logger.LogInformation("Admin {UserId} updated AI model for server {ServerId} to {Model} from {Provider}",
                 Context.User.Id, serverId, model, provider);
@@ -346,8 +373,8 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
                 if (remainingSleep.HasValue)
                 {
                     var remainingMinutes = (int)remainingSleep.Value.TotalMinutes + 1; // Round up
-                    await RespondAsync($"😴 I'm already sleeping! I'll wake up in about **{remainingMinutes} minutes**.\n" +
-                                     "Use `/admin wake-up` to wake me up early.", ephemeral: true);
+                    await ModifyOriginalResponseAsync(msg => msg.Content = $"😴 I'm already sleeping! I'll wake up in about **{remainingMinutes} minutes**.\n" +
+                                     "Use `/admin wake-up` to wake me up early.");
                     return;
                 }
             }
@@ -355,30 +382,34 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
             // Put bot to sleep
             var wakeUpTime = await _sleepService.PutToSleepAsync(Context.Guild.Id, minutes);
 
-            var embed = new EmbedBuilder()
-                .WithTitle("😴 Going to Sleep (Admin)")
-                .WithDescription($"I'm going to sleep for **{minutes} minutes** as requested by an admin.")
-                .WithColor(Color.DarkPurple)
-                .AddField("💤 Sleep Duration", $"{minutes} minutes ({TimeSpan.FromMinutes(minutes):h\\:mm})", true)
-                .AddField("⏰ Wake Up Time", $"<t:{((DateTimeOffset)wakeUpTime).ToUnixTimeSeconds()}:F>", true)
-                .AddField("👮 Requested By", Context.User.Mention, true)
-                .WithFooter("Use /admin wake-up to end sleep early")
-                .WithCurrentTimestamp()
+            var components = new ComponentBuilderV2()
+                .WithTextDisplay("# 😴 Going to Sleep (Admin)")
+                .WithTextDisplay($"I'm going to sleep for **{minutes} minutes** as requested by an admin.")
+                .WithTextDisplay($"**💤 Sleep Duration:** {minutes} minutes ({TimeSpan.FromMinutes(minutes):h\\:mm})")
+                .WithTextDisplay($"**⏰ Wake Up Time:** <t:{((DateTimeOffset)wakeUpTime).ToUnixTimeSeconds()}:F>")
+                .WithTextDisplay($"**👮 Requested By:** {Context.User.Mention}")
+                .WithTextDisplay("*Use /admin wake-up to end sleep early*")
                 .Build();
 
-            await RespondAsync(embed: embed);
+            await ModifyOriginalResponseAsync(msg =>
+            {
+                msg.Components = components;
+                msg.Flags = MessageFlags.ComponentsV2;
+                msg.Embed = null;
+                msg.Content = null;
+            });
 
             _logger.LogInformation("Admin {UserId} put bot to sleep for {Minutes} minutes on server {ServerId}",
                 Context.User.Id, minutes, Context.Guild.Id);
         }
         catch (ArgumentException ex)
         {
-            await RespondAsync($"❌ {ex.Message}", ephemeral: true);
+            await ModifyOriginalResponseAsync(msg => msg.Content = $"❌ {ex.Message}");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error putting bot to sleep on server {ServerId}", Context.Guild.Id);
-            await RespondAsync("❌ An error occurred while putting the bot to sleep.", ephemeral: true);
+            await ModifyOriginalResponseAsync(msg => msg.Content = "❌ An error occurred while putting the bot to sleep.");
         }
     }
 
@@ -391,16 +422,14 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
 
             if (wasAwake)
             {
-                var embed = new EmbedBuilder()
-                    .WithTitle("☀️ Good Morning!")
-                    .WithDescription("I'm awake now! Thanks for waking me up early.")
-                    .WithColor(Color.Gold)
-                    .AddField("👮 Woken By", Context.User.Mention, true)
-                    .WithFooter("Ready to assist!")
-                    .WithCurrentTimestamp()
+                var components = new ComponentBuilderV2()
+                    .WithTextDisplay("# ☀️ Good Morning!")
+                    .WithTextDisplay("I'm awake now! Thanks for waking me up early.")
+                    .WithTextDisplay($"**👮 Woken By:** {Context.User.Mention}")
+                    .WithTextDisplay("*Ready to assist!*")
                     .Build();
 
-                await RespondAsync(embed: embed);
+                await RespondAsync(components: components, flags: MessageFlags.ComponentsV2);
 
                 _logger.LogInformation("Admin {UserId} woke up bot on server {ServerId}",
                     Context.User.Id, Context.Guild.Id);

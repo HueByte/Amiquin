@@ -101,6 +101,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     pipx \
     curl \
     ca-certificates \
+    fonts-liberation \
+    fonts-dejavu \
+    fontconfig \
     && rm -rf /var/lib/apt/lists/*
 
 # Create temporary user for pipx installation (pipx requires non-root)
@@ -123,13 +126,15 @@ COPY --from=runtime-deps /usr/bin/ffmpeg /usr/bin/ffmpeg
 COPY --from=runtime-deps /usr/lib /usr/lib
 COPY --from=runtime-deps /lib /lib
 COPY --from=runtime-deps /home/temp_user/.local /tmp/.local
+COPY --from=runtime-deps /usr/share/fonts /usr/share/fonts
+COPY --from=runtime-deps /etc/fonts /etc/fonts
 
 # Copy native libraries from build stages
 COPY --from=libsodium-build /opt/libsodium/lib /usr/local/lib
 COPY --from=opus-build /opt/opus/lib /usr/local/lib
 
-# Update linker cache
-RUN ldconfig
+# Update linker cache and refresh font cache
+RUN ldconfig && fc-cache -fv
 
 # Create Data directory structure at volume mount point (as root)
 RUN mkdir -p /Data/Logs \
