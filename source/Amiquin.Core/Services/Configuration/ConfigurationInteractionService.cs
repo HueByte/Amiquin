@@ -1,4 +1,5 @@
 using Amiquin.Core.Services.ComponentHandler;
+using Amiquin.Core.Services.ErrorHandling;
 using Amiquin.Core.Services.Meta;
 using Amiquin.Core.Services.Modal;
 using Amiquin.Core.Services.Pagination;
@@ -21,6 +22,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
     private readonly IToggleService _toggleService;
     private readonly IPaginationService _paginationService;
     private readonly IModalService _modalService;
+    private readonly IInteractionErrorHandlerService _errorHandlerService;
 
     // Component prefixes
     private const string ConfigMenuPrefix = "config_menu";
@@ -36,7 +38,8 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         IServerMetaService serverMetaService,
         IToggleService toggleService,
         IPaginationService paginationService,
-        IModalService modalService)
+        IModalService modalService,
+        IInteractionErrorHandlerService errorHandlerService)
     {
         _logger = logger;
         _componentHandler = componentHandler;
@@ -44,6 +47,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         _toggleService = toggleService;
         _paginationService = paginationService;
         _modalService = modalService;
+        _errorHandlerService = errorHandlerService;
     }
 
     public void Initialize()
@@ -268,7 +272,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                     await ShowPersonaDetailsAsync(component, guildId);
                     break;
                 default:
-                    await HandleErrorResponseAsync(component, "❌ Error", "Unknown configuration option.");
+                    await _errorHandlerService.RespondWithErrorAsync(component, "Unknown configuration option.");
                     break;
             }
 
@@ -276,8 +280,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error handling config menu interaction");
-            await HandleErrorResponseAsync(component, "❌ Error", "An error occurred while processing your selection.");
+            await _errorHandlerService.HandleInteractionErrorAsync(component, ex, "Config menu interaction");
             return true;
         }
     }
@@ -337,8 +340,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error handling config action");
-            await component.ModifyOriginalResponseAsync(msg => msg.Content = "❌ An error occurred while processing your action.");
+            await _errorHandlerService.HandleInteractionErrorAsync(component, ex, "Config action interaction");
             return true;
         }
     }
@@ -404,17 +406,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error handling quick setup");
-
-            try
-            {
-                if (component.HasResponded)
-                    await component.ModifyOriginalResponseAsync(msg => msg.Content = "❌ An error occurred during quick setup.");
-                else
-                    await component.RespondAsync("❌ An error occurred during quick setup.", ephemeral: true);
-            }
-            catch { }
-
+            await _errorHandlerService.HandleInteractionErrorAsync(component, ex, "Quick setup interaction");
             return true;
         }
     }
@@ -467,8 +459,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error handling toggle");
-            await component.ModifyOriginalResponseAsync(msg => msg.Content = "❌ An error occurred while toggling the feature.");
+            await _errorHandlerService.HandleInteractionErrorAsync(component, ex, "Toggle interaction");
             return true;
         }
     }
@@ -523,8 +514,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error handling navigation");
-            await component.ModifyOriginalResponseAsync(msg => msg.Content = "❌ An error occurred during navigation.");
+            await _errorHandlerService.HandleInteractionErrorAsync(component, ex, "Navigation interaction");
             return true;
         }
     }
@@ -808,8 +798,17 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                 {
                     foreach (var component in row.Components)
                     {
-                        // Create a section with this component as accessory
+                        // Create a section with this component as accessory and add descriptive text
+                        var componentDescription = component switch
+                        {
+                            ButtonComponent btn => $"**{btn.Label}**",
+                            SelectMenuComponent menu => $"**{menu.Placeholder}**",
+                            _ => "Configuration option"
+                        };
+
                         container.AddComponent(new SectionBuilder()
+                            .AddComponent(new TextDisplayBuilder()
+                                .WithContent(componentDescription))
                             .WithAccessory(ConvertToBuilder(component)));
                     }
                 }
@@ -1813,8 +1812,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error handling modal submission");
-            await modal.ModifyOriginalResponseAsync(msg => msg.Content = "❌ An error occurred while processing your submission.");
+            await _errorHandlerService.HandleInteractionErrorAsync(modal, ex, "Modal submission");
             return true;
         }
     }
@@ -1976,28 +1974,6 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         }
     }
 
-    /// <summary>
-    /// Creates a standardized error response using ComponentsV2
-    /// </summary>
-    private async Task HandleErrorResponseAsync(SocketMessageComponent component, string title, string message)
-    {
-        var errorComponents = new ComponentBuilderV2()
-            .WithContainer(container =>
-            {
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent($"# {title}\n{message}")));
-            })
-            .Build();
-
-        await component.ModifyOriginalResponseAsync(msg =>
-        {
-            msg.Components = errorComponents;
-            msg.Flags = MessageFlags.ComponentsV2;
-            msg.Embed = null;
-            msg.Content = null;
-        });
-    }
 
     /// <summary>
     /// Converts a Discord component to its builder equivalent for Components V2

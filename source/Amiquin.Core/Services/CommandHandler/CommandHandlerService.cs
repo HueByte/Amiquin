@@ -449,17 +449,9 @@ public class CommandHandlerService : ICommandHandlerService
         return new ComponentBuilderV2()
             .WithContainer(container =>
             {
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent($"# {title}")));
-
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent(description ?? "An unexpected error occurred.")));
-
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent($"*Error occurred at <t:{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}:F>*")));
+                container.WithTextDisplay($"# {title}");
+                container.WithTextDisplay(description ?? "An unexpected error occurred.");
+                container.WithTextDisplay($"*Error occurred at <t:{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}:F>*");
             })
             .Build();
     }

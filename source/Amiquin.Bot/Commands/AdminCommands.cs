@@ -174,15 +174,9 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
         var components = new ComponentBuilderV2()
             .WithContainer(container =>
             {
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent("# ⚙️ Toggle Updated")));
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent("Feature toggle has been updated successfully.")));
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent($"**Feature:** {toggleName}\n**Status:** {(isEnabled ? "✅ Enabled" : "❌ Disabled")}")));
+                container.WithTextDisplay("# ⚙️ Toggle Updated");
+                container.WithTextDisplay("Feature toggle has been updated successfully.");
+                container.WithTextDisplay($"**Feature:** {toggleName}\n**Status:** {(isEnabled ? "✅ Enabled" : "❌ Disabled")}");
             })
             .Build();
 

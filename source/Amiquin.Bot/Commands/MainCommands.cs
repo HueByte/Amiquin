@@ -80,20 +80,14 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
         var components = new ComponentBuilderV2()
             .WithContainer(container =>
             {
-                // User message section
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent($"**{Context.User.GlobalName ?? Context.User.Username}**\n{message}")));
+                // User message
+                container.WithTextDisplay($"**{Context.User.GlobalName ?? Context.User.Username}**\n{message}");
 
-                // Bot response section
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent($"**{Context.Client.CurrentUser.Username}**\n{response}")));
+                // Bot response
+                container.WithTextDisplay($"**{Context.Client.CurrentUser.Username}**\n{response}");
 
-                // Footer section
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent($"*{footerText}*")));
+                // Footer
+                container.WithTextDisplay($"*{footerText}*");
             })
             .Build();
 

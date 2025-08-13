@@ -17,6 +17,7 @@ using Amiquin.Core.Services.ChatSession;
 using Amiquin.Core.Services.CommandHandler;
 using Amiquin.Core.Services.ComponentHandler;
 using Amiquin.Core.Services.Configuration;
+using Amiquin.Core.Services.ErrorHandling;
 using Amiquin.Core.Services.EventHandler;
 using Amiquin.Core.Services.ExternalProcessRunner;
 using Amiquin.Core.Services.Fun;
@@ -105,6 +106,7 @@ public class InjectionConfigurator
                  .AddSingleton<ITaskManager, TaskManager>()
                  .AddSingleton<IComponentHandlerService, ComponentHandlerService>()
                  .AddSingleton<IModalService, ModalService>()
+                 .AddSingleton<IInteractionErrorHandlerService, InteractionErrorHandlerService>()
                  .AddScoped<IConfigurationInteractionService, ConfigurationInteractionService>()
                  .AddSingleton<IPaginationService, PaginationService>()
                  .AddMemoryCache();

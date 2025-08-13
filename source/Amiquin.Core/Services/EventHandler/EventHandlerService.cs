@@ -2,6 +2,7 @@ using Amiquin.Core.Services.Chat;
 using Amiquin.Core.Services.ChatContext;
 using Amiquin.Core.Services.CommandHandler;
 using Amiquin.Core.Services.ComponentHandler;
+using Amiquin.Core.Services.ErrorHandling;
 using Amiquin.Core.Services.Meta;
 using Amiquin.Core.Services.Modal;
 using Amiquin.Core.Services.ServerInteraction;
@@ -26,6 +27,7 @@ public class EventHandlerService : IEventHandlerService
     private readonly IChatContextService _chatContextService;
     private readonly IComponentHandlerService _componentHandlerService;
     private readonly IModalService _modalService;
+    private readonly IInteractionErrorHandlerService _errorHandlerService;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="EventHandlerService"/> class.
@@ -36,7 +38,8 @@ public class EventHandlerService : IEventHandlerService
     /// <param name="chatContextService">The service for handling chat context.</param>
     /// <param name="componentHandlerService">The service for handling component interactions.</param>
     /// <param name="modalService">The service for handling modal interactions.</param>
-    public EventHandlerService(ILogger<EventHandlerService> logger, ICommandHandlerService commandHandlerService, IServiceScopeFactory serviceScopeFactory, IChatContextService chatContextService, IComponentHandlerService componentHandlerService, IModalService modalService)
+    /// <param name="errorHandlerService">The service for handling interaction errors.</param>
+    public EventHandlerService(ILogger<EventHandlerService> logger, ICommandHandlerService commandHandlerService, IServiceScopeFactory serviceScopeFactory, IChatContextService chatContextService, IComponentHandlerService componentHandlerService, IModalService modalService, IInteractionErrorHandlerService errorHandlerService)
     {
         _logger = logger;
         _commandHandlerService = commandHandlerService;
@@ -44,6 +47,7 @@ public class EventHandlerService : IEventHandlerService
         _chatContextService = chatContextService;
         _componentHandlerService = componentHandlerService;
         _modalService = modalService;
+        _errorHandlerService = errorHandlerService;
     }
 
     /// <inheritdoc/>
@@ -128,9 +132,7 @@ public class EventHandlerService : IEventHandlerService
         // Handle modal interactions
         if (interaction is SocketModal modal)
         {
-            // Modal submissions should be handled directly by the command handler
-            // which will process [ModalInteraction] attributes through Discord.Net's system
-            await _commandHandlerService.HandleCommandAsync(interaction);
+            await OnModalSubmissionAsync(modal);
             return;
         }
 
@@ -233,20 +235,7 @@ public class EventHandlerService : IEventHandlerService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error handling component interaction {CustomId}", component.Data.CustomId);
-            try
-            {
-                if (component.HasResponded)
-                    await component.ModifyOriginalResponseAsync(msg => msg.Content = "An error occurred while processing your interaction.");
-                else if (component.HasResponded)
-                    await component.ModifyOriginalResponseAsync(msg => msg.Content = "An error occurred while processing your interaction.");
-                else
-                    await component.RespondAsync("An error occurred while processing your interaction.", ephemeral: true);
-            }
-            catch
-            {
-                // Ignore errors when responding to the user about errors
-            }
+            await _errorHandlerService.HandleInteractionErrorAsync(component, ex, $"Component interaction: {component.Data.CustomId}");
         }
     }
 
@@ -282,15 +271,7 @@ public class EventHandlerService : IEventHandlerService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error handling modal submission {CustomId}", modal.Data.CustomId);
-            try
-            {
-                await modal.ModifyOriginalResponseAsync(msg => msg.Content = "An error occurred while processing your submission.");
-            }
-            catch
-            {
-                // Ignore errors when responding to the user about errors
-            }
+            await _errorHandlerService.HandleInteractionErrorAsync(modal, ex, $"Modal submission: {modal.Data.CustomId}");
         }
     }
 
