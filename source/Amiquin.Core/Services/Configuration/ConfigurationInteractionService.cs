@@ -847,7 +847,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
             {
                 container.AddComponent(new SectionBuilder()
                     .AddComponent(new TextDisplayBuilder()
-                        .WithContent($"# {title}\n{description}")));
+                        .WithContent($"# {embedBuilder.Title}\n{embedBuilder.Description}")));
                 
                 foreach (var field in new List<EmbedFieldBuilder>())
                 {
@@ -963,7 +963,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
             {
                 container.AddComponent(new SectionBuilder()
                     .AddComponent(new TextDisplayBuilder()
-                        .WithContent($"# {title}\n{description}")));
+                        .WithContent($"# {embedBuilder.Title}\n{embedBuilder.Description}")));
                 
                 foreach (var field in new List<EmbedFieldBuilder>())
                 {
@@ -1076,7 +1076,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                 // Add main title and description section
                 container.AddComponent(new SectionBuilder()
                     .AddComponent(new TextDisplayBuilder()
-                        .WithContent($"# {title}\n{description}")));
+                        .WithContent($"# {embedBuilder.Title}\n{embedBuilder.Description}")));
 
                 // Add fields as additional text displays in sections
                 foreach (var field in new List<EmbedFieldBuilder>())
@@ -1582,7 +1582,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
             {
                 container.AddComponent(new SectionBuilder()
                     .AddComponent(new TextDisplayBuilder()
-                        .WithContent($"# {title}\n{description}")));
+                        .WithContent($"# {embedBuilder.Title}\n{embedBuilder.Description}")));
                 
                 foreach (var field in new List<EmbedFieldBuilder>())
                 {
@@ -1801,7 +1801,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
             {
                 container.AddComponent(new SectionBuilder()
                     .AddComponent(new TextDisplayBuilder()
-                        .WithContent($"# {title}\n{description}")));
+                        .WithContent($"# {embedBuilder.Title}\n{embedBuilder.Description}")));
                 
                 foreach (var field in new List<EmbedFieldBuilder>())
                 {
@@ -1916,7 +1916,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
             {
                 container.AddComponent(new SectionBuilder()
                     .AddComponent(new TextDisplayBuilder()
-                        .WithContent($"# {title}\n{description}")));
+                        .WithContent($"# {embedBuilder.Title}\n{embedBuilder.Description}")));
                 
                 foreach (var field in new List<EmbedFieldBuilder>())
                 {
@@ -2155,14 +2155,6 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                 .WithMaxValues(1);
 
             builder.WithActionRow([selectMenu]);
-        }
-        var noNsfwChannelsContent = "";
-        if (!nsfwChannels.Any())
-        {
-            noNsfwChannelsContent = "**⚠️ No NSFW Channels Found**\n" +
-                "No NSFW channels were found where the bot has permissions. Please:\n" +
-                "• Create a channel and mark it as NSFW (18+)\n" +
-                "• Ensure the bot has permission to send messages";
         }
 
         // Add navigation buttons
