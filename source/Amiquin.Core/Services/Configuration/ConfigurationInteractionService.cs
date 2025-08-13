@@ -866,6 +866,15 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                             .WithAccessory(ConvertToBuilder(comp)));
                     }
                 }
+                
+                // Ensure we have at least one section if none were added
+                var actionRows = builtComponents.Components.OfType<ActionRowComponent>();
+                if (!actionRows.Any() || !actionRows.SelectMany(r => r.Components).Any())
+                {
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent("Configuration options will appear here.")));
+                }
             })
             .Build();
 
@@ -972,6 +981,15 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                         container.AddComponent(new SectionBuilder()
                             .WithAccessory(ConvertToBuilder(comp)));
                     }
+                }
+                
+                // Ensure we have at least one section if none were added
+                var actionRows = builtComponents.Components.OfType<ActionRowComponent>();
+                if (!actionRows.Any() || !actionRows.SelectMany(r => r.Components).Any())
+                {
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent("Configuration options will appear here.")));
                 }
             })
             .Build();
@@ -1081,6 +1099,14 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                             .WithAccessory(ConvertToBuilder(component)));
                     }
                 }
+                
+                // Ensure we have at least one section if none were added
+                if (!actionRows.Any() || !actionRows.SelectMany(r => r.Components).Any())
+                {
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent("Configuration options will appear here.")));
+                }
             })
             .Build();
 
@@ -1110,16 +1136,45 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
 
         if (embeds.Count == 1)
         {
-            // Single page - show directly with buttons
+            // Single page - convert embed to ComponentsV2
+            var embed = embeds[0];
+            var components = new ComponentBuilderV2()
+                .WithContainer(container =>
+                {
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent($"# {embed.Title}\n{embed.Description}")));
+                    
+                    foreach (var field in embed.Fields)
+                    {
+                        container.AddComponent(new SectionBuilder()
+                            .AddComponent(new TextDisplayBuilder()
+                                .WithContent($"**{field.Name}**\n{field.Value}")));
+                    }
+                    
+                    // Add toggle buttons
+                    var toggleComponents = GenerateToggleComponents(toggles.Take(8).ToList(), guildId, 0, 1);
+                    foreach (var row in toggleComponents.Components.OfType<ActionRowComponent>())
+                    {
+                        foreach (var comp in row.Components)
+                        {
+                            container.AddComponent(new SectionBuilder()
+                                .WithAccessory(ConvertToBuilder(comp)));
+                        }
+                    }
+                })
+                .Build();
+            
             await component.ModifyOriginalResponseAsync(msg =>
             {
-                msg.Embed = embeds[0];
-                msg.Components = GenerateToggleComponents(toggles.Take(8).ToList(), guildId, 0, 1);
+                msg.Components = components;
+                msg.Flags = MessageFlags.ComponentsV2;
+                msg.Embed = null;
             });
         }
         else
         {
-            // Multiple pages - use pagination service
+            // Multiple pages - use pagination service (still uses embeds for now)
             var (embed, messageComponent) = await _paginationService.CreatePaginatedMessageAsync(embeds, component.User.Id);
 
             await component.ModifyOriginalResponseAsync(msg =>
@@ -1528,6 +1583,15 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                             .WithAccessory(ConvertToBuilder(comp)));
                     }
                 }
+                
+                // Ensure we have at least one section if none were added
+                var actionRows = builtComponents.Components.OfType<ActionRowComponent>();
+                if (!actionRows.Any() || !actionRows.SelectMany(r => r.Components).Any())
+                {
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent("Configuration options will appear here.")));
+                }
             })
             .Build();
 
@@ -1637,6 +1701,15 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                             .WithAccessory(ConvertToBuilder(comp)));
                     }
                 }
+                
+                // Ensure we have at least one section if none were added
+                var actionRows = builtComponents.Components.OfType<ActionRowComponent>();
+                if (!actionRows.Any() || !actionRows.SelectMany(r => r.Components).Any())
+                {
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent("Configuration options will appear here.")));
+                }
             })
             .Build();
 
@@ -1719,6 +1792,15 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                         container.AddComponent(new SectionBuilder()
                             .WithAccessory(ConvertToBuilder(comp)));
                     }
+                }
+                
+                // Ensure we have at least one section if none were added
+                var actionRows = builtComponents.Components.OfType<ActionRowComponent>();
+                if (!actionRows.Any() || !actionRows.SelectMany(r => r.Components).Any())
+                {
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent("Configuration options will appear here.")));
                 }
             })
             .Build();
@@ -1826,6 +1908,15 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                             .WithAccessory(ConvertToBuilder(comp)));
                     }
                 }
+                
+                // Ensure we have at least one section if none were added
+                var actionRows = builtComponents.Components.OfType<ActionRowComponent>();
+                if (!actionRows.Any() || !actionRows.SelectMany(r => r.Components).Any())
+                {
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent("Configuration options will appear here.")));
+                }
             })
             .Build();
 
@@ -1922,10 +2013,28 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                                 .Build();
 
                             // Show success message first
+                            var successComponents = new ComponentBuilderV2()
+                                .WithContainer(container =>
+                                {
+                                    container.AddComponent(new SectionBuilder()
+                                        .AddComponent(new TextDisplayBuilder()
+                                            .WithContent($"# {embed.Title}\n{embed.Description}")));
+                                    
+                                    foreach (var field in embed.Fields)
+                                    {
+                                        container.AddComponent(new SectionBuilder()
+                                            .AddComponent(new TextDisplayBuilder()
+                                                .WithContent($"**{field.Name}**\n{field.Value}")));
+                                    }
+                                })
+                                .Build();
+                                
                             await modal.ModifyOriginalResponseAsync(msg =>
                             {
                                 msg.Content = null;
-                                msg.Embed = embed;
+                                msg.Components = successComponents;
+                                msg.Flags = MessageFlags.ComponentsV2;
+                                msg.Embed = null;
                             });
 
                             // Wait a moment then return to main configuration interface
@@ -2076,6 +2185,15 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                         container.AddComponent(new SectionBuilder()
                             .WithAccessory(ConvertToBuilder(comp)));
                     }
+                }
+                
+                // Ensure we have at least one section if none were added
+                var actionRows = builtComponents.Components.OfType<ActionRowComponent>();
+                if (!actionRows.Any() || !actionRows.SelectMany(r => r.Components).Any())
+                {
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent("Configuration options will appear here.")));
                 }
             })
             .Build();
