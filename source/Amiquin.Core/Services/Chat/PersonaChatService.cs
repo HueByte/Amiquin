@@ -8,7 +8,6 @@ using Amiquin.Core.Services.Meta;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using OpenAI.Chat;
 using System.Collections.Concurrent;
 using System.Text;
 

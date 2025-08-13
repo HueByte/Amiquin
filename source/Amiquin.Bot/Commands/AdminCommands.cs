@@ -13,7 +13,6 @@ using Amiquin.Core.Services.Sleep;
 using Amiquin.Core.Services.Toggle;
 using Discord;
 using Discord.Interactions;
-using Discord.WebSocket;
 using Microsoft.Extensions.Logging;
 using System.Text;
 
@@ -141,14 +140,14 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
                 container.AddComponent(new SectionBuilder()
                     .AddComponent(new TextDisplayBuilder()
                         .WithContent(message)));
-                
+
                 if (!string.IsNullOrWhiteSpace(thumbnail))
                 {
                     container.AddComponent(new SectionBuilder()
                         .AddComponent(new TextDisplayBuilder()
                             .WithContent($"**Image:** [View]({thumbnail})")));
                 }
-                
+
                 if (withAuthor)
                 {
                     container.AddComponent(new SectionBuilder()
@@ -183,7 +182,7 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
                         .WithContent("Feature toggle has been updated successfully.")));
                 container.AddComponent(new SectionBuilder()
                     .AddComponent(new TextDisplayBuilder()
-                        .WithContent($"**Feature:** {toggleName}\n**Status:** {(isEnabled ? "✅ Enabled" : "❌ Disabled")}"))); 
+                        .WithContent($"**Feature:** {toggleName}\n**Status:** {(isEnabled ? "✅ Enabled" : "❌ Disabled")}")));
             })
             .Build();
 
@@ -275,7 +274,7 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
                             .WithContent("# 😌 Calming Down...")));
                     container.AddComponent(new SectionBuilder()
                         .AddComponent(new TextDisplayBuilder()
-                            .WithContent($"**Avatar:** [View]({Context.Client.CurrentUser.GetDisplayAvatarUrl()})"))); 
+                            .WithContent($"**Avatar:** [View]({Context.Client.CurrentUser.GetDisplayAvatarUrl()})")));
                     container.AddComponent(new SectionBuilder()
                         .AddComponent(new TextDisplayBuilder()
                             .WithContent("I'll take it easy for a bit. My engagement has been reset to baseline.")));
@@ -325,11 +324,11 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
                             .WithContent($"# {(success ? "📦 History Compacted" : "⚠️ Compaction Issue")}")));
                     container.AddComponent(new SectionBuilder()
                         .AddComponent(new TextDisplayBuilder()
-                            .WithContent($"**Avatar:** [View]({Context.Client.CurrentUser.GetDisplayAvatarUrl()})"))); 
+                            .WithContent($"**Avatar:** [View]({Context.Client.CurrentUser.GetDisplayAvatarUrl()})")));
                     container.AddComponent(new SectionBuilder()
                         .AddComponent(new TextDisplayBuilder()
                             .WithContent(message)));
-                    
+
                     if (success)
                     {
                         container.AddComponent(new SectionBuilder()

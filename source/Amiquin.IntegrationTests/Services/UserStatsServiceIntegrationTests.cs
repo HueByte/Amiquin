@@ -1,9 +1,7 @@
-using Amiquin.Core.IRepositories;
 using Amiquin.Infrastructure.Repositories;
 using Amiquin.IntegrationTests.Fixtures;
 using Microsoft.Extensions.Logging;
 using Moq;
-using Xunit;
 
 namespace Amiquin.IntegrationTests.Services;
 

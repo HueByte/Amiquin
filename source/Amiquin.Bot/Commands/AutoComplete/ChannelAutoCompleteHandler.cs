@@ -1,6 +1,5 @@
 using Discord;
 using Discord.Interactions;
-using Discord.WebSocket;
 
 namespace Amiquin.Bot.Commands.AutoComplete;
 

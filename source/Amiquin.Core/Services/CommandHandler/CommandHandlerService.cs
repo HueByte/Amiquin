@@ -452,11 +452,11 @@ public class CommandHandlerService : ICommandHandlerService
                 container.AddComponent(new SectionBuilder()
                     .AddComponent(new TextDisplayBuilder()
                         .WithContent($"# {title}")));
-                
+
                 container.AddComponent(new SectionBuilder()
                     .AddComponent(new TextDisplayBuilder()
                         .WithContent(description ?? "An unexpected error occurred.")));
-                
+
                 container.AddComponent(new SectionBuilder()
                     .AddComponent(new TextDisplayBuilder()
                         .WithContent($"*Error occurred at <t:{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}:F>*")));

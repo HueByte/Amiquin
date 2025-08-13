@@ -7,7 +7,6 @@ using Amiquin.Core.Services.Toggle;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
-using System.Linq.Expressions;
 using Xunit;
 
 namespace Amiquin.Tests.RunnableJobs;

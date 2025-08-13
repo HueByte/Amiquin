@@ -19,7 +19,7 @@ public interface IPaginationService
         IReadOnlyList<PaginationPage> pages,
         ulong userId,
         TimeSpan? timeout = null);
-    
+
     /// <summary>
     /// Creates a paginated message from embeds (for backward compatibility)
     /// </summary>

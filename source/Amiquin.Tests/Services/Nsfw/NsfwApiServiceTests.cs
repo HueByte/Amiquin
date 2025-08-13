@@ -1,12 +1,9 @@
+using Amiquin.Core.Models;
 using Amiquin.Core.Services.Nsfw;
 using Amiquin.Core.Services.Nsfw.Providers;
-using Amiquin.Core.Models;
 using Microsoft.Extensions.Logging;
 using Moq;
-using Moq.Protected;
-using System.Net;
 using System.Reflection;
-using System.Text;
 using Xunit;
 
 namespace Amiquin.Tests.Services.Nsfw;
@@ -24,7 +21,7 @@ public class NsfwApiServiceTests : IDisposable
 
         _loggerMock = new Mock<ILogger<NsfwApiService>>();
         _mockProvider = new Mock<INsfwProvider>();
-        
+
         // Setup mock provider
         _mockProvider.Setup(p => p.Name).Returns("TestProvider");
         _mockProvider.Setup(p => p.IsAvailable).Returns(true);

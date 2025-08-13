@@ -2,7 +2,6 @@ using Amiquin.Core.IRepositories;
 using Amiquin.Core.Models;
 using Amiquin.Core.Options;
 using Amiquin.Core.Services.SessionManager;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;

@@ -1,6 +1,5 @@
 using Amiquin.Core.Models;
 using Discord;
-using Discord.WebSocket;
 
 namespace Amiquin.Core.Services.Fun;
 

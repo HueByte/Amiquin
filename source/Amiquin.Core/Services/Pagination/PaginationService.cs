@@ -1,5 +1,4 @@
 using Amiquin.Core.IRepositories;
-using Amiquin.Core.Models;
 using Amiquin.Core.Services.ComponentHandler;
 using Discord;
 using Discord.WebSocket;
@@ -207,10 +206,10 @@ public class PaginationService : IPaginationService
                 // Add sections
                 foreach (var section in page.Sections)
                 {
-                    var sectionContent = !string.IsNullOrWhiteSpace(section.Title) 
+                    var sectionContent = !string.IsNullOrWhiteSpace(section.Title)
                         ? $"**{section.Title}**\n{section.Content}"
                         : section.Content;
-                        
+
                     container.AddComponent(new SectionBuilder()
                         .AddComponent(new TextDisplayBuilder()
                             .WithContent(sectionContent)));
@@ -238,35 +237,35 @@ public class PaginationService : IPaginationService
 
                 // Create navigation buttons
                 var navSection = new SectionBuilder();
-                
+
                 // First page button
                 navSection.WithAccessory(new ButtonBuilder()
                     .WithCustomId(_componentHandlerService.GenerateCustomId(ComponentPrefix, sessionId, "first"))
                     .WithLabel("⏪ First")
                     .WithStyle(ButtonStyle.Secondary)
                     .WithDisabled(currentPageIndex == 0));
-                
+
                 // Previous page button
                 navSection.WithAccessory(new ButtonBuilder()
                     .WithCustomId(_componentHandlerService.GenerateCustomId(ComponentPrefix, sessionId, "prev"))
                     .WithLabel("◀️ Previous")
                     .WithStyle(ButtonStyle.Primary)
                     .WithDisabled(currentPageIndex == 0));
-                
+
                 // Next page button
                 navSection.WithAccessory(new ButtonBuilder()
                     .WithCustomId(_componentHandlerService.GenerateCustomId(ComponentPrefix, sessionId, "next"))
                     .WithLabel("Next ▶️")
                     .WithStyle(ButtonStyle.Primary)
                     .WithDisabled(currentPageIndex == totalPages - 1));
-                
+
                 // Last page button
                 navSection.WithAccessory(new ButtonBuilder()
                     .WithCustomId(_componentHandlerService.GenerateCustomId(ComponentPrefix, sessionId, "last"))
                     .WithLabel("Last ⏩")
                     .WithStyle(ButtonStyle.Secondary)
                     .WithDisabled(currentPageIndex == totalPages - 1));
-                    
+
                 container.AddComponent(navSection);
             });
 
@@ -323,7 +322,7 @@ public class PaginationService : IPaginationService
                         pageSection.IconUrl = sectIconProp.GetString();
                     if (section.TryGetProperty("IsInline", out var sectInlineProp))
                         pageSection.IsInline = sectInlineProp.GetBoolean();
-                    
+
                     page.Sections.Add(pageSection);
                 }
             }

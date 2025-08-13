@@ -90,7 +90,7 @@ public class InteractionCommands : InteractionModuleBase<ExtendedShardedInteract
                     container.AddComponent(new SectionBuilder()
                         .AddComponent(new TextDisplayBuilder()
                             .WithContent($"**{Context.User.Mention} {actionText} {targetUser.Mention}!**")));
-                    
+
                     if (!string.IsNullOrEmpty(gifUrl))
                     {
                         container.AddComponent(new SectionBuilder()

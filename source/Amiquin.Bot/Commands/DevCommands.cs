@@ -12,7 +12,6 @@ using Amiquin.Core.Services.Pagination;
 using Amiquin.Core.Services.Persona;
 using Amiquin.Core.Services.Toggle;
 using Amiquin.Core.Services.Voice;
-using Amiquin.Core.Utilities;
 using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
@@ -117,7 +116,7 @@ Streams: {voiceState.AudioClient?.GetStreams().ToDictionary(x => x.Key, x => x.V
                 container.AddComponent(new SectionBuilder()
                     .AddComponent(new TextDisplayBuilder()
                         .WithContent($"**Avatar:** [View]({Context.Client.CurrentUser.GetAvatarUrl()})")));
-                
+
                 if (fullPersonaMessage?.Length > 3000)
                 {
                     container.AddComponent(new SectionBuilder()

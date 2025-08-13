@@ -5,7 +5,6 @@ using Amiquin.Core.Models;
 using Amiquin.Core.Services.Nsfw;
 using Amiquin.Core.Services.Toggle;
 using Discord;
-using Discord.WebSocket;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -166,7 +165,7 @@ public class DailyNsfwJob : IRunnableJob
                 container.AddComponent(new SectionBuilder()
                     .AddComponent(new TextDisplayBuilder()
                         .WithContent("# 🔞 Daily NSFW Gallery")));
-                
+
                 container.AddComponent(new SectionBuilder()
                     .AddComponent(new TextDisplayBuilder()
                         .WithContent($"Today's curated collection of **{images.Count}** images from various sources")));

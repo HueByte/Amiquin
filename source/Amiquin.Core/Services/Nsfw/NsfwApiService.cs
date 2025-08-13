@@ -184,7 +184,7 @@ public class NsfwApiService : INsfwApiService
         if (availableProviders.Count != allProviders.Count)
         {
             var unavailableProviders = allProviders.Except(availableProviders).Select(p => p.Name);
-            _logger.LogDebug("Excluding providers due to availability: {Providers}", 
+            _logger.LogDebug("Excluding providers due to availability: {Providers}",
                 string.Join(", ", unavailableProviders));
         }
 

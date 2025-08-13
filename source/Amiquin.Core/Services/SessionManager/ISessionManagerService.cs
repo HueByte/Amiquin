@@ -1,4 +1,3 @@
-using Amiquin.Core.Models;
 using ChatSessionModel = Amiquin.Core.Models.ChatSession;
 
 namespace Amiquin.Core.Services.SessionManager;

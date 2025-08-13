@@ -8,7 +8,6 @@ using Amiquin.Core.Services.Fun;
 using Amiquin.Core.Services.MessageCache;
 using Amiquin.Core.Services.SessionManager;
 using Amiquin.Core.Services.Sleep;
-using Amiquin.Core.Utilities;
 using Discord;
 using Discord.Interactions;
 using System.Reflection;
@@ -85,12 +84,12 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
                 container.AddComponent(new SectionBuilder()
                     .AddComponent(new TextDisplayBuilder()
                         .WithContent($"**{Context.User.GlobalName ?? Context.User.Username}**\n{message}")));
-                
+
                 // Bot response section
                 container.AddComponent(new SectionBuilder()
                     .AddComponent(new TextDisplayBuilder()
                         .WithContent($"**{Context.Client.CurrentUser.Username}**\n{response}")));
-                
+
                 // Footer section
                 container.AddComponent(new SectionBuilder()
                     .AddComponent(new TextDisplayBuilder()
@@ -296,21 +295,21 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
                 container.AddComponent(new SectionBuilder()
                     .AddComponent(new TextDisplayBuilder()
                         .WithContent($"# 🖼️ {displayName}'s Avatar")));
-                        
+
                 container.AddComponent(new SectionBuilder()
                     .AddComponent(new TextDisplayBuilder()
                         .WithContent($"**User ID:** {targetUser.Id}\n**Account Created:** <t:{targetUser.CreatedAt.ToUnixTimeSeconds()}:D>")));
-                        
+
                 container.AddComponent(new SectionBuilder()
                     .AddComponent(new TextDisplayBuilder()
                         .WithContent($"**Avatar:** [View Full Size]({avatarUrl})")));
-                        
+
                 container.AddComponent(new SectionBuilder()
                     .WithAccessory(new ButtonBuilder()
                         .WithLabel("Open in Browser")
                         .WithStyle(ButtonStyle.Link)
                         .WithUrl(avatarUrl)));
-                        
+
                 container.AddComponent(new SectionBuilder()
                     .AddComponent(new TextDisplayBuilder()
                         .WithContent($"*Requested by {Context.User.GlobalName ?? Context.User.Username}*")));
@@ -349,15 +348,15 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
                     container.AddComponent(new SectionBuilder()
                         .AddComponent(new TextDisplayBuilder()
                             .WithContent("# Nacho Delivery! 🌮")));
-                    
+
                     container.AddComponent(new SectionBuilder()
                         .AddComponent(new TextDisplayBuilder()
                             .WithContent(response)));
-                    
+
                     container.AddComponent(new SectionBuilder()
                         .AddComponent(new TextDisplayBuilder()
                             .WithContent($"**Your total nachos given:** {totalNachos}")));
-                    
+
                     container.AddComponent(new SectionBuilder()
                         .AddComponent(new TextDisplayBuilder()
                             .WithContent($"*Nacho #{totalNachos} from {Context.User.Username}*")));
@@ -391,7 +390,7 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
                     container.AddComponent(new SectionBuilder()
                         .AddComponent(new TextDisplayBuilder()
                             .WithContent($"# 🏆 Nacho Leaderboard")));
-                    
+
                     container.AddComponent(new SectionBuilder()
                         .AddComponent(new TextDisplayBuilder()
                             .WithContent($"**Total nachos received:** {totalNachos} 🌮")));
@@ -499,15 +498,15 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
                 container.AddComponent(new SectionBuilder()
                     .AddComponent(new TextDisplayBuilder()
                         .WithContent("# 😴 Going to Sleep")));
-                
+
                 container.AddComponent(new SectionBuilder()
                     .AddComponent(new TextDisplayBuilder()
                         .WithContent("I'm going to take a 5-minute nap. See you in a bit!")));
-                
+
                 container.AddComponent(new SectionBuilder()
                     .AddComponent(new TextDisplayBuilder()
                         .WithContent($"💤 **Sleep Duration:** 5 minutes\n⏰ **Wake Up Time:** <t:{((DateTimeOffset)wakeUpTime).ToUnixTimeSeconds()}:t>")));
-                
+
                 container.AddComponent(new SectionBuilder()
                     .AddComponent(new TextDisplayBuilder()
                         .WithContent($"*Requested by {Context.User.GlobalName ?? Context.User.Username}*")));
@@ -551,7 +550,7 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
                     container.AddComponent(new SectionBuilder()
                         .AddComponent(new TextDisplayBuilder()
                             .WithContent($"# 💬 Chat Sessions for {Context.Guild.Name}")));
-                    
+
                     if (sessions.Count > 10)
                     {
                         container.AddComponent(new SectionBuilder()
@@ -572,11 +571,11 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
                                            $"**Messages:** {session.MessageCount} | **Last Activity:** {lastActivity}\n" +
                                            $"**Model:** {session.Provider}/{session.Model}")));
                     }
-                    
+
                     container.AddComponent(new SectionBuilder()
                         .AddComponent(new TextDisplayBuilder()
                             .WithContent($"*Total sessions: {sessions.Count}*")));
-                            
+
                     // Add navigation buttons
                     container.AddComponent(new SectionBuilder()
                         .WithAccessory(new ButtonBuilder()
@@ -651,15 +650,15 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
                         container.AddComponent(new SectionBuilder()
                             .AddComponent(new TextDisplayBuilder()
                                 .WithContent("# ✅ Session Created")));
-                        
+
                         container.AddComponent(new SectionBuilder()
                             .AddComponent(new TextDisplayBuilder()
                                 .WithContent($"Created and switched to new session: **{newSession.Name}**")));
-                        
+
                         container.AddComponent(new SectionBuilder()
                             .AddComponent(new TextDisplayBuilder()
                                 .WithContent($"**Session ID:** {newSession.Id}\n**Model:** {newSession.Provider}/{newSession.Model}")));
-                        
+
                         container.AddComponent(new SectionBuilder()
                             .AddComponent(new TextDisplayBuilder()
                                 .WithContent($"*Created by {Context.User.GlobalName ?? Context.User.Username}*")));
@@ -716,11 +715,11 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
                             container.AddComponent(new SectionBuilder()
                                 .AddComponent(new TextDisplayBuilder()
                                     .WithContent("# ✅ Session Renamed")));
-                            
+
                             container.AddComponent(new SectionBuilder()
                                 .AddComponent(new TextDisplayBuilder()
                                     .WithContent($"Renamed session from **{activeSession.Name}** to **{newName.Trim()}**")));
-                            
+
                             container.AddComponent(new SectionBuilder()
                                 .AddComponent(new TextDisplayBuilder()
                                     .WithContent($"*Renamed by {Context.User.GlobalName ?? Context.User.Username}*")));
@@ -784,11 +783,11 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
                             container.AddComponent(new SectionBuilder()
                                 .AddComponent(new TextDisplayBuilder()
                                     .WithContent("# ✅ Session Deleted")));
-                            
+
                             container.AddComponent(new SectionBuilder()
                                 .AddComponent(new TextDisplayBuilder()
                                     .WithContent($"Deleted session: **{sessionToDelete.Name}**")));
-                            
+
                             container.AddComponent(new SectionBuilder()
                                 .AddComponent(new TextDisplayBuilder()
                                     .WithContent($"*Deleted by {Context.User.GlobalName ?? Context.User.Username}*")));
@@ -836,11 +835,11 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
                     container.AddComponent(new SectionBuilder()
                         .AddComponent(new TextDisplayBuilder()
                             .WithContent("# 🔄 Switch Chat Session")));
-                    
+
                     container.AddComponent(new SectionBuilder()
                         .AddComponent(new TextDisplayBuilder()
                             .WithContent($"**Current session:** {activeSession?.Name ?? "None"}")));
-                    
+
                     container.AddComponent(new SectionBuilder()
                         .AddComponent(new TextDisplayBuilder()
                             .WithContent("Select a session from the dropdown below:")));

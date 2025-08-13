@@ -1,4 +1,3 @@
-using Amiquin.Core.Services.ChatSession;
 using Amiquin.Core.Services.ModelProvider;
 using Discord;
 using Discord.Interactions;

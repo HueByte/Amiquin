@@ -189,15 +189,15 @@ public class SessionComponentHandlers
                 container.AddComponent(new SectionBuilder()
                     .AddComponent(new TextDisplayBuilder()
                         .WithContent("# 🔄 Switch Chat Session")));
-                
+
                 container.AddComponent(new SectionBuilder()
                     .AddComponent(new TextDisplayBuilder()
                         .WithContent($"**Current session:** {activeSession?.Name ?? "None"}")));
-                
+
                 container.AddComponent(new SectionBuilder()
                     .AddComponent(new TextDisplayBuilder()
                         .WithContent("Select a session from the dropdown below:")));
-                
+
                 container.AddComponent(new SectionBuilder()
                     .AddComponent(new TextDisplayBuilder()
                         .WithContent($"*Total sessions: {sessions.Count}*")));
