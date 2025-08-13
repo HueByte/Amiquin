@@ -133,9 +133,6 @@ COPY --from=runtime-deps /etc/fonts /etc/fonts
 COPY --from=libsodium-build /opt/libsodium/lib /usr/local/lib
 COPY --from=opus-build /opt/opus/lib /usr/local/lib
 
-# Update linker cache and refresh font cache
-RUN ldconfig && fc-cache -fv
-
 # Create Data directory structure at volume mount point (as root)
 RUN mkdir -p /Data/Logs \
     && mkdir -p /Data/Database \
