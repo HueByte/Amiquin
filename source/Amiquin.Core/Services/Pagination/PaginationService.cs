@@ -67,6 +67,7 @@ public class PaginationService : IPaginationService
             timeout: timeoutSpan,
             contentType: "componentsv2"
         );
+
         dbSession.Id = sessionId;
 
         using var scope = _serviceScopeFactory.CreateScope();
@@ -190,13 +191,23 @@ public class PaginationService : IPaginationService
                 // Add title if present
                 if (!string.IsNullOrWhiteSpace(page.Title))
                 {
-                    container.WithTextDisplay($"# {page.Title}");
+                    if (string.IsNullOrEmpty(page.ThumbnailUrl))
+                    {
+                        var sectionBuilder = new SectionBuilder()
+                            .WithTextDisplay($"# {page.Title}")
+                            .WithAccessory(new ThumbnailBuilder(page.ThumbnailUrl))
+                            .WithSeparator(spacing: SeparatorSpacingSize.Large);
+                    }
+                    else
+                    {
+                        container.WithTextDisplay($"# {page.Title}").WithSeparator(spacing: SeparatorSpacingSize.Large);
+                    }
                 }
 
                 // Add main content
                 if (!string.IsNullOrWhiteSpace(page.Content))
                 {
-                    container.WithTextDisplay(page.Content);
+                    container.WithTextDisplay(page.Content).WithSeparator();
                 }
 
                 // Add sections
@@ -206,56 +217,49 @@ public class PaginationService : IPaginationService
                         ? $"**{section.Title}**\n{section.Content}"
                         : section.Content;
 
-                    container.WithTextDisplay(sectionContent);
-                }
-
-                // Add image links if present
-                if (!string.IsNullOrWhiteSpace(page.ThumbnailUrl))
-                {
-                    container.WithTextDisplay($"**Thumbnail:** [View]({page.ThumbnailUrl})");
+                    container.WithTextDisplay(sectionContent).WithSeparator();
                 }
 
                 if (!string.IsNullOrWhiteSpace(page.ImageUrl))
                 {
-                    container.WithTextDisplay($"**Image:** [View]({page.ImageUrl})");
+                    container.WithMediaGallery(new MediaGalleryBuilder().AddItem(page.ImageUrl));
                 }
 
                 // Add pagination info and navigation buttons
                 container.WithTextDisplay($"*Page {currentPageIndex + 1} of {totalPages}*");
-
-                // Create navigation buttons
-                var navSection = new SectionBuilder();
-
-                // First page button
-                navSection.WithAccessory(new ButtonBuilder()
-                    .WithCustomId(_componentHandlerService.GenerateCustomId(ComponentPrefix, sessionId, "first"))
-                    .WithLabel("⏪ First")
-                    .WithStyle(ButtonStyle.Secondary)
-                    .WithDisabled(currentPageIndex == 0));
-
-                // Previous page button
-                navSection.WithAccessory(new ButtonBuilder()
-                    .WithCustomId(_componentHandlerService.GenerateCustomId(ComponentPrefix, sessionId, "prev"))
-                    .WithLabel("◀️ Previous")
-                    .WithStyle(ButtonStyle.Primary)
-                    .WithDisabled(currentPageIndex == 0));
-
-                // Next page button
-                navSection.WithAccessory(new ButtonBuilder()
-                    .WithCustomId(_componentHandlerService.GenerateCustomId(ComponentPrefix, sessionId, "next"))
-                    .WithLabel("Next ▶️")
-                    .WithStyle(ButtonStyle.Primary)
-                    .WithDisabled(currentPageIndex == totalPages - 1));
-
-                // Last page button
-                navSection.WithAccessory(new ButtonBuilder()
-                    .WithCustomId(_componentHandlerService.GenerateCustomId(ComponentPrefix, sessionId, "last"))
-                    .WithLabel("Last ⏩")
-                    .WithStyle(ButtonStyle.Secondary)
-                    .WithDisabled(currentPageIndex == totalPages - 1));
-
-                container.AddComponent(navSection);
+                container.WithAccentColor(page.Color ?? Color.Default);
             });
+
+        // Create navigation buttons
+        List<ButtonBuilder> buttons =
+        [
+            // First page button
+            new ButtonBuilder()
+                .WithCustomId(_componentHandlerService.GenerateCustomId(ComponentPrefix, sessionId, "first"))
+                .WithLabel("⏪ First")
+                .WithStyle(ButtonStyle.Secondary)
+                .WithDisabled(currentPageIndex == 0),
+            // Previous page button
+            new ButtonBuilder()
+                .WithCustomId(_componentHandlerService.GenerateCustomId(ComponentPrefix, sessionId, "prev"))
+                .WithLabel("◀️ Previous")
+                .WithStyle(ButtonStyle.Primary)
+                .WithDisabled(currentPageIndex == 0),
+            // Next page button
+            new ButtonBuilder()
+                .WithCustomId(_componentHandlerService.GenerateCustomId(ComponentPrefix, sessionId, "next"))
+                .WithLabel("Next ▶️")
+                .WithStyle(ButtonStyle.Primary)
+                .WithDisabled(currentPageIndex == totalPages - 1),
+            // Last page button
+            new ButtonBuilder()
+                .WithCustomId(_componentHandlerService.GenerateCustomId(ComponentPrefix, sessionId, "last"))
+                .WithLabel("Last ⏩")
+                .WithStyle(ButtonStyle.Secondary)
+                .WithDisabled(currentPageIndex == totalPages - 1),
+        ];
+
+        componentsBuilder.WithActionRow(buttons);
 
         return componentsBuilder.Build();
     }

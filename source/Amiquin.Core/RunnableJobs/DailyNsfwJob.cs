@@ -163,44 +163,59 @@ public class DailyNsfwJob : IRunnableJob
             {
                 // Header
                 container.WithTextDisplay("# 🔞 Daily NSFW Gallery");
+                container.WithSeparator(spacing: SeparatorSpacingSize.Large);
 
+                // Description
                 container.WithTextDisplay($"Today's curated collection of **{images.Count}** images from various sources");
+                container.WithSeparator();
 
-                // Show up to 3 random images as a preview
-                var previewImages = images.OrderBy(x => Guid.NewGuid()).Take(3).ToList();
+                // Source information
+                var sources = images.Select(i => i.Source).Distinct().ToList();
+                var artists = images.Where(i => !string.IsNullOrWhiteSpace(i.Artist))
+                    .Select(i => i.Artist!)
+                    .Distinct()
+                    .Take(5)
+                    .ToList();
 
-                // Add main gallery image
-                if (previewImages.Any())
+                var sourceText = $"**Sources:** {string.Join(", ", sources)}";
+                if (artists.Any())
                 {
-                    container.WithTextDisplay($"**Featured Image:** [View]({previewImages.First().Url})");
-                }
-
-                // Add preview information
-                for (int i = 0; i < previewImages.Count; i++)
-                {
-                    var img = previewImages[i];
-                    var imageInfo = $"**Image {i + 1} • {img.Source}**\n[View Image]({img.Url})";
-
-                    if (!string.IsNullOrWhiteSpace(img.Artist))
+                    sourceText += $"\n**Featured Artists:** {string.Join(", ", artists)}";
+                    if (artists.Count == 5)
                     {
-                        imageInfo += $"\n**Artist:** {img.Artist}";
+                        sourceText += " and more...";
                     }
-
-                    if (!string.IsNullOrWhiteSpace(img.Tags))
-                    {
-                        imageInfo += $"\n**Tags:** {img.Tags}";
-                    }
-
-                    container.WithTextDisplay(imageInfo);
                 }
+                
+                container.WithTextDisplay(sourceText);
+                container.WithSeparator();
 
-                if (images.Count > 3)
+                // Add media gallery with all images
+                if (images.Any())
                 {
-                    container.WithTextDisplay($"**📋 Full Gallery**\n**{images.Count - 3}** more images available!\n**Sources:** {string.Join(", ", images.Select(i => i.Source).Distinct())}");
+                    var galleryBuilder = new MediaGalleryBuilder();
+                    foreach (var img in images.Take(10)) // Discord limits gallery items
+                    {
+                        galleryBuilder.AddItem(img.Url);
+                    }
+                    container.WithMediaGallery(galleryBuilder);
                 }
 
+                // Footer
                 container.WithTextDisplay("*Daily NSFW Gallery • Enjoy responsibly*");
             });
+
+        // Add action buttons for interaction
+        componentsBuilder.WithActionRow([
+            new ButtonBuilder()
+                .WithLabel("🔄 Refresh")
+                .WithCustomId("nsfw_daily_refresh")
+                .WithStyle(ButtonStyle.Primary),
+            new ButtonBuilder()
+                .WithLabel("🎲 Random")
+                .WithCustomId("nsfw_daily_random")
+                .WithStyle(ButtonStyle.Secondary)
+        ]);
 
         return componentsBuilder.Build();
     }

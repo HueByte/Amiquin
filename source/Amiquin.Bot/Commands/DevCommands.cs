@@ -99,6 +99,7 @@ Streams: {voiceState.AudioClient?.GetStreams().ToDictionary(x => x.Key, x => x.V
     }
 
     [SlashCommand("persona", "Get persona message")]
+    [Ephemeral]
     public async Task PersonaAsync()
     {
         var fullPersonaMessage = await _personaService.GetPersonaAsync(Context.Guild.Id);

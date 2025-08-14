@@ -519,7 +519,6 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                         msg.Components = components;
                         msg.Flags = MessageFlags.ComponentsV2;
                         msg.Embed = null;
-                        msg.Content = null;
                     });
                 }
             }
@@ -565,7 +564,6 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                             msg.Components = components;
                             msg.Flags = MessageFlags.ComponentsV2;
                             msg.Embed = null;
-                            msg.Content = null;
                         });
                     }
                     break;
@@ -1022,7 +1020,6 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
             msg.Components = components;
             msg.Flags = MessageFlags.ComponentsV2;
             msg.Embed = null;
-            msg.Content = null;
         });
     }
 
@@ -1667,7 +1664,6 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
 
                             await modal.ModifyOriginalResponseAsync(msg =>
                             {
-                                msg.Content = null;
                                 msg.Components = successComponents;
                                 msg.Flags = MessageFlags.ComponentsV2;
                                 msg.Embed = null;
@@ -1685,7 +1681,6 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                                     msg.Components = mainComponents;
                                     msg.Flags = MessageFlags.ComponentsV2;
                                     msg.Embed = null;
-                                    msg.Content = null;
                                 });
                             }
 
