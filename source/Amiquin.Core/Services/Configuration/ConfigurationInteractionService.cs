@@ -191,10 +191,8 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                     .WithStyle(ButtonStyle.Primary)
                     .WithEmote(new Emoji("🎛️"))));
 
-            // Quick Actions Section
-            container.AddComponent(new SectionBuilder()
-                .AddComponent(new TextDisplayBuilder()
-                    .WithContent("**⚡ Quick Actions**\nRapid configuration options")));
+            // Quick Actions Section (displayed as text only since we have action rows below)
+            container.WithTextDisplay("**⚡ Quick Actions**\nRapid configuration options available in the buttons below");
 
             // Information Sections
             container.AddComponent(new SectionBuilder()
@@ -640,27 +638,8 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
 
                 container.WithTextDisplay(tipsContent);
 
-                // Add interaction components
-                var builtComponents = builder.Build();
-                foreach (var row in builtComponents.Components.OfType<ActionRowComponent>())
-                {
-                    foreach (var comp in row.Components)
-                    {
-                        var componentBuilder = ConvertToBuilder(comp);
-                        if (componentBuilder != null)
-                        {
-                            container.AddComponent(new SectionBuilder()
-                                .WithAccessory(componentBuilder));
-                        }
-                    }
-                }
-
-                // Ensure we have at least one section if none were added
-                var actionRows = builtComponents.Components.OfType<ActionRowComponent>();
-                if (!actionRows.Any() || !actionRows.SelectMany(r => r.Components).Any())
-                {
-                    container.WithTextDisplay("Configuration options will appear here.");
-                }
+                // Note: Traditional action row components are not converted to ComponentsV2 sections
+                // They remain as action rows below the container
             })
             .Build();
 
@@ -747,27 +726,8 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
 
                 container.WithTextDisplay(currentChannelContent);
 
-                // Add interaction components
-                var builtComponents = builder.Build();
-                foreach (var row in builtComponents.Components.OfType<ActionRowComponent>())
-                {
-                    foreach (var comp in row.Components)
-                    {
-                        var componentBuilder = ConvertToBuilder(comp);
-                        if (componentBuilder != null)
-                        {
-                            container.AddComponent(new SectionBuilder()
-                                .WithAccessory(componentBuilder));
-                        }
-                    }
-                }
-
-                // Ensure we have at least one section if none were added
-                var actionRows = builtComponents.Components.OfType<ActionRowComponent>();
-                if (!actionRows.Any() || !actionRows.SelectMany(r => r.Components).Any())
-                {
-                    container.WithTextDisplay("Configuration options will appear here.");
-                }
+                // Note: Traditional action row components are not converted to ComponentsV2 sections
+                // They remain as action rows below the container
             })
             .Build();
 
@@ -1332,27 +1292,8 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
 
                 container.WithTextDisplay(verificationContent);
 
-                // Add interaction components
-                var builtComponents = builder.Build();
-                foreach (var row in builtComponents.Components.OfType<ActionRowComponent>())
-                {
-                    foreach (var comp in row.Components)
-                    {
-                        var componentBuilder = ConvertToBuilder(comp);
-                        if (componentBuilder != null)
-                        {
-                            container.AddComponent(new SectionBuilder()
-                                .WithAccessory(componentBuilder));
-                        }
-                    }
-                }
-
-                // Ensure we have at least one section if none were added
-                var actionRows = builtComponents.Components.OfType<ActionRowComponent>();
-                if (!actionRows.Any() || !actionRows.SelectMany(r => r.Components).Any())
-                {
-                    container.WithTextDisplay("Configuration options will appear here.");
-                }
+                // Note: Traditional action row components are not converted to ComponentsV2 sections
+                // They remain as action rows below the container
             })
             .Build();
 
@@ -1451,27 +1392,8 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                     container.WithTextDisplay(metadataContent);
                 }
 
-                // Add interaction components
-                var builtComponents = builder.Build();
-                foreach (var row in builtComponents.Components.OfType<ActionRowComponent>())
-                {
-                    foreach (var comp in row.Components)
-                    {
-                        var componentBuilder = ConvertToBuilder(comp);
-                        if (componentBuilder != null)
-                        {
-                            container.AddComponent(new SectionBuilder()
-                                .WithAccessory(componentBuilder));
-                        }
-                    }
-                }
-
-                // Ensure we have at least one section if none were added
-                var actionRows = builtComponents.Components.OfType<ActionRowComponent>();
-                if (!actionRows.Any() || !actionRows.SelectMany(r => r.Components).Any())
-                {
-                    container.WithTextDisplay("Configuration options will appear here.");
-                }
+                // Note: Traditional action row components are not converted to ComponentsV2 sections
+                // They remain as action rows below the container
             })
             .Build();
 
@@ -1543,27 +1465,8 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
 
                 container.WithTextDisplay(recentInteractionsContent);
 
-                // Add interaction components
-                var builtComponents = builder.Build();
-                foreach (var row in builtComponents.Components.OfType<ActionRowComponent>())
-                {
-                    foreach (var comp in row.Components)
-                    {
-                        var componentBuilder = ConvertToBuilder(comp);
-                        if (componentBuilder != null)
-                        {
-                            container.AddComponent(new SectionBuilder()
-                                .WithAccessory(componentBuilder));
-                        }
-                    }
-                }
-
-                // Ensure we have at least one section if none were added
-                var actionRows = builtComponents.Components.OfType<ActionRowComponent>();
-                if (!actionRows.Any() || !actionRows.SelectMany(r => r.Components).Any())
-                {
-                    container.WithTextDisplay("Configuration options will appear here.");
-                }
+                // Note: Traditional action row components are not converted to ComponentsV2 sections
+                // They remain as action rows below the container
             })
             .Build();
 
@@ -1659,27 +1562,8 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                     container.WithTextDisplay(sectionContent);
                 }
 
-                // Add interaction components
-                var builtComponents = builder.Build();
-                foreach (var row in builtComponents.Components.OfType<ActionRowComponent>())
-                {
-                    foreach (var comp in row.Components)
-                    {
-                        var componentBuilder = ConvertToBuilder(comp);
-                        if (componentBuilder != null)
-                        {
-                            container.AddComponent(new SectionBuilder()
-                                .WithAccessory(componentBuilder));
-                        }
-                    }
-                }
-
-                // Ensure we have at least one section if none were added
-                var actionRows = builtComponents.Components.OfType<ActionRowComponent>();
-                if (!actionRows.Any() || !actionRows.SelectMany(r => r.Components).Any())
-                {
-                    container.WithTextDisplay("Configuration options will appear here.");
-                }
+                // Note: Traditional action row components are not converted to ComponentsV2 sections
+                // They remain as action rows below the container
             })
             .Build();
 
@@ -1910,27 +1794,8 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
 
                 container.WithTextDisplay(dailyNsfwStatusContent);
 
-                // Add interaction components
-                var builtComponents = builder.Build();
-                foreach (var row in builtComponents.Components.OfType<ActionRowComponent>())
-                {
-                    foreach (var comp in row.Components)
-                    {
-                        var componentBuilder = ConvertToBuilder(comp);
-                        if (componentBuilder != null)
-                        {
-                            container.AddComponent(new SectionBuilder()
-                                .WithAccessory(componentBuilder));
-                        }
-                    }
-                }
-
-                // Ensure we have at least one section if none were added
-                var actionRows = builtComponents.Components.OfType<ActionRowComponent>();
-                if (!actionRows.Any() || !actionRows.SelectMany(r => r.Components).Any())
-                {
-                    container.WithTextDisplay("Configuration options will appear here.");
-                }
+                // Note: Traditional action row components are not converted to ComponentsV2 sections
+                // They remain as action rows below the container
             })
             .Build();
 
