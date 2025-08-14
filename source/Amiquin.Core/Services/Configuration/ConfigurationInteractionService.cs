@@ -194,14 +194,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
             // Quick Actions Section
             container.AddComponent(new SectionBuilder()
                 .AddComponent(new TextDisplayBuilder()
-                    .WithContent("**⚡ Quick Actions**\nRapid configuration options"))
-                .WithAccessory(new SelectMenuBuilder()
-                    .WithCustomId(_componentHandler.GenerateCustomId(QuickSetupPrefix, "quick_action", guild.Id.ToString()))
-                    .WithPlaceholder("Choose a quick action...")
-                    .AddOption("Set Persona", "persona", "Quick persona setup", new Emoji("🎭"))
-                    .AddOption("Set Primary Channel", "channel", "Quick channel setup", new Emoji("💬"))
-                    .AddOption("Set NSFW Channel", "nsfw_channel", "Quick NSFW channel setup", new Emoji("🔞"))
-                    .AddOption("Change Provider", "provider", "Quick provider change", new Emoji("🤖"))));
+                    .WithContent("**⚡ Quick Actions**\nRapid configuration options")));
 
             // Information Sections
             container.AddComponent(new SectionBuilder()
@@ -653,8 +646,12 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                 {
                     foreach (var comp in row.Components)
                     {
-                        container.AddComponent(new SectionBuilder()
-                            .WithAccessory(ConvertToBuilder(comp)));
+                        var componentBuilder = ConvertToBuilder(comp);
+                        if (componentBuilder != null)
+                        {
+                            container.AddComponent(new SectionBuilder()
+                                .WithAccessory(componentBuilder));
+                        }
                     }
                 }
 
@@ -756,8 +753,12 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                 {
                     foreach (var comp in row.Components)
                     {
-                        container.AddComponent(new SectionBuilder()
-                            .WithAccessory(ConvertToBuilder(comp)));
+                        var componentBuilder = ConvertToBuilder(comp);
+                        if (componentBuilder != null)
+                        {
+                            container.AddComponent(new SectionBuilder()
+                                .WithAccessory(componentBuilder));
+                        }
                     }
                 }
 
@@ -868,10 +869,14 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                             _ => "Configuration option"
                         };
 
-                        container.AddComponent(new SectionBuilder()
-                            .AddComponent(new TextDisplayBuilder()
-                                .WithContent(componentDescription))
-                            .WithAccessory(ConvertToBuilder(component)));
+                        var componentBuilder = ConvertToBuilder(component);
+                        if (componentBuilder != null)
+                        {
+                            container.AddComponent(new SectionBuilder()
+                                .AddComponent(new TextDisplayBuilder()
+                                    .WithContent(componentDescription))
+                                .WithAccessory(componentBuilder));
+                        }
                     }
                 }
 
@@ -1333,8 +1338,12 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                 {
                     foreach (var comp in row.Components)
                     {
-                        container.AddComponent(new SectionBuilder()
-                            .WithAccessory(ConvertToBuilder(comp)));
+                        var componentBuilder = ConvertToBuilder(comp);
+                        if (componentBuilder != null)
+                        {
+                            container.AddComponent(new SectionBuilder()
+                                .WithAccessory(componentBuilder));
+                        }
                     }
                 }
 
@@ -1448,8 +1457,12 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                 {
                     foreach (var comp in row.Components)
                     {
-                        container.AddComponent(new SectionBuilder()
-                            .WithAccessory(ConvertToBuilder(comp)));
+                        var componentBuilder = ConvertToBuilder(comp);
+                        if (componentBuilder != null)
+                        {
+                            container.AddComponent(new SectionBuilder()
+                                .WithAccessory(componentBuilder));
+                        }
                     }
                 }
 
@@ -1536,8 +1549,12 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                 {
                     foreach (var comp in row.Components)
                     {
-                        container.AddComponent(new SectionBuilder()
-                            .WithAccessory(ConvertToBuilder(comp)));
+                        var componentBuilder = ConvertToBuilder(comp);
+                        if (componentBuilder != null)
+                        {
+                            container.AddComponent(new SectionBuilder()
+                                .WithAccessory(componentBuilder));
+                        }
                     }
                 }
 
@@ -1648,8 +1665,12 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                 {
                     foreach (var comp in row.Components)
                     {
-                        container.AddComponent(new SectionBuilder()
-                            .WithAccessory(ConvertToBuilder(comp)));
+                        var componentBuilder = ConvertToBuilder(comp);
+                        if (componentBuilder != null)
+                        {
+                            container.AddComponent(new SectionBuilder()
+                                .WithAccessory(componentBuilder));
+                        }
                     }
                 }
 
@@ -1895,8 +1916,12 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                 {
                     foreach (var comp in row.Components)
                     {
-                        container.AddComponent(new SectionBuilder()
-                            .WithAccessory(ConvertToBuilder(comp)));
+                        var componentBuilder = ConvertToBuilder(comp);
+                        if (componentBuilder != null)
+                        {
+                            container.AddComponent(new SectionBuilder()
+                                .WithAccessory(componentBuilder));
+                        }
                     }
                 }
 
@@ -1955,8 +1980,9 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
 
     /// <summary>
     /// Converts a Discord component to its builder equivalent for Components V2
+    /// Only supports ButtonComponent since SelectMenuComponent cannot be used as section accessory
     /// </summary>
-    private static IMessageComponentBuilder ConvertToBuilder(IMessageComponent component)
+    private static IMessageComponentBuilder? ConvertToBuilder(IMessageComponent component)
     {
         return component switch
         {
@@ -1967,18 +1993,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                 .WithEmote(btn.Emote)
                 .WithUrl(btn.Url)
                 .WithDisabled(btn.IsDisabled),
-            SelectMenuComponent menu => new SelectMenuBuilder()
-                .WithCustomId(menu.CustomId)
-                .WithPlaceholder(menu.Placeholder)
-                .WithMinValues(menu.MinValues)
-                .WithMaxValues(menu.MaxValues)
-                .WithDisabled(menu.IsDisabled)
-                .WithOptions(menu.Options.Select(opt => new SelectMenuOptionBuilder()
-                    .WithLabel(opt.Label)
-                    .WithValue(opt.Value)
-                    .WithDescription(opt.Description)
-                    .WithEmote(opt.Emote)
-                    .WithDefault(opt.IsDefault ?? false)).ToList()),
+            SelectMenuComponent => null, // SelectMenus cannot be used as section accessories
             _ => throw new ArgumentException($"Unsupported component type: {component.GetType()}")
         };
     }

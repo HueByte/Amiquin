@@ -250,7 +250,7 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
     {
         // Generate a color theory palette
         var selectedHarmony = harmony ?? (ColorHarmonyType)Random.Shared.Next(0, 7);
-        
+
         try
         {
             var palette = await _funService.GenerateColorTheoryPaletteAsync(selectedHarmony, baseHue);
@@ -269,9 +269,9 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to generate color palette for user {UserId} with harmony {Harmony} and baseHue {BaseHue}", 
+            _logger.LogError(ex, "Failed to generate color palette for user {UserId} with harmony {Harmony} and baseHue {BaseHue}",
                 Context.User.Id, selectedHarmony, baseHue);
-            
+
             await ModifyOriginalResponseAsync(msg => msg.Content = $"❌ Failed to generate color palette: {ex.Message}");
         }
     }
