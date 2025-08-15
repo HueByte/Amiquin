@@ -11,12 +11,11 @@ public class AdminSettingAutoCompleteHandler : AutocompleteHandler
     private static readonly Dictionary<string, string> AvailableSettings = new()
     {
         { "main-channel", "Set the primary channel for bot operations" },
+        { "primary-channel", "Set the primary channel for bot operations" },
+        { "channel", "Set the primary channel for bot operations" },
+        { "nsfw-channel", "Set the NSFW content channel (must be age-restricted)" },
         { "persona", "Configure server-wide AI persona" },
-        { "provider", "Set the preferred LLM provider (OpenAI, Gemini, Grok)" },
-        { "welcome-channel", "Set the welcome messages channel" },
-        { "log-channel", "Set the logging channel" },
-        { "voice-channel", "Set the default voice channel" },
-        { "announcement-channel", "Set the announcement channel" }
+        { "provider", "Set the preferred LLM provider (OpenAI, Gemini, Grok)" }
     };
 
     public override Task<AutocompletionResult> GenerateSuggestionsAsync(

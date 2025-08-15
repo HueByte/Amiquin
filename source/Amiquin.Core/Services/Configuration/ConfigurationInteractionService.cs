@@ -468,12 +468,12 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
 
                 case "channel":
                     // Component is already deferred by EventHandlerService
-                    await ShowChannelConfigurationAsync(component, guildId.Value);
+                    await ShowChannelSelectionMenuAsync(component, guildId.Value);
                     break;
 
                 case "nsfw_channel":
                     // Component is already deferred by EventHandlerService
-                    await ShowNsfwChannelConfigurationAsync(component, guildId.Value);
+                    await ShowNsfwChannelSelectionMenuAsync(component, guildId.Value);
                     break;
 
                 case "provider":
@@ -774,10 +774,188 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
 
                 container.WithTextDisplay(currentChannelContent);
 
+                // Add channel selection section with the select menu as accessory
+                if (textChannels.Any())
+                {
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent("**Select New Channel**\nChoose from available text channels"))
+                        .WithAccessory(new ButtonBuilder()
+                            .WithCustomId(_componentHandler.GenerateCustomId(QuickSetupPrefix, "channel"))
+                            .WithLabel("Choose Channel")
+                            .WithStyle(ButtonStyle.Primary)
+                            .WithEmote(new Emoji("💬"))));
+                }
+                else
+                {
+                    container.WithTextDisplay("**No Channels Available**\nNo text channels found where the bot has permission to send messages.");
+                }
+
+                // Add clear option if channel is set
+                if (serverMeta?.PrimaryChannelId.HasValue == true)
+                {
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent("**Clear Configuration**\nRemove the primary channel setting"))
+                        .WithAccessory(new ButtonBuilder()
+                            .WithCustomId(_componentHandler.GenerateCustomId(ConfigActionPrefix, "clear_channel"))
+                            .WithLabel("Clear Channel")
+                            .WithStyle(ButtonStyle.Danger)
+                            .WithEmote(new Emoji("🗑️"))));
+                }
+
                 // Add navigation section
                 container.AddComponent(new SectionBuilder()
                     .AddComponent(new TextDisplayBuilder()
                         .WithContent("**Navigation**\nReturn to main configuration menu"))
+                    .WithAccessory(new ButtonBuilder()
+                        .WithCustomId(_componentHandler.GenerateCustomId(NavigationPrefix, "back"))
+                        .WithLabel("← Back")
+                        .WithStyle(ButtonStyle.Secondary)));
+            })
+            .Build();
+
+        await component.ModifyOriginalResponseAsync(msg =>
+        {
+            msg.Components = components;
+            msg.Flags = MessageFlags.ComponentsV2;
+            msg.Embed = null;
+        });
+    }
+
+    private async Task ShowChannelSelectionMenuAsync(SocketMessageComponent component, ulong guildId)
+    {
+        var guild = (component.Channel as SocketGuildChannel)?.Guild;
+        if (guild == null) return;
+
+        var serverMeta = await _serverMetaService.GetServerMetaAsync(guildId);
+
+        var title = "💬 Select Primary Channel";
+        var description = "Choose a text channel from the dropdown menu below";
+
+        var currentChannelContent = "**Current Primary Channel**\n";
+        if (serverMeta?.PrimaryChannelId.HasValue == true)
+        {
+            var currentChannel = guild.GetTextChannel(serverMeta.PrimaryChannelId.Value);
+            currentChannelContent += currentChannel != null ? currentChannel.Mention : "*Channel not found*";
+        }
+        else
+        {
+            currentChannelContent += "*Not configured*";
+        }
+
+        var builder = new ComponentBuilderV2();
+
+        // Create channel select menu using Discord's native channel select
+        var channelSelectMenu = new ChannelSelectMenuBuilder()
+            .WithCustomId(_componentHandler.GenerateCustomId(ConfigActionPrefix, "set_channel"))
+            .WithPlaceholder("Select a text channel...")
+            .WithChannelTypes(ChannelType.Text)
+            .WithMinValues(1)
+            .WithMaxValues(1);
+
+        builder.WithActionRow([channelSelectMenu]);
+
+        // Add navigation buttons
+        builder.WithActionRow([
+            new ButtonBuilder()
+                .WithCustomId(_componentHandler.GenerateCustomId(NavigationPrefix, "back"))
+                .WithLabel("← Back to Channel Config")
+                .WithStyle(ButtonStyle.Secondary)
+        ]);
+
+        var components = new ComponentBuilderV2()
+            .WithContainer(container =>
+            {
+                container.WithTextDisplay($"# {title}\n{description}");
+
+                container.WithTextDisplay(currentChannelContent);
+
+                container.WithTextDisplay("**Instructions**\nSelect a text channel from the dropdown below. Only text channels where the bot has permissions will work properly.");
+
+                // Add navigation section
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent("**Navigation**\nReturn to channel configuration"))
+                    .WithAccessory(new ButtonBuilder()
+                        .WithCustomId(_componentHandler.GenerateCustomId(NavigationPrefix, "back"))
+                        .WithLabel("← Back")
+                        .WithStyle(ButtonStyle.Secondary)));
+            })
+            .Build();
+
+        await component.ModifyOriginalResponseAsync(msg =>
+        {
+            msg.Components = components;
+            msg.Flags = MessageFlags.ComponentsV2;
+            msg.Embed = null;
+        });
+    }
+
+    private async Task ShowNsfwChannelSelectionMenuAsync(SocketMessageComponent component, ulong guildId)
+    {
+        var guild = (component.Channel as SocketGuildChannel)?.Guild;
+        if (guild == null) return;
+
+        var serverMeta = await _serverMetaService.GetServerMetaAsync(guildId);
+
+        var title = "🔞 Select NSFW Channel";
+        var description = "Choose an NSFW-marked channel from the dropdown menu below";
+
+        var currentNsfwChannelContent = "**Current NSFW Channel**\n";
+        if (serverMeta?.NsfwChannelId.HasValue == true)
+        {
+            var currentChannel = guild.GetTextChannel(serverMeta.NsfwChannelId.Value);
+            currentNsfwChannelContent += currentChannel != null ? currentChannel.Mention : "*Channel not found*";
+        }
+        else
+        {
+            currentNsfwChannelContent += "*Not configured*";
+        }
+
+        // Check if Daily NSFW toggle is enabled
+        var isDailyNsfwEnabled = await _toggleService.IsEnabledAsync(guildId, Constants.ToggleNames.EnableDailyNSFW);
+        var warningText = isDailyNsfwEnabled
+            ? "⚠️ Daily NSFW feature is **enabled**. Set a channel to receive daily content."
+            : "ℹ️ Daily NSFW feature is **disabled**. Enable it in Feature Toggles to use this channel.";
+
+        var dailyNsfwStatusContent = $"**Daily NSFW Status**\n{warningText}";
+
+        var builder = new ComponentBuilderV2();
+
+        // Create channel select menu using Discord's native channel select - restricted to NSFW channels
+        var channelSelectMenu = new ChannelSelectMenuBuilder()
+            .WithCustomId(_componentHandler.GenerateCustomId(ConfigActionPrefix, "set_nsfw_channel"))
+            .WithPlaceholder("Select an NSFW text channel...")
+            .WithChannelTypes(ChannelType.Text)
+            .WithMinValues(1)
+            .WithMaxValues(1);
+
+        builder.WithActionRow([channelSelectMenu]);
+
+        // Add navigation buttons
+        builder.WithActionRow([
+            new ButtonBuilder()
+                .WithCustomId(_componentHandler.GenerateCustomId(NavigationPrefix, "back"))
+                .WithLabel("← Back to NSFW Config")
+                .WithStyle(ButtonStyle.Secondary)
+        ]);
+
+        var components = new ComponentBuilderV2()
+            .WithContainer(container =>
+            {
+                container.WithTextDisplay($"# {title}\n{description}");
+
+                container.WithTextDisplay(currentNsfwChannelContent);
+
+                container.WithTextDisplay(dailyNsfwStatusContent);
+
+                container.WithTextDisplay("**Instructions**\n⚠️ **Important:** Only select channels that are marked as NSFW (18+) in Discord's channel settings. The bot will verify this before setting the channel.");
+
+                // Add navigation section
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent("**Navigation**\nReturn to NSFW channel configuration"))
                     .WithAccessory(new ButtonBuilder()
                         .WithCustomId(_componentHandler.GenerateCustomId(NavigationPrefix, "back"))
                         .WithLabel("← Back")
@@ -1912,6 +2090,36 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                 container.WithTextDisplay(currentNsfwChannelContent);
 
                 container.WithTextDisplay(dailyNsfwStatusContent);
+
+                // Add channel selection section
+                if (nsfwChannels.Any())
+                {
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent("**Select New NSFW Channel**\nChoose from available NSFW-marked channels"))
+                        .WithAccessory(new ButtonBuilder()
+                            .WithCustomId(_componentHandler.GenerateCustomId(QuickSetupPrefix, "nsfw_channel"))
+                            .WithLabel("Choose NSFW Channel")
+                            .WithStyle(ButtonStyle.Primary)
+                            .WithEmote(new Emoji("🔞"))));
+                }
+                else
+                {
+                    container.WithTextDisplay("**No NSFW Channels Available**\nNo NSFW channels found where the bot has permission. Please mark a channel as 18+ in channel settings.");
+                }
+
+                // Add clear option if channel is set
+                if (serverMeta?.NsfwChannelId.HasValue == true)
+                {
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent("**Clear Configuration**\nRemove the NSFW channel setting"))
+                        .WithAccessory(new ButtonBuilder()
+                            .WithCustomId(_componentHandler.GenerateCustomId(ConfigActionPrefix, "clear_nsfw_channel"))
+                            .WithLabel("Clear NSFW Channel")
+                            .WithStyle(ButtonStyle.Danger)
+                            .WithEmote(new Emoji("🗑️"))));
+                }
 
                 // Add navigation section
                 container.AddComponent(new SectionBuilder()
