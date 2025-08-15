@@ -241,21 +241,21 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
             var currentLevel = _chatContextService.GetEngagementMultiplier(guildId);
 
             var avatarUrl = Context.Client.CurrentUser.GetDisplayAvatarUrl(ImageFormat.Auto, 1024);
-            
+
             var components = new ComponentBuilderV2()
                 .WithContainer(container =>
                 {
                     container.WithTextDisplay("# 😌 Calming Down...");
-                    
+
                     // Add avatar as a section header
                     container.AddComponent(new SectionBuilder()
                         .AddComponent(new TextDisplayBuilder()
                             .WithContent($"**{Context.Client.CurrentUser.Username}** - Taking a break")));
-                    
+
                     container.WithTextDisplay("I'll take it easy for a bit. My engagement has been reset to baseline.");
                     container.WithTextDisplay($"**Engagement Level:** Reset to {currentLevel:F1}x (baseline)\n**Context:** Cleared all conversation context\n**Status:** 🌙 Relaxed mode activated");
                     container.WithTextDisplay("*Use mentions to re-engage me if needed*");
-                    
+
                     // Add avatar to media gallery
                     container.WithMediaGallery([avatarUrl]);
                 })
@@ -296,12 +296,12 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
                 .WithContainer(container =>
                 {
                     container.WithTextDisplay($"# {(success ? "📦 History Compacted" : "⚠️ Compaction Issue")}");
-                    
+
                     // Add avatar as a section header  
                     container.AddComponent(new SectionBuilder()
                         .AddComponent(new TextDisplayBuilder()
                             .WithContent($"**{Context.Client.CurrentUser.Username}** - History Optimization")));
-                    
+
                     container.WithTextDisplay(message);
 
                     if (success)
@@ -314,7 +314,7 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
                     {
                         container.WithTextDisplay("*Try again later or check if there are enough messages to compact*");
                     }
-                    
+
                     // Add avatar to media gallery
                     container.WithMediaGallery([avatarUrl]);
                 })

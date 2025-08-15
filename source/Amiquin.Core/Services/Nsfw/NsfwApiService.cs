@@ -1,5 +1,6 @@
 using Amiquin.Core.Models;
 using Amiquin.Core.Services.Nsfw.Providers;
+using Amiquin.Core.Services.Scrappers;
 using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
 
@@ -22,6 +23,7 @@ public class NsfwApiService : INsfwApiService
 {
     private readonly ILogger<NsfwApiService> _logger;
     private readonly IEnumerable<INsfwProvider> _providers;
+    private readonly IScrapper _scrapper;
     private readonly Random _random = new();
 
     // Circuit breaker for rate limiting
@@ -29,13 +31,20 @@ public class NsfwApiService : INsfwApiService
     private static readonly TimeSpan _rateLimitCooldown = TimeSpan.FromMinutes(10);
     private static int _consecutiveRateLimits = 0;
 
-    public NsfwApiService(ILogger<NsfwApiService> logger, IEnumerable<INsfwProvider> providers)
+    public NsfwApiService(ILogger<NsfwApiService> logger, IEnumerable<INsfwProvider> providers, IScrapper scrapper)
     {
         _logger = logger;
         _providers = providers;
+        _scrapper = scrapper;
+
+        var providerNames = _providers.Select(p => p.Name).ToList();
+        if (_scrapper.IsEnabled)
+        {
+            providerNames.Add($"Scrapper({_scrapper.SourceName})");
+        }
 
         _logger.LogInformation("NSFW API service initialized with providers: {Providers}",
-            string.Join(", ", _providers.Select(p => p.Name)));
+            string.Join(", ", providerNames));
     }
 
     public async Task<List<NsfwImage>> GetDailyNsfwImagesAsync(int waifuCount = 5, int otherCount = 5)
@@ -47,7 +56,7 @@ public class NsfwApiService : INsfwApiService
     {
         var result = new NsfwApiResult();
 
-        // Check if we're currently rate-limited
+        // Check if currently rate-limited
         var effectiveCooldown = _consecutiveRateLimits > 3 ? TimeSpan.FromMinutes(20) : _rateLimitCooldown;
         var isCurrentlyRateLimited = DateTime.UtcNow - _lastRateLimitHit < effectiveCooldown;
 
@@ -106,7 +115,7 @@ public class NsfwApiService : INsfwApiService
     /// <param name="count">Number of images to fetch</param>
     /// <param name="preferredProviders">Optional list of preferred provider names to use</param>
     /// <returns>List of NSFW images</returns>
-    private async Task<List<NsfwImage>> GetNsfwImagesAsync(int count = 5, string[]? preferredProviders = null)
+    private async Task<List<NsfwImage>> GetNsfwImagesAsync(int count = 8, string[]? preferredProviders = null)
     {
         var results = new ConcurrentBag<NsfwImage>();
 
@@ -121,36 +130,73 @@ public class NsfwApiService : INsfwApiService
                 return new List<NsfwImage>();
             }
 
-            // Randomize and select providers for the requested count
-            var selectedProviders = availableProviders
-                .OrderBy(x => _random.Next())
-                .Take(count)
-                .ToList();
+            // Calculate how many images to get from scrapper vs providers
+            var scrapperCount = _scrapper.IsEnabled ? count : 0; // Up to half from scrapper
+            var providerCount = count - scrapperCount;
 
-            _logger.LogInformation("Selected {Count} randomized NSFW providers: {Providers}",
-                selectedProviders.Count(), string.Join(", ", selectedProviders.Select(p => p.Name)));
+            var tasks = new List<Task>();
 
-            // Execute provider calls in parallel
-            var tasks = selectedProviders.Select(provider => Task.Run(async () =>
+            // Get images from providers
+            if (providerCount > 0 && availableProviders.Any())
             {
-                try
+                var selectedProviders = availableProviders
+                    .OrderBy(x => _random.Next())
+                    .Take(Math.Min(providerCount, availableProviders.Count()))
+                    .ToList();
+
+                _logger.LogInformation("Selected {Count} randomized NSFW providers: {Providers}",
+                    selectedProviders.Count(), string.Join(", ", selectedProviders.Select(p => p.Name)));
+
+                // Execute provider calls in parallel
+                tasks.AddRange(selectedProviders.Select(provider => Task.Run(async () =>
                 {
-                    var image = await provider.FetchImageAsync();
-                    if (image != null && !string.IsNullOrEmpty(image.Url))
+                    try
                     {
-                        results.Add(image);
+                        var image = await provider.FetchImageAsync();
+                        if (image != null && !string.IsNullOrEmpty(image.Url))
+                        {
+                            results.Add(image);
+                        }
                     }
-                }
-                catch (Exception ex)
+                    catch (Exception ex)
+                    {
+                        _logger.LogDebug(ex, "Provider {Provider} failed to fetch image", provider.Name);
+                    }
+                })));
+            }
+
+            // Get images from scrapper
+            if (scrapperCount > 0 && _scrapper.IsEnabled)
+            {
+                var scrapperTask = Task.Run(async () =>
                 {
-                    _logger.LogDebug(ex, "Provider {Provider} failed to fetch image", provider.Name);
-                }
-            }));
+                    try
+                    {
+                        var images = await _scrapper.ScrapeAsync<NsfwImage>(scrapperCount);
+                        foreach (var image in images)
+                        {
+                            if (image != null && !string.IsNullOrEmpty(image.Url))
+                            {
+                                results.Add(image);
+                            }
+                        }
+                        _logger.LogDebug("Scrapper {SourceName} successfully fetched {Count} images",
+                            _scrapper.SourceName, images.Count);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogDebug(ex, "Scrapper {SourceName} failed to fetch images", _scrapper.SourceName);
+                    }
+                });
+                tasks.Add(scrapperTask);
+            }
 
             await Task.WhenAll(tasks);
 
-            _logger.LogInformation("Fetched {ActualCount} out of {RequestedCount} NSFW images from {ProviderCount} providers",
-                results.Count, count, selectedProviders.Count());
+            var totalSourcesUsed = (providerCount > 0 ? 1 : 0) + (scrapperCount > 0 ? 1 : 0);
+
+            _logger.LogInformation("Fetched {ActualCount} out of {RequestedCount} NSFW images from {SourceCount} source types",
+                results.Count, count, totalSourcesUsed);
         }
         catch (Exception ex)
         {

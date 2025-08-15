@@ -186,7 +186,7 @@ public class DailyNsfwJob : IRunnableJob
                         sourceText += " and more...";
                     }
                 }
-                
+
                 container.WithTextDisplay(sourceText);
                 container.WithSeparator();
 

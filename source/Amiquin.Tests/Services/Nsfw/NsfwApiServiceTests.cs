@@ -1,6 +1,7 @@
 using Amiquin.Core.Models;
 using Amiquin.Core.Services.Nsfw;
 using Amiquin.Core.Services.Nsfw.Providers;
+using Amiquin.Core.Services.Scrappers;
 using Microsoft.Extensions.Logging;
 using Moq;
 using System.Reflection;
@@ -12,6 +13,7 @@ public class NsfwApiServiceTests : IDisposable
 {
     private readonly Mock<ILogger<NsfwApiService>> _loggerMock;
     private readonly Mock<INsfwProvider> _mockProvider;
+    private readonly Mock<IScrapper> _mockScrapper;
     private readonly NsfwApiService _nsfwApiService;
 
     public NsfwApiServiceTests()
@@ -21,13 +23,19 @@ public class NsfwApiServiceTests : IDisposable
 
         _loggerMock = new Mock<ILogger<NsfwApiService>>();
         _mockProvider = new Mock<INsfwProvider>();
+        _mockScrapper = new Mock<IScrapper>();
 
         // Setup mock provider
         _mockProvider.Setup(p => p.Name).Returns("TestProvider");
         _mockProvider.Setup(p => p.IsAvailable).Returns(true);
 
+        // Setup mock scrapper
+        _mockScrapper.Setup(s => s.SourceName).Returns("TestScrapper");
+        _mockScrapper.Setup(s => s.IsEnabled).Returns(true);
+        _mockScrapper.Setup(s => s.ScrapeAsync<NsfwImage>(It.IsAny<int>())).ReturnsAsync(new List<NsfwImage>());
+
         var providers = new List<INsfwProvider> { _mockProvider.Object };
-        _nsfwApiService = new NsfwApiService(_loggerMock.Object, providers);
+        _nsfwApiService = new NsfwApiService(_loggerMock.Object, providers, _mockScrapper.Object);
     }
 
     public void Dispose()

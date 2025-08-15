@@ -1,6 +1,7 @@
 using Amiquin.Core.DiscordExtensions;
 using Amiquin.Core.Services.Fun;
 using Amiquin.Core.Services.Nsfw;
+using Amiquin.Core.Services.Scrappers;
 using Amiquin.Core.Services.Toggle;
 using Discord;
 using Discord.Interactions;
@@ -62,13 +63,15 @@ public class NsfwCommands : InteractionModuleBase<ExtendedShardedInteractionCont
     private readonly IFunService _funService;
     private readonly IToggleService _toggleService;
     private readonly INsfwApiService _nsfwApiService;
+    private readonly IScrapper _scrapper;
     private readonly ILogger<NsfwCommands> _logger;
 
-    public NsfwCommands(IFunService funService, IToggleService toggleService, INsfwApiService nsfwApiService, ILogger<NsfwCommands> logger)
+    public NsfwCommands(IFunService funService, IToggleService toggleService, INsfwApiService nsfwApiService, IScrapper scrapper, ILogger<NsfwCommands> logger)
     {
         _funService = funService;
         _toggleService = toggleService;
         _nsfwApiService = nsfwApiService;
+        _scrapper = scrapper;
         _logger = logger;
     }
 
@@ -129,58 +132,49 @@ public class NsfwCommands : InteractionModuleBase<ExtendedShardedInteractionCont
 
         try
         {
-            // Fetch 10 random NSFW images with status information
-            var result = await _nsfwApiService.GetNsfwImagesWithStatusAsync(5, 5);
-
-            if (!result.IsSuccess)
+            // Check if scrapper is enabled
+            if (!_scrapper.IsEnabled)
             {
-                await ModifyOriginalResponseAsync(msg =>
-                {
-                    msg.Content = CreateGracefulErrorMessage(result);
-                    msg.Embed = null;
-                });
+                await ModifyOriginalResponseAsync(msg => msg.Content =
+                    "❌ **Scrapper Service Unavailable** 🚧\n\n" +
+                    "The image scrapper is currently disabled or not configured.\n\n" +
+                    "**What you can try:**\n" +
+                    "• Contact a server administrator to enable the scrapper\n" +
+                    "• Try individual NSFW commands instead\n" +
+                    "• Check back later when the service is available\n\n" +
+                    "*This service provides fresh content from various sources!* ⚡");
                 return;
             }
 
-            // Build source information for display
-            var sourceInfo = string.Join(", ", result.Images
-                .Select(img => img.Source ?? "Unknown")
-                .Distinct()
-                .Take(3));
+            // Fetch 10 image URLs directly from scrapper
+            var imageUrls = await _scrapper.GetImageUrlsAsync(10);
 
-            var artistInfo = result.Images
-                .Where(img => !string.IsNullOrWhiteSpace(img.Artist))
-                .Select(img => img.Artist!)
-                .Distinct()
-                .Take(3)
-                .ToList();
-
-            var artistText = artistInfo.Count > 0
-                ? $"\nArtists: {string.Join(", ", artistInfo)}{(artistInfo.Count == 3 ? " and others" : "")}"
-                : "";
-
-            // Add status message if there were issues but we still got some images
-            var statusMessage = result.IsTemporaryFailure && !string.IsNullOrEmpty(result.ErrorMessage)
-                ? $"⚠️ {result.ErrorMessage}"
-                : null;
+            if (imageUrls == null || imageUrls.Length == 0)
+            {
+                await ModifyOriginalResponseAsync(msg => msg.Content =
+                    "❌ **No Images Found** 🔍\n\n" +
+                    "The scrapper couldn't find any images at this time.\n\n" +
+                    "**What you can try:**\n" +
+                    "• Wait a minute and try again\n" +
+                    "• The source websites might be temporarily unavailable\n" +
+                    "• Try again later for fresh content\n\n" +
+                    "*Sometimes it just takes a moment for fresh content to load!* 🌟");
+                return;
+            }
 
             // Create ComponentsV2 display with media gallery
-            var imageUrls = result.Images.Select(img => img.Url).ToArray();
             var components = new ComponentBuilderV2()
                 .WithContainer(container =>
                 {
-                    container.WithTextDisplay($"# 🔞 NSFW Gallery\n## {result.Images.Count} images");
-
-                    container.WithTextDisplay($"**Sources:** {sourceInfo}{artistText}");
-
                     container.WithMediaGallery(imageUrls);
 
-                    container.WithTextDisplay($"*Requested by {Context.User.Username} • Enjoy responsibly*");
+                    container.WithTextDisplay($"**Source:** {_scrapper.SourceName} || Count: {imageUrls.Length}");
+                    container.WithTextDisplay($"*Requested by {Context.User.Username} • Fresh content from {_scrapper.SourceName}*");
 
                     // Add action buttons as sections
                     container.AddComponent(new SectionBuilder()
                         .AddComponent(new TextDisplayBuilder()
-                            .WithContent("**🔄 New Gallery**\nGenerate a fresh collection of images"))
+                            .WithContent("**🔄 New Gallery**\nScrape a fresh collection of images"))
                         .WithAccessory(new ButtonBuilder()
                             .WithLabel("New Gallery")
                             .WithCustomId("nsfw_new_gallery")
@@ -205,14 +199,14 @@ public class NsfwCommands : InteractionModuleBase<ExtendedShardedInteractionCont
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error in NSFW gallery command");
+            _logger.LogError(ex, "Error in NSFW gallery scrapper command");
             await ModifyOriginalResponseAsync(msg => msg.Content =
-                "❌ **Oops! Something went wrong** 🤖\n\n" +
-                "The NSFW gallery service is having a temporary hiccup. This usually resolves itself quickly.\n\n" +
+                "❌ **Oops! Scrapper service hiccup** 🤖\n\n" +
+                "The image scrapper is having a temporary issue. This usually resolves itself quickly.\n\n" +
                 "**What you can try:**\n" +
                 "• Wait a minute and try again\n" +
-                "• Use individual NSFW commands instead\n" +
-                "• Try again later if the issue persists\n\n" +
+                "• The source website might be temporarily unavailable\n" +
+                "• Try again later for fresh scraped content\n\n" +
                 "*Don't worry, this is usually just a temporary glitch!* ✨");
         }
     }

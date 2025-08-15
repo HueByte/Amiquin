@@ -30,6 +30,7 @@ using Amiquin.Core.Services.Nsfw;
 using Amiquin.Core.Services.Nsfw.Providers;
 using Amiquin.Core.Services.Pagination;
 using Amiquin.Core.Services.Persona;
+using Amiquin.Core.Services.Scrappers;
 using Amiquin.Core.Services.ServerInteraction;
 using Amiquin.Core.Services.SessionManager;
 using Amiquin.Core.Services.Sleep;
@@ -170,7 +171,13 @@ public class InjectionConfigurator
                  .AddScoped<IVoiceService, VoiceService>()
                  .AddScoped<INewsApiClient, NewsApiClient>()
                  .AddScoped<INsfwProvider, WaifuProvider>()
-                 .AddScoped<INsfwApiService, NsfwApiService>()
+                 .AddScoped<INsfwApiService, NsfwApiService>(provider =>
+                 {
+                     var logger = provider.GetRequiredService<ILogger<NsfwApiService>>();
+                     var providers = provider.GetRequiredService<IEnumerable<INsfwProvider>>();
+                     var scrapper = provider.GetRequiredService<IScrapper>(); // Required
+                     return new NsfwApiService(logger, providers, scrapper);
+                 })
                  .AddScoped<IToggleService, ToggleService>()
                  .AddScoped<BotContextAccessor>()
                  .AddSingleton<IServerMetaService, ServerMetaService>()
@@ -180,7 +187,8 @@ public class InjectionConfigurator
                  .AddScoped<ISessionManagerService, SessionManagerService>()
                  .AddSingleton<ISleepService, SleepService>()
                  .AddSingleton<IModelProviderMappingService, ModelProviderMappingService>()
-                 .AddScoped<SessionComponentHandlers>();
+                 .AddScoped<SessionComponentHandlers>()
+                 .AddScoped<NsfwComponentHandlers>();
 
         // Provider factory and providers for managing LLM providers
         _services.AddScoped<IChatProviderFactory, ChatProviderFactory>()
@@ -236,6 +244,23 @@ public class InjectionConfigurator
         {
             client.DefaultRequestHeaders.Add("Accept", "application/json");
             client.Timeout = TimeSpan.FromSeconds(30);
+        });
+
+        // Register scrapper providers
+        _services.AddScoped<IScrapper>(provider =>
+        {
+            var logger = provider.GetRequiredService<ILogger<ConfigurationBasedScrapper>>();
+            var httpClientFactory = provider.GetRequiredService<IHttpClientFactory>();
+            var httpClient = httpClientFactory.CreateClient(nameof(ConfigurationBasedScrapper));
+            var scrapperOptions = provider.GetRequiredService<IOptions<ScrapperOptions>>().Value;
+            return new ConfigurationBasedScrapper(logger, httpClient, scrapperOptions.Luscious);
+        });
+
+        _services.AddHttpClient(nameof(ConfigurationBasedScrapper), (services, client) =>
+        {
+            var scrapperOptions = services.GetRequiredService<IOptions<ScrapperOptions>>().Value;
+            client.DefaultRequestHeaders.Add("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
+            client.Timeout = TimeSpan.FromSeconds(scrapperOptions.Luscious.TimeoutSeconds);
         });
 
         // Configure HTTP clients for LLM providers
@@ -327,6 +352,9 @@ public class InjectionConfigurator
 
         // LLM configuration system
         _services.Configure<LLMOptions>(_configuration.GetSection(LLMOptions.SectionName));
+
+        // Scrapper configuration system
+        _services.Configure<ScrapperOptions>(_configuration.GetSection(ScrapperOptions.SectionName));
 
         return this;
     }
