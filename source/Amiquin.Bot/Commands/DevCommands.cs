@@ -298,24 +298,34 @@ Streams: {voiceState.AudioClient?.GetStreams().ToDictionary(x => x.Key, x => x.V
         var channelSession = await _chatSessionRepository.GetActiveSessionAsync(SessionScope.Channel, channelId: Context.Channel.Id);
 
         // Page 1: Server Information and Statistics
+
+        var serverInfoSection = new PageSection()
+        {
+            Title = "Server Information",
+            Content = $"**Server Name:** {Context.Guild.Name}\n" +
+                      $"**Server ID:** {Context.Guild.Id}\n" +
+                      $"**Member Count:** {Context.Guild.MemberCount}\n"
+        };
+
+        var activitySection = new PageSection()
+        {
+            Title = "Activity Statistics",
+            Content = $"**Context Messages Count:** {contextMessages.Length}\n" +
+                      $"**Server Session:** {serverSession?.Model} ({serverSession?.Provider})\n" +
+                      $"**User Session:** {userSession?.Model} ({userSession?.Provider})\n" +
+                      $"**Channel Session:** {channelSession?.Model} ({channelSession?.Provider})\n" +
+                      $"**Model:** {channelSession?.Model}\n" +
+                      $"**Current Activity Level:** {currentActivity:F2}\n" +
+                      $"**Engagement Multiplier:** {engagementMultiplier:F2}"
+        };
+
         var serverInfoPage = new PaginationPage
         {
             Title = "🔍 Conversation Debug - Server Information",
             ThumbnailUrl = Context.Guild.IconUrl,
-            Color = Color.Blue,
+            Color = Color.DarkTeal,
             Timestamp = DateTimeOffset.UtcNow,
-            Sections = new List<PageSection>
-            {
-                new() { Title = "Server Name", Content = Context.Guild.Name, IsInline = true },
-                new() { Title = "Server ID", Content = Context.Guild.Id.ToString(), IsInline = true },
-                new() { Title = "Member Count", Content = Context.Guild.MemberCount.ToString(), IsInline = true },
-                new() { Title = "Current Activity Level", Content = $"{currentActivity:F2}", IsInline = true },
-                new() { Title = "Engagement Multiplier", Content = $"{engagementMultiplier:F2}", IsInline = true },
-                new() { Title = "Context Messages Count", Content = contextMessages.Length.ToString(), IsInline = true },
-                new() { Title = "Server Session", Content = serverSession != null ? $"{serverSession.Model} ({serverSession.Provider})" : "None", IsInline = true },
-                new() { Title = "User Session", Content = userSession != null ? $"{userSession.Model} ({userSession.Provider})" : "None", IsInline = true },
-                new() { Title = "Channel Session", Content = channelSession != null ? $"{channelSession.Model} ({channelSession.Provider})" : "None", IsInline = true }
-            }
+            Sections = new List<PageSection> { serverInfoSection, activitySection }
         };
 
         pages.Add(serverInfoPage);

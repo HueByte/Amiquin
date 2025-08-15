@@ -92,6 +92,7 @@ public class WaifuProvider : INsfwProvider
                     Width = firstImage.TryGetProperty("width", out var width) ? width.GetInt32() : null,
                     Height = firstImage.TryGetProperty("height", out var height) ? height.GetInt32() : null,
                     Artist = firstImage.TryGetProperty("artist", out var artist) &&
+                             artist.ValueKind != JsonValueKind.Null &&
                              artist.TryGetProperty("name", out var artistName)
                              ? artistName.GetString() : null
                 };

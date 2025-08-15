@@ -177,7 +177,8 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
 
             // Create ComponentsV2 display with color information
             var components = new ComponentBuilderV2()
-                .WithTextDisplay($"# 🎨 Color Information\n## #{cleanHex}")
+                .WithTextDisplay($"# 🎨 Color Information")
+                .WithTextDisplay($"## #{cleanHex}")
                 .WithTextDisplay($"**Hex:** #{cleanHex}\n**RGB:** {r}, {g}, {b}\n**HSL:** {h:F0}°, {s:F0}%, {l:F0}%")
                 .WithMediaGallery([imageUrl])
                 .WithActionRow([
@@ -291,15 +292,7 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
 
                 container.WithTextDisplay($"**User ID:** {targetUser.Id}\n**Account Created:** <t:{targetUser.CreatedAt.ToUnixTimeSeconds()}:D>");
 
-                container.WithTextDisplay($"**Avatar:** [View Full Size]({avatarUrl})");
-
-                container.AddComponent(new SectionBuilder()
-                    .WithAccessory(new ButtonBuilder()
-                        .WithLabel("Open in Browser")
-                        .WithStyle(ButtonStyle.Link)
-                        .WithUrl(avatarUrl)));
-
-                container.WithTextDisplay($"*Requested by {Context.User.GlobalName ?? Context.User.Username}*");
+                container.WithMediaGallery([avatarUrl]);
             })
             .Build();
 
@@ -410,24 +403,41 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
 
         // Create ComponentsV2 display with bot information
         var components = new ComponentBuilderV2()
-            .WithTextDisplay("# ☁️ Amiquin Bot Information\n## A modular and extensible Discord bot")
-            .WithMediaGallery([amiquinBannerUrl])
-            .WithTextDisplay($"**Version:** {assemblyVersion}\n**Bot ID:** {Context.Client.CurrentUser.Id}\n**Created:** {Context.Client.CurrentUser.CreatedAt:MMM dd, yyyy}")
-            .WithTextDisplay($"**Servers:** {Context.Client.Guilds.Count}\n**Users:** {Context.Client.Guilds.Sum(g => g.MemberCount):N0}\n**Shards:** {Context.Client.Shards.Count}")
-            .WithActionRow([
-                new ButtonBuilder()
-                    .WithLabel("🔗 GitHub")
-                    .WithStyle(ButtonStyle.Link)
-                    .WithUrl("https://github.com/HueByte/Amiquin"),
-                new ButtonBuilder()
-                    .WithLabel("📖 Documentation")
-                    .WithStyle(ButtonStyle.Link)
-                    .WithUrl("https://github.com/HueByte/Amiquin/wiki"),
-                new ButtonBuilder()
-                    .WithLabel("💬 Support")
-                    .WithCustomId("bot_support")
-                    .WithStyle(ButtonStyle.Secondary)
-            ])
+            .WithContainer(container =>
+            {
+                container.WithTextDisplay("# ☁️ Amiquin Bot Information\n## A modular and extensible Discord bot");
+
+                container.WithMediaGallery([amiquinBannerUrl]);
+
+                container.WithTextDisplay($"**Version:** {assemblyVersion}\n**Bot ID:** {Context.Client.CurrentUser.Id}\n**Created:** {Context.Client.CurrentUser.CreatedAt:MMM dd, yyyy}");
+
+                container.WithTextDisplay($"**Servers:** {Context.Client.Guilds.Count}\n**Users:** {Context.Client.Guilds.Sum(g => g.MemberCount):N0}\n**Shards:** {Context.Client.Shards.Count}");
+
+                // Add links as sections with accessories
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent("**🔗 GitHub Repository**\nView the source code and contribute"))
+                    .WithAccessory(new ButtonBuilder()
+                        .WithLabel("Open GitHub")
+                        .WithStyle(ButtonStyle.Link)
+                        .WithUrl("https://github.com/HueByte/Amiquin")));
+
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent("**📖 Documentation**\nLearn how to use and configure Amiquin"))
+                    .WithAccessory(new ButtonBuilder()
+                        .WithLabel("View Docs")
+                        .WithStyle(ButtonStyle.Link)
+                        .WithUrl("https://github.com/HueByte/Amiquin/wiki")));
+
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent("**💬 Support**\nGet help and report issues"))
+                    .WithAccessory(new ButtonBuilder()
+                        .WithLabel("Get Support")
+                        .WithCustomId("bot_support")
+                        .WithStyle(ButtonStyle.Secondary)));
+            })
             .Build();
 
         await ModifyOriginalResponseAsync(msg =>
@@ -444,7 +454,7 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
     {
         if (Context.Guild == null)
         {
-            await RespondAsync("❌ This command can only be used in a server.", ephemeral: true);
+            await ModifyOriginalResponseAsync(msg => msg.Content = "❌ This command can only be used in a server.");
             return;
         }
 
@@ -455,7 +465,7 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
             if (remainingSleep.HasValue)
             {
                 var minutes = (int)remainingSleep.Value.TotalMinutes + 1; // Round up
-                await RespondAsync($"😴 I'm already sleeping! I'll wake up in about **{minutes} minutes**.", ephemeral: true);
+                await ModifyOriginalResponseAsync(msg => msg.Content = $"😴 I'm already sleeping! I'll wake up in about **{minutes} minutes**.");
                 return;
             }
         }
@@ -476,7 +486,13 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
             })
             .Build();
 
-        await RespondAsync(components: components, flags: MessageFlags.ComponentsV2);
+        await ModifyOriginalResponseAsync(msg =>
+        {
+            msg.Components = components;
+            msg.Flags = MessageFlags.ComponentsV2;
+            msg.Embed = null;
+            msg.Content = null;
+        });
     }
 
     [Group("session", "Manage chat sessions")]
@@ -499,13 +515,29 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
             }
 
             var sessions = await _sessionManagerService.GetServerSessionsAsync(Context.Guild.Id);
-            var activeSession = sessions.FirstOrDefault(s => s.IsActive);
 
             if (!sessions.Any())
             {
-                await ModifyOriginalResponseAsync(msg => msg.Content = "❌ No sessions found. This shouldn't happen - creating a default session.");
-                return;
+                // Create a default session if none exist
+                try
+                {
+                    var defaultSession = await _sessionManagerService.CreateSessionAsync(Context.Guild.Id, "Default Session", setAsActive: true);
+                    sessions = await _sessionManagerService.GetServerSessionsAsync(Context.Guild.Id);
+
+                    if (!sessions.Any())
+                    {
+                        await ModifyOriginalResponseAsync(msg => msg.Content = "❌ Failed to create default session. Please try again.");
+                        return;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    await ModifyOriginalResponseAsync(msg => msg.Content = "❌ Failed to create default session. Please try again.");
+                    return;
+                }
             }
+
+            var activeSession = sessions.FirstOrDefault(s => s.IsActive);
 
             var components = new ComponentBuilderV2()
                 .WithContainer(container =>
@@ -530,25 +562,25 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
                     }
 
                     container.WithTextDisplay($"*Total sessions: {sessions.Count}*");
+                });
 
-                    // Add navigation buttons
-                    container.AddComponent(new SectionBuilder()
-                        .WithAccessory(new ButtonBuilder()
+            var actionRow = new ActionRowBuilder()
+                        .WithButton(new ButtonBuilder()
+                            .WithLabel("Create New Session")
+                            .WithCustomId("session_create")
+                            .WithStyle(ButtonStyle.Success)
+                            .WithEmote(new Emoji("➕")))
+                        .WithButton(new ButtonBuilder()
                             .WithLabel("Switch Session")
                             .WithCustomId("session_switch")
                             .WithStyle(ButtonStyle.Primary)
-                            .WithEmote(new Emoji("🔄")))
-                        .WithAccessory(new ButtonBuilder()
-                            .WithLabel("Create New")
-                            .WithCustomId("session_create")
-                            .WithStyle(ButtonStyle.Success)
-                            .WithEmote(new Emoji("➕"))));
-                })
-                .Build();
+                            .WithEmote(new Emoji("🔄")));
+
+            components.AddComponent(actionRow);
 
             await ModifyOriginalResponseAsync(msg =>
             {
-                msg.Components = components;
+                msg.Components = components.Build();
                 msg.Flags = MessageFlags.ComponentsV2;
                 msg.Embed = null;
             });

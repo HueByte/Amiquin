@@ -200,24 +200,27 @@ public class PaginationService : IPaginationService
                     }
                     else
                     {
-                        container.WithTextDisplay($"# {page.Title}").WithSeparator(spacing: SeparatorSpacingSize.Large);
+                        container.WithTextDisplay($"# {page.Title}")
+                            .WithSeparator(spacing: SeparatorSpacingSize.Large);
                     }
                 }
 
                 // Add main content
                 if (!string.IsNullOrWhiteSpace(page.Content))
                 {
-                    container.WithTextDisplay(page.Content).WithSeparator();
+                    container.WithTextDisplay(page.Content)
+                        .WithSeparator();
                 }
 
                 // Add sections
                 foreach (var section in page.Sections)
                 {
                     var sectionContent = !string.IsNullOrWhiteSpace(section.Title)
-                        ? $"**{section.Title}**\n{section.Content}"
+                        ? $"## {section.Title}\n{section.Content}"
                         : section.Content;
 
-                    container.WithTextDisplay(sectionContent).WithSeparator();
+                    container.WithTextDisplay(sectionContent)
+                        .WithSeparator();
                 }
 
                 if (!string.IsNullOrWhiteSpace(page.ImageUrl))

@@ -4,6 +4,7 @@ using Amiquin.Core.Services.Meta;
 using Amiquin.Core.Services.Modal;
 using Amiquin.Core.Services.Pagination;
 using Amiquin.Core.Services.Toggle;
+using Amiquin.Core.Utilities;
 using Discord;
 using Discord.WebSocket;
 using Microsoft.Extensions.Logging;
@@ -148,7 +149,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                 .AddComponent(new TextDisplayBuilder()
                     .WithContent(channelContent))
                 .WithAccessory(new ButtonBuilder()
-                    .WithCustomId(_componentHandler.GenerateCustomId(ConfigMenuPrefix, "channels", guild.Id.ToString()))
+                    .WithCustomId(_componentHandler.GenerateCustomId(QuickSetupPrefix, "channel"))
                     .WithLabel("Configure Channels")
                     .WithStyle(ButtonStyle.Primary)
                     .WithEmote(new Emoji("💬"))));
@@ -164,7 +165,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                 .AddComponent(new TextDisplayBuilder()
                     .WithContent(providerContent))
                 .WithAccessory(new ButtonBuilder()
-                    .WithCustomId(_componentHandler.GenerateCustomId(ConfigMenuPrefix, "provider", guild.Id.ToString()))
+                    .WithCustomId(_componentHandler.GenerateCustomId(QuickSetupPrefix, "provider"))
                     .WithLabel("Configure Provider")
                     .WithStyle(ButtonStyle.Primary)
                     .WithEmote(new Emoji("🤖"))));
@@ -186,7 +187,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                 .AddComponent(new TextDisplayBuilder()
                     .WithContent(toggleSummaryContent))
                 .WithAccessory(new ButtonBuilder()
-                    .WithCustomId(_componentHandler.GenerateCustomId(ConfigMenuPrefix, "toggles", guild.Id.ToString()))
+                    .WithCustomId(_componentHandler.GenerateCustomId(QuickSetupPrefix, "toggles"))
                     .WithLabel("Manage Features")
                     .WithStyle(ButtonStyle.Primary)
                     .WithEmote(new Emoji("🎛️"))));
@@ -199,7 +200,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                 .AddComponent(new TextDisplayBuilder()
                     .WithContent("**ℹ️ Server Information**\nView Discord server details and statistics"))
                 .WithAccessory(new ButtonBuilder()
-                    .WithCustomId(_componentHandler.GenerateCustomId(ConfigMenuPrefix, "server_info", guild.Id.ToString()))
+                    .WithCustomId(_componentHandler.GenerateCustomId(QuickSetupPrefix, "server_info"))
                     .WithLabel("Server Info")
                     .WithStyle(ButtonStyle.Secondary)
                     .WithEmote(new Emoji("ℹ️"))));
@@ -208,7 +209,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                 .AddComponent(new TextDisplayBuilder()
                     .WithContent("**⚙️ Bot Metadata**\nView Amiquin configuration and AI settings"))
                 .WithAccessory(new ButtonBuilder()
-                    .WithCustomId(_componentHandler.GenerateCustomId(ConfigMenuPrefix, "amiquin_metadata", guild.Id.ToString()))
+                    .WithCustomId(_componentHandler.GenerateCustomId(QuickSetupPrefix, "amiquin_metadata"))
                     .WithLabel("Bot Metadata")
                     .WithStyle(ButtonStyle.Secondary)
                     .WithEmote(new Emoji("⚙️"))));
@@ -217,7 +218,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                 .AddComponent(new TextDisplayBuilder()
                     .WithContent("**💭 Session Context**\nView current conversation context and statistics"))
                 .WithAccessory(new ButtonBuilder()
-                    .WithCustomId(_componentHandler.GenerateCustomId(ConfigMenuPrefix, "session_context", guild.Id.ToString()))
+                    .WithCustomId(_componentHandler.GenerateCustomId(QuickSetupPrefix, "session_context"))
                     .WithLabel("Session Context")
                     .WithStyle(ButtonStyle.Secondary)
                     .WithEmote(new Emoji("💭"))));
@@ -225,7 +226,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
 
         // Interactive Components - Navigation Menu
         var selectMenu = new SelectMenuBuilder()
-        .WithCustomId(_componentHandler.GenerateCustomId(ConfigMenuPrefix, guild.Id.ToString()))
+        .WithCustomId(_componentHandler.GenerateCustomId(ConfigMenuPrefix))
         .WithPlaceholder("Configure specific settings...")
         .AddOption("Server Persona", "persona", "Configure AI assistant behavior", new Emoji("🎭"))
         .AddOption("Primary Channel", "channel", "Set main bot channel", new Emoji("💬"))
@@ -288,61 +289,61 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         return builder.Build();
     }
 
-
-
     private async Task<bool> HandleConfigMenuAsync(SocketMessageComponent component, ComponentContext context)
     {
         try
         {
             // Component is already deferred by EventHandlerService
 
-            if (context.Parameters.Length < 1 || !ulong.TryParse(context.Parameters[0], out var guildId))
+            // Extract guild ID from interaction context
+            var guildId = (component.Channel as SocketGuildChannel)?.Guild.Id;
+            if (guildId == null)
             {
-                await component.ModifyOriginalResponseAsync(msg => msg.Content = "❌ Invalid configuration data.");
+                await DiscordUtilities.SendErrorMessageAsync(component, "This command can only be used in a server.");
                 return true;
             }
+
+            var selectedValue = component.Data.Values?.FirstOrDefault();
 
             // Verify user has permission
             var guild = component.User as SocketGuildUser;
             if (guild == null || !guild.GuildPermissions.ModerateMembers)
             {
-                await component.ModifyOriginalResponseAsync(msg => msg.Content = "❌ You need Moderate Members permission to configure the server.");
+                await DiscordUtilities.SendErrorMessageAsync(component, "You need Moderate Members permission to configure the server.");
                 return true;
             }
-
-            var selectedValue = component.Data.Values.FirstOrDefault();
 
             switch (selectedValue)
             {
                 case "persona":
-                    await ShowPersonaConfigurationAsync(component, guildId);
+                    await ShowPersonaConfigurationAsync(component, guildId.Value);
                     break;
                 case "channel":
-                    await ShowChannelConfigurationAsync(component, guildId);
+                    await ShowChannelConfigurationAsync(component, guildId.Value);
                     break;
                 case "nsfw_channel":
-                    await ShowNsfwChannelConfigurationAsync(component, guildId);
+                    await ShowNsfwChannelConfigurationAsync(component, guildId.Value);
                     break;
                 case "provider":
-                    await ShowProviderConfigurationAsync(component, guildId);
+                    await ShowProviderConfigurationAsync(component, guildId.Value);
                     break;
                 case "toggles":
-                    await ShowToggleConfigurationAsync(component, guildId);
+                    await ShowToggleConfigurationAsync(component, guildId.Value);
                     break;
                 case "view_all":
-                    await ShowCompleteConfigurationAsync(component, guildId);
+                    await ShowCompleteConfigurationAsync(component, guildId.Value);
                     break;
                 case "server_info":
-                    await ShowDiscordServerInfoAsync(component, guildId);
+                    await ShowDiscordServerInfoAsync(component, guildId.Value);
                     break;
                 case "amiquin_metadata":
-                    await ShowAmiquinMetadataAsync(component, guildId);
+                    await ShowAmiquinMetadataAsync(component, guildId.Value);
                     break;
                 case "session_context":
-                    await ShowSessionContextAsync(component, guildId);
+                    await ShowSessionContextAsync(component, guildId.Value);
                     break;
                 case "persona_details":
-                    await ShowPersonaDetailsAsync(component, guildId);
+                    await ShowPersonaDetailsAsync(component, guildId.Value);
                     break;
                 default:
                     await _errorHandlerService.RespondWithErrorAsync(component, "Unknown configuration option.");
@@ -364,14 +365,19 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         {
             // Component is already deferred by EventHandlerService
 
-            if (context.Parameters.Length < 2)
+            if (context.Parameters.Length < 1)
             {
-                await component.ModifyOriginalResponseAsync(msg => msg.Content = "❌ Invalid action data.");
+                await DiscordUtilities.SendErrorMessageAsync(component, "Invalid action data.");
                 return true;
             }
 
             var action = context.Parameters[0];
-            var guildId = ulong.Parse(context.Parameters[1]);
+            var guildId = (component.Channel as SocketGuildChannel)?.Guild.Id;
+            if (guildId == null)
+            {
+                await DiscordUtilities.SendErrorMessageAsync(component, "This command can only be used in a server.");
+                return true;
+            }
 
             // Handle specific configuration actions
             switch (action)
@@ -380,7 +386,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                     if (component.Data.Values.Any())
                     {
                         var channelId = ulong.Parse(component.Data.Values.First());
-                        await SetPrimaryChannelAsync(component, guildId, channelId);
+                        await SetPrimaryChannelAsync(component, guildId.Value, channelId);
                     }
                     break;
 
@@ -388,24 +394,24 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                     if (component.Data.Values.Any())
                     {
                         var channelId = ulong.Parse(component.Data.Values.First());
-                        await SetNsfwChannelAsync(component, guildId, channelId);
+                        await SetNsfwChannelAsync(component, guildId.Value, channelId);
                     }
                     break;
                 case "set_provider":
                     if (component.Data.Values.Any())
                     {
                         var provider = component.Data.Values.First();
-                        await SetProviderAsync(component, guildId, provider);
+                        await SetProviderAsync(component, guildId.Value, provider);
                     }
                     break;
                 case "clear_persona":
                 case "clear_channel":
                 case "clear_nsfw_channel":
                 case "clear_provider":
-                    await ClearSettingAsync(component, guildId, action.Replace("clear_", ""));
+                    await ClearSettingAsync(component, guildId.Value, action.Replace("clear_", ""));
                     break;
                 default:
-                    await component.ModifyOriginalResponseAsync(msg => msg.Content = "❌ Unknown action.");
+                    await DiscordUtilities.SendErrorMessageAsync(component, "Unknown action.");
                     break;
             }
 
@@ -422,17 +428,25 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
     {
         try
         {
-            if (context.Parameters.Length < 2)
+            if (context.Parameters.Length < 1)
             {
                 if (component.HasResponded)
-                    await component.ModifyOriginalResponseAsync(msg => msg.Content = "❌ Invalid quick setup data.");
+                    await DiscordUtilities.SendErrorMessageAsync(component, "Invalid quick setup data.");
                 else
                     await component.RespondAsync("❌ Invalid quick setup data.", ephemeral: true);
                 return true;
             }
 
             var setupType = context.Parameters[0];
-            var guildId = ulong.Parse(context.Parameters[1]);
+            var guildId = (component.Channel as SocketGuildChannel)?.Guild.Id;
+            if (guildId == null)
+            {
+                if (component.HasResponded)
+                    await DiscordUtilities.SendErrorMessageAsync(component, "This command can only be used in a server.");
+                else
+                    await component.RespondAsync("❌ This command can only be used in a server.", ephemeral: true);
+                return true;
+            }
 
             switch (setupType)
             {
@@ -440,7 +454,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                     // Show modal for persona input (NOT deferred - handled specially in EventHandlerService)
                     var personaModal = new ModalBuilder()
                         .WithTitle("Set Server Persona")
-                        .WithCustomId(_componentHandler.GenerateCustomId(ModalPrefix, "persona", guildId.ToString()))
+                        .WithCustomId(_componentHandler.GenerateCustomId(ModalPrefix, "persona"))
                         .AddTextInput("Persona Description", "persona_input", TextInputStyle.Paragraph,
                             "Describe how the AI should behave in this server...",
                             required: true,
@@ -454,22 +468,42 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
 
                 case "channel":
                     // Component is already deferred by EventHandlerService
-                    await ShowChannelConfigurationAsync(component, guildId);
+                    await ShowChannelConfigurationAsync(component, guildId.Value);
                     break;
 
                 case "nsfw_channel":
                     // Component is already deferred by EventHandlerService
-                    await ShowNsfwChannelConfigurationAsync(component, guildId);
+                    await ShowNsfwChannelConfigurationAsync(component, guildId.Value);
                     break;
 
                 case "provider":
                     // Component is already deferred by EventHandlerService
-                    await ShowProviderConfigurationAsync(component, guildId);
+                    await ShowProviderConfigurationAsync(component, guildId.Value);
+                    break;
+
+                case "toggles":
+                    // Component is already deferred by EventHandlerService
+                    await ShowToggleConfigurationAsync(component, guildId.Value);
+                    break;
+
+                case "server_info":
+                    // Component is already deferred by EventHandlerService
+                    await ShowDiscordServerInfoAsync(component, guildId.Value);
+                    break;
+
+                case "amiquin_metadata":
+                    // Component is already deferred by EventHandlerService
+                    await ShowAmiquinMetadataAsync(component, guildId.Value);
+                    break;
+
+                case "session_context":
+                    // Component is already deferred by EventHandlerService
+                    await ShowSessionContextAsync(component, guildId.Value);
                     break;
 
                 default:
                     if (component.HasResponded)
-                        await component.ModifyOriginalResponseAsync(msg => msg.Content = "❌ Unknown quick setup option.");
+                        await DiscordUtilities.SendErrorMessageAsync(component, "Unknown quick setup option.");
                     else
                         await component.RespondAsync("❌ Unknown quick setup option.", ephemeral: true);
                     break;
@@ -490,30 +524,35 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         {
             // Component is already deferred by EventHandlerService
 
-            if (context.Parameters.Length < 2)
+            if (context.Parameters.Length < 1)
             {
-                await component.ModifyOriginalResponseAsync(msg => msg.Content = "❌ Invalid toggle data.");
+                await DiscordUtilities.SendErrorMessageAsync(component, "Invalid toggle data.");
                 return true;
             }
 
             var toggleName = context.Parameters[0];
-            var guildId = ulong.Parse(context.Parameters[1]);
+            var guildId = (component.Channel as SocketGuildChannel)?.Guild.Id;
+            if (guildId == null)
+            {
+                await DiscordUtilities.SendErrorMessageAsync(component, "This command can only be used in a server.");
+                return true;
+            }
 
             // Get current toggle state
-            var toggles = await _toggleService.GetTogglesByServerId(guildId);
+            var toggles = await _toggleService.GetTogglesByServerId(guildId.Value);
             var toggle = toggles.FirstOrDefault(t => t.Name == toggleName);
 
             if (toggle != null)
             {
                 // Toggle the state
                 var newState = !toggle.IsEnabled;
-                await _toggleService.SetServerToggleAsync(guildId, toggleName, newState);
+                await _toggleService.SetServerToggleAsync(guildId.Value, toggleName, newState);
 
                 // Return to main configuration interface
                 var guild = (component.Channel as SocketGuildChannel)?.Guild;
                 if (guild != null)
                 {
-                    var components = await CreateConfigurationInterfaceAsync(guildId, guild);
+                    var components = await CreateConfigurationInterfaceAsync(guildId.Value, guild);
                     await component.ModifyOriginalResponseAsync(msg =>
                     {
                         msg.Components = components;
@@ -524,7 +563,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
             }
             else
             {
-                await component.ModifyOriginalResponseAsync(msg => msg.Content = "❌ Toggle not found.");
+                await DiscordUtilities.SendErrorMessageAsync(component, "Toggle not found.");
             }
 
             return true;
@@ -542,14 +581,19 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         {
             // Component is already deferred by EventHandlerService
 
-            if (context.Parameters.Length < 2)
+            if (context.Parameters.Length < 1)
             {
-                await component.ModifyOriginalResponseAsync(msg => msg.Content = "❌ Invalid navigation data.");
+                await DiscordUtilities.SendErrorMessageAsync(component, "Invalid navigation data.");
                 return true;
             }
 
             var action = context.Parameters[0];
-            var guildId = ulong.Parse(context.Parameters[1]);
+            var guildId = (component.Channel as SocketGuildChannel)?.Guild.Id;
+            if (guildId == null)
+            {
+                await DiscordUtilities.SendErrorMessageAsync(component, "This command can only be used in a server.");
+                return true;
+            }
 
             switch (action)
             {
@@ -558,7 +602,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                     var guild = (component.Channel as SocketGuildChannel)?.Guild;
                     if (guild != null)
                     {
-                        var components = await CreateConfigurationInterfaceAsync(guildId, guild);
+                        var components = await CreateConfigurationInterfaceAsync(guildId.Value, guild);
                         await component.ModifyOriginalResponseAsync(msg =>
                         {
                             msg.Components = components;
@@ -569,15 +613,15 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                     break;
 
                 case "export":
-                    await ExportConfigurationAsync(component, guildId);
+                    await ExportConfigurationAsync(component, guildId.Value);
                     break;
 
                 case "help":
-                    await ShowHelpAsync(component);
+                    await ShowHelpAsync(component, guildId.Value);
                     break;
 
                 default:
-                    await component.ModifyOriginalResponseAsync(msg => msg.Content = "❌ Unknown navigation action.");
+                    await DiscordUtilities.SendErrorMessageAsync(component, "Unknown navigation action.");
                     break;
             }
 
@@ -613,16 +657,16 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         // Add action buttons
         builder.WithActionRow([
             new ButtonBuilder()
-                .WithCustomId(_componentHandler.GenerateCustomId(QuickSetupPrefix, "persona", guildId.ToString()))
+                .WithCustomId(_componentHandler.GenerateCustomId(QuickSetupPrefix, "persona"))
                 .WithLabel("✏️ Edit Persona")
                 .WithStyle(ButtonStyle.Primary),
             new ButtonBuilder()
-                .WithCustomId(_componentHandler.GenerateCustomId(ConfigActionPrefix, "clear_persona", guildId.ToString()))
+                .WithCustomId(_componentHandler.GenerateCustomId(ConfigActionPrefix, "clear_persona"))
                 .WithLabel("🗑️ Clear Persona")
                 .WithStyle(ButtonStyle.Danger)
                 .WithDisabled(string.IsNullOrWhiteSpace(serverMeta?.Persona)),
             new ButtonBuilder()
-                .WithCustomId(_componentHandler.GenerateCustomId(NavigationPrefix, "back", guildId.ToString()))
+                .WithCustomId(_componentHandler.GenerateCustomId(NavigationPrefix, "back"))
                 .WithLabel("← Back")
                 .WithStyle(ButtonStyle.Secondary)
         ]);
@@ -636,8 +680,14 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
 
                 container.WithTextDisplay(tipsContent);
 
-                // Note: Traditional action row components are not converted to ComponentsV2 sections
-                // They remain as action rows below the container
+                // Add navigation section
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent("**Navigation**\nReturn to main configuration menu"))
+                    .WithAccessory(new ButtonBuilder()
+                        .WithCustomId(_componentHandler.GenerateCustomId(NavigationPrefix, "back"))
+                        .WithLabel("← Back")
+                        .WithStyle(ButtonStyle.Secondary)));
             })
             .Build();
 
@@ -695,7 +745,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
             }
 
             var selectMenu = new SelectMenuBuilder(
-                _componentHandler.GenerateCustomId(ConfigActionPrefix, "set_channel", guildId.ToString()),
+                _componentHandler.GenerateCustomId(ConfigActionPrefix, "set_channel"),
                 selectMenuOptions)
                 .WithPlaceholder("Select a channel...")
                 .WithMinValues(1)
@@ -707,12 +757,12 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         // Add navigation buttons
         builder.WithActionRow([
             new ButtonBuilder()
-                .WithCustomId(_componentHandler.GenerateCustomId(ConfigActionPrefix, "clear_channel", guildId.ToString()))
+                .WithCustomId(_componentHandler.GenerateCustomId(ConfigActionPrefix, "clear_channel"))
                 .WithLabel("🗑️ Clear Channel")
                 .WithStyle(ButtonStyle.Danger)
                 .WithDisabled(serverMeta?.PrimaryChannelId == null),
             new ButtonBuilder()
-                .WithCustomId(_componentHandler.GenerateCustomId(NavigationPrefix, "back", guildId.ToString()))
+                .WithCustomId(_componentHandler.GenerateCustomId(NavigationPrefix, "back"))
                 .WithLabel("← Back")
                 .WithStyle(ButtonStyle.Secondary)
         ]);
@@ -724,8 +774,14 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
 
                 container.WithTextDisplay(currentChannelContent);
 
-                // Note: Traditional action row components are not converted to ComponentsV2 sections
-                // They remain as action rows below the container
+                // Add navigation section
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent("**Navigation**\nReturn to main configuration menu"))
+                    .WithAccessory(new ButtonBuilder()
+                        .WithCustomId(_componentHandler.GenerateCustomId(NavigationPrefix, "back"))
+                        .WithLabel("← Back")
+                        .WithStyle(ButtonStyle.Secondary)));
             })
             .Build();
 
@@ -777,7 +833,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         }
 
         var selectMenu = new SelectMenuBuilder(
-            _componentHandler.GenerateCustomId(ConfigActionPrefix, "set_provider", guildId.ToString()),
+            _componentHandler.GenerateCustomId(ConfigActionPrefix, "set_provider"),
             selectMenuOptions)
             .WithPlaceholder("Select a provider...")
             .WithMinValues(1)
@@ -788,11 +844,11 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         // Add navigation buttons
         builder.WithActionRow([
             new ButtonBuilder()
-                .WithCustomId(_componentHandler.GenerateCustomId(ConfigActionPrefix, "clear_provider", guildId.ToString()))
+                .WithCustomId(_componentHandler.GenerateCustomId(ConfigActionPrefix, "clear_provider"))
                 .WithLabel("🔄 Use Default")
                 .WithStyle(ButtonStyle.Secondary),
             new ButtonBuilder()
-                .WithCustomId(_componentHandler.GenerateCustomId(NavigationPrefix, "back", guildId.ToString()))
+                .WithCustomId(_componentHandler.GenerateCustomId(NavigationPrefix, "back"))
                 .WithLabel("← Back")
                 .WithStyle(ButtonStyle.Secondary)
         ]);
@@ -863,7 +919,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
 
         if (guild == null)
         {
-            await component.ModifyOriginalResponseAsync(msg => msg.Content = "❌ Unable to find guild information.");
+            await DiscordUtilities.SendErrorMessageAsync(component, "Unable to find guild information.");
             return;
         }
 
@@ -940,30 +996,6 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                          $"**On this page:** {enabledCount}/{pageToggles.Count} enabled"
             });
 
-            // Group toggles by status for better organization
-            var enabledToggles = pageToggles.Where(t => t.IsEnabled).ToList();
-            var disabledToggles = pageToggles.Where(t => !t.IsEnabled).ToList();
-
-            if (enabledToggles.Any())
-            {
-                paginationPage.Sections.Add(new PageSection
-                {
-                    Title = "✅ Enabled Features",
-                    Content = string.Join("\n", enabledToggles.Select(t => $"• **{FormatToggleName(t.Name)}**")),
-                    IsInline = true
-                });
-            }
-
-            if (disabledToggles.Any())
-            {
-                paginationPage.Sections.Add(new PageSection
-                {
-                    Title = "❌ Disabled Features",
-                    Content = string.Join("\n", disabledToggles.Select(t => $"• {FormatToggleName(t.Name)}")),
-                    IsInline = true
-                });
-            }
-
             pages.Add(paginationPage);
         }
 
@@ -972,34 +1004,46 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
 
     private void AddToggleButtonsToContainer(ContainerBuilder container, List<Models.Toggle> toggles, ulong guildId)
     {
-        // Add toggle buttons as individual sections with accessories
-        foreach (var toggle in toggles)
+        // Group toggles by enabled/disabled status and create proper sections
+        var enabledToggles = toggles.Where(t => t.IsEnabled).ToList();
+        var disabledToggles = toggles.Where(t => !t.IsEnabled).ToList();
+
+        // Add individual sections for each enabled toggle
+        foreach (var toggle in enabledToggles.Take(10))
         {
-            var emoji = toggle.IsEnabled ? "✅" : "❌";
-            var style = toggle.IsEnabled ? ButtonStyle.Success : ButtonStyle.Secondary;
-            var label = FormatToggleName(toggle.Name);
+            var toggleSection = new SectionBuilder()
+                .AddComponent(new TextDisplayBuilder()
+                    .WithContent($"✅ {FormatToggleName(toggle.Name)}"))
+                .WithAccessory(new ButtonBuilder()
+                    .WithCustomId(_componentHandler.GenerateCustomId(TogglePrefix, toggle.Name))
+                    .WithLabel("Disable")
+                    .WithStyle(ButtonStyle.Danger));
 
-            // Truncate label if too long
-            if (label.Length > 20)
-                label = label.Substring(0, 17) + "...";
-
-            var button = new ButtonBuilder()
-                .WithCustomId(_componentHandler.GenerateCustomId(TogglePrefix, toggle.Name, guildId.ToString()))
-                .WithLabel($"{emoji} {label}")
-                .WithStyle(style);
-
-            container.AddComponent(new SectionBuilder()
-                .WithAccessory(button));
+            container.AddComponent(toggleSection);
         }
 
-        // Add back button
-        var backButton = new ButtonBuilder()
-            .WithCustomId(_componentHandler.GenerateCustomId(NavigationPrefix, "back", guildId.ToString()))
-            .WithLabel("← Back")
-            .WithStyle(ButtonStyle.Secondary);
+        // Add individual sections for each disabled toggle
+        foreach (var toggle in disabledToggles.Take(10))
+        {
+            var toggleSection = new SectionBuilder()
+                .AddComponent(new TextDisplayBuilder()
+                    .WithContent($"❌ {FormatToggleName(toggle.Name)}"))
+                .WithAccessory(new ButtonBuilder()
+                    .WithCustomId(_componentHandler.GenerateCustomId(TogglePrefix, toggle.Name))
+                    .WithLabel("Enable")
+                    .WithStyle(ButtonStyle.Success));
 
+            container.AddComponent(toggleSection);
+        }
+
+        // Add navigation section
         container.AddComponent(new SectionBuilder()
-            .WithAccessory(backButton));
+            .AddComponent(new TextDisplayBuilder()
+                .WithContent("**Navigation**\nReturn to main configuration menu"))
+            .WithAccessory(new ButtonBuilder()
+                .WithCustomId(_componentHandler.GenerateCustomId(NavigationPrefix, "back", guildId.ToString()))
+                .WithLabel("← Back")
+                .WithStyle(ButtonStyle.Secondary)));
     }
 
     private async Task ShowCompleteConfigurationAsync(SocketMessageComponent component, ulong guildId)
@@ -1058,10 +1102,10 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         await component.Channel.SendFileAsync(stream, $"config_export_{guildId}_{DateTime.UtcNow:yyyyMMdd_HHmmss}.md",
             $"Configuration export for **{guild.Name}**");
 
-        await component.ModifyOriginalResponseAsync(msg => msg.Content = "✅ Configuration exported successfully!");
+        await DiscordUtilities.SendSuccessMessageAsync(component, "Configuration exported successfully!");
     }
 
-    private async Task ShowHelpAsync(SocketMessageComponent component)
+    private async Task ShowHelpAsync(SocketMessageComponent component, ulong guildId)
     {
         var title = "❓ Configuration Help";
         var description = "Learn how to configure your server settings";
@@ -1101,6 +1145,15 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                 container.WithTextDisplay(featureTogglesContent);
 
                 container.WithTextDisplay(needMoreHelpContent);
+
+                // Add navigation section
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent("**Navigation**\nReturn to main configuration menu"))
+                    .WithAccessory(new ButtonBuilder()
+                        .WithCustomId(_componentHandler.GenerateCustomId(NavigationPrefix, "back"))
+                        .WithLabel("← Back")
+                        .WithStyle(ButtonStyle.Secondary)));
             })
             .Build();
 
@@ -1121,8 +1174,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
             await _serverMetaService.UpdateServerMetaAsync(serverMeta);
 
             var channel = (component.Channel as SocketGuildChannel)?.Guild?.GetTextChannel(channelId);
-            await component.ModifyOriginalResponseAsync(msg =>
-                msg.Content = $"✅ Primary channel set to {channel?.Mention ?? $"<#{channelId}>"}");
+            await DiscordUtilities.SendSuccessMessageAsync(component, $"Primary channel set to {channel?.Mention ?? $"<#{channelId}>"}");
 
             // Refresh the interface after a short delay
             await Task.Delay(2000);
@@ -1148,8 +1200,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
             serverMeta.PreferredProvider = normalizedProvider;
             await _serverMetaService.UpdateServerMetaAsync(serverMeta);
 
-            await component.ModifyOriginalResponseAsync(msg =>
-                msg.Content = $"✅ AI provider set to **{normalizedProvider}**");
+            await DiscordUtilities.SendSuccessMessageAsync(component, $"AI provider set to **{normalizedProvider}**");
 
             // Refresh the interface after a short delay
             await Task.Delay(2000);
@@ -1167,7 +1218,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                 case "persona":
                     serverMeta.Persona = null!;
                     await _serverMetaService.UpdateServerMetaAsync(serverMeta);
-                    await component.ModifyOriginalResponseAsync(msg => msg.Content = "✅ Persona cleared.");
+                    await DiscordUtilities.SendSuccessMessageAsync(component, "Persona cleared.");
                     await Task.Delay(2000);
                     await ShowPersonaConfigurationAsync(component, guildId);
                     break;
@@ -1175,7 +1226,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                 case "channel":
                     serverMeta.PrimaryChannelId = null;
                     await _serverMetaService.UpdateServerMetaAsync(serverMeta);
-                    await component.ModifyOriginalResponseAsync(msg => msg.Content = "✅ Primary channel cleared.");
+                    await DiscordUtilities.SendSuccessMessageAsync(component, "Primary channel cleared.");
                     await Task.Delay(2000);
                     await ShowChannelConfigurationAsync(component, guildId);
                     break;
@@ -1183,7 +1234,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                 case "nsfw_channel":
                     serverMeta.NsfwChannelId = null;
                     await _serverMetaService.UpdateServerMetaAsync(serverMeta);
-                    await component.ModifyOriginalResponseAsync(msg => msg.Content = "✅ NSFW channel cleared.");
+                    await DiscordUtilities.SendSuccessMessageAsync(component, "NSFW channel cleared.");
                     await Task.Delay(2000);
                     await ShowNsfwChannelConfigurationAsync(component, guildId);
                     break;
@@ -1191,7 +1242,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                 case "provider":
                     serverMeta.PreferredProvider = null;
                     await _serverMetaService.UpdateServerMetaAsync(serverMeta);
-                    await component.ModifyOriginalResponseAsync(msg => msg.Content = "✅ Provider reset to default.");
+                    await DiscordUtilities.SendSuccessMessageAsync(component, "Provider reset to default.");
                     await Task.Delay(2000);
                     await ShowProviderConfigurationAsync(component, guildId);
                     break;
@@ -1258,7 +1309,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         var builder = new ComponentBuilderV2()
             .WithActionRow([
                 new ButtonBuilder()
-                    .WithCustomId(_componentHandler.GenerateCustomId(NavigationPrefix, "back", guildId.ToString()))
+                    .WithCustomId(_componentHandler.GenerateCustomId(NavigationPrefix, "back"))
                     .WithLabel("← Back")
                     .WithStyle(ButtonStyle.Secondary)
             ]);
@@ -1289,8 +1340,14 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
 
                 container.WithTextDisplay(verificationContent);
 
-                // Note: Traditional action row components are not converted to ComponentsV2 sections
-                // They remain as action rows below the container
+                // Add navigation section
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent("**Navigation**\nReturn to main configuration menu"))
+                    .WithAccessory(new ButtonBuilder()
+                        .WithCustomId(_componentHandler.GenerateCustomId(NavigationPrefix, "back"))
+                        .WithLabel("← Back")
+                        .WithStyle(ButtonStyle.Secondary)));
             })
             .Build();
 
@@ -1368,7 +1425,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         var builder = new ComponentBuilderV2()
             .WithActionRow([
                 new ButtonBuilder()
-                    .WithCustomId(_componentHandler.GenerateCustomId(NavigationPrefix, "back", guildId.ToString()))
+                    .WithCustomId(_componentHandler.GenerateCustomId(NavigationPrefix, "back"))
                     .WithLabel("← Back")
                     .WithStyle(ButtonStyle.Secondary)
             ]);
@@ -1389,8 +1446,14 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                     container.WithTextDisplay(metadataContent);
                 }
 
-                // Note: Traditional action row components are not converted to ComponentsV2 sections
-                // They remain as action rows below the container
+                // Add navigation section
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent("**Navigation**\nReturn to main configuration menu"))
+                    .WithAccessory(new ButtonBuilder()
+                        .WithCustomId(_componentHandler.GenerateCustomId(NavigationPrefix, "back"))
+                        .WithLabel("← Back")
+                        .WithStyle(ButtonStyle.Secondary)));
             })
             .Build();
 
@@ -1442,7 +1505,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         var builder = new ComponentBuilderV2()
             .WithActionRow([
                 new ButtonBuilder()
-                    .WithCustomId(_componentHandler.GenerateCustomId(NavigationPrefix, "back", guildId.ToString()))
+                    .WithCustomId(_componentHandler.GenerateCustomId(NavigationPrefix, "back"))
                     .WithLabel("← Back")
                     .WithStyle(ButtonStyle.Secondary)
             ]);
@@ -1462,8 +1525,14 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
 
                 container.WithTextDisplay(recentInteractionsContent);
 
-                // Note: Traditional action row components are not converted to ComponentsV2 sections
-                // They remain as action rows below the container
+                // Add navigation section
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent("**Navigation**\nReturn to main configuration menu"))
+                    .WithAccessory(new ButtonBuilder()
+                        .WithCustomId(_componentHandler.GenerateCustomId(NavigationPrefix, "back"))
+                        .WithLabel("← Back")
+                        .WithStyle(ButtonStyle.Secondary)));
             })
             .Build();
 
@@ -1540,11 +1609,11 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         var builder = new ComponentBuilderV2()
             .WithActionRow([
                 new ButtonBuilder()
-                    .WithCustomId(_componentHandler.GenerateCustomId(QuickSetupPrefix, "persona", guildId.ToString()))
+                    .WithCustomId(_componentHandler.GenerateCustomId(QuickSetupPrefix, "persona"))
                     .WithLabel("✏️ Edit Persona")
                     .WithStyle(ButtonStyle.Primary),
                 new ButtonBuilder()
-                    .WithCustomId(_componentHandler.GenerateCustomId(NavigationPrefix, "back", guildId.ToString()))
+                    .WithCustomId(_componentHandler.GenerateCustomId(NavigationPrefix, "back"))
                     .WithLabel("← Back")
                     .WithStyle(ButtonStyle.Secondary)
             ]);
@@ -1559,8 +1628,14 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                     container.WithTextDisplay(sectionContent);
                 }
 
-                // Note: Traditional action row components are not converted to ComponentsV2 sections
-                // They remain as action rows below the container
+                // Add navigation section
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent("**Navigation**\nReturn to main configuration menu"))
+                    .WithAccessory(new ButtonBuilder()
+                        .WithCustomId(_componentHandler.GenerateCustomId(NavigationPrefix, "back"))
+                        .WithLabel("← Back")
+                        .WithStyle(ButtonStyle.Secondary)));
             })
             .Build();
 
@@ -1627,14 +1702,47 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
     {
         try
         {
-            if (context.Parameters.Length < 2)
+            if (context.Parameters.Length < 1)
             {
-                await modal.ModifyOriginalResponseAsync(msg => msg.Content = "❌ Invalid modal data.");
+                var errorComponents = new ComponentBuilderV2()
+                    .WithContainer(container =>
+                    {
+                        container.WithTextDisplay("# ❌ Invalid Modal Data");
+                        container.WithTextDisplay("The modal submission contains invalid data.");
+                    })
+                    .Build();
+
+                await modal.ModifyOriginalResponseAsync(msg =>
+                {
+                    msg.Components = errorComponents;
+                    msg.Flags = MessageFlags.ComponentsV2;
+                    msg.Embed = null;
+                    msg.Content = null;
+                });
                 return true;
             }
 
             var modalType = context.Parameters[0];
-            var guildId = ulong.Parse(context.Parameters[1]);
+            var guildId = (modal.Channel as SocketGuildChannel)?.Guild.Id;
+            if (guildId == null)
+            {
+                var errorComponents = new ComponentBuilderV2()
+                    .WithContainer(container =>
+                    {
+                        container.WithTextDisplay("# ❌ Server Required");
+                        container.WithTextDisplay("This command can only be used in a server.");
+                    })
+                    .Build();
+
+                await modal.ModifyOriginalResponseAsync(msg =>
+                {
+                    msg.Components = errorComponents;
+                    msg.Flags = MessageFlags.ComponentsV2;
+                    msg.Embed = null;
+                    msg.Content = null;
+                });
+                return true;
+            }
 
             switch (modalType)
             {
@@ -1642,7 +1750,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                     var personaInput = modal.Data.Components.FirstOrDefault(c => c.CustomId == "persona_input")?.Value;
                     if (!string.IsNullOrWhiteSpace(personaInput))
                     {
-                        var serverMeta = await _serverMetaService.GetServerMetaAsync(guildId);
+                        var serverMeta = await _serverMetaService.GetServerMetaAsync(guildId.Value);
                         if (serverMeta != null)
                         {
                             serverMeta.Persona = personaInput;
@@ -1667,6 +1775,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                                 msg.Components = successComponents;
                                 msg.Flags = MessageFlags.ComponentsV2;
                                 msg.Embed = null;
+                                msg.Content = null;
                             });
 
                             // Wait a moment then return to main configuration interface
@@ -1675,12 +1784,13 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                             var guild = guildChannel?.Guild;
                             if (guild != null)
                             {
-                                var mainComponents = await CreateConfigurationInterfaceAsync(guildId, guild);
+                                var mainComponents = await CreateConfigurationInterfaceAsync(guildId.Value, guild);
                                 await modal.ModifyOriginalResponseAsync(msg =>
                                 {
                                     msg.Components = mainComponents;
                                     msg.Flags = MessageFlags.ComponentsV2;
                                     msg.Embed = null;
+                                    msg.Content = null;
                                 });
                             }
 
@@ -1690,7 +1800,21 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                     break;
 
                 default:
-                    await modal.ModifyOriginalResponseAsync(msg => msg.Content = "❌ Unknown modal type.");
+                    var unknownModalComponents = new ComponentBuilderV2()
+                        .WithContainer(container =>
+                        {
+                            container.WithTextDisplay("# ❌ Unknown Modal Type");
+                            container.WithTextDisplay("The modal submission type is not recognized.");
+                        })
+                        .Build();
+
+                    await modal.ModifyOriginalResponseAsync(msg =>
+                    {
+                        msg.Components = unknownModalComponents;
+                        msg.Flags = MessageFlags.ComponentsV2;
+                        msg.Embed = null;
+                        msg.Content = null;
+                    });
                     break;
             }
 
@@ -1758,7 +1882,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
             }
 
             var selectMenu = new SelectMenuBuilder(
-                _componentHandler.GenerateCustomId(ConfigActionPrefix, "set_nsfw_channel", guildId.ToString()),
+                _componentHandler.GenerateCustomId(ConfigActionPrefix, "set_nsfw_channel"),
                 selectMenuOptions)
                 .WithPlaceholder("Select an NSFW channel...")
                 .WithMinValues(1)
@@ -1770,12 +1894,12 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         // Add navigation buttons
         builder.WithActionRow([
             new ButtonBuilder()
-                .WithCustomId(_componentHandler.GenerateCustomId(ConfigActionPrefix, "clear_nsfw_channel", guildId.ToString()))
+                .WithCustomId(_componentHandler.GenerateCustomId(ConfigActionPrefix, "clear_nsfw_channel"))
                 .WithLabel("🗑️ Clear Channel")
                 .WithStyle(ButtonStyle.Danger)
                 .WithDisabled(serverMeta?.NsfwChannelId == null),
             new ButtonBuilder()
-                .WithCustomId(_componentHandler.GenerateCustomId(NavigationPrefix, "back", guildId.ToString()))
+                .WithCustomId(_componentHandler.GenerateCustomId(NavigationPrefix, "back"))
                 .WithLabel("← Back")
                 .WithStyle(ButtonStyle.Secondary)
         ]);
@@ -1789,8 +1913,14 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
 
                 container.WithTextDisplay(dailyNsfwStatusContent);
 
-                // Note: Traditional action row components are not converted to ComponentsV2 sections
-                // They remain as action rows below the container
+                // Add navigation section
+                container.AddComponent(new SectionBuilder()
+                    .AddComponent(new TextDisplayBuilder()
+                        .WithContent("**Navigation**\nReturn to main configuration menu"))
+                    .WithAccessory(new ButtonBuilder()
+                        .WithCustomId(_componentHandler.GenerateCustomId(NavigationPrefix, "back"))
+                        .WithLabel("← Back")
+                        .WithStyle(ButtonStyle.Secondary)));
             })
             .Build();
 
@@ -1810,15 +1940,14 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         var channel = guild.GetTextChannel(channelId);
         if (channel == null)
         {
-            await component.ModifyOriginalResponseAsync(msg => msg.Content = "❌ Channel not found.");
+            await DiscordUtilities.SendErrorMessageAsync(component, "Channel not found.");
             return;
         }
 
         // Verify channel is NSFW
         if (!channel.IsNsfw)
         {
-            await component.ModifyOriginalResponseAsync(msg =>
-                msg.Content = $"❌ {channel.Mention} is not marked as NSFW. Please mark it as 18+ in channel settings.");
+            await DiscordUtilities.SendErrorMessageAsync(component, $"{channel.Mention} is not marked as NSFW.", "Please mark it as 18+ in channel settings.");
             return;
         }
 
@@ -1828,8 +1957,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
             serverMeta.NsfwChannelId = channelId;
             await _serverMetaService.UpdateServerMetaAsync(serverMeta);
 
-            await component.ModifyOriginalResponseAsync(msg =>
-                msg.Content = $"✅ NSFW channel set to {channel.Mention}");
+            await DiscordUtilities.SendSuccessMessageAsync(component, $"NSFW channel set to {channel.Mention}");
 
             // Refresh the interface after a short delay
             await Task.Delay(2000);
@@ -1857,4 +1985,5 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
             _ => throw new ArgumentException($"Unsupported component type: {component.GetType()}")
         };
     }
+
 }

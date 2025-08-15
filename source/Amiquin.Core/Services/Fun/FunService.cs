@@ -83,6 +83,9 @@ public class FunService : IFunService
         _componentHandler = componentHandler;
         _logger = logger;
         _httpClient = httpClient;
+
+        // Register component handlers
+        RegisterColorHandlers();
     }
 
     /// <inheritdoc/>
@@ -575,7 +578,7 @@ public class FunService : IFunService
         {
             try
             {
-                using var colorImage = await GenerateColorImageAsync(color.Hex);
+                var colorImage = await GenerateColorImageAsync(color.Hex);
                 var cleanHex = color.Hex.TrimStart('#').ToUpper();
                 var fileName = $"palette_color_{cleanHex}.png";
                 var imageUrl = $"attachment://{fileName}";
@@ -1156,11 +1159,255 @@ public class FunService : IFunService
         }
     }
 
+    private void RegisterColorHandlers()
+    {
+        // Register handlers for color-related interactions
+        _componentHandler.RegisterHandler("random_color", HandleRandomColorAsync);
+        _componentHandler.RegisterHandler("generate_palette", HandleGeneratePaletteAsync);
+        _componentHandler.RegisterHandler("palette_color", HandlePaletteColorAsync);
+        _componentHandler.RegisterHandler("palette_regenerate", HandlePaletteRegenerateAsync);
+        _componentHandler.RegisterHandler("palette_random", HandlePaletteRandomAsync);
+        _componentHandler.RegisterHandler("palette_export", HandlePaletteExportAsync);
+
+        _logger.LogDebug("Registered color component handlers");
+    }
+
+    private async Task<bool> HandleRandomColorAsync(Discord.WebSocket.SocketMessageComponent component, ComponentHandler.ComponentContext context)
+    {
+        try
+        {
+            // Generate a random color
+            var randomHex = GenerateRandomColor();
+
+            using var colorImage = await GenerateColorImageAsync(randomHex);
+            var imageUrl = $"attachment://color_{randomHex.TrimStart('#')}.png";
+
+            // Parse color for additional information
+            var colorValue = uint.Parse(randomHex.TrimStart('#'), System.Globalization.NumberStyles.HexNumber);
+            var r = (colorValue >> 16) & 255;
+            var g = (colorValue >> 8) & 255;
+            var b = colorValue & 255;
+
+            // Convert RGB to HSL for additional information
+            var (h, s, l) = RgbToHsl((byte)r, (byte)g, (byte)b);
+
+            var attachment = new Discord.FileAttachment(colorImage, $"color_{randomHex.TrimStart('#')}.png");
+
+            // Create ComponentsV2 display with color information
+            var components = new Discord.ComponentBuilderV2()
+                .WithTextDisplay($"# 🎲 Random Color\n## {randomHex.ToUpper()}")
+                .WithTextDisplay($"**Hex:** {randomHex.ToUpper()}\n**RGB:** {r}, {g}, {b}\n**HSL:** {h:F0}°, {s:F0}%, {l:F0}%")
+                .WithMediaGallery([imageUrl])
+                .WithActionRow([
+                    new Discord.ButtonBuilder()
+                        .WithLabel("🎲 Another Random")
+                        .WithCustomId("random_color")
+                        .WithStyle(Discord.ButtonStyle.Primary),
+                    new Discord.ButtonBuilder()
+                        .WithLabel("🎨 Generate Palette")
+                        .WithCustomId($"generate_palette_{randomHex.TrimStart('#')}")
+                        .WithStyle(Discord.ButtonStyle.Secondary)
+                ])
+                .Build();
+
+            var attachmentList = new List<FileAttachment> { attachment };
+
+            await component.ModifyOriginalResponseAsync(msg =>
+            {
+                msg.Components = components;
+                msg.Flags = Discord.MessageFlags.ComponentsV2;
+                msg.Attachments = attachmentList;
+                msg.Embed = null;
+                msg.Content = null;
+            });
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error handling random color interaction");
+            await component.ModifyOriginalResponseAsync(msg => msg.Content = "❌ Failed to generate random color. Please try again.");
+            return false;
+        }
+    }
+
+    private async Task<bool> HandleGeneratePaletteAsync(Discord.WebSocket.SocketMessageComponent component, ComponentHandler.ComponentContext context)
+    {
+        try
+        {
+            // Extract hex color from custom ID
+            var hexColor = context.Parameters.Length > 0 ? context.Parameters[0] : null;
+
+            float? baseHue = null;
+            if (!string.IsNullOrEmpty(hexColor))
+            {
+                var colorValue = uint.Parse(hexColor, System.Globalization.NumberStyles.HexNumber);
+                var r = (colorValue >> 16) & 255;
+                var g = (colorValue >> 8) & 255;
+                var b = colorValue & 255;
+                var (h, _, _) = RgbToHsl((byte)r, (byte)g, (byte)b);
+                baseHue = h;
+            }
+
+            // Generate a random harmony type
+            var harmonyType = (ColorHarmonyType)Random.Shared.Next(0, 7);
+
+            var palette = await GenerateColorTheoryPaletteAsync(harmonyType, baseHue);
+
+            // Create interactive palette with ComponentsV2
+            var (components, attachments) = await CreateInteractivePaletteAsync(palette, component.User.Id);
+
+            await component.ModifyOriginalResponseAsync(msg =>
+            {
+                msg.Components = components;
+                msg.Flags = Discord.MessageFlags.ComponentsV2;
+                msg.Attachments = attachments.ToArray();
+                msg.Embed = null;
+                msg.Content = null;
+            });
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error handling generate palette interaction");
+            await component.ModifyOriginalResponseAsync(msg => msg.Content = "❌ Failed to generate color palette. Please try again.");
+            return false;
+        }
+    }
+
+    private async Task<bool> HandlePaletteColorAsync(Discord.WebSocket.SocketMessageComponent component, ComponentHandler.ComponentContext context)
+    {
+        // Handle palette color selection from dropdown
+        try
+        {
+            var selectedValues = component.Data.Values;
+            if (selectedValues?.Any() != true)
+                return false;
+
+            var selectedColor = selectedValues.First();
+
+            using var colorImage = await GenerateColorImageAsync(selectedColor);
+            var imageUrl = $"attachment://selected_color_{selectedColor.TrimStart('#')}.png";
+
+            var attachment = new Discord.FileAttachment(colorImage, $"selected_color_{selectedColor.TrimStart('#')}.png");
+
+            var components = new Discord.ComponentBuilderV2()
+                .WithTextDisplay($"# 🎯 Selected Color\n## {selectedColor.ToUpper()}")
+                .WithTextDisplay("This color has been selected from the palette.")
+                .WithMediaGallery([imageUrl])
+                .Build();
+
+            var attachmentList = new List<FileAttachment> { attachment };
+
+            await component.ModifyOriginalResponseAsync(msg =>
+            {
+                msg.Components = components;
+                msg.Flags = Discord.MessageFlags.ComponentsV2;
+                msg.Attachments = attachmentList;
+                msg.Embed = null;
+                msg.Content = null;
+            });
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error handling palette color selection");
+            return false;
+        }
+    }
+
+    private async Task<bool> HandlePaletteRegenerateAsync(Discord.WebSocket.SocketMessageComponent component, ComponentHandler.ComponentContext context)
+    {
+        try
+        {
+            var harmonyTypeStr = context.Parameters.Length > 0 ? context.Parameters[0] : null;
+            var userIdStr = context.Parameters.Length > 1 ? context.Parameters[1] : null;
+
+            if (!Enum.TryParse<ColorHarmonyType>(harmonyTypeStr, out var harmonyType))
+                harmonyType = (ColorHarmonyType)Random.Shared.Next(0, 7);
+
+            if (!ulong.TryParse(userIdStr, out var userId))
+                userId = component.User.Id;
+
+            var palette = await GenerateColorTheoryPaletteAsync(harmonyType);
+            var (components, attachments) = await CreateInteractivePaletteAsync(palette, userId);
+
+            await component.ModifyOriginalResponseAsync(msg =>
+            {
+                msg.Components = components;
+                msg.Flags = Discord.MessageFlags.ComponentsV2;
+                msg.Attachments = attachments.ToArray();
+                msg.Embed = null;
+                msg.Content = null;
+            });
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error handling palette regeneration");
+            return false;
+        }
+    }
+
+    private async Task<bool> HandlePaletteRandomAsync(Discord.WebSocket.SocketMessageComponent component, ComponentHandler.ComponentContext context)
+    {
+        try
+        {
+            var userIdStr = context.Parameters.Length > 0 ? context.Parameters[0] : null;
+
+            if (!ulong.TryParse(userIdStr, out var userId))
+                userId = component.User.Id;
+
+            var harmonyType = (ColorHarmonyType)Random.Shared.Next(0, 7);
+            var palette = await GenerateColorTheoryPaletteAsync(harmonyType);
+            var (components, attachments) = await CreateInteractivePaletteAsync(palette, userId);
+
+            await component.ModifyOriginalResponseAsync(msg =>
+            {
+                msg.Components = components;
+                msg.Flags = Discord.MessageFlags.ComponentsV2;
+                msg.Attachments = attachments.ToArray();
+                msg.Embed = null;
+                msg.Content = null;
+            });
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error handling random palette");
+            return false;
+        }
+    }
+
+    private async Task<bool> HandlePaletteExportAsync(Discord.WebSocket.SocketMessageComponent component, ComponentHandler.ComponentContext context)
+    {
+        try
+        {
+            await component.ModifyOriginalResponseAsync(msg => msg.Content = "🚧 Palette export feature is coming soon!");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error handling palette export");
+            return false;
+        }
+    }
+
+    private string GenerateRandomColor()
+    {
+        var r = _random.Next(0, 256);
+        var g = _random.Next(0, 256);
+        var b = _random.Next(0, 256);
+        return $"#{r:X2}{g:X2}{b:X2}";
+    }
+
     private void RegisterPaletteHandlers(ColorPalette palette)
     {
-        // Register handlers for palette interactions
-        // This would integrate with the component handler system
-        // Implementation would depend on the specific component handler architecture
-        _logger.LogDebug("Registered palette interaction handlers for palette {PaletteId}", palette.Id);
+        // Palette handlers are now registered globally in RegisterColorHandlers()
+        _logger.LogDebug("Palette interaction handlers are registered globally for palette {PaletteId}", palette.Id);
     }
 }

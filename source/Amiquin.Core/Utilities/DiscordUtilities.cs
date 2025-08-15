@@ -1,4 +1,5 @@
 using Discord;
+using Discord.WebSocket;
 
 namespace Amiquin.Core.Utilities;
 
@@ -97,5 +98,78 @@ public static class DiscordUtilities
         }
 
         return sentMessages;
+    }
+
+    /// <summary>
+    /// Sends an error message using Components v2 with proper formatting
+    /// </summary>
+    /// <param name="component">The message component to respond to</param>
+    /// <param name="errorMessage">The main error message</param>
+    /// <param name="additionalInfo">Optional additional information</param>
+    public static async Task SendErrorMessageAsync(SocketMessageComponent component, string errorMessage, string? additionalInfo = null)
+    {
+        var components = new ComponentBuilderV2()
+            .WithContainer(container =>
+            {
+                container.WithTextDisplay($"❌ **Error**")
+                    .WithSeparator();
+
+                container.WithTextDisplay(errorMessage);
+
+                if (!string.IsNullOrEmpty(additionalInfo))
+                {
+                    container.WithTextDisplay(additionalInfo);
+                }
+
+                container.WithTextDisplay("Please try again or let HueByte know if the issue persists.")
+                    .WithSeparator();
+
+                container.WithTextDisplay($"*Error occurred at <t:{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}:F>*");
+                container.WithAccentColor(new Color(231, 76, 60)); // Red color for error
+            })
+            .Build();
+
+        await component.ModifyOriginalResponseAsync(msg =>
+        {
+            msg.Content = null;
+            msg.Embed = null;
+            msg.Components = components;
+            msg.Flags = MessageFlags.ComponentsV2;
+        });
+    }
+
+    /// <summary>
+    /// Sends a success message using Components v2 with proper formatting
+    /// </summary>
+    /// <param name="component">The message component to respond to</param>
+    /// <param name="successMessage">The main success message</param>
+    /// <param name="additionalInfo">Optional additional information</param>
+    public static async Task SendSuccessMessageAsync(SocketMessageComponent component, string successMessage, string? additionalInfo = null)
+    {
+        var components = new ComponentBuilderV2()
+            .WithContainer(container =>
+            {
+                container.WithTextDisplay($"✅ **Success**")
+                    .WithSeparator();
+
+                container.WithTextDisplay(successMessage);
+
+                if (!string.IsNullOrEmpty(additionalInfo))
+                {
+                    container.WithTextDisplay(additionalInfo);
+                }
+
+                container.WithTextDisplay($"*Action completed at <t:{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}:F>*");
+                container.WithAccentColor(new Color(46, 204, 113)); // Green color for success
+            })
+            .Build();
+
+        await component.ModifyOriginalResponseAsync(msg =>
+        {
+            msg.Content = null;
+            msg.Embed = null;
+            msg.Components = components;
+            msg.Flags = MessageFlags.ComponentsV2;
+        });
     }
 }

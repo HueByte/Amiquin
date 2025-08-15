@@ -167,25 +167,37 @@ public class NsfwCommands : InteractionModuleBase<ExtendedShardedInteractionCont
             // Create ComponentsV2 display with media gallery
             var imageUrls = result.Images.Select(img => img.Url).ToArray();
             var components = new ComponentBuilderV2()
-                .WithTextDisplay($"# 🔞 NSFW Gallery\n## {result.Images.Count} images")
-                .WithTextDisplay($"**Sources:** {sourceInfo}{artistText}")
-                .WithMediaGallery(imageUrls)
-                .WithTextDisplay($"*Requested by {Context.User.Username} • Enjoy responsibly*")
-                .WithActionRow([
-                    new ButtonBuilder()
-                        .WithLabel("🔄 New Gallery")
-                        .WithCustomId("nsfw_new_gallery")
-                        .WithStyle(ButtonStyle.Primary),
-                    new ButtonBuilder()
-                        .WithLabel("🎲 Random Image")
-                        .WithCustomId("nsfw_random_waifu")
-                        .WithStyle(ButtonStyle.Secondary)
-                ])
+                .WithContainer(container =>
+                {
+                    container.WithTextDisplay($"# 🔞 NSFW Gallery\n## {result.Images.Count} images");
+
+                    container.WithTextDisplay($"**Sources:** {sourceInfo}{artistText}");
+
+                    container.WithMediaGallery(imageUrls);
+
+                    container.WithTextDisplay($"*Requested by {Context.User.Username} • Enjoy responsibly*");
+
+                    // Add action buttons as sections
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent("**🔄 New Gallery**\nGenerate a fresh collection of images"))
+                        .WithAccessory(new ButtonBuilder()
+                            .WithLabel("New Gallery")
+                            .WithCustomId("nsfw_new_gallery")
+                            .WithStyle(ButtonStyle.Primary)));
+
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent("**🎲 Random Image**\nGet a single random image"))
+                        .WithAccessory(new ButtonBuilder()
+                            .WithLabel("Random Image")
+                            .WithCustomId("nsfw_random_waifu")
+                            .WithStyle(ButtonStyle.Secondary)));
+                })
                 .Build();
 
             await ModifyOriginalResponseAsync(msg =>
             {
-                msg.Content = statusMessage;
                 msg.Components = components;
                 msg.Flags = MessageFlags.ComponentsV2;
                 msg.Embed = null;
@@ -305,23 +317,39 @@ public class NsfwCommands : InteractionModuleBase<ExtendedShardedInteractionCont
 
             // Create ComponentsV2 display for NSFW content
             var components = new ComponentBuilderV2()
-                .WithTextDisplay($"# 🔞 {displayName}\n## NSFW Content")
-                .WithMediaGallery([imageUrl])
-                .WithTextDisplay($"*Requested by {Context.User.Username}*")
-                .WithActionRow([
-                    new ButtonBuilder()
-                        .WithLabel("🎲 Random")
-                        .WithCustomId($"nsfw_random_{nsfwType}")
-                        .WithStyle(ButtonStyle.Primary),
-                    new ButtonBuilder()
-                        .WithLabel("🖼️ Gallery")
-                        .WithCustomId("nsfw_gallery")
-                        .WithStyle(ButtonStyle.Secondary),
-                    new ButtonBuilder()
-                        .WithLabel("🔄 New Image")
-                        .WithCustomId($"nsfw_get_{nsfwType}")
-                        .WithStyle(ButtonStyle.Secondary)
-                ])
+                .WithContainer(container =>
+                {
+                    container.WithTextDisplay($"# 🔞 {displayName}\n## NSFW Content");
+
+                    container.WithMediaGallery([imageUrl]);
+
+                    container.WithTextDisplay($"*Requested by {Context.User.Username}*");
+
+                    // Add action buttons as sections
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent("**🎲 Get Random**\nFetch another random image from this category"))
+                        .WithAccessory(new ButtonBuilder()
+                            .WithLabel("Random")
+                            .WithCustomId($"nsfw_random_{nsfwType}")
+                            .WithStyle(ButtonStyle.Primary)));
+
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent("**🖼️ View Gallery**\nSee a collection of multiple images"))
+                        .WithAccessory(new ButtonBuilder()
+                            .WithLabel("Gallery")
+                            .WithCustomId("nsfw_gallery")
+                            .WithStyle(ButtonStyle.Secondary)));
+
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent("**🔄 New Image**\nGet a different image from this category"))
+                        .WithAccessory(new ButtonBuilder()
+                            .WithLabel("New Image")
+                            .WithCustomId($"nsfw_get_{nsfwType}")
+                            .WithStyle(ButtonStyle.Secondary)));
+                })
                 .Build();
 
             await ModifyOriginalResponseAsync(msg =>
