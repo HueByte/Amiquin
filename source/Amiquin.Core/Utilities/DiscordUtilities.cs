@@ -172,4 +172,34 @@ public static class DiscordUtilities
             msg.Flags = MessageFlags.ComponentsV2;
         });
     }
+
+    /// <summary>
+    /// Sends an error message using Components v2 with proper formatting for slash command interactions
+    /// </summary>
+    /// <param name="modifyAction">The action to modify the original response</param>
+    /// <param name="errorMessage">The main error message</param>
+    /// <param name="additionalInfo">Optional additional information</param>
+    public static MessageComponent CreateErrorMessageComponents(string errorMessage, string? additionalInfo = null)
+    {
+        return new ComponentBuilderV2()
+            .WithContainer(container =>
+            {
+                container.WithTextDisplay($"❌ **Error**")
+                    .WithSeparator();
+
+                container.WithTextDisplay(errorMessage);
+
+                if (!string.IsNullOrEmpty(additionalInfo))
+                {
+                    container.WithTextDisplay(additionalInfo);
+                }
+
+                container.WithTextDisplay("Please try again or let HueByte know if the issue persists.")
+                    .WithSeparator();
+
+                container.WithTextDisplay($"*Error occurred at <t:{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}:F>*");
+                container.WithAccentColor(new Color(231, 76, 60)); // Red color for error
+            })
+            .Build();
+    }
 }

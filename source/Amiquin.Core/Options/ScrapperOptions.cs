@@ -10,9 +10,19 @@ public class ScrapperOptions : IOption
     public const string SectionName = "Scrappers";
 
     /// <summary>
-    /// Configuration for Luscious.net scrapper
+    /// Array of scrapper provider configurations
     /// </summary>
-    public ScrapperProviderOptions Luscious { get; set; } = new();
+    public ScrapperProviderOptions[] Providers { get; set; } = Array.Empty<ScrapperProviderOptions>();
+
+    /// <summary>
+    /// Cache size for scraped results (number of URLs to cache per provider)
+    /// </summary>
+    public int CacheSize { get; set; } = 200;
+
+    /// <summary>
+    /// Cache expiration time in minutes
+    /// </summary>
+    public int CacheExpirationMinutes { get; set; } = 60;
 }
 
 /// <summary>
@@ -29,6 +39,11 @@ public class ScrapperProviderOptions
     /// The base URL of the scrapper source
     /// </summary>
     public string BaseUrl { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Whether to append the base URL to relative paths
+    /// </summary>
+    public bool AppendBaseUrl { get; set; } = true;
 
     /// <summary>
     /// List of extraction steps to perform in sequence

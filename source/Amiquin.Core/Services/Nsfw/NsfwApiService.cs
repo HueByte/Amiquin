@@ -23,7 +23,7 @@ public class NsfwApiService : INsfwApiService
 {
     private readonly ILogger<NsfwApiService> _logger;
     private readonly IEnumerable<INsfwProvider> _providers;
-    private readonly IScrapper _scrapper;
+    private readonly IDataScrapper? _scrapper;
     private readonly Random _random = new();
 
     // Circuit breaker for rate limiting
@@ -31,14 +31,14 @@ public class NsfwApiService : INsfwApiService
     private static readonly TimeSpan _rateLimitCooldown = TimeSpan.FromMinutes(10);
     private static int _consecutiveRateLimits = 0;
 
-    public NsfwApiService(ILogger<NsfwApiService> logger, IEnumerable<INsfwProvider> providers, IScrapper scrapper)
+    public NsfwApiService(ILogger<NsfwApiService> logger, IEnumerable<INsfwProvider> providers, IDataScrapper? scrapper)
     {
         _logger = logger;
         _providers = providers;
         _scrapper = scrapper;
 
         var providerNames = _providers.Select(p => p.Name).ToList();
-        if (_scrapper.IsEnabled)
+        if (_scrapper?.IsEnabled == true)
         {
             providerNames.Add($"Scrapper({_scrapper.SourceName})");
         }

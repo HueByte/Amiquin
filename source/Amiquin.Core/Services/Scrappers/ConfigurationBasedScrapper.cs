@@ -9,22 +9,31 @@ namespace Amiquin.Core.Services.Scrappers;
 /// <summary>
 /// Configuration-based scrapper that uses ScrapperStep for extraction
 /// </summary>
-public class ConfigurationBasedScrapper : IScrapper
+public class ConfigurationBasedScrapper : IDataScrapper, IImageScraper
 {
     private readonly ILogger<ConfigurationBasedScrapper> _logger;
     private readonly HttpClient _httpClient;
     private readonly ScrapperProviderOptions _options;
     private readonly Random _random;
+    
+    // Cache for scraped image URLs
+    private static readonly Dictionary<string, (List<string> urls, DateTime cachedAt)> _cache = new();
+    private readonly int _cacheSize;
+    private readonly TimeSpan _cacheExpiration;
 
     public ConfigurationBasedScrapper(
         ILogger<ConfigurationBasedScrapper> logger,
         HttpClient httpClient,
-        ScrapperProviderOptions options)
+        ScrapperProviderOptions options,
+        int cacheSize = 200,
+        int cacheExpirationMinutes = 60)
     {
         _logger = logger;
         _httpClient = httpClient;
         _options = options;
         _random = new Random();
+        _cacheSize = cacheSize;
+        _cacheExpiration = TimeSpan.FromMinutes(cacheExpirationMinutes);
 
         ConfigureHttpClient();
     }
@@ -32,12 +41,12 @@ public class ConfigurationBasedScrapper : IScrapper
     public string SourceName => _options.SourceName;
     public bool IsEnabled => _options.Enabled;
 
-    public async Task<List<T>> ScrapeAsync<T>(int count = 5) where T : class
+    public async Task<List<T>> ScrapeAsync<T>(int count = 10, bool randomize = false) where T : class
     {
         try
         {
             var extractedData = await ExecuteScrapingStepsAsync(count);
-            return ProcessResults<T>(extractedData, count);
+            return ProcessResults<T>(extractedData, count, randomize);
         }
         catch (Exception ex)
         {
@@ -46,42 +55,223 @@ public class ConfigurationBasedScrapper : IScrapper
         }
     }
 
-    public List<T> ProcessResults<T>(List<string> extractedData, int count = 5) where T : class
+    public List<T> ProcessResults<T>(List<string> extractedData, int count = 10, bool randomize = false) where T : class
     {
         if (typeof(T) == typeof(NsfwImage))
         {
-            return ProcessNsfwImageResults(extractedData, count).Cast<T>().ToList();
+            return ProcessNsfwImageResults(extractedData, count, randomize).Cast<T>().ToList();
         }
 
         _logger.LogWarning("Unsupported result type {Type} for {SourceName}", typeof(T).Name, SourceName);
         return new List<T>();
     }
 
-    public async Task<string[]> GetImageUrlsAsync(int count = 5)
+    public async Task<string[]> GetImageUrlsAsync(int count = 10, bool randomize = false)
+    {
+        return await ScrapeImagesUrlsAsync(count, randomize, true);
+    }
+
+    public async Task<string[]> ScrapeImagesUrlsAsync(int count = 5, bool randomize = true, bool useCache = true)
     {
         try
         {
-            var extractedData = await ExecuteScrapingStepsAsync(count);
-            // Return the final extracted data as image URLs
-            return extractedData.Take(count).ToArray();
+            var cacheKey = SourceName;
+            var result = new List<string>();
+            
+            // Check cache if enabled
+            if (useCache && _cache.TryGetValue(cacheKey, out var cachedData))
+            {
+                var isCacheValid = DateTime.UtcNow - cachedData.cachedAt < _cacheExpiration;
+                if (!isCacheValid)
+                {
+                    _logger.LogDebug("Cache expired for {SourceName}, clearing", SourceName);
+                    _cache.Remove(cacheKey);
+                    cachedData = (new List<string>(), DateTime.MinValue);
+                }
+            }
+            else
+            {
+                cachedData = (new List<string>(), DateTime.MinValue);
+            }
+
+            // Hybrid strategy: Use mix of cache and fresh scraping when cache has enough data
+            if (useCache && cachedData.urls.Count >= 200)
+            {
+                var cacheCount = Math.Max(1, count / 2); // Use half from cache
+                var scrapeCount = count - cacheCount; // Rest from fresh scraping
+                
+                _logger.LogInformation("Using hybrid strategy for {SourceName}: {CacheCount} from cache ({CachedTotal} available), {ScrapeCount} from fresh scraping", 
+                    SourceName, cacheCount, cachedData.urls.Count, scrapeCount);
+
+                // Get images from cache
+                var fromCache = randomize 
+                    ? cachedData.urls.OrderBy(x => _random.Next()).Take(cacheCount).ToList()
+                    : cachedData.urls.Take(cacheCount).ToList();
+                result.AddRange(fromCache);
+
+                // Get fresh images from scraping
+                if (scrapeCount > 0)
+                {
+                    var freshImages = await ScrapeNewImagesAsync(scrapeCount, randomize);
+                    
+                    // Add fresh images to result, avoiding duplicates with cache
+                    var uniqueFreshImages = freshImages.Where(url => !fromCache.Contains(url)).ToList();
+                    result.AddRange(uniqueFreshImages);
+                    
+                    // Update cache with fresh images (merge and maintain cache size limit)
+                    if (freshImages.Length > 0)
+                    {
+                        var updatedCache = cachedData.urls.Concat(freshImages).Distinct().ToList();
+                        
+                        // Limit cache size and keep most recent
+                        if (updatedCache.Count > _cacheSize)
+                        {
+                            updatedCache = updatedCache.Skip(updatedCache.Count - _cacheSize).ToList();
+                        }
+                        
+                        _cache[cacheKey] = (updatedCache, DateTime.UtcNow);
+                        _logger.LogDebug("Updated cache for {SourceName}: added {NewCount} fresh images, cache now has {TotalCount} URLs", 
+                            SourceName, freshImages.Length, updatedCache.Count);
+                    }
+                }
+
+                _logger.LogInformation("Hybrid result for {SourceName}: {FromCacheCount} from cache + {FreshCount} fresh = {TotalCount} total",
+                    SourceName, fromCache.Count, result.Count - fromCache.Count, result.Count);
+            }
+            else if (useCache && cachedData.urls.Count >= count)
+            {
+                // Use cache only if we have enough
+                _logger.LogDebug("Using cached data for {SourceName}, cache has {Count} URLs", SourceName, cachedData.urls.Count);
+                
+                result = randomize 
+                    ? cachedData.urls.OrderBy(x => _random.Next()).Take(count).ToList()
+                    : cachedData.urls.Take(count).ToList();
+            }
+            else
+            {
+                // Cache miss or insufficient data - scrape new data and build cache
+                _logger.LogDebug("Cache insufficient for {SourceName} (has {CacheCount}, need {RequestedCount}), scraping fresh data", 
+                    SourceName, cachedData.urls.Count, count);
+                
+                var freshImages = await ScrapeNewImagesAsync(_cacheSize, true);
+                
+                if (freshImages.Length > 0)
+                {
+                    // Update cache
+                    _cache[cacheKey] = (freshImages.ToList(), DateTime.UtcNow);
+                    _logger.LogDebug("Built cache for {SourceName} with {Count} fresh URLs", SourceName, freshImages.Length);
+                    
+                    // Return requested count
+                    result = randomize 
+                        ? freshImages.OrderBy(x => _random.Next()).Take(count).ToList()
+                        : freshImages.Take(count).ToList();
+                }
+            }
+
+            return result.ToArray();
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to get image URLs from {SourceName}", SourceName);
+            _logger.LogError(ex, "Failed to scrape image URLs from {SourceName}", SourceName);
             return Array.Empty<string>();
         }
     }
 
-    private async Task<List<string>> ExecuteScrapingStepsAsync(int count = 5)
+    private async Task<string[]> ScrapeNewImagesAsync(int count, bool randomize = true)
+    {
+        try
+        {
+            // Scrape fresh data
+            var extractedData = await ExecuteScrapingStepsAsync(count * 2); // Get extra to account for potential failures
+            var fullUrls = extractedData
+                .Select(x => BuildFullUrl(x))
+                .Distinct() // Remove duplicates
+                .ToList();
+
+            if (fullUrls.Count != extractedData.Count)
+            {
+                _logger.LogDebug("Removed {DuplicateCount} duplicate URLs, {UniqueCount} unique URLs remaining for {SourceName}", 
+                    extractedData.Count - fullUrls.Count, fullUrls.Count, SourceName);
+            }
+
+            // Validate URLs
+            _logger.LogDebug("Validating {Count} fresh URLs for {SourceName}", fullUrls.Count, SourceName);
+            var validUrls = await ValidateImageUrlsAsync(fullUrls.ToArray());
+            
+            if (validUrls.Length < fullUrls.Count)
+            {
+                _logger.LogDebug("URL validation filtered out {FilteredCount} invalid URLs from {TotalCount} fresh URLs for {SourceName}", 
+                    fullUrls.Count - validUrls.Length, fullUrls.Count, SourceName);
+            }
+
+            return validUrls;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to scrape fresh images from {SourceName}", SourceName);
+            return Array.Empty<string>();
+        }
+    }
+
+    public Task<string[]> ValidateImageUrlsAsync(string[] urls)
+    {
+        var validUrls = new List<string>();
+        var invalidCount = 0;
+
+        for (int i = 0; i < urls.Length; i++)
+        {
+            var url = urls[i];
+            try
+            {
+                if (IsValidImageUrl(url))
+                {
+                    validUrls.Add(url);
+                }
+                else
+                {
+                    invalidCount++;
+                    _logger.LogDebug("Invalid image URL at position {Position} filtered out: {Url}", i, url);
+                }
+            }
+            catch (Exception ex)
+            {
+                invalidCount++;
+                _logger.LogError(ex, "Exception during URL validation at position {Position} for URL: {Url}", i, url);
+            }
+        }
+
+        if (invalidCount > 0)
+        {
+            _logger.LogDebug("URL validation summary: {ValidCount} valid, {InvalidCount} invalid URLs", validUrls.Count, invalidCount);
+        }
+
+        return Task.FromResult(validUrls.ToArray());
+    }
+
+    public void ClearCache()
+    {
+        var cacheKey = SourceName;
+        if (_cache.ContainsKey(cacheKey))
+        {
+            _cache.Remove(cacheKey);
+            _logger.LogInformation("Cache cleared for {SourceName}", SourceName);
+        }
+    }
+
+    private async Task<List<string>> ExecuteScrapingStepsAsync(int count = 10)
     {
         _logger.LogInformation("Starting scraping process for {SourceName} with {Count} results requested", SourceName, count);
         _logger.LogInformation("Using {StepCount} extraction steps", _options.ExtractionSteps.Count);
         _logger.LogDebug("Extraction steps: {Steps}", string.Join(", ", _options.ExtractionSteps.Select(s =>
             !string.IsNullOrEmpty(s.Name) ? $"{s.Name}: {s.Url}" : s.Url)));
-        var currentData = new List<string>();
 
+        var currentData = new List<string>();
         foreach (var step in _options.ExtractionSteps)
         {
+            // if last step and currentData has enough count of results stop the iteration
+            if (step == _options.ExtractionSteps.Last() && currentData.Count >= count)
+                break;
+
             try
             {
                 var stepResults = new List<string>();
@@ -129,6 +319,8 @@ public class ConfigurationBasedScrapper : IScrapper
         }
 
         // Return up to the requested count
+        _logger.LogInformation("Scraping completed for {SourceName}. Extracted {Count} results", SourceName, currentData.Count);
+        _logger.LogDebug("Extracted data: {Data}", string.Join(" | ", currentData.Take(10))); // Log first 10 for brevity
         return currentData.Take(count * 2).ToList(); // Get extra to account for potential failures
     }
 
@@ -253,7 +445,7 @@ public class ConfigurationBasedScrapper : IScrapper
         return processedUrl;
     }
 
-    private List<NsfwImage> ProcessNsfwImageResults(List<string> extractedData, int count = 5)
+    private List<NsfwImage> ProcessNsfwImageResults(List<string> extractedData, int count = 5, bool randomize = false)
     {
         var results = new List<NsfwImage>();
 
@@ -304,6 +496,12 @@ public class ConfigurationBasedScrapper : IScrapper
             _logger.LogError(ex, "Failed to process NSFW image results for {SourceName}", SourceName);
         }
 
+        // Randomize results if requested
+        if (randomize)
+        {
+            results = results.OrderBy(x => _random.Next()).ToList();
+        }
+
         return results;
     }
 
@@ -312,5 +510,94 @@ public class ConfigurationBasedScrapper : IScrapper
         _httpClient.Timeout = TimeSpan.FromSeconds(_options.TimeoutSeconds);
         _httpClient.DefaultRequestHeaders.Clear();
         _httpClient.DefaultRequestHeaders.Add("User-Agent", _options.UserAgent);
+    }
+
+    private string BuildFullUrl(string extractedUrl)
+    {
+        if (string.IsNullOrWhiteSpace(extractedUrl))
+            return extractedUrl;
+
+        // If the URL is already absolute (starts with http:// or https://), return as is
+        if (extractedUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || 
+            extractedUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            _logger.LogDebug("URL is already absolute: {Url}", extractedUrl);
+            return extractedUrl;
+        }
+
+        // For relative URLs, always append base URL if we have one (regardless of AppendBaseUrl setting)
+        // This ensures picture page URLs like "/pictures/album/..." get proper base URL
+        if (!string.IsNullOrEmpty(_options.BaseUrl) && extractedUrl.StartsWith("/"))
+        {
+            var baseUrl = _options.BaseUrl.TrimEnd('/');
+            var fullUrl = baseUrl + extractedUrl;
+            _logger.LogDebug("Built full URL from relative: {RelativeUrl} -> {FullUrl}", extractedUrl, fullUrl);
+            return fullUrl;
+        }
+
+        // If AppendBaseUrl is enabled and URL is relative without leading slash, append base URL
+        if (_options.AppendBaseUrl && !string.IsNullOrEmpty(_options.BaseUrl))
+        {
+            var baseUrl = _options.BaseUrl.TrimEnd('/');
+            var relativeUrl = extractedUrl.StartsWith("/") ? extractedUrl : "/" + extractedUrl;
+            var fullUrl = baseUrl + relativeUrl;
+            _logger.LogDebug("Built full URL with AppendBaseUrl: {RelativeUrl} -> {FullUrl}", extractedUrl, fullUrl);
+            return fullUrl;
+        }
+
+        // Return as-is if no base URL appending
+        _logger.LogDebug("Using URL as-is: {Url}", extractedUrl);
+        return extractedUrl;
+    }
+
+    private bool IsValidImageUrl(string url)
+    {
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            _logger.LogDebug("URL validation failed: URL is null or whitespace");
+            return false;
+        }
+
+        // Check if it's a valid URL
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
+        {
+            _logger.LogDebug("URL validation failed: Invalid URI format for {Url}", url);
+            return false;
+        }
+
+        // Check if it has a valid scheme
+        if (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)
+        {
+            _logger.LogDebug("URL validation failed: Invalid scheme {Scheme} for {Url}", uri.Scheme, url);
+            return false;
+        }
+
+        // Check if it has an image file extension
+        var path = uri.AbsolutePath.ToLowerInvariant();
+        var imageExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".svg" };
+        
+        var hasValidExtension = imageExtensions.Any(ext => path.EndsWith(ext));
+        if (!hasValidExtension)
+        {
+            _logger.LogDebug("URL validation failed: No valid image extension for {Url}", url);
+            return false;
+        }
+
+        // Additional validation for common issues
+        if (url.Length > 2000) // Discord URL limit
+        {
+            _logger.LogDebug("URL validation failed: URL too long ({Length} chars) for {Url}", url.Length, url.Substring(0, 100) + "...");
+            return false;
+        }
+
+        // Check for suspicious characters or patterns
+        if (url.Contains(" ") || url.Contains("\n") || url.Contains("\r") || url.Contains("\t"))
+        {
+            _logger.LogDebug("URL validation failed: URL contains whitespace characters for {Url}", url);
+            return false;
+        }
+
+        _logger.LogDebug("URL validation passed for {Url}", url);
+        return true;
     }
 }

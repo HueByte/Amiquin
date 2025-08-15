@@ -13,7 +13,7 @@ public class NsfwApiServiceTests : IDisposable
 {
     private readonly Mock<ILogger<NsfwApiService>> _loggerMock;
     private readonly Mock<INsfwProvider> _mockProvider;
-    private readonly Mock<IScrapper> _mockScrapper;
+    private readonly Mock<IDataScrapper> _mockScrapper;
     private readonly NsfwApiService _nsfwApiService;
 
     public NsfwApiServiceTests()
@@ -23,7 +23,7 @@ public class NsfwApiServiceTests : IDisposable
 
         _loggerMock = new Mock<ILogger<NsfwApiService>>();
         _mockProvider = new Mock<INsfwProvider>();
-        _mockScrapper = new Mock<IScrapper>();
+        _mockScrapper = new Mock<IDataScrapper>();
 
         // Setup mock provider
         _mockProvider.Setup(p => p.Name).Returns("TestProvider");
@@ -32,7 +32,7 @@ public class NsfwApiServiceTests : IDisposable
         // Setup mock scrapper
         _mockScrapper.Setup(s => s.SourceName).Returns("TestScrapper");
         _mockScrapper.Setup(s => s.IsEnabled).Returns(true);
-        _mockScrapper.Setup(s => s.ScrapeAsync<NsfwImage>(It.IsAny<int>())).ReturnsAsync(new List<NsfwImage>());
+        _mockScrapper.Setup(s => s.ScrapeAsync<NsfwImage>(It.IsAny<int>(), It.IsAny<bool>())).ReturnsAsync(new List<NsfwImage>());
 
         var providers = new List<INsfwProvider> { _mockProvider.Object };
         _nsfwApiService = new NsfwApiService(_loggerMock.Object, providers, _mockScrapper.Object);

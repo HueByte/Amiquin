@@ -6,6 +6,7 @@ using Amiquin.Core.Services.ChatContext;
 using Amiquin.Core.Services.CommandHandler;
 using Amiquin.Core.Services.Configuration;
 using Amiquin.Core.Services.EventHandler;
+using Amiquin.Core.Services.Nsfw;
 using Amiquin.Core.Utilities;
 using Amiquin.Infrastructure;
 using Discord;
@@ -77,6 +78,10 @@ public class AmiquinHost : IHostedService
 
             // Initialize session component handlers (scoped service)
             var sessionComponentHandlers = scope.ServiceProvider.GetRequiredService<SessionComponentHandlers>();
+            // Handlers are registered in constructor, so just getting the service initializes them
+
+            // Initialize NSFW component handlers (scoped service)
+            var nsfwComponentHandlers = scope.ServiceProvider.GetRequiredService<NsfwComponentHandlers>();
             // Handlers are registered in constructor, so just getting the service initializes them
         }
 

@@ -3,6 +3,7 @@ using Amiquin.Core.Services.Fun;
 using Amiquin.Core.Services.Nsfw;
 using Amiquin.Core.Services.Scrappers;
 using Amiquin.Core.Services.Toggle;
+using Amiquin.Core.Utilities;
 using Discord;
 using Discord.Interactions;
 using Microsoft.Extensions.Logging;
@@ -63,15 +64,15 @@ public class NsfwCommands : InteractionModuleBase<ExtendedShardedInteractionCont
     private readonly IFunService _funService;
     private readonly IToggleService _toggleService;
     private readonly INsfwApiService _nsfwApiService;
-    private readonly IScrapper _scrapper;
+    private readonly IScrapperManagerService _scrapperManager;
     private readonly ILogger<NsfwCommands> _logger;
 
-    public NsfwCommands(IFunService funService, IToggleService toggleService, INsfwApiService nsfwApiService, IScrapper scrapper, ILogger<NsfwCommands> logger)
+    public NsfwCommands(IFunService funService, IToggleService toggleService, INsfwApiService nsfwApiService, IScrapperManagerService scrapperManager, ILogger<NsfwCommands> logger)
     {
         _funService = funService;
         _toggleService = toggleService;
         _nsfwApiService = nsfwApiService;
-        _scrapper = scrapper;
+        _scrapperManager = scrapperManager;
         _logger = logger;
     }
 
@@ -111,54 +112,80 @@ public class NsfwCommands : InteractionModuleBase<ExtendedShardedInteractionCont
 
         if (serverId == 0)
         {
-            await ModifyOriginalResponseAsync(msg => msg.Content = "❌ NSFW commands can only be used in a server!");
+            await ModifyOriginalResponseAsync(msg =>
+            {
+                msg.Content = null;
+                msg.Embed = null;
+                msg.Components = DiscordUtilities.CreateErrorMessageComponents("Server Required", "NSFW commands can only be used in a server!");
+                msg.Flags = MessageFlags.ComponentsV2;
+            });
             return;
         }
 
         // Check if channel is NSFW
         if (Context.Channel is ITextChannel textChannel && !textChannel.IsNsfw)
         {
-            await ModifyOriginalResponseAsync(msg => msg.Content = "❌ This command can only be used in NSFW channels!");
+            await ModifyOriginalResponseAsync(msg =>
+            {
+                msg.Content = null;
+                msg.Embed = null;
+                msg.Components = DiscordUtilities.CreateErrorMessageComponents("NSFW Channel Required", "This command can only be used in NSFW channels!");
+                msg.Flags = MessageFlags.ComponentsV2;
+            });
             return;
         }
 
         // Check if NSFW is enabled for the server
         if (!await _funService.IsNsfwEnabledAsync(serverId))
         {
-            await ModifyOriginalResponseAsync(msg => msg.Content =
-                "❌ NSFW content is disabled for this server. An administrator can enable it using `/nsfw toggle enable:true`");
+            await ModifyOriginalResponseAsync(msg =>
+            {
+                msg.Content = null;
+                msg.Embed = null;
+                msg.Components = DiscordUtilities.CreateErrorMessageComponents("NSFW Disabled", "NSFW content is disabled for this server. An administrator can enable it using `/nsfw toggle enable:true`");
+                msg.Flags = MessageFlags.ComponentsV2;
+            });
             return;
         }
 
         try
         {
-            // Check if scrapper is enabled
-            if (!_scrapper.IsEnabled)
+            // Check if any scrapers are available
+            var availableScrapers = _scrapperManager.GetImageScrapers().ToList();
+            if (!availableScrapers.Any())
             {
-                await ModifyOriginalResponseAsync(msg => msg.Content =
-                    "❌ **Scrapper Service Unavailable** 🚧\n\n" +
-                    "The image scrapper is currently disabled or not configured.\n\n" +
-                    "**What you can try:**\n" +
-                    "• Contact a server administrator to enable the scrapper\n" +
-                    "• Try individual NSFW commands instead\n" +
-                    "• Check back later when the service is available\n\n" +
-                    "*This service provides fresh content from various sources!* ⚡");
+                await ModifyOriginalResponseAsync(msg =>
+                {
+                    msg.Content = null;
+                    msg.Embed = null;
+                    msg.Components = DiscordUtilities.CreateErrorMessageComponents("Scrapper Service Unavailable",
+                        "No image scrapers are currently enabled or configured.\n\n" +
+                        "**What you can try:**\n" +
+                        "• Contact a server administrator to enable scrapers\n" +
+                        "• Try individual NSFW commands instead\n" +
+                        "• Check back later when the service is available");
+                    msg.Flags = MessageFlags.ComponentsV2;
+                });
                 return;
             }
 
-            // Fetch 10 image URLs directly from scrapper
-            var imageUrls = await _scrapper.GetImageUrlsAsync(10);
+            // Fetch 10 image URLs from multiple providers using the gallery flow
+            var imageUrls = await _scrapperManager.ScrapeGalleryImagesAsync(10, true, true);
 
             if (imageUrls == null || imageUrls.Length == 0)
             {
-                await ModifyOriginalResponseAsync(msg => msg.Content =
-                    "❌ **No Images Found** 🔍\n\n" +
-                    "The scrapper couldn't find any images at this time.\n\n" +
-                    "**What you can try:**\n" +
-                    "• Wait a minute and try again\n" +
-                    "• The source websites might be temporarily unavailable\n" +
-                    "• Try again later for fresh content\n\n" +
-                    "*Sometimes it just takes a moment for fresh content to load!* 🌟");
+                await ModifyOriginalResponseAsync(msg =>
+                {
+                    msg.Content = null;
+                    msg.Embed = null;
+                    msg.Components = DiscordUtilities.CreateErrorMessageComponents("No Images Found",
+                        "The scrapers couldn't find any images at this time.\n\n" +
+                        "**What you can try:**\n" +
+                        "• Wait a minute and try again\n" +
+                        "• The source websites might be temporarily unavailable\n" +
+                        "• Try again later for fresh content");
+                    msg.Flags = MessageFlags.ComponentsV2;
+                });
                 return;
             }
 
@@ -168,8 +195,9 @@ public class NsfwCommands : InteractionModuleBase<ExtendedShardedInteractionCont
                 {
                     container.WithMediaGallery(imageUrls);
 
-                    container.WithTextDisplay($"**Source:** {_scrapper.SourceName} || Count: {imageUrls.Length}");
-                    container.WithTextDisplay($"*Requested by {Context.User.Username} • Fresh content from {_scrapper.SourceName}*");
+                    var sourceNames = string.Join(", ", availableScrapers.Select(s => s.SourceName));
+                    container.WithTextDisplay($"**Sources:** {sourceNames} || Count: {imageUrls.Length}");
+                    container.WithTextDisplay($"*Requested by {Context.User.Username} • Fresh content from multiple sources*");
 
                     // Add action buttons as sections
                     container.AddComponent(new SectionBuilder()
@@ -200,14 +228,18 @@ public class NsfwCommands : InteractionModuleBase<ExtendedShardedInteractionCont
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error in NSFW gallery scrapper command");
-            await ModifyOriginalResponseAsync(msg => msg.Content =
-                "❌ **Oops! Scrapper service hiccup** 🤖\n\n" +
-                "The image scrapper is having a temporary issue. This usually resolves itself quickly.\n\n" +
-                "**What you can try:**\n" +
-                "• Wait a minute and try again\n" +
-                "• The source website might be temporarily unavailable\n" +
-                "• Try again later for fresh scraped content\n\n" +
-                "*Don't worry, this is usually just a temporary glitch!* ✨");
+            await ModifyOriginalResponseAsync(msg =>
+            {
+                msg.Content = null;
+                msg.Embed = null;
+                msg.Components = DiscordUtilities.CreateErrorMessageComponents("Scrapper Service Hiccup",
+                    "The image scrapper is having a temporary issue. This usually resolves itself quickly.\n\n" +
+                    "**What you can try:**\n" +
+                    "• Wait a minute and try again\n" +
+                    "• The source website might be temporarily unavailable\n" +
+                    "• Try again later for fresh scraped content");
+                msg.Flags = MessageFlags.ComponentsV2;
+            });
         }
     }
 
@@ -220,7 +252,13 @@ public class NsfwCommands : InteractionModuleBase<ExtendedShardedInteractionCont
 
         if (serverId == 0)
         {
-            await ModifyOriginalResponseAsync(msg => msg.Content = "❌ This command can only be used in a server!");
+            await ModifyOriginalResponseAsync(msg =>
+            {
+                msg.Content = null;
+                msg.Embed = null;
+                msg.Components = DiscordUtilities.CreateErrorMessageComponents("Server Required", "This command can only be used in a server!");
+                msg.Flags = MessageFlags.ComponentsV2;
+            });
             return;
         }
 
@@ -273,14 +311,26 @@ public class NsfwCommands : InteractionModuleBase<ExtendedShardedInteractionCont
 
         if (serverId == 0)
         {
-            await ModifyOriginalResponseAsync(msg => msg.Content = "❌ NSFW commands can only be used in a server!");
+            await ModifyOriginalResponseAsync(msg =>
+            {
+                msg.Content = null;
+                msg.Embed = null;
+                msg.Components = DiscordUtilities.CreateErrorMessageComponents("Server Required", "NSFW commands can only be used in a server!");
+                msg.Flags = MessageFlags.ComponentsV2;
+            });
             return;
         }
 
         // Check if channel is NSFW
         if (Context.Channel is ITextChannel textChannel && !textChannel.IsNsfw)
         {
-            await ModifyOriginalResponseAsync(msg => msg.Content = "❌ This command can only be used in NSFW channels!");
+            await ModifyOriginalResponseAsync(msg =>
+            {
+                msg.Content = null;
+                msg.Embed = null;
+                msg.Components = DiscordUtilities.CreateErrorMessageComponents("NSFW Channel Required", "This command can only be used in NSFW channels!");
+                msg.Flags = MessageFlags.ComponentsV2;
+            });
             return;
         }
 

@@ -2,6 +2,7 @@ using Amiquin.Core.DiscordExtensions;
 using Amiquin.Core.Services.ComponentHandler;
 using Amiquin.Core.Services.Fun;
 using Amiquin.Core.Services.Scrappers;
+using Amiquin.Core.Utilities;
 using Discord;
 using Discord.WebSocket;
 using Microsoft.Extensions.Logging;
@@ -15,18 +16,18 @@ public class NsfwComponentHandlers
 {
     private readonly IComponentHandlerService _componentHandler;
     private readonly IFunService _funService;
-    private readonly IScrapper _scrapper;
+    private readonly IScrapperManagerService _scrapperManager;
     private readonly ILogger<NsfwComponentHandlers> _logger;
 
     public NsfwComponentHandlers(
         IComponentHandlerService componentHandler,
         IFunService funService,
-        IScrapper scrapper,
+        IScrapperManagerService scrapperManager,
         ILogger<NsfwComponentHandlers> logger)
     {
         _componentHandler = componentHandler;
         _funService = funService;
-        _scrapper = scrapper;
+        _scrapperManager = scrapperManager;
         _logger = logger;
 
         // Register component handlers
@@ -50,52 +51,56 @@ public class NsfwComponentHandlers
             var serverId = component.GuildId ?? 0;
             if (serverId == 0)
             {
-                await component.ModifyOriginalResponseAsync(msg => msg.Content = "❌ NSFW commands can only be used in a server!");
+                await DiscordUtilities.SendErrorMessageAsync(component,
+                    "Server Required",
+                    "NSFW commands can only be used in a server!");
                 return true;
             }
 
             // Check if channel is NSFW
             if (component.Channel is Discord.ITextChannel textChannel && !textChannel.IsNsfw)
             {
-                await component.ModifyOriginalResponseAsync(msg => msg.Content = "❌ This command can only be used in NSFW channels!");
+                await DiscordUtilities.SendErrorMessageAsync(component,
+                    "NSFW Channel Required",
+                    "This command can only be used in NSFW channels!");
                 return true;
             }
 
             // Check if NSFW is enabled for the server
             if (!await _funService.IsNsfwEnabledAsync(serverId))
             {
-                await component.ModifyOriginalResponseAsync(msg => msg.Content =
-                    "❌ NSFW content is disabled for this server. An administrator can enable it using `/nsfw toggle enable:true`");
+                await DiscordUtilities.SendErrorMessageAsync(component, 
+                    "NSFW content is disabled for this server.", 
+                    "An administrator can enable it using `/nsfw toggle enable:true`");
                 return true;
             }
 
-            // Check if scrapper is enabled
-            if (!_scrapper.IsEnabled)
+            // Check if any scrapers are available
+            var availableScrapers = _scrapperManager.GetImageScrapers().ToList();
+            if (!availableScrapers.Any())
             {
-                await component.ModifyOriginalResponseAsync(msg => msg.Content =
-                    "❌ **Scrapper Service Unavailable** 🚧\n\n" +
-                    "The image scrapper is currently disabled or not configured.\n\n" +
+                await DiscordUtilities.SendErrorMessageAsync(component,
+                    "Scrapper Service Unavailable",
+                    "No image scrapers are currently enabled or configured.\n\n" +
                     "**What you can try:**\n" +
-                    "• Contact a server administrator to enable the scrapper\n" +
+                    "• Contact a server administrator to enable scrapers\n" +
                     "• Try individual NSFW commands instead\n" +
-                    "• Check back later when the service is available\n\n" +
-                    "*This service provides fresh content from various sources!* ⚡");
+                    "• Check back later when the service is available");
                 return true;
             }
 
-            // Fetch fresh images from scrapper
-            var imageUrls = await _scrapper.GetImageUrlsAsync(10);
+            // Fetch fresh images from multiple scrapers using gallery flow
+            var imageUrls = await _scrapperManager.ScrapeGalleryImagesAsync(10, true, false); // Force fresh fetch
 
             if (imageUrls == null || imageUrls.Length == 0)
             {
-                await component.ModifyOriginalResponseAsync(msg => msg.Content =
-                    "❌ **No Images Found** 🔍\n\n" +
-                    "The scrapper couldn't find any images at this time.\n\n" +
+                await DiscordUtilities.SendErrorMessageAsync(component,
+                    "No Images Found",
+                    "The scrapers couldn't find any images at this time.\n\n" +
                     "**What you can try:**\n" +
                     "• Wait a minute and try again\n" +
                     "• The source websites might be temporarily unavailable\n" +
-                    "• Try again later for fresh content\n\n" +
-                    "*Sometimes it just takes a moment for fresh content to load!* 🌟");
+                    "• Try again later for fresh content");
                 return true;
             }
 
@@ -103,13 +108,11 @@ public class NsfwComponentHandlers
             var components = new ComponentBuilderV2()
                 .WithContainer(container =>
                 {
-                    container.WithTextDisplay($"# 🔞 NSFW Gallery")
-                        .WithSeparator();
-
                     container.WithMediaGallery(imageUrls);
 
-                    container.WithTextDisplay($"**Source:** {_scrapper.SourceName} || Count: {imageUrls.Length}");
-                    container.WithTextDisplay($"*Fresh content from {_scrapper.SourceName} • Updated just now*");
+                    var sourceNames = string.Join(", ", availableScrapers.Select(s => s.SourceName));
+                    container.WithTextDisplay($"**Sources:** {sourceNames} || Count: {imageUrls.Length}");
+                    container.WithTextDisplay($"*Fresh content from multiple sources • Updated just now*");
 
                     // Add action buttons as sections
                     container.AddComponent(new SectionBuilder()
@@ -143,14 +146,13 @@ public class NsfwComponentHandlers
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error handling new gallery button interaction");
-            await component.ModifyOriginalResponseAsync(msg => msg.Content =
-                "❌ **Oops! Scrapper service hiccup** 🤖\n\n" +
+            await DiscordUtilities.SendErrorMessageAsync(component,
+                "Scrapper Service Hiccup",
                 "The image scrapper is having a temporary issue. This usually resolves itself quickly.\n\n" +
                 "**What you can try:**\n" +
                 "• Wait a minute and try again\n" +
                 "• The source website might be temporarily unavailable\n" +
-                "• Try again later for fresh scraped content\n\n" +
-                "*Don't worry, this is usually just a temporary glitch!* ✨");
+                "• Try again later for fresh scraped content");
             return true;
         }
     }
@@ -162,14 +164,18 @@ public class NsfwComponentHandlers
             var serverId = component.GuildId ?? 0;
             if (serverId == 0)
             {
-                await component.ModifyOriginalResponseAsync(msg => msg.Content = "❌ NSFW commands can only be used in a server!");
+                await DiscordUtilities.SendErrorMessageAsync(component,
+                    "Server Required",
+                    "NSFW commands can only be used in a server!");
                 return true;
             }
 
             // Check if channel is NSFW
             if (component.Channel is Discord.ITextChannel textChannel && !textChannel.IsNsfw)
             {
-                await component.ModifyOriginalResponseAsync(msg => msg.Content = "❌ This command can only be used in NSFW channels!");
+                await DiscordUtilities.SendErrorMessageAsync(component,
+                    "NSFW Channel Required",
+                    "This command can only be used in NSFW channels!");
                 return true;
             }
 

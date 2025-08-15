@@ -175,7 +175,9 @@ public class InjectionConfigurator
                  {
                      var logger = provider.GetRequiredService<ILogger<NsfwApiService>>();
                      var providers = provider.GetRequiredService<IEnumerable<INsfwProvider>>();
-                     var scrapper = provider.GetRequiredService<IScrapper>(); // Required
+                     var scrapperManager = provider.GetRequiredService<IScrapperManagerService>();
+                     // For backward compatibility, use the first available data scrapper
+                     var scrapper = scrapperManager.GetDataScrapers().FirstOrDefault();
                      return new NsfwApiService(logger, providers, scrapper);
                  })
                  .AddScoped<IToggleService, ToggleService>()
@@ -246,21 +248,14 @@ public class InjectionConfigurator
             client.Timeout = TimeSpan.FromSeconds(30);
         });
 
-        // Register scrapper providers
-        _services.AddScoped<IScrapper>(provider =>
+        // Register scrapper manager service
+        _services.AddSingleton<IScrapperManagerService, ScrapperManagerService>();
+        
+        // Configure HTTP clients for scrapper providers - the manager will create specific clients per provider
+        _services.AddHttpClient("Scrapper_Default", (services, client) =>
         {
-            var logger = provider.GetRequiredService<ILogger<ConfigurationBasedScrapper>>();
-            var httpClientFactory = provider.GetRequiredService<IHttpClientFactory>();
-            var httpClient = httpClientFactory.CreateClient(nameof(ConfigurationBasedScrapper));
-            var scrapperOptions = provider.GetRequiredService<IOptions<ScrapperOptions>>().Value;
-            return new ConfigurationBasedScrapper(logger, httpClient, scrapperOptions.Luscious);
-        });
-
-        _services.AddHttpClient(nameof(ConfigurationBasedScrapper), (services, client) =>
-        {
-            var scrapperOptions = services.GetRequiredService<IOptions<ScrapperOptions>>().Value;
             client.DefaultRequestHeaders.Add("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
-            client.Timeout = TimeSpan.FromSeconds(scrapperOptions.Luscious.TimeoutSeconds);
+            client.Timeout = TimeSpan.FromSeconds(30);
         });
 
         // Configure HTTP clients for LLM providers

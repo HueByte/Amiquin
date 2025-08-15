@@ -1,9 +1,9 @@
 namespace Amiquin.Core.Services.Scrappers;
 
 /// <summary>
-/// Interface for scrapper implementations
+/// Interface for data scrapper implementations
 /// </summary>
-public interface IScrapper
+public interface IDataScrapper
 {
     /// <summary>
     /// The unique name of the scrapper
@@ -21,7 +21,7 @@ public interface IScrapper
     /// <typeparam name="T">The type to return</typeparam>
     /// <param name="count">Number of results to return (default: 5)</param>
     /// <returns>List of scraped results</returns>
-    Task<List<T>> ScrapeAsync<T>(int count = 5) where T : class;
+    Task<List<T>> ScrapeAsync<T>(int count = 5, bool randomize = false) where T : class;
 
     /// <summary>
     /// Processes raw extracted data into results
@@ -30,12 +30,13 @@ public interface IScrapper
     /// <param name="extractedData">The raw extracted data</param>
     /// <param name="count">Number of results to return</param>
     /// <returns>List of processed results</returns>
-    List<T> ProcessResults<T>(List<string> extractedData, int count = 5) where T : class;
+    List<T> ProcessResults<T>(List<string> extractedData, int count = 5, bool randomize = false) where T : class;
 
     /// <summary>
     /// Returns raw image URLs from the scrapper
     /// </summary>
     /// <param name="count">Number of URLs to return (default: 5)</param>
+    /// <param name="randomize">Whether to randomize the order of URLs</param>
     /// <returns>Array of image URLs</returns>
-    Task<string[]> GetImageUrlsAsync(int count = 5);
+    Task<string[]> GetImageUrlsAsync(int count = 5, bool randomize = false);
 }
