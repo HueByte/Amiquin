@@ -156,9 +156,12 @@ COPY --from=build --chown=amiquin:amiquin ${MAIN_WORK_DIR}/build ${MAIN_WORK_DIR
 # Set working directory to application
 WORKDIR ${MAIN_WORK_DIR}/build
 
-# Ensure appsettings.json exists (copy from example if not present)
+# Only use example if no appsettings.json was provided in source
 RUN if [ ! -f Configuration/appsettings.json ] && [ -f Configuration/appsettings.example.json ]; then \
+    echo "No appsettings.json found, using example configuration"; \
     cp Configuration/appsettings.example.json Configuration/appsettings.json; \
+    else \
+    echo "Using existing appsettings.json"; \
     fi
 
 # Move any Data folders that were copied from build to the volume location
