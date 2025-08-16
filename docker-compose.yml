@@ -1,11 +1,39 @@
+# Unified Docker Compose Configuration for Amiquin
+# Supports multiple deployment profiles:
+#
+# Development profiles:
+#   - qdrant-only: Just Qdrant vector database for testing
+#   - qdrant-dev: Qdrant with web UI for development
+#   - database: Just MySQL database
+#   - vector/memory: Just Qdrant (alias for qdrant-only)
+#   - bot: Just the Amiquin bot (requires external dependencies)
+#   - dev: Full development stack (bot + mysql + qdrant + web UI)
+#
+# Production profiles:
+#   - prod: Production stack (bot + mysql + qdrant with optimizations)
+#   - prod-proxy: Production with nginx reverse proxy
+#   - prod-cache: Production with redis caching
+#   - prod-full: Production with all services (nginx + redis + monitoring)
+#
+# Usage examples:
+#   docker-compose --profile qdrant-only up -d
+#   docker-compose --profile dev up -d
+#   docker-compose --profile prod up -d
+#   docker-compose --profile prod-full up -d
+
 services:
+  # MySQL Database Service
   mysql:
     profiles:
       - database
-      - full
-    container_name: mysql-${AMQ_BOT_NAME}
-    image: mysql:latest
-    restart: always
+      - dev
+      - prod
+      - prod-proxy
+      - prod-cache
+      - prod-full
+    container_name: mysql-${AMQ_BOT_NAME:-amiquin}
+    image: mysql:${MYSQL_VERSION:-8.0}
+    restart: unless-stopped
     env_file:
       - .env
     environment:
@@ -13,36 +41,280 @@ services:
       MYSQL_DATABASE: ${AMQ_DB_NAME}
       MYSQL_USER: ${AMQ_DB_USER}
       MYSQL_PASSWORD: ${AMQ_DB_USER_PASSWORD}
+      # Production MySQL optimizations (only applied in production profiles)
+      MYSQL_INNODB_BUFFER_POOL_SIZE: ${MYSQL_INNODB_BUFFER_POOL_SIZE:-1G}
+      MYSQL_INNODB_LOG_FILE_SIZE: ${MYSQL_INNODB_LOG_FILE_SIZE:-256M}
+      MYSQL_MAX_CONNECTIONS: ${MYSQL_MAX_CONNECTIONS:-200}
+      MYSQL_QUERY_CACHE_SIZE: ${MYSQL_QUERY_CACHE_SIZE:-64M}
     ports:
-      - "0.0.0.0:3306:3306"
+      - "${AMQ_MYSQL_PORT:-3306}:3306"
     volumes:
       - amq-db-data:/var/lib/mysql
+      - ./mysql/conf.d:/etc/mysql/conf.d:ro
+    command: >
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      ${MYSQL_PRODUCTION_ARGS:-}
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      interval: 10s
-      timeout: 5s
+      interval: 30s
+      timeout: 10s
       retries: 5
+      start_period: 60s
+    networks:
+      - amiquin-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
+  # Qdrant Vector Database Service
+  qdrant:
+    profiles:
+      - qdrant-only
+      - qdrant-dev
+      - vector
+      - memory
+      - dev
+      - prod
+      - prod-proxy
+      - prod-cache
+      - prod-full
+    container_name: qdrant-${AMQ_BOT_NAME:-amiquin}
+    image: qdrant/qdrant:${QDRANT_VERSION:-latest}
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # Basic configuration
+      QDRANT__LOG_LEVEL: ${AMQ_QDRANT_LOG_LEVEL:-INFO}
+      QDRANT__SERVICE__HTTP_PORT: 6333
+      QDRANT__SERVICE__GRPC_PORT: 6334
+      
+      # Production performance settings (only applied in production profiles)
+      QDRANT__SERVICE__MAX_REQUEST_SIZE_MB: ${QDRANT_MAX_REQUEST_SIZE_MB:-64}
+      QDRANT__SERVICE__MAX_WORKERS: ${QDRANT_MAX_WORKERS:-0}
+      
+      # Storage settings
+      QDRANT__STORAGE__STORAGE_PATH: /qdrant/storage
+      QDRANT__STORAGE__SNAPSHOTS_PATH: /qdrant/snapshots
+      QDRANT__STORAGE__TEMP_PATH: /qdrant/temp
+      
+      # WAL settings for durability
+      QDRANT__STORAGE__WAL__WAL_CAPACITY_MB: ${QDRANT_WAL_CAPACITY_MB:-32}
+      QDRANT__STORAGE__WAL__WAL_SEGMENTS_AHEAD: ${QDRANT_WAL_SEGMENTS_AHEAD:-0}
+      
+      # Optimizer settings
+      QDRANT__STORAGE__OPTIMIZERS__DEFAULT_SEGMENT_NUMBER: ${QDRANT_DEFAULT_SEGMENT_NUMBER:-0}
+      QDRANT__STORAGE__OPTIMIZERS__MEMMAP_THRESHOLD_KB: ${QDRANT_MEMMAP_THRESHOLD_KB:-200000}
+      QDRANT__STORAGE__OPTIMIZERS__INDEXING_THRESHOLD_KB: ${QDRANT_INDEXING_THRESHOLD_KB:-20000}
+      
+      # HNSW index settings
+      QDRANT__STORAGE__HNSW__M: ${QDRANT_HNSW_M:-16}
+      QDRANT__STORAGE__HNSW__EF_CONSTRUCT: ${QDRANT_HNSW_EF_CONSTRUCT:-100}
+      QDRANT__STORAGE__HNSW__FULL_SCAN_THRESHOLD: ${QDRANT_HNSW_FULL_SCAN_THRESHOLD:-10000}
+      
+      # Security and telemetry
+      QDRANT__SERVICE__ENABLE_CORS: ${QDRANT_ENABLE_CORS:-false}
+      QDRANT__SERVICE__API_KEY: ${AMQ_QDRANT_API_KEY:-}
+      QDRANT__TELEMETRY_DISABLED: ${QDRANT_TELEMETRY_DISABLED:-true}
+      QDRANT__SERVICE__TELEMETRY_DISABLED: ${QDRANT_TELEMETRY_DISABLED:-true}
+    ports:
+      - "${AMQ_QDRANT_HTTP_PORT:-6333}:6333"  # REST API
+      - "${AMQ_QDRANT_GRPC_PORT:-6334}:6334"  # gRPC API
+    volumes:
+      - amq-qdrant-data:/qdrant/storage
+      - amq-qdrant-snapshots:/qdrant/snapshots
+      - amq-qdrant-temp:/qdrant/temp
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+      memlock: -1
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:6333/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - amiquin-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: ${QDRANT_MEMORY_LIMIT:-4G}
+        reservations:
+          memory: ${QDRANT_MEMORY_RESERVATION:-2G}
+
+  # Qdrant Web UI (Development only)
+  qdrant-web-ui:
+    profiles:
+      - qdrant-dev
+      - dev
+    container_name: qdrant-ui-${AMQ_BOT_NAME:-amiquin}
+    image: qdrant/qdrant-web-ui:latest
+    restart: unless-stopped
+    ports:
+      - "${AMQ_QDRANT_WEB_UI_PORT:-3000}:3000"
+    environment:
+      - QDRANT_URL=http://qdrant:6333
+    depends_on:
+      qdrant:
+        condition: service_healthy
+    networks:
+      - amiquin-network
+
+  # Amiquin Bot Service
   amiquinbot:
     profiles:
       - bot
-      - full
-    container_name: bot-${AMQ_BOT_NAME}
+      - dev
+      - prod
+      - prod-proxy
+      - prod-cache
+      - prod-full
+    container_name: bot-${AMQ_BOT_NAME:-amiquin}
     build:
       context: ./source
       dockerfile: Amiquin.Bot/dockerfile
       args:
-        AMQ_BOT_NAME: ${AMQ_BOT_NAME}
+        AMQ_BOT_NAME: ${AMQ_BOT_NAME:-amiquin}
+        CONFIGURATION: ${BUILD_CONFIGURATION:-Release}
     env_file:
       - .env
+    environment:
+      # Container networking overrides
+      AMQ_Memory__Qdrant__Host: qdrant
+      AMQ_ConnectionStrings__Amiquin-Mysql: "Server=mysql;Port=3306;Database=${AMQ_DB_NAME};Uid=${AMQ_DB_USER};Pwd=${AMQ_DB_USER_PASSWORD};SslMode=None;AllowPublicKeyRetrieval=True;Pooling=True;MinimumPoolSize=5;MaximumPoolSize=50;ConnectionTimeout=30;CommandTimeout=30;"
+      
+      # Production performance settings (only for production profiles)
+      DOTNET_GCServer: ${DOTNET_GC_SERVER:-true}
+      DOTNET_GCConcurrent: ${DOTNET_GC_CONCURRENT:-true}
+      DOTNET_GCRetainVM: ${DOTNET_GC_RETAIN_VM:-true}
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+      ASPNETCORE_FORWARDEDHEADERS_ENABLED: ${ASPNETCORE_FORWARDEDHEADERS_ENABLED:-true}
     ports:
-      - "10001:10000" # Adjust ports as needed
+      - "${AMQ_BOT_PORT:-10001}:10000"
     volumes:
-      - amq-data:/Data
+      - amq-data:/app/Data
+      - amq-logs:/app/Data/Logs
     depends_on:
       mysql:
         condition: service_healthy
+      qdrant:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - amiquin-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+    deploy:
+      resources:
+        limits:
+          memory: ${AMIQUIN_MEMORY_LIMIT:-2G}
+        reservations:
+          memory: ${AMIQUIN_MEMORY_RESERVATION:-512M}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:10000/health || exit 1"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+
+  # Nginx Reverse Proxy (Production)
+  nginx:
+    profiles:
+      - proxy
+      - prod-proxy
+      - prod-full
+    container_name: nginx-${AMQ_BOT_NAME:-amiquin}
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "${NGINX_HTTP_PORT:-80}:80"
+      - "${NGINX_HTTPS_PORT:-443}:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./ssl:/etc/nginx/ssl:ro
+      - nginx-cache:/var/cache/nginx
+    depends_on:
+      - amiquinbot
+      - qdrant
+    networks:
+      - amiquin-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Redis Cache (Production)
+  redis:
+    profiles:
+      - cache
+      - prod-cache
+      - prod-full
+    container_name: redis-${AMQ_BOT_NAME:-amiquin}
+    image: redis:${REDIS_VERSION:-7-alpine}
+    restart: unless-stopped
+    command: >
+      redis-server
+      --maxmemory ${REDIS_MAX_MEMORY:-1gb}
+      --maxmemory-policy allkeys-lru
+      --save 900 1
+      --save 300 10
+      --save 60 10000
+      --appendonly yes
+      --appendfsync everysec
+    volumes:
+      - amq-redis-data:/data
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    networks:
+      - amiquin-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: ${REDIS_MEMORY_LIMIT:-1G}
+        reservations:
+          memory: ${REDIS_MEMORY_RESERVATION:-256M}
 
 volumes:
   amq-data:
+    driver: local
   amq-db-data:
+    driver: local
+  amq-qdrant-data:
+    driver: local
+  amq-qdrant-snapshots:
+    driver: local
+  amq-qdrant-temp:
+    driver: local
+  amq-logs:
+    driver: local
+  amq-redis-data:
+    driver: local
+  nginx-cache:
+    driver: local
+
+networks:
+  amiquin-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

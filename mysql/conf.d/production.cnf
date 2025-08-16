@@ -1,0 +1,68 @@
+# Production MySQL Configuration for Amiquin
+# Place this file in mysql/conf.d/ directory
+
+[mysqld]
+# Basic settings
+default-storage-engine = InnoDB
+character-set-server = utf8mb4
+collation-server = utf8mb4_unicode_ci
+
+# Connection settings
+max_connections = 300
+max_connect_errors = 1000
+wait_timeout = 600
+interactive_timeout = 600
+
+# Memory settings
+innodb_buffer_pool_size = 2G
+innodb_buffer_pool_instances = 8
+innodb_log_file_size = 512M
+innodb_log_buffer_size = 64M
+key_buffer_size = 256M
+query_cache_size = 128M
+query_cache_type = 1
+tmp_table_size = 64M
+max_heap_table_size = 64M
+
+# InnoDB settings
+innodb_flush_log_at_trx_commit = 1
+innodb_file_per_table = 1
+innodb_flush_method = O_DIRECT
+innodb_io_capacity = 2000
+innodb_io_capacity_max = 4000
+innodb_read_io_threads = 8
+innodb_write_io_threads = 8
+
+# Binary logging (for replication and point-in-time recovery)
+log-bin = mysql-bin
+binlog_format = ROW
+expire_logs_days = 7
+max_binlog_size = 1G
+
+# Slow query log
+slow_query_log = 1
+slow_query_log_file = /var/lib/mysql/slow.log
+long_query_time = 2
+log_queries_not_using_indexes = 1
+
+# Error log
+log-error = /var/lib/mysql/error.log
+
+# General log (disable in production for performance)
+# general_log = 1
+# general_log_file = /var/lib/mysql/general.log
+
+# Security settings
+skip-name-resolve
+secure_file_priv = ""
+
+# Performance schema
+performance_schema = ON
+performance_schema_max_table_instances = 12500
+performance_schema_max_table_handles = 4000
+
+[mysql]
+default-character-set = utf8mb4
+
+[client]
+default-character-set = utf8mb4

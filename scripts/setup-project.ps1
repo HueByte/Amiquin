@@ -17,7 +17,8 @@ if ($Help) {
     Write-Host ""
     Write-Host "This script will configure your Amiquin project by:"
     Write-Host "  - Creating configuration files from templates"
-    Write-Host "  - Prompting for OpenAI API Key (optional)"
+    Write-Host "  - Prompting for OpenAI API Key (required for AI features)"
+    Write-Host "  - Configuring memory system with Qdrant vector database"
     Write-Host "  - Setting up data directories"
     Write-Host "  - Building the solution"
     Write-Host ""
@@ -143,6 +144,16 @@ if ($NonInteractive) {
         $systemMessage = Read-Host "Enter AI system message [$($config.SystemMessage)]"
         if ($systemMessage) { $config.SystemMessage = $systemMessage }
     }
+    
+    # Memory System Configuration
+    Write-Host "`n=== Memory System Configuration ===" -ForegroundColor Cyan
+    Write-Host "Amiquin uses Qdrant vector database for conversation memory."
+    Write-Host "This requires Docker to run Qdrant (localhost:6334 by default)."
+    Write-Host "Memory system is enabled by default and configured automatically."
+    Write-Host ""
+    Write-Host "To start Qdrant for development:"
+    Write-Host "  docker-compose --profile vector up -d"
+    Write-Host "  # Or: docker-compose --profile qdrant-only up -d"
     
     # Database configuration
     Write-Host "\n=== Database Configuration ===" -ForegroundColor Cyan
@@ -292,6 +303,42 @@ AMQ_Voice__PiperCommand=`"/usr/local/bin/piper`"
 AMQ_Voice__Enabled=$($config.VoiceEnabled.ToString().ToLower())
 
 # ======================
+# Memory & Vector Database Configuration
+# ======================
+
+# Memory System Settings
+AMQ_Memory__Enabled=true
+AMQ_Memory__MaxMemoriesPerSession=1000
+AMQ_Memory__MaxContextMemories=10
+AMQ_Memory__SimilarityThreshold=0.7
+AMQ_Memory__MinImportanceScore=0.3
+AMQ_Memory__MinMessagesForMemory=3
+AMQ_Memory__AutoCleanup=true
+AMQ_Memory__CleanupOlderThanDays=30
+AMQ_Memory__EmbeddingModel=`"text-embedding-3-small`"
+
+# Qdrant Vector Database Configuration
+AMQ_Memory__Qdrant__Host=`"localhost`"
+AMQ_Memory__Qdrant__Port=6334
+AMQ_Memory__Qdrant__UseHttps=false
+AMQ_Memory__Qdrant__CollectionName=`"amiquin_memories`"
+AMQ_Memory__Qdrant__VectorSize=1536
+AMQ_Memory__Qdrant__Distance=`"Cosine`"
+AMQ_Memory__Qdrant__AutoCreateCollection=true
+# AMQ_Memory__Qdrant__ApiKey=your-qdrant-api-key-here  # Optional for cloud instances
+
+# Qdrant Docker Configuration
+AMQ_QDRANT_HTTP_PORT=6333
+AMQ_QDRANT_GRPC_PORT=6334
+AMQ_QDRANT_WEB_UI_PORT=3000
+AMQ_QDRANT_LOG_LEVEL=INFO
+AMQ_QDRANT_WEB_UI_ENABLED=false
+
+# For Docker Compose - Qdrant connection
+# When running with Docker Compose, use the service name as host:
+# AMQ_Memory__Qdrant__Host=qdrant
+
+# ======================
 # NSFW/Waifu API Configuration
 # ======================
 $(if ($config.WaifuApiToken) { "AMQ_WaifuApi__Token=`"$($config.WaifuApiToken)`"" } else { "# AMQ_WaifuApi__Token=`"your-waifu-api-token-here`"" })
@@ -401,6 +448,35 @@ $appSettings = @{
         Sessions = $config.SessionsPath
         Plugins = $config.PluginsPath
         Configuration = $config.ConfigurationPath
+    }
+    Memory = @{
+        Enabled = $true
+        MaxMemoriesPerSession = 1000
+        MaxContextMemories = 10
+        SimilarityThreshold = 0.7
+        MinImportanceScore = 0.3
+        MinMessagesForMemory = 3
+        AutoCleanup = $true
+        CleanupOlderThanDays = 30
+        EmbeddingModel = "text-embedding-3-small"
+        MemoryTypeImportance = @{
+            summary = 0.8
+            fact = 0.9
+            preference = 0.7
+            context = 0.6
+            emotion = 0.5
+            event = 0.7
+        }
+        Qdrant = @{
+            Host = "localhost"
+            Port = 6334
+            UseHttps = $false
+            ApiKey = $null
+            CollectionName = "amiquin_memories"
+            VectorSize = 1536
+            Distance = "Cosine"
+            AutoCreateCollection = $true
+        }
     }
     Voice = @{
         TTSModelName = $config.TTSModelName
@@ -554,6 +630,11 @@ if (-not $config.OpenAIApiKey) {
     $stepNumber++
 }
 
+Write-Host "$stepNumber. Start Qdrant vector database (required for memory features):"
+Write-Host "   docker-compose --profile vector up -d"
+Write-Host "   # Or standalone: docker-compose --profile qdrant-only up -d"
+$stepNumber++
+
 if (Test-Path $solutionPath) {
     Write-Host "$stepNumber. Run database migrations (automatic on startup, or manually):"
     Write-Host "   cd source && dotnet ef database update -p Amiquin.Infrastructure -s Amiquin.Bot"
@@ -561,7 +642,7 @@ if (Test-Path $solutionPath) {
     
     Write-Host "$stepNumber. Start the application:"
     Write-Host "   cd source/Amiquin.Bot && dotnet run"
-    Write-Host "   # Or with Docker: docker-compose up"
+    Write-Host "   # Or with Docker: docker-compose --profile full up -d"
 } else {
     Write-Host "$stepNumber. Check that the solution exists at: source/source.sln"
     Write-Host "   Current directory: $PSScriptRoot"

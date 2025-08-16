@@ -187,6 +187,63 @@ namespace Amiquin.Sqlite.Migrations
                     b.ToTable("CommandLogs");
                 });
 
+            modelBuilder.Entity("Amiquin.Core.Models.ConversationMemory", b =>
+                {
+                    b.Property<string>("Id")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("AccessCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ChatSessionId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Embedding")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("EstimatedTokens")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<float>("ImportanceScore")
+                        .HasColumnType("REAL");
+
+                    b.Property<DateTime>("LastAccessedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("MemoryType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Metadata")
+                        .HasColumnType("TEXT");
+
+                    b.Property<ulong?>("UserId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt")
+                        .HasDatabaseName("IX_ConversationMemories_Created");
+
+                    b.HasIndex("ImportanceScore")
+                        .HasDatabaseName("IX_ConversationMemories_Importance");
+
+                    b.HasIndex("ChatSessionId", "MemoryType")
+                        .HasDatabaseName("IX_ConversationMemories_SessionType");
+
+                    b.ToTable("ConversationMemories");
+                });
+
             modelBuilder.Entity("Amiquin.Core.Models.Message", b =>
                 {
                     b.Property<string>("Id")
@@ -463,6 +520,17 @@ namespace Amiquin.Sqlite.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("Server");
+                });
+
+            modelBuilder.Entity("Amiquin.Core.Models.ConversationMemory", b =>
+                {
+                    b.HasOne("Amiquin.Core.Models.ChatSession", "ChatSession")
+                        .WithMany()
+                        .HasForeignKey("ChatSessionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ChatSession");
                 });
 
             modelBuilder.Entity("Amiquin.Core.Models.Message", b =>

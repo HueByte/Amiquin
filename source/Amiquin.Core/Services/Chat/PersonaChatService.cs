@@ -3,6 +3,7 @@ using Amiquin.Core.Models;
 using Amiquin.Core.Options;
 using Amiquin.Core.Services.Chat.Providers;
 using Amiquin.Core.Services.ChatSession;
+using Amiquin.Core.Services.Memory;
 using Amiquin.Core.Services.MessageCache;
 using Amiquin.Core.Services.Meta;
 using Microsoft.Extensions.DependencyInjection;
@@ -22,6 +23,7 @@ public class PersonaChatService : IPersonaChatService
     private readonly IChatCoreService _coreChatService;
     private readonly IMessageCacheService _messageCache;
     private readonly IServerMetaService _serverMetaService;
+    private readonly IMemoryService _memoryService;
     private readonly IServiceProvider _serviceProvider;
     private readonly BotOptions _botOptions;
 
@@ -44,6 +46,7 @@ public class PersonaChatService : IPersonaChatService
         IChatCoreService coreChatService,
         IMessageCacheService messageCache,
         IServerMetaService serverMetaService,
+        IMemoryService memoryService,
         IServiceProvider serviceProvider,
         IOptions<BotOptions> botOptions)
     {
@@ -51,6 +54,7 @@ public class PersonaChatService : IPersonaChatService
         _coreChatService = coreChatService;
         _messageCache = messageCache;
         _serverMetaService = serverMetaService;
+        _memoryService = memoryService;
         _serviceProvider = serviceProvider;
         _botOptions = botOptions.Value;
     }
@@ -101,7 +105,11 @@ public class PersonaChatService : IPersonaChatService
             // 2. Get server-specific persona and session context
             var (serverPersona, sessionContext) = await GetServerContextAsync(instanceId);
 
-            // 3. Add the new user message to history
+            // 3. Get relevant memories for context
+            var sessionId = instanceId.ToString();
+            var memoryContext = await _memoryService.GetMemoryContextAsync(sessionId, message);
+
+            // 4. Add the new user message to history
             var userMessage = new SessionMessage
             {
                 Id = Guid.NewGuid().ToString(),
@@ -112,25 +120,52 @@ public class PersonaChatService : IPersonaChatService
             };
             messages.Add(userMessage);
 
-            // 4. Select provider based on server configuration
+            // 5. Select provider based on server configuration
             var provider = await GetServerProviderAsync(instanceId);
             _logger.LogInformation("Using provider {Provider} for instance {InstanceId}", provider ?? "default", instanceId);
 
-            // 5. Send to LLM with fallback support
+            // 6. Combine session context with memory context
+            var combinedContext = CombineContexts(sessionContext, memoryContext);
+
+            // 7. Send to LLM with fallback support
             var response = await _coreChatService.ChatAsync(
                 instanceId,
                 messages,
                 customPersona: serverPersona,
-                sessionContext: sessionContext,
+                sessionContext: combinedContext,
                 provider: provider);
 
-            // 6. Store the exchange
+            // 8. Store the exchange
             await StoreMessageExchangeAsync(instanceId, userId, botId, message, response.Content);
 
-            // 7. Log comprehensive token usage
+            // 9. Extract and store memories from the conversation
+            var assistantMessage = new SessionMessage
+            {
+                Id = Guid.NewGuid().ToString(),
+                Role = "assistant",
+                Content = response.Content,
+                CreatedAt = DateTime.UtcNow,
+                IncludeInContext = true
+            };
+            var conversationMessages = messages.Skip(Math.Max(0, messages.Count - 6)).ToList(); // Last 6 messages for context
+            conversationMessages.Add(assistantMessage);
+            
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await _memoryService.ExtractMemoriesFromConversationAsync(sessionId, conversationMessages);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to extract memories for session {SessionId}", sessionId);
+                }
+            });
+
+            // 10. Log comprehensive token usage
             LogTokenUsage(instanceId, response, provider);
 
-            // 8. Check if optimization is needed
+            // 11. Check if optimization is needed
             if (response.TotalTokens.HasValue && response.TotalTokens > _botOptions.MaxTokens * 0.4)
             {
                 _logger.LogInformation("Token limit approaching for instance {InstanceId}, triggering optimization", instanceId);
@@ -226,6 +261,23 @@ public class PersonaChatService : IPersonaChatService
         var session = await chatSessionService.GetOrCreateServerSessionAsync(instanceId);
 
         return (serverPersona, session.Context);
+    }
+
+    private string? CombineContexts(string? sessionContext, string? memoryContext)
+    {
+        var contexts = new List<string>();
+
+        if (!string.IsNullOrWhiteSpace(sessionContext))
+        {
+            contexts.Add($"Previous conversation summary:\n{sessionContext}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(memoryContext))
+        {
+            contexts.Add($"Relevant memories:\n{memoryContext}");
+        }
+
+        return contexts.Any() ? string.Join("\n\n", contexts) : null;
     }
 
     private async Task<string?> GetServerProviderAsync(ulong instanceId)
@@ -400,6 +452,25 @@ public class PersonaChatService : IPersonaChatService
 
             // Clear old messages from cache
             _messageCache.ClearOldMessages(instanceId, messagesToKeep);
+
+            // Trigger memory extraction from the conversation being summarized
+            if (messagesToSummarize.Any())
+            {
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        var sessionIdStr = instanceId.ToString();
+                        await _memoryService.ExtractMemoriesFromConversationAsync(sessionIdStr, messagesToSummarize);
+                        _logger.LogDebug("Extracted memories from {Count} messages during optimization for instance {InstanceId}", 
+                            messagesToSummarize.Count, instanceId);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to extract memories during optimization for instance {InstanceId}", instanceId);
+                    }
+                });
+            }
 
             _logger.LogInformation("Optimized history for instance {InstanceId}, summarized {Count} messages",
                 instanceId, messagesToSummarize.Count);

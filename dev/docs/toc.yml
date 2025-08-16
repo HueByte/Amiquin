@@ -1,5 +1,7 @@
 - name: Documentation Home
   href: index.md
+
+# User Documentation
 - name: Getting Started
   href: getting-started.md
 - name: Installation
@@ -10,10 +12,22 @@
   href: commands.md
 - name: User Guide
   href: user-guide.md
+
+# Deployment & Operations
+- name: Docker Setup
+  href: docker-setup.md
+- name: Production Deployment
+  href: production-deployment.md
+- name: Memory System
+  href: memory-system.md
+
+# Developer Documentation
 - name: Project Structure
   href: project-structure.md
 - name: Architecture
   href: architecture.md
+- name: Chat Service Architecture
+  href: chat-service-architecture.md
 - name: Development
   href: development.md
 - name: Git Setup
@@ -22,9 +36,11 @@
   href: contributing.md
 - name: Scripts Reference
   href: scripts-reference.md
+
+# Technical Reference
 - name: Database Schema
   href: database-schema.md
-- name: Database Provider Connections
+- name: Database Providers
   href: database-provider-connections.md
 - name: Changelog
   href: changelog/

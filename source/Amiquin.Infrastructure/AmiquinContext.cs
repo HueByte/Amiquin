@@ -99,6 +99,7 @@ public class AmiquinContext : DbContext
         builder.Entity<SessionMessage>()
             .HasIndex(sm => sm.CreatedAt);
 
+
         // Configure Pagination Sessions
         builder.Entity<PaginationSession>()
             .HasIndex(ps => new { ps.UserId, ps.IsActive })

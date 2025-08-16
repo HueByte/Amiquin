@@ -2,6 +2,7 @@ using Amiquin.Bot.Commands;
 using Amiquin.Core;
 using Amiquin.Core.Abstraction;
 using Amiquin.Core.Abstractions;
+using Amiquin.Core.Configuration;
 using Amiquin.Core.Exceptions;
 using Amiquin.Core.IRepositories;
 using Amiquin.Core.Job;
@@ -22,6 +23,7 @@ using Amiquin.Core.Services.EventHandler;
 using Amiquin.Core.Services.ExternalProcessRunner;
 using Amiquin.Core.Services.Fun;
 using Amiquin.Core.Services.MessageCache;
+using Amiquin.Core.Services.Memory;
 using Amiquin.Core.Services.Meta;
 using Amiquin.Core.Services.Modal;
 using Amiquin.Core.Services.ModelProvider;
@@ -46,6 +48,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using OpenAI;
 using OpenAI.Chat;
 using Serilog;
 
@@ -189,6 +192,7 @@ public class InjectionConfigurator
                  .AddScoped<ISessionManagerService, SessionManagerService>()
                  .AddSingleton<ISleepService, SleepService>()
                  .AddSingleton<IModelProviderMappingService, ModelProviderMappingService>()
+                 .AddScoped<IMemoryService, QdrantMemoryService>()
                  .AddScoped<SessionComponentHandlers>()
                  .AddScoped<NsfwComponentHandlers>();
 
@@ -234,6 +238,18 @@ public class InjectionConfigurator
             //     string model = llmOptions.GetModel("OpenAI") ?? Constants.AI.Gpt4oMiniModel;
             //     return new ChatClient(model, openApiKey);
             return new ChatClient(Constants.AI.Gpt4oMiniModel, openApiKey);
+        });
+
+        _services.AddScoped<OpenAIClient>((services) =>
+        {
+            var llmOptions = services.GetRequiredService<IOptions<LLMOptions>>().Value;
+            var openAIProvider = llmOptions.GetProvider("OpenAI");
+            if (openAIProvider?.ApiKey == null)
+            {
+                // Return null if no API key - memory service will handle gracefully
+                return null!;
+            }
+            return new OpenAIClient(openAIProvider.ApiKey);
         });
 
         _services.AddHttpClient(typeof(INewsApiClient).Name, (services, client) =>
@@ -322,6 +338,7 @@ public class InjectionConfigurator
                  .AddScoped<ICommandLogRepository, CommandLogRepository>()
                  .AddScoped<IBotStatisticsRepository, BotStatisticsRepository>()
                  .AddScoped<IChatSessionRepository, ChatSessionRepository>()
+                 .AddScoped<IQdrantMemoryRepository, QdrantMemoryRepository>()
                  .AddScoped<IPaginationSessionRepository, PaginationSessionRepository>()
                  .AddScoped<IUserStatsRepository, UserStatsRepository>();
 
@@ -350,6 +367,9 @@ public class InjectionConfigurator
 
         // Scrapper configuration system
         _services.Configure<ScrapperOptions>(_configuration.GetSection(ScrapperOptions.SectionName));
+
+        // Memory configuration system
+        _services.Configure<MemoryOptions>(_configuration.GetSection(MemoryOptions.Section));
 
         return this;
     }

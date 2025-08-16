@@ -2,6 +2,7 @@ using Amiquin.Core.Models;
 using Amiquin.Core.Options;
 using Amiquin.Core.Services.Chat;
 using Amiquin.Core.Services.Chat.Providers;
+using Amiquin.Core.Services.Memory;
 using Amiquin.Core.Services.MessageCache;
 using Amiquin.Core.Services.Meta;
 using Microsoft.Extensions.Logging;
@@ -121,6 +122,7 @@ public class SimpleChatServiceTests
         var mockCoreChatService = new Mock<IChatCoreService>();
         var mockMessageCache = new Mock<IMessageCacheService>();
         var mockServerMetaService = new Mock<IServerMetaService>();
+        var mockMemoryService = new Mock<IMemoryService>();
         var mockServiceProvider = new Mock<IServiceProvider>();
 
         var botOptions = new BotOptions { Name = "TestBot", MaxTokens = 4000 };
@@ -137,6 +139,7 @@ public class SimpleChatServiceTests
             mockCoreChatService.Object,
             mockMessageCache.Object,
             mockServerMetaService.Object,
+            mockMemoryService.Object,
             mockServiceProvider.Object,
             mockBotOptions.Object);
 

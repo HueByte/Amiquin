@@ -1,308 +1,252 @@
 # Commands Reference
 
-This document lists all available Amiquin commands and their usage.
+This document lists all available Amiquin commands and their usage. Commands use Discord's slash command system with modern ComponentsV2 interface.
 
-## General Commands
+## Main Commands
 
-### `/help`
+### `/chat`
 
-**Description**: Display help information and available commands  
-**Usage**: `/help [command]`  
+**Description**: Chat with Amiquin using AI conversation  
+**Usage**: `/chat <message>`  
 **Parameters**:
-
-- `command` (optional): Get help for a specific command
+- `message` (required): Your message to chat with Amiquin
 
 **Examples**:
-
-```cs
-/help
-/help ping
+```
+/chat Hello Amiquin! How are you today?
+/chat Can you help me with programming?
+/chat What's your favorite color?
 ```
 
-### `/ping`
-
-**Description**: Check bot responsiveness and latency  
-**Usage**: `/ping`  
-**Response**: Shows bot latency and API response time
+**Features**:
+- Contextual responses using conversation history
+- Memory integration (when enabled)
+- ComponentsV2 interface for rich responses
 
 ### `/info`
 
 **Description**: Display bot information and statistics  
 **Usage**: `/info`  
-**Response**: Bot version, uptime, server count, and system info
+**Response**: Bot version, server count, system info, and useful links
 
-### `/about`
+### `/sleep`
 
-**Description**: Learn about Amiquin and its features  
-**Usage**: `/about`  
-**Response**: Bot description, links, and credits
-
-## User Commands
-
-### `/user profile`
-
-**Description**: View user profile and statistics  
-**Usage**: `/user profile [user]`  
-**Parameters**:
-
-- `user` (optional): User to view profile for (defaults to yourself)
-
-### `/user settings`
-
-**Description**: Manage your personal bot settings  
-**Usage**: `/user settings`  
-**Response**: Interactive settings menu
-
-## Server Commands
-
-> Note: These commands require appropriate permissions
-
-### `/config`
-
-**Description**: Server configuration management  
-**Usage**: `/config <setting> <value>`  
-
-#### Available Settings:
-
-- `prefix`: Set command prefix (deprecated in favor of slash commands)
-- `welcome_channel`: Set welcome message channel
-- `log_channel`: Set bot logging channel
-- `auto_role`: Set automatic role for new members
-
-**Examples**:
-
-```sh
-/config welcome_channel #general
-/config log_channel #bot-logs
-/config auto_role @Member
-```
-
-## Moderation Commands
-
-> Note: Requires appropriate moderation permissions*
-
-### `/kick`
-
-**Description**: Kick a user from the server  
-**Usage**: `/kick <user> [reason]`  
-**Parameters**:
-
-- `user`: User to kick
-- `reason` (optional): Reason for the kick
-
-### `/ban`
-
-**Description**: Ban a user from the server  
-**Usage**: `/ban <user> [reason] [days]`  
-**Parameters**:
-
-- `user`: User to ban
-- `reason` (optional): Reason for the ban
-- `days` (optional): Days of messages to delete (0-7)
-
-### `/unban`
-
-**Description**: Unban a user from the server  
-**Usage**: `/unban <user_id> [reason]`  
-**Parameters**:
-
-- `user_id`: ID of the user to unban
-- `reason` (optional): Reason for the unban
-
-### `/timeout`
-
-**Description**: Timeout a user (mute them temporarily)  
-**Usage**: `/timeout <user> <duration> [reason]`  
-**Parameters**:
-
-- `user`: User to timeout
-- `duration`: Duration (e.g., "10m", "1h", "1d")
-- `reason` (optional): Reason for the timeout
-
-### `/warn`
-
-**Description**: Issue a warning to a user  
-**Usage**: `/warn <user> <reason>`  
-**Parameters**:
-
-- `user`: User to warn
-- `reason`: Reason for the warning
-
-## Utility Commands
-
-### `/remind`
-
-**Description**: Set a reminder  
-**Usage**: `/remind <time> <message>`  
-**Parameters**:
-
-- `time`: When to remind (e.g., "in 30m", "tomorrow at 9am")
-- `message`: Reminder message
-
-### `/poll`
-
-**Description**: Create a poll  
-**Usage**: `/poll <question> <option1> <option2> [option3] [option4]`  
-**Parameters**:
-
-- `question`: Poll question
-- `option1-4`: Poll options (2-4 options supported)
-
-### `/weather`
-
-**Description**: Get weather information  
-**Usage**: `/weather <location>`  
-**Parameters**:
-
-- `location`: City name or location
+**Description**: Put Amiquin to sleep for 5 minutes  
+**Usage**: `/sleep`  
+**Response**: Bot will not respond to commands during sleep period
 
 ## Fun Commands
 
-### `/8ball`
+### `/size`
 
-**Description**: Ask the magic 8-ball a question  
-**Usage**: `/8ball <question>`  
+**Description**: Check your... size 📏 (fun command)  
+**Usage**: `/size [user]`  
 **Parameters**:
+- `user` (optional): User to check (defaults to yourself)
 
-- `question`: Your yes/no question
+### `/color`
 
-### `/dice`
-
-**Description**: Roll dice  
-**Usage**: `/dice [sides] [count]`  
+**Description**: Display a hex color with visual representation  
+**Usage**: `/color <hex>`  
 **Parameters**:
+- `hex` (required): Hex color code (e.g., #FF5733 or FF5733)
 
-- `sides` (optional): Number of sides (default: 6)
-- `count` (optional): Number of dice (default: 1)
+### `/palette`
 
-### `/flip`
-
-**Description**: Flip a coin  
-**Usage**: `/flip`  
-**Response**: Heads or tails
-
-### `/random`
-
-**Description**: Generate random numbers or pick from options  
-**Usage**: `/random <min> <max>` or `/random <option1,option2,option3>`  
+**Description**: Generate color theory-based palette  
+**Usage**: `/palette [harmony] [base_hue]`  
 **Parameters**:
+- `harmony` (optional): Color harmony type
+- `base_hue` (optional): Base hue (0-360 degrees)
 
-- `min`: Minimum number
-- `max`: Maximum number
-- OR comma-separated list of options
+### `/avatar`
 
-## Music Commands
-
-> Note: Bot must be in a voice channel*
-
-### `/play`
-
-**Description**: Play music from various sources  
-**Usage**: `/play <query>`  
+**Description**: Get a user's avatar  
+**Usage**: `/avatar [user]`  
 **Parameters**:
+- `user` (optional): User to get avatar from (defaults to yourself)
 
-- `query`: YouTube URL, search term, or Spotify link
+### `/nacho`
 
-### `/pause`
+**Description**: Give Amiquin a nacho! 🌮  
+**Usage**: `/nacho`  
+**Response**: Dynamic AI-generated response with nacho count
 
-**Description**: Pause current playback  
-**Usage**: `/pause`
+### `/nacho-leaderboard`
 
-### `/resume`
+**Description**: View the nacho leaderboard  
+**Usage**: `/nacho-leaderboard`  
+**Response**: Top nacho givers in the server
 
-**Description**: Resume paused playback  
-**Usage**: `/resume`
+## Session Management Commands
 
-### `/stop`
+### `/session list`
 
-**Description**: Stop playback and clear queue  
-**Usage**: `/stop`
+**Description**: View all chat sessions for the server  
+**Usage**: `/session list`  
+**Response**: Interactive list of all chat sessions with status
 
-### `/skip`
+### `/session switch`
 
-**Description**: Skip current track  
-**Usage**: `/skip`
+**Description**: Switch to a different chat session  
+**Usage**: `/session switch`  
+**Response**: Interactive session selector
 
-### `/queue`
+### `/session create`
 
-**Description**: View current music queue  
-**Usage**: `/queue`
-
-### `/volume`
-
-**Description**: Adjust playback volume  
-**Usage**: `/volume <level>`  
+**Description**: Create a new chat session  
+**Usage**: `/session create <name>`  
 **Parameters**:
+- `name` (required): Name for the new session (1-50 characters)
 
-- `level`: Volume level (0-100)
+### `/session rename`
+
+**Description**: Rename the current active session  
+**Usage**: `/session rename <name>`  
+**Parameters**:
+- `name` (required): New name for the session (1-50 characters)
+
+### `/session delete`
+
+**Description**: Delete a session (cannot delete the last session)  
+**Usage**: `/session delete <name>`  
+**Parameters**:
+- `name` (required): Name of the session to delete
 
 ## Admin Commands
 
-> Note: These commands require administrator permissions*
+> **Note**: These commands are typically available to administrators and may vary based on server configuration.
 
-### `/admin purge`
+### Configuration Commands
 
-**Description**: Delete multiple messages  
-**Usage**: `/admin purge <count> [user]`  
-**Parameters**:
+Admin configuration commands are available through the admin module for server management. These include:
 
-- `count`: Number of messages to delete (1-100)
-- `user` (optional): Only delete messages from this user
+- Server-wide feature toggles
+- Bot behavior configuration
+- User permission management
+- Channel-specific settings
 
-### `/admin reload`
+## Memory Commands
 
-**Description**: Reload bot configuration  
-**Usage**: `/admin reload [module]`  
-**Parameters**:
+> **Note**: Memory commands are available when the memory system is enabled.
 
-- `module` (optional): Specific module to reload
+### Memory Management
 
-### `/admin stats`
+Memory commands allow users to interact with the AI memory system:
 
-**Description**: View detailed bot statistics  
-**Usage**: `/admin stats`  
-**Response**: Comprehensive bot statistics and performance metrics
+- View stored memories
+- Search conversation history
+- Manage personal memory data
+- Configure memory preferences
 
-## Permission Requirements
+These commands are integrated into the main chat system and accessed through user settings.
 
-| Command Category | Required Permissions |
-|------------------|---------------------|
-| General | None |
-| User | None |
-| Server Config | Manage Server |
-| Moderation | Various moderation permissions |
-| Utility | None |
-| Fun | None |
-| Music | Connect, Speak (Voice) |
-| Admin | Administrator |
+## NSFW Commands
 
-## Command Aliases
+> **Note**: NSFW commands are only available in age-restricted channels and when enabled by server administrators.
 
-Some commands have shorter aliases:
+### Adult Content Commands
 
-| Full Command | Alias |
-|-------------|--------|
-| `/user profile` | `/profile` |
-| `/admin stats` | `/stats` |
-| `/8ball` | `/8b` |
+NSFW commands provide adult content features with safety controls:
 
-## Error Messages
+- Image generation and fetching
+- Content filtering and safety measures
+- Server-specific enablement
+- Age-restricted channel requirements
 
-Common error messages and their meanings:
+These commands follow Discord's Terms of Service and community guidelines.
 
-- **"Missing permissions"**: You don't have the required permissions
-- **"Bot missing permissions"**: The bot lacks necessary permissions
-- **"User not found"**: The specified user doesn't exist or isn't in the server
-- **"Invalid duration"**: Time format is incorrect (use formats like "1h", "30m")
-- **"Command on cooldown"**: Command is rate-limited, try again later
+## Voice/TTS Commands
+
+> **Note**: Voice features require proper voice channel permissions.
+
+### Text-to-Speech Commands
+
+Voice commands provide text-to-speech functionality:
+
+- Join/leave voice channels
+- Convert text to speech
+- Voice settings and preferences
+- Queue management for voice messages
+
+Voice features use Piper TTS engine for high-quality speech synthesis.
+
+## Developer Commands
+
+> **Note**: Developer commands are restricted to bot developers and authorized users.
+
+### Development Tools
+
+Developer commands provide debugging and development functionality:
+
+- System diagnostics
+- Performance monitoring
+- Configuration testing
+- Debug information
+
+These commands are not available to regular users and require special permissions.
+
+## Command Categories and Access
+
+| Command Category | Required Permissions | Notes |
+|------------------|---------------------|-------|
+| Main Commands | None | Available to all users |
+| Fun Commands | None | Safe for all users |
+| Session Management | None | Per-user session control |
+| Memory Commands | None | When memory system is enabled |
+| Voice/TTS | Connect, Speak (Voice) | Voice channel permissions |
+| NSFW Commands | None* | Age-restricted channels only |
+| Admin Commands | Manage Server or higher | Server administration |
+| Developer Commands | Bot Developer | Restricted access |
+
+## ComponentsV2 Interface
+
+Amiquin uses Discord's ComponentsV2 system for enhanced user interaction:
+
+- **Rich Text Displays**: Formatted text with markdown support
+- **Interactive Buttons**: Action buttons for commands and navigation
+- **Media Galleries**: Image and media display
+- **Select Menus**: Dropdown selections for complex choices
+- **Persistent Components**: Interactive elements that persist across bot restarts
+
+## Features and Integrations
+
+### AI Integration
+- **Multiple AI Providers**: OpenAI, Grok, Gemini support
+- **Contextual Conversations**: Memory-enhanced chat experiences
+- **Smart Responses**: Dynamic, context-aware AI responses
+
+### Memory System
+- **Vector Database**: Qdrant-powered semantic memory
+- **Conversation Context**: Long-term conversation memory
+- **User Preferences**: Personalized interaction learning
+
+### Modern UI
+- **ComponentsV2**: Rich, interactive Discord interface
+- **Media Support**: Image generation and processing
+- **Responsive Design**: Adaptive layouts for different content
+
+### Safety Features
+- **Content Filtering**: Automatic inappropriate content detection
+- **Age Restrictions**: NSFW content limited to appropriate channels
+- **User Controls**: Individual privacy and preference settings
 
 ## Getting Help
 
-If you need help with a specific command:
+### In-Discord Help
+- Use `/info` to get basic bot information and links
+- Check command responses for contextual guidance
+- Use interactive components for guided navigation
 
-1. Use `/help <command>` for detailed information
-2. Check this documentation
-3. Ask in our support server
-4. Create an issue on GitHub
+### External Resources
+- **Documentation**: Comprehensive guides and references
+- **GitHub Repository**: Source code and issue tracking
+- **Community Support**: Discord community for user help
 
-For command suggestions or feature requests, please use our GitHub repository or join our Discord server.
+### Troubleshooting
+- Ensure bot has necessary permissions in your channel
+- Check that commands are typed correctly with required parameters
+- Verify feature availability (some commands require specific configurations)
+- For NSFW commands, ensure you're in an age-restricted channel
+
+For technical issues or feature requests, please visit our GitHub repository.
