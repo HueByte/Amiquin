@@ -59,6 +59,12 @@ $config = @{
     MySQLUser = "amiquin_user"
     MySQLUserPassword = ""
     
+    # Qdrant configuration (API key will be generated if needed)
+    QdrantApiKey = ""
+    QdrantEnableAuth = $false
+    QdrantHost = "localhost"
+    QdrantPort = "6334"
+    
     # Data paths
     LogsPath = "Data/Logs"
     MessagesPath = "Data/Messages"
@@ -145,15 +151,54 @@ if ($NonInteractive) {
         if ($systemMessage) { $config.SystemMessage = $systemMessage }
     }
     
-    # Memory System Configuration
-    Write-Host "`n=== Memory System Configuration ===" -ForegroundColor Cyan
-    Write-Host "Amiquin uses Qdrant vector database for conversation memory."
-    Write-Host "This requires Docker to run Qdrant (localhost:6334 by default)."
-    Write-Host "Memory system is enabled by default and configured automatically."
+    # Vector Database (Qdrant) Configuration
+    Write-Host "`n=== Vector Database (Qdrant) Configuration ===" -ForegroundColor Cyan
+    Write-Host "Qdrant is used for AI memory system and conversation context"
+    if (!$Default) {
+        Write-Host "Enable Qdrant authentication? (Optional - for production/cloud deployments)"
+        Write-Host "1. No authentication (default - recommended for local development)"
+        Write-Host "2. Enable API key authentication (for production)"
+        $qdrantChoice = Read-Host "Enter choice [1]"
+        
+        if ($qdrantChoice -eq "2") {
+            $config.QdrantEnableAuth = $true
+            
+            Write-Host "Choose API key option:"
+            Write-Host "1. Generate secure API key automatically (recommended)"
+            Write-Host "2. Enter custom API key"
+            $keyChoice = Read-Host "Enter choice [1]"
+            
+            if ($keyChoice -eq "2") {
+                $qdrantKey = Read-Host "Enter Qdrant API key"
+                if ($qdrantKey) { $config.QdrantApiKey = $qdrantKey }
+            } else {
+                $config.QdrantApiKey = New-SecureString -Length 32
+                Write-Host "Generated secure Qdrant API key" -ForegroundColor Green
+            }
+        }
+        
+        # Qdrant connection details
+        $qdrantHost = Read-Host "Enter Qdrant host [$($config.QdrantHost)]"
+        if ($qdrantHost) { $config.QdrantHost = $qdrantHost }
+        
+        $qdrantPort = Read-Host "Enter Qdrant port [$($config.QdrantPort)]"
+        if ($qdrantPort) { $config.QdrantPort = $qdrantPort }
+        
+        Write-Host "Qdrant configuration:"
+        Write-Host "  Host: $($config.QdrantHost)"
+        Write-Host "  Port: $($config.QdrantPort)"
+        Write-Host "  Authentication: $($config.QdrantEnableAuth)"
+        if ($config.QdrantEnableAuth) {
+            Write-Host "  API Key: Generated securely"
+        }
+    } else {
+        Write-Host "Using default Qdrant configuration (no authentication)" -ForegroundColor Green
+    }
+    
     Write-Host ""
     Write-Host "To start Qdrant for development:"
-    Write-Host "  docker-compose --profile vector up -d"
-    Write-Host "  # Or: docker-compose --profile qdrant-only up -d"
+    Write-Host "  docker-compose --profile qdrant-only up -d"
+    Write-Host "  # Or: docker-compose --profile vector up -d"
     
     # Database configuration
     Write-Host "\n=== Database Configuration ===" -ForegroundColor Cyan
@@ -318,21 +363,24 @@ AMQ_Memory__CleanupOlderThanDays=30
 AMQ_Memory__EmbeddingModel=`"text-embedding-3-small`"
 
 # Qdrant Vector Database Configuration
-AMQ_Memory__Qdrant__Host=`"localhost`"
-AMQ_Memory__Qdrant__Port=6334
+AMQ_Memory__Qdrant__Host=`"$($config.QdrantHost)`"
+AMQ_Memory__Qdrant__Port=$($config.QdrantPort)
 AMQ_Memory__Qdrant__UseHttps=false
 AMQ_Memory__Qdrant__CollectionName=`"amiquin_memories`"
 AMQ_Memory__Qdrant__VectorSize=1536
 AMQ_Memory__Qdrant__Distance=`"Cosine`"
 AMQ_Memory__Qdrant__AutoCreateCollection=true
-# AMQ_Memory__Qdrant__ApiKey=your-qdrant-api-key-here  # Optional for cloud instances
+$(if ($config.QdrantEnableAuth -and $config.QdrantApiKey) { "AMQ_Memory__Qdrant__ApiKey=`"$($config.QdrantApiKey)`"" } else { "# AMQ_Memory__Qdrant__ApiKey=`"your-qdrant-api-key-here`"  # Optional for cloud instances" })
 
+# ======================
 # Qdrant Docker Configuration
+# ======================
 AMQ_QDRANT_HTTP_PORT=6333
 AMQ_QDRANT_GRPC_PORT=6334
 AMQ_QDRANT_WEB_UI_PORT=3000
 AMQ_QDRANT_LOG_LEVEL=INFO
 AMQ_QDRANT_WEB_UI_ENABLED=false
+$(if ($config.QdrantEnableAuth -and $config.QdrantApiKey) { "AMQ_QDRANT_API_KEY=`"$($config.QdrantApiKey)`"" } else { "# AMQ_QDRANT_API_KEY=`"your-qdrant-api-key-here`"  # Optional for production deployments" })
 
 # For Docker Compose - Qdrant connection
 # When running with Docker Compose, use the service name as host:

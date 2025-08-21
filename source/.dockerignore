@@ -76,7 +76,7 @@
 **/LICENSE
 **/CONTRIBUTING.md
 **/*.md
-!**/Messages/**/*.md
+!**/Data/Messages/**/*.md
 
 # Docker files (prevent infinite recursion)
 **/Dockerfile*
@@ -88,8 +88,8 @@
 !**/.env.example
 **/appsettings.Development.json
 **/appsettings.Local.json
-**/Configuration/appsettings.json
-!**/Configuration/appsettings.example.json
+**/Data/Configuration/appsettings.json
+!**/Data/Configuration/appsettings.example.json
 
 # Development and external tools
 **/dev-local/
@@ -108,8 +108,8 @@
 **/*.wav
 **/*.mp3
 **/*.mp4
-!**/TTS/*.onnx
-!**/TTS/*.json
+!**/Data/TTS/*.onnx
+!**/Data/TTS/*.json
 
 # Platform-specific libraries (will be built in container)
 **/libsodium.dll

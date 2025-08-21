@@ -11,9 +11,7 @@
 #
 # Production profiles:
 #   - prod: Production stack (bot + mysql + qdrant with optimizations)
-#   - prod-proxy: Production with nginx reverse proxy
-#   - prod-cache: Production with redis caching
-#   - prod-full: Production with all services (nginx + redis + monitoring)
+#   - prod-full: Production with all services and monitoring
 #
 # Usage examples:
 #   docker-compose --profile qdrant-only up -d
@@ -28,8 +26,6 @@ services:
       - database
       - dev
       - prod
-      - prod-proxy
-      - prod-cache
       - prod-full
     container_name: mysql-${AMQ_BOT_NAME:-amiquin}
     image: mysql:${MYSQL_VERSION:-latest}
@@ -78,8 +74,6 @@ services:
       - memory
       - dev
       - prod
-      - prod-proxy
-      - prod-cache
       - prod-full
     container_name: qdrant-${AMQ_BOT_NAME:-amiquin}
     image: qdrant/qdrant:${QDRANT_VERSION:-latest}
@@ -91,38 +85,37 @@ services:
       QDRANT__LOG_LEVEL: ${AMQ_QDRANT_LOG_LEVEL:-INFO}
       QDRANT__SERVICE__HTTP_PORT: 6333
       QDRANT__SERVICE__GRPC_PORT: 6334
-      
+
       # Production performance settings (only applied in production profiles)
       QDRANT__SERVICE__MAX_REQUEST_SIZE_MB: ${QDRANT_MAX_REQUEST_SIZE_MB:-64}
       QDRANT__SERVICE__MAX_WORKERS: ${QDRANT_MAX_WORKERS:-0}
-      
+
       # Storage settings
       QDRANT__STORAGE__STORAGE_PATH: /qdrant/storage
       QDRANT__STORAGE__SNAPSHOTS_PATH: /qdrant/snapshots
       QDRANT__STORAGE__TEMP_PATH: /qdrant/temp
-      
+
       # WAL settings for durability
       QDRANT__STORAGE__WAL__WAL_CAPACITY_MB: ${QDRANT_WAL_CAPACITY_MB:-32}
       QDRANT__STORAGE__WAL__WAL_SEGMENTS_AHEAD: ${QDRANT_WAL_SEGMENTS_AHEAD:-0}
-      
+
       # Optimizer settings
       QDRANT__STORAGE__OPTIMIZERS__DEFAULT_SEGMENT_NUMBER: ${QDRANT_DEFAULT_SEGMENT_NUMBER:-0}
       QDRANT__STORAGE__OPTIMIZERS__MEMMAP_THRESHOLD_KB: ${QDRANT_MEMMAP_THRESHOLD_KB:-200000}
       QDRANT__STORAGE__OPTIMIZERS__INDEXING_THRESHOLD_KB: ${QDRANT_INDEXING_THRESHOLD_KB:-20000}
-      
+
       # HNSW index settings
       QDRANT__STORAGE__HNSW__M: ${QDRANT_HNSW_M:-16}
       QDRANT__STORAGE__HNSW__EF_CONSTRUCT: ${QDRANT_HNSW_EF_CONSTRUCT:-100}
       QDRANT__STORAGE__HNSW__FULL_SCAN_THRESHOLD: ${QDRANT_HNSW_FULL_SCAN_THRESHOLD:-10000}
-      
+
       # Security and telemetry
       QDRANT__SERVICE__ENABLE_CORS: ${QDRANT_ENABLE_CORS:-false}
-      QDRANT__SERVICE__API_KEY: ${AMQ_QDRANT_API_KEY:-}
       QDRANT__TELEMETRY_DISABLED: ${QDRANT_TELEMETRY_DISABLED:-true}
       QDRANT__SERVICE__TELEMETRY_DISABLED: ${QDRANT_TELEMETRY_DISABLED:-true}
     ports:
-      - "${AMQ_QDRANT_HTTP_PORT:-6333}:6333"  # REST API
-      - "${AMQ_QDRANT_GRPC_PORT:-6334}:6334"  # gRPC API
+      - "${AMQ_QDRANT_HTTP_PORT:-6333}:6333" # REST API
+      - "${AMQ_QDRANT_GRPC_PORT:-6334}:6334" # gRPC API
     volumes:
       - amq-qdrant-data:/qdrant/storage
       - amq-qdrant-snapshots:/qdrant/snapshots
@@ -176,8 +169,6 @@ services:
       - bot
       - dev
       - prod
-      - prod-proxy
-      - prod-cache
       - prod-full
     container_name: bot-${AMQ_BOT_NAME:-amiquin}
     build:
@@ -193,6 +184,12 @@ services:
       AMQ_Memory__Qdrant__Host: qdrant
       AMQ_ConnectionStrings__Amiquin-Mysql: "Server=mysql;Port=3306;Database=${AMQ_DB_NAME};Uid=${AMQ_DB_USER};Pwd=${AMQ_DB_USER_PASSWORD};SslMode=None;AllowPublicKeyRetrieval=True;Pooling=True;MinimumPoolSize=5;MaximumPoolSize=50;ConnectionTimeout=30;CommandTimeout=30;"
       
+      # Container path overrides for proper volume mapping
+      AMQ_DataPaths__Logs: "/app/Data/Logs"
+      AMQ_DataPaths__Messages: "/app/Data/Messages" 
+      AMQ_DataPaths__Sessions: "/app/Data/Sessions"
+      AMQ_DataPaths__Plugins: "/app/Data/Plugins"
+
       # Production performance settings (only for production profiles)
       DOTNET_GCServer: ${DOTNET_GC_SERVER:-true}
       DOTNET_GCConcurrent: ${DOTNET_GC_CONCURRENT:-true}
@@ -204,6 +201,9 @@ services:
     volumes:
       - amq-data:/app/Data
       - amq-logs:/app/Data/Logs
+      - amq-messages:/app/Data/Messages
+      - amq-sessions:/app/Data/Sessions
+      - amq-plugins:/app/Data/Plugins
     depends_on:
       mysql:
         condition: service_healthy
@@ -230,70 +230,6 @@ services:
       retries: 3
       start_period: 120s
 
-  # Nginx Reverse Proxy (Production)
-  nginx:
-    profiles:
-      - proxy
-      - prod-proxy
-      - prod-full
-    container_name: nginx-${AMQ_BOT_NAME:-amiquin}
-    image: nginx:alpine
-    restart: unless-stopped
-    ports:
-      - "${NGINX_HTTP_PORT:-80}:80"
-      - "${NGINX_HTTPS_PORT:-443}:443"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/conf.d:/etc/nginx/conf.d:ro
-      - ./ssl:/etc/nginx/ssl:ro
-      - nginx-cache:/var/cache/nginx
-    depends_on:
-      - amiquinbot
-      - qdrant
-    networks:
-      - amiquin-network
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  # Redis Cache (Production)
-  redis:
-    profiles:
-      - cache
-      - prod-cache
-      - prod-full
-    container_name: redis-${AMQ_BOT_NAME:-amiquin}
-    image: redis:${REDIS_VERSION:-7-alpine}
-    restart: unless-stopped
-    command: >
-      redis-server
-      --maxmemory ${REDIS_MAX_MEMORY:-1gb}
-      --maxmemory-policy allkeys-lru
-      --save 900 1
-      --save 300 10
-      --save 60 10000
-      --appendonly yes
-      --appendfsync everysec
-    volumes:
-      - amq-redis-data:/data
-    ports:
-      - "${REDIS_PORT:-6379}:6379"
-    networks:
-      - amiquin-network
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-    deploy:
-      resources:
-        limits:
-          memory: ${REDIS_MEMORY_LIMIT:-1G}
-        reservations:
-          memory: ${REDIS_MEMORY_RESERVATION:-256M}
-
 volumes:
   amq-data:
     driver: local
@@ -307,9 +243,11 @@ volumes:
     driver: local
   amq-logs:
     driver: local
-  amq-redis-data:
+  amq-messages:
     driver: local
-  nginx-cache:
+  amq-sessions:
+    driver: local
+  amq-plugins:
     driver: local
 
 networks:

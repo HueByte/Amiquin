@@ -4,8 +4,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Serilog;
 
-// DotNetEnv.Env.Load(); // Load environment variables from .env file
-
 var tcs = new TaskCompletionSource();
 var sigintReceived = false;
 int failCount = 0;
@@ -88,7 +86,7 @@ async Task RunAsync(string[] args)
     var basePath = AppContext.BaseDirectory;
     var configurationManager = new ConfigurationManager()
         .SetBasePath(basePath)
-        .AddJsonFile(Path.Combine(basePath, "Configuration", "appsettings.json"), optional: false)
+        .AddJsonFile(Path.Combine(basePath, "Data", "Configuration", "appsettings.json"), optional: false)
         .AddEnvironmentVariables()
         .AddEnvironmentVariables(prefix: "AMQ_")
         .AddCommandLine(args);

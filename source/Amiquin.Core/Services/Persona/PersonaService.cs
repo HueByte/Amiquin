@@ -152,8 +152,8 @@ public class PersonaService : IPersonaService
 
         try
         {
-            // Try to load from Messages/Persona.md file
-            string personaFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Messages", "Persona.md");
+            // Try to load from Data/Messages/Persona.md file
+            string personaFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "Messages", "Persona.md");
             if (File.Exists(personaFilePath))
             {
                 string basePersona = await File.ReadAllTextAsync(personaFilePath);

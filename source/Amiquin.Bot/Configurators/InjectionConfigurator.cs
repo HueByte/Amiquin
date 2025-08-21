@@ -120,33 +120,32 @@ public class InjectionConfigurator
             ?? dbOptions?.Mode.ToString() ?? "0";
 
         var parsedDatabaseMode = GetDatabaseModeValue(databaseMode);
-        if (parsedDatabaseMode.Equals("sqlite", StringComparison.OrdinalIgnoreCase))
+        switch (parsedDatabaseMode.ToLowerInvariant())
         {
-            _services.AddAmiquinContext(_configuration);
-        }
-        else if (parsedDatabaseMode.Equals("mysql", StringComparison.OrdinalIgnoreCase))
-        {
-            _services.AddAmiquinMySqlContext(_configuration);
-        }
-        else if (parsedDatabaseMode.Equals("postgres", StringComparison.OrdinalIgnoreCase))
-        {
-            Log.Warning("Postgres database mode is selected, but implementation is not yet available.");
-            throw new DatabaseNotImplementedException("Postgres database mode is not yet implemented.");
-
-            // TODO: Implement Postgres context setup
-            // _services.AddAmiquinPostgresContext(_configuration);
-        }
-        else if (parsedDatabaseMode.Equals("mssql", StringComparison.OrdinalIgnoreCase))
-        {
-            Log.Warning("MSSQL database mode is selected, but implementation is not yet available.");
-            throw new DatabaseNotImplementedException("MSSQL database mode is not yet implemented.");
-
-            // TODO: Implement MSSQL context setup
-            // _services.AddAmiquinMssqlContext(_configuration);
-        }
-        else
-        {
-            throw new InvalidOperationException($"Unsupported database mode: {databaseMode}");
+            case "sqlite":
+                _services.AddAmiquinContext(_configuration);
+                break;
+                
+            case "mysql":
+                _services.AddAmiquinMySqlContext(_configuration);
+                break;
+                
+            case "postgres":
+                Log.Warning("Postgres database mode is selected, but implementation is not yet available.");
+                throw new DatabaseNotImplementedException("Postgres database mode is not yet implemented.");
+                
+                // TODO: Implement Postgres context setup
+                // _services.AddAmiquinPostgresContext(_configuration);
+                
+            case "mssql":
+                Log.Warning("MSSQL database mode is selected, but implementation is not yet available.");
+                throw new DatabaseNotImplementedException("MSSQL database mode is not yet implemented.");
+                
+                // TODO: Implement MSSQL context setup
+                // _services.AddAmiquinMssqlContext(_configuration);
+                
+            default:
+                throw new InvalidOperationException($"Unsupported database mode: {databaseMode}");
         }
 
         return this;
@@ -174,15 +173,7 @@ public class InjectionConfigurator
                  .AddScoped<IVoiceService, VoiceService>()
                  .AddScoped<INewsApiClient, NewsApiClient>()
                  .AddScoped<INsfwProvider, WaifuProvider>()
-                 .AddScoped<INsfwApiService, NsfwApiService>(provider =>
-                 {
-                     var logger = provider.GetRequiredService<ILogger<NsfwApiService>>();
-                     var providers = provider.GetRequiredService<IEnumerable<INsfwProvider>>();
-                     var scrapperManager = provider.GetRequiredService<IScrapperManagerService>();
-                     // For backward compatibility, use the first available data scrapper
-                     var scrapper = scrapperManager.GetDataScrapers().FirstOrDefault();
-                     return new NsfwApiService(logger, providers, scrapper);
-                 })
+                 .AddScoped<INsfwApiService, NsfwApiService>()
                  .AddScoped<IToggleService, ToggleService>()
                  .AddScoped<BotContextAccessor>()
                  .AddSingleton<IServerMetaService, ServerMetaService>()
@@ -274,42 +265,24 @@ public class InjectionConfigurator
             client.Timeout = TimeSpan.FromSeconds(30);
         });
 
-        // Configure HTTP clients for LLM providers
-        _services.AddHttpClient("LLM_OpenAI", (services, client) =>
-        {
-            var llmOptions = services.GetRequiredService<IOptions<LLMOptions>>().Value;
-            var openAIConfig = llmOptions.GetProvider("OpenAI");
-            if (openAIConfig != null && openAIConfig.Enabled)
-            {
-                client.BaseAddress = new Uri(openAIConfig.BaseUrl);
-                client.DefaultRequestHeaders.Add("Accept", "application/json");
-                client.Timeout = TimeSpan.FromSeconds(llmOptions.GlobalTimeout);
-            }
-        });
+        // Configure HTTP clients for LLM providers dynamically
+        var llmOptions = _configuration.GetSection(LLMOptions.SectionName).Get<LLMOptions>() ?? new LLMOptions();
 
-        _services.AddHttpClient("LLM_Grok", (services, client) =>
+        foreach (var (providerName, providerConfig) in llmOptions.Providers)
         {
-            var llmOptions = services.GetRequiredService<IOptions<LLMOptions>>().Value;
-            var grokConfig = llmOptions.GetProvider("Grok");
-            if (grokConfig != null && grokConfig.Enabled)
+            _services.AddHttpClient($"LLM_{providerName}", (services, client) =>
             {
-                client.BaseAddress = new Uri(grokConfig.BaseUrl);
-                client.DefaultRequestHeaders.Add("Accept", "application/json");
-                client.Timeout = TimeSpan.FromSeconds(llmOptions.GlobalTimeout);
-            }
-        });
-
-        _services.AddHttpClient("LLM_Gemini", (services, client) =>
-        {
-            var llmOptions = services.GetRequiredService<IOptions<LLMOptions>>().Value;
-            var geminiConfig = llmOptions.GetProvider("Gemini");
-            if (geminiConfig != null && geminiConfig.Enabled)
-            {
-                client.BaseAddress = new Uri(geminiConfig.BaseUrl);
-                client.DefaultRequestHeaders.Add("Accept", "application/json");
-                client.Timeout = TimeSpan.FromSeconds(llmOptions.GlobalTimeout);
-            }
-        });
+                var currentLlmOptions = services.GetRequiredService<IOptions<LLMOptions>>().Value;
+                var currentProviderConfig = currentLlmOptions.GetProvider(providerName);
+                
+                if (currentProviderConfig != null && currentProviderConfig.Enabled && !string.IsNullOrEmpty(currentProviderConfig.BaseUrl))
+                {
+                    client.BaseAddress = new Uri(currentProviderConfig.BaseUrl);
+                    client.DefaultRequestHeaders.Add("Accept", "application/json");
+                    client.Timeout = TimeSpan.FromSeconds(currentLlmOptions.GlobalTimeout);
+                }
+            });
+        }
 
         return this;
     }

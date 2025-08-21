@@ -87,6 +87,12 @@ MYSQL_DATABASE="amiquin_db"
 MYSQL_USER="amiquin_user"
 MYSQL_USER_PASSWORD=""
 
+# Qdrant configuration (API key will be generated if needed)
+QDRANT_API_KEY=""
+QDRANT_ENABLE_AUTH="false"
+QDRANT_HOST="localhost"
+QDRANT_PORT="6334"
+
 # Voice/TTS
 VOICE_ENABLED="true"
 TTS_MODEL_NAME="en_GB-northern_english_male-medium"
@@ -229,6 +235,56 @@ else
         # In default mode, MySQL passwords are already generated
         echo -e "${GREEN}MySQL passwords generated for Docker compatibility${NC}"
     fi
+    
+    # Vector Database (Qdrant) Configuration
+    echo -e "\n${CYAN}=== Vector Database (Qdrant) Configuration ===${NC}"
+    echo "Qdrant is used for AI memory system and conversation context"
+    if [ "$DEFAULT" = false ]; then
+        echo "Enable Qdrant authentication? (Optional - for production/cloud deployments)"
+        echo "1. No authentication (default - recommended for local development)"
+        echo "2. Enable API key authentication (for production)"
+        read -p "Enter choice [1]: " qdrant_choice
+        
+        if [ "$qdrant_choice" = "2" ]; then
+            QDRANT_ENABLE_AUTH="true"
+            
+            echo "Choose API key option:"
+            echo "1. Generate secure API key automatically (recommended)"
+            echo "2. Enter custom API key"
+            read -p "Enter choice [1]: " key_choice
+            
+            if [ "$key_choice" = "2" ]; then
+                read -p "Enter Qdrant API key: " input
+                if [ ! -z "$input" ]; then
+                    QDRANT_API_KEY="$input"
+                fi
+            else
+                QDRANT_API_KEY=$(generate_secure_string 32)
+                echo -e "${GREEN}Generated secure Qdrant API key${NC}"
+            fi
+        fi
+        
+        # Qdrant connection details
+        read -p "Enter Qdrant host [$QDRANT_HOST]: " input
+        if [ ! -z "$input" ]; then
+            QDRANT_HOST="$input"
+        fi
+        
+        read -p "Enter Qdrant port [$QDRANT_PORT]: " input
+        if [ ! -z "$input" ]; then
+            QDRANT_PORT="$input"
+        fi
+        
+        echo "Qdrant configuration:"
+        echo "  Host: $QDRANT_HOST"
+        echo "  Port: $QDRANT_PORT"
+        echo "  Authentication: $QDRANT_ENABLE_AUTH"
+        if [ "$QDRANT_ENABLE_AUTH" = "true" ]; then
+            echo "  API Key: Generated securely"
+        fi
+    else
+        echo -e "${GREEN}Using default Qdrant configuration (no authentication)${NC}"
+    fi
 fi
 
 # Create .env file
@@ -325,6 +381,45 @@ AMQ_DataPaths__Configuration="$CONFIGURATION_PATH"
 AMQ_Voice__TTSModelName="$TTS_MODEL_NAME"
 AMQ_Voice__PiperCommand="/usr/local/bin/piper"
 AMQ_Voice__Enabled=$VOICE_ENABLED
+
+# ======================
+# Memory & Vector Database Configuration
+# ======================
+
+# Memory System Settings
+AMQ_Memory__Enabled=true
+AMQ_Memory__MaxMemoriesPerSession=1000
+AMQ_Memory__MaxContextMemories=10
+AMQ_Memory__SimilarityThreshold=0.7
+AMQ_Memory__MinImportanceScore=0.3
+AMQ_Memory__MinMessagesForMemory=3
+AMQ_Memory__AutoCleanup=true
+AMQ_Memory__CleanupOlderThanDays=30
+AMQ_Memory__EmbeddingModel="text-embedding-3-small"
+
+# Qdrant Vector Database Configuration
+AMQ_Memory__Qdrant__Host="$QDRANT_HOST"
+AMQ_Memory__Qdrant__Port=$QDRANT_PORT
+AMQ_Memory__Qdrant__UseHttps=false
+AMQ_Memory__Qdrant__CollectionName="amiquin_memories"
+AMQ_Memory__Qdrant__VectorSize=1536
+AMQ_Memory__Qdrant__Distance="Cosine"
+AMQ_Memory__Qdrant__AutoCreateCollection=true
+$(if [ "$QDRANT_ENABLE_AUTH" = "true" ] && [ ! -z "$QDRANT_API_KEY" ]; then echo "AMQ_Memory__Qdrant__ApiKey=\"$QDRANT_API_KEY\""; else echo "# AMQ_Memory__Qdrant__ApiKey=\"your-qdrant-api-key-here\"  # Optional for cloud instances"; fi)
+
+# ======================
+# Qdrant Docker Configuration
+# ======================
+AMQ_QDRANT_HTTP_PORT=6333
+AMQ_QDRANT_GRPC_PORT=6334
+AMQ_QDRANT_WEB_UI_PORT=3000
+AMQ_QDRANT_LOG_LEVEL=INFO
+AMQ_QDRANT_WEB_UI_ENABLED=false
+$(if [ "$QDRANT_ENABLE_AUTH" = "true" ] && [ ! -z "$QDRANT_API_KEY" ]; then echo "AMQ_QDRANT_API_KEY=\"$QDRANT_API_KEY\""; else echo "# AMQ_QDRANT_API_KEY=\"your-qdrant-api-key-here\"  # Optional for production deployments"; fi)
+
+# For Docker Compose - Qdrant connection
+# When running with Docker Compose, use the service name as host:
+# AMQ_Memory__Qdrant__Host="qdrant"
 
 # ======================
 # NSFW/Waifu API Configuration

@@ -115,8 +115,8 @@ public class Constants
     public class Paths
     {
         #region Application Paths
-        public static string Assets = Path.Join(AppContext.BaseDirectory, "Messages");
-        public static string TTSBasePath = Path.Join(AppContext.BaseDirectory, "TTS");
+        public static string Assets = Path.Join(AppContext.BaseDirectory, "Data", "Messages");
+        public static string TTSBasePath = Path.Join(AppContext.BaseDirectory, "Data", "TTS");
         public static string TTSBaseOutputPath = Path.Join(TTSBasePath, "output");
         public static string ApplicationTempPath = Path.Combine(Path.GetTempPath(), "Amiquin");
         #endregion
