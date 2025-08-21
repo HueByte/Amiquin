@@ -40,8 +40,8 @@ public class CoreChatService : IChatCoreService
         string? provider = null)
     {
         // Build system message
-        var basePersona = await _messageCache.GetPersonaCoreMessageAsync() ?? _llmOptions.GlobalSystemMessage;
-        var systemMessage = BuildSystemMessage(basePersona, customPersona);
+        var baseSystem = await _messageCache.GetSystemCoreMessageAsync() ?? _llmOptions.GlobalSystemMessage;
+        var systemMessage = BuildSystemMessage(baseSystem, customPersona);
 
         // Create messages for the request
         var messages = new List<SessionMessage>
@@ -79,8 +79,8 @@ public class CoreChatService : IChatCoreService
         try
         {
             // Build system message with all components
-            var basePersona = await _messageCache.GetPersonaCoreMessageAsync() ?? _llmOptions.GlobalSystemMessage;
-            var systemMessage = BuildSystemMessage(basePersona, customPersona, sessionContext);
+            var baseSystem = await _messageCache.GetSystemCoreMessageAsync() ?? _llmOptions.GlobalSystemMessage;
+            var systemMessage = BuildSystemMessage(baseSystem, customPersona, sessionContext);
 
             // Prepare messages with system message first
             var fullMessages = new List<SessionMessage>

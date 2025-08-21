@@ -55,31 +55,31 @@ public class MessageCacheServiceTests
     }
 
     [Fact]
-    public async Task GetPersonaCoreMessageAsync_ShouldReturnCachedMessage()
+    public async Task GetSystemCoreMessageAsync_ShouldReturnCachedMessage()
     {
         // Arrange
-        var expectedMessage = "This is the core persona message";
+        var expectedMessage = "This is the core system message";
         object? value = expectedMessage;
-        _memoryCacheMock.Setup(x => x.TryGetValue("core_persona_message", out value))
+        _memoryCacheMock.Setup(x => x.TryGetValue("core_system_message", out value))
             .Returns(true);
 
         // Act
-        var result = await _sut.GetPersonaCoreMessageAsync();
+        var result = await _sut.GetSystemCoreMessageAsync();
 
         // Assert
         Assert.Equal(expectedMessage, result);
     }
 
     [Fact]
-    public async Task GetPersonaCoreMessageAsync_WithNoCache_ShouldReturnNull()
+    public async Task GetSystemCoreMessageAsync_WithNoCache_ShouldReturnNull()
     {
         // Arrange
         object? value = null;
-        _memoryCacheMock.Setup(x => x.TryGetValue("core_persona_message", out value))
+        _memoryCacheMock.Setup(x => x.TryGetValue("core_system_message", out value))
             .Returns(false);
 
         // Act
-        var result = await _sut.GetPersonaCoreMessageAsync();
+        var result = await _sut.GetSystemCoreMessageAsync();
 
         // Assert
         Assert.Null(result);

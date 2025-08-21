@@ -80,7 +80,7 @@ public class PersonaService : IPersonaService
 
         try
         {
-            var cacheKey = StringModifier.CreateCacheKey(Constants.CacheKeys.ComputedPersonaMessageKey, serverId.ToString());
+            var cacheKey = StringModifier.CreateCacheKey(Constants.CacheKeys.ComputedSystemMessageKey, serverId.ToString());
             string? personaMessage = _memoryCache.Get<string>(cacheKey);
             if (string.IsNullOrEmpty(personaMessage))
             {
@@ -89,7 +89,7 @@ public class PersonaService : IPersonaService
 
             personaMessage += $"This is your summary of recent conversations: {updateMessage}";
             // Use the server-specific cache key consistently
-            _memoryCache.Set(cacheKey, personaMessage, TimeSpan.FromDays(Constants.PersonaDefaults.PersonaCacheDurationDays));
+            _memoryCache.Set(cacheKey, personaMessage, TimeSpan.FromDays(Constants.SystemDefaults.SystemCacheDurationDays));
 
             _logger.LogDebug("Added summary to persona for server {ServerId}: {Summary}", serverId, updateMessage);
         }
@@ -101,8 +101,8 @@ public class PersonaService : IPersonaService
 
     private async Task<string> GetPersonaInternalAsync(ulong serverId)
     {
-        var computedPersonaCacheKey = StringModifier.CreateCacheKey(Constants.CacheKeys.ComputedPersonaMessageKey, serverId.ToString());
-        if (_memoryCache.TryGetValue(computedPersonaCacheKey, out string? personaMessage))
+        var computedSystemCacheKey = StringModifier.CreateCacheKey(Constants.CacheKeys.ComputedSystemMessageKey, serverId.ToString());
+        if (_memoryCache.TryGetValue(computedSystemCacheKey, out string? personaMessage))
         {
             if (!string.IsNullOrEmpty(personaMessage))
             {
@@ -110,8 +110,8 @@ public class PersonaService : IPersonaService
             }
         }
 
-        // Load base persona from Persona.md file
-        string basePersona = await LoadBasePersonaAsync();
+        // Load base system message from System.md file
+        string baseSystem = await LoadBaseSystemAsync();
 
         // Get server-specific persona from metadata
         string? serverPersona = (await _serverMetaService.GetServerMetaAsync(serverId))?.Persona;
@@ -120,56 +120,56 @@ public class PersonaService : IPersonaService
         if (!string.IsNullOrEmpty(serverPersona))
         {
             // Server persona exists - append it to base persona
-            personaMessage = $"{basePersona}\n\n## Server-Specific Instructions\n{serverPersona}";
+            personaMessage = $"{baseSystem}\n\n## Server-Specific Instructions\n{serverPersona}";
         }
         else
         {
             // No server persona - use base persona with default template
-            personaMessage = $"{basePersona}\n\n{Constants.PersonaDefaults.DefaultPersonaTemplate}";
+            personaMessage = $"{baseSystem}\n\n{Constants.SystemDefaults.DefaultSystemTemplate}";
         }
 
         var computedMood = await GetComputedMoodAsync();
-        personaMessage = ReplacePersonaKeywords(personaMessage, computedMood);
+        personaMessage = ReplaceSystemKeywords(personaMessage, computedMood);
 
-        _memoryCache.Set(computedPersonaCacheKey, personaMessage, TimeSpan.FromDays(Constants.PersonaDefaults.PersonaCacheDurationDays));
+        _memoryCache.Set(computedSystemCacheKey, personaMessage, TimeSpan.FromDays(Constants.SystemDefaults.SystemCacheDurationDays));
         _logger.LogInformation("Computed persona message: {personaMessage}", personaMessage);
 
         return personaMessage;
     }
 
-    private async Task<string> LoadBasePersonaAsync()
+    private async Task<string> LoadBaseSystemAsync()
     {
-        const string basePersonaCacheKey = "BasePersona";
+        const string baseSystemCacheKey = "BaseSystem";
 
         // Check cache first
-        if (_memoryCache.TryGetValue(basePersonaCacheKey, out string? cachedBasePersona))
+        if (_memoryCache.TryGetValue(baseSystemCacheKey, out string? cachedBaseSystem))
         {
-            if (!string.IsNullOrEmpty(cachedBasePersona))
+            if (!string.IsNullOrEmpty(cachedBaseSystem))
             {
-                return cachedBasePersona;
+                return cachedBaseSystem;
             }
         }
 
         try
         {
-            // Try to load from Data/Messages/Persona.md file
-            string personaFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "Messages", "Persona.md");
-            if (File.Exists(personaFilePath))
+            // Try to load from Data/Messages/System.md file
+            string systemFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Data", "Messages", "System.md");
+            if (File.Exists(systemFilePath))
             {
-                string basePersona = await File.ReadAllTextAsync(personaFilePath);
-                _memoryCache.Set(basePersonaCacheKey, basePersona, TimeSpan.FromDays(7)); // Cache for 7 days
-                _logger.LogDebug("Loaded base persona from file: {Path}", personaFilePath);
-                return basePersona;
+                string baseSystem = await File.ReadAllTextAsync(systemFilePath);
+                _memoryCache.Set(baseSystemCacheKey, baseSystem, TimeSpan.FromDays(7)); // Cache for 7 days
+                _logger.LogDebug("Loaded base system message from file: {Path}", systemFilePath);
+                return baseSystem;
             }
             else
             {
-                _logger.LogWarning("Base persona file not found at {Path}, using default", personaFilePath);
+                _logger.LogWarning("Base system file not found at {Path}, using default", systemFilePath);
                 return "# System Message — Amiquin\n\nYou are Amiquin, a virtual clanmate AI assistant for Discord.";
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error loading base persona file");
+            _logger.LogError(ex, "Error loading base system file");
             return "# System Message — Amiquin\n\nYou are Amiquin, a virtual clanmate AI assistant for Discord.";
         }
     }
@@ -198,7 +198,7 @@ public class PersonaService : IPersonaService
             if (news is null || news.Data is null || news.Data.NewsList is null || news.Data.NewsList.Count == 0)
             {
                 _logger.LogWarning("No news data received from API.");
-                return Constants.PersonaDefaults.NewsMoodNotAvailableMessage;
+                return Constants.SystemDefaults.NewsMoodNotAvailableMessage;
             }
 
             var botName = GetBotName();
@@ -217,7 +217,7 @@ public class PersonaService : IPersonaService
 
             var response = await _coreChatService.CoreRequestAsync(
                 sb.ToString(),
-                tokenLimit: Constants.PersonaDefaults.NewsPersonaTokenLimit);
+                tokenLimit: Constants.SystemDefaults.NewsSystemTokenLimit);
             var personaOpinion = response.Content;
             _logger.LogInformation("Persona Opinion: {personaOpinion}", personaOpinion);
 
@@ -226,7 +226,7 @@ public class PersonaService : IPersonaService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error while computing mood in GetInfoFromNewsAsync.");
-            return Constants.PersonaDefaults.NewsProcessingErrorMessage;
+            return Constants.SystemDefaults.NewsProcessingErrorMessage;
         }
     }
 
@@ -254,12 +254,12 @@ public class PersonaService : IPersonaService
     }
 
     /// <summary>
-    /// Replaces persona keywords with actual values in the persona message.
+    /// Replaces system keywords with actual values in the system message.
     /// </summary>
-    /// <param name="message">The persona message template.</param>
+    /// <param name="message">The system message template.</param>
     /// <param name="mood">The computed mood to replace.</param>
-    /// <returns>The persona message with replaced keywords.</returns>
-    private string ReplacePersonaKeywords(string message, string mood)
+    /// <returns>The system message with replaced keywords.</returns>
+    private string ReplaceSystemKeywords(string message, string mood)
     {
         if (string.IsNullOrEmpty(message))
             return message;
@@ -268,8 +268,8 @@ public class PersonaService : IPersonaService
         string version = _botOptions.Version;
 
         return message
-            .Replace(Constants.PersonaKeywordsCache.Mood, mood)
-            .Replace(Constants.PersonaKeywordsCache.Name, name)
-            .Replace(Constants.PersonaKeywordsCache.Version, version);
+            .Replace(Constants.SystemKeywordsCache.Mood, mood)
+            .Replace(Constants.SystemKeywordsCache.Name, name)
+            .Replace(Constants.SystemKeywordsCache.Version, version);
     }
 }

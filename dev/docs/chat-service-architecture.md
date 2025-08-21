@@ -66,14 +66,14 @@ Task<ChatCompletionResponse> ChatAsync(
 - **Semaphore management for concurrent requests per instance**
 
 **System Message Construction**:
-1. Always starts with base persona from Persona.md
+1. Always starts with base system message from System.md
 2. Optionally appends custom persona (server-specific)
 3. Optionally appends session context (conversation summary)
 
 Example:
 ```
-[Base Persona from Persona.md]
-[Custom Persona if provided]
+[Base System Message from System.md]
+[Custom System Message if provided]
 
 Previous conversation context:
 [Session Context if provided]

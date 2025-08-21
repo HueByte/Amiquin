@@ -90,8 +90,8 @@ services:
       # Optional: Custom configuration
       - ./config/appsettings.production.json:/home/app/amiquin/build/appsettings.json:ro
       
-      # Optional: Custom persona and messages
-      - ./config/Persona.md:/home/app/amiquin/build/Messages/Persona.md:ro
+      # Optional: Custom system message and messages
+      - ./config/System.md:/home/app/amiquin/build/Messages/System.md:ro
     ports:
       - "8080:8080"
     healthcheck:

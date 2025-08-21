@@ -72,8 +72,8 @@ public class Constants
     {
         #region Cache Keys
         public const string JoinMessageKey = "ServerJoinMessage";
-        public const string CorePersonaMessageKey = "Persona";
-        public const string ComputedPersonaMessageKey = "ComputedPersona";
+        public const string CoreSystemMessageKey = "System";
+        public const string ComputedSystemMessageKey = "ComputedSystem";
         public const string ServerTogglesCreated = "ServerTogglesCreated";
         public const string ServerToggles = "ServerToggles";
         public const string ServerMeta = "ServerMeta";
@@ -105,7 +105,7 @@ public class Constants
         #endregion
     }
 
-    public class PersonaKeywordsCache
+    public class SystemKeywordsCache
     {
         public const string Mood = "[$Mood$]";
         public const string Name = "[$Name$]";
@@ -242,12 +242,12 @@ public class Constants
         #endregion
     }
 
-    public class PersonaDefaults
+    public class SystemDefaults
     {
-        #region Persona Configuration
-        public const int NewsPersonaTokenLimit = 500;
-        public const int PersonaCacheDurationDays = 1;
-        public const string DefaultPersonaTemplate = "You are [$Name$]. The AI assistant for discord.\n[$Mood$]";
+        #region System Configuration
+        public const int NewsSystemTokenLimit = 500;
+        public const int SystemCacheDurationDays = 1;
+        public const string DefaultSystemTemplate = "You are [$Name$]. The AI assistant for discord.\n[$Mood$]";
         public const string NewsMoodNotAvailableMessage = "I couldn't find any news at the moment.";
         public const string NewsProcessingErrorMessage = "I'm having trouble processing the news right now.";
         #endregion

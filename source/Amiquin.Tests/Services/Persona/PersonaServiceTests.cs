@@ -127,7 +127,7 @@ public class PersonaServiceTests : IDisposable
         // Assert
         Assert.NotNull(result);
         Assert.Contains("TestAmiquin", result);
-        Assert.Contains(Constants.PersonaDefaults.DefaultPersonaTemplate, result);
+        Assert.Contains(Constants.SystemDefaults.DefaultSystemTemplate, result);
         Assert.DoesNotContain("## Server-Specific Instructions", result);
     }
 
@@ -137,7 +137,7 @@ public class PersonaServiceTests : IDisposable
         // Arrange
         var serverId = 12345UL;
         var cachedPersona = "Cached persona content";
-        var cacheKey = StringModifier.CreateCacheKey(Constants.CacheKeys.ComputedPersonaMessageKey, serverId.ToString());
+        var cacheKey = StringModifier.CreateCacheKey(Constants.CacheKeys.ComputedSystemMessageKey, serverId.ToString());
 
         _memoryCache.Set(cacheKey, cachedPersona);
 
@@ -240,7 +240,7 @@ public class PersonaServiceTests : IDisposable
         var serverId = 12345UL;
         var existingPersona = "Existing persona content";
         var summaryMessage = "This is a conversation summary";
-        var cacheKey = StringModifier.CreateCacheKey(Constants.CacheKeys.ComputedPersonaMessageKey, serverId.ToString());
+        var cacheKey = StringModifier.CreateCacheKey(Constants.CacheKeys.ComputedSystemMessageKey, serverId.ToString());
 
         _memoryCache.Set(cacheKey, existingPersona);
 
@@ -272,7 +272,7 @@ public class PersonaServiceTests : IDisposable
         await _personaService.AddSummaryAsync(serverId, summaryMessage);
 
         // Assert
-        var cacheKey = StringModifier.CreateCacheKey(Constants.CacheKeys.ComputedPersonaMessageKey, serverId.ToString());
+        var cacheKey = StringModifier.CreateCacheKey(Constants.CacheKeys.ComputedSystemMessageKey, serverId.ToString());
         var updatedPersona = _memoryCache.Get<string>(cacheKey);
 
         Assert.NotNull(updatedPersona);
@@ -332,7 +332,7 @@ public class PersonaServiceTests : IDisposable
     {
         // Arrange
         var serverId = 12345UL;
-        var basePersona = $"Bot name: {Constants.PersonaKeywordsCache.Name}, Version: {Constants.PersonaKeywordsCache.Version}, Mood: {Constants.PersonaKeywordsCache.Mood}";
+        var basePersona = $"Bot name: {Constants.SystemKeywordsCache.Name}, Version: {Constants.SystemKeywordsCache.Version}, Mood: {Constants.SystemKeywordsCache.Mood}";
 
         _memoryCache.Set("BasePersona", basePersona);
 
@@ -353,9 +353,9 @@ public class PersonaServiceTests : IDisposable
         Assert.Contains(moodContent, result);
 
         // Should not contain the placeholder keywords
-        Assert.DoesNotContain(Constants.PersonaKeywordsCache.Name, result);
-        Assert.DoesNotContain(Constants.PersonaKeywordsCache.Version, result);
-        Assert.DoesNotContain(Constants.PersonaKeywordsCache.Mood, result);
+        Assert.DoesNotContain(Constants.SystemKeywordsCache.Name, result);
+        Assert.DoesNotContain(Constants.SystemKeywordsCache.Version, result);
+        Assert.DoesNotContain(Constants.SystemKeywordsCache.Mood, result);
     }
 
     public void Dispose()

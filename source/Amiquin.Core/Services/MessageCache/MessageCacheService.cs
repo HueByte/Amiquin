@@ -38,15 +38,15 @@ public class MessageCacheService : IMessageCacheService
     /// <inheritdoc/>
     public void ClearMessageCache()
     {
-        _memoryCache.Remove(Constants.CacheKeys.ComputedPersonaMessageKey);
-        _memoryCache.Remove(Constants.CacheKeys.CorePersonaMessageKey);
+        _memoryCache.Remove(Constants.CacheKeys.ComputedSystemMessageKey);
+        _memoryCache.Remove(Constants.CacheKeys.CoreSystemMessageKey);
         _memoryCache.Remove(Constants.CacheKeys.JoinMessageKey);
     }
 
     /// <inheritdoc/>
-    public async Task<string?> GetPersonaCoreMessageAsync()
+    public async Task<string?> GetSystemCoreMessageAsync()
     {
-        return await GetMessageAsync(Constants.CacheKeys.CorePersonaMessageKey);
+        return await GetMessageAsync(Constants.CacheKeys.CoreSystemMessageKey);
     }
 
     /// <inheritdoc/>

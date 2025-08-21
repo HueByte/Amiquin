@@ -235,8 +235,8 @@ public class MessageCacheServiceIntegrationTests : IClassFixture<DatabaseFixture
         _messageCacheService.ClearMessageCache();
 
         // Add some test data to cache using correct constant keys
-        memoryCache.Set(Core.Constants.CacheKeys.ComputedPersonaMessageKey, "test persona", TimeSpan.FromHours(1));
-        memoryCache.Set(Core.Constants.CacheKeys.CorePersonaMessageKey, "test core", TimeSpan.FromHours(1));
+        memoryCache.Set(Core.Constants.CacheKeys.ComputedSystemMessageKey, "test system", TimeSpan.FromHours(1));
+        memoryCache.Set(Core.Constants.CacheKeys.CoreSystemMessageKey, "test core", TimeSpan.FromHours(1));
         memoryCache.Set(Core.Constants.CacheKeys.JoinMessageKey, "test join", TimeSpan.FromHours(1));
         memoryCache.Set("other_cache_key", "should remain", TimeSpan.FromHours(1));
 
@@ -245,8 +245,8 @@ public class MessageCacheServiceIntegrationTests : IClassFixture<DatabaseFixture
 
         // Assert
         // The specific keys should be removed
-        Assert.False(memoryCache.TryGetValue(Core.Constants.CacheKeys.ComputedPersonaMessageKey, out _));
-        Assert.False(memoryCache.TryGetValue(Core.Constants.CacheKeys.CorePersonaMessageKey, out _));
+        Assert.False(memoryCache.TryGetValue(Core.Constants.CacheKeys.ComputedSystemMessageKey, out _));
+        Assert.False(memoryCache.TryGetValue(Core.Constants.CacheKeys.CoreSystemMessageKey, out _));
         Assert.False(memoryCache.TryGetValue(Core.Constants.CacheKeys.JoinMessageKey, out _));
 
         // Other keys should remain

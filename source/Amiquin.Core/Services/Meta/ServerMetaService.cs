@@ -673,10 +673,10 @@ public class ServerMetaService : IServerMetaService, IDisposable
     private void InvalidateRelatedCaches(ulong serverId)
     {
         var serverIdString = serverId.ToString();
-        var computedPersonaCacheKey = StringModifier.CreateCacheKey(Constants.CacheKeys.ComputedPersonaMessageKey, serverIdString);
+        var computedSystemCacheKey = StringModifier.CreateCacheKey(Constants.CacheKeys.ComputedSystemMessageKey, serverIdString);
         var serverTogglesCacheKey = StringModifier.CreateCacheKey(Constants.CacheKeys.ServerToggles, serverIdString);
 
-        _memoryCache.Remove(computedPersonaCacheKey);
+        _memoryCache.Remove(computedSystemCacheKey);
         _memoryCache.Remove(serverTogglesCacheKey);
 
         _logger.LogDebug("Invalidated related caches for serverId {serverId}", serverId);

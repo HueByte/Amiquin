@@ -37,8 +37,8 @@ public class SimpleChatServiceTests
         mockOptions.Setup(x => x.Value).Returns(llmOptions);
 
         mockMessageCache
-            .Setup(x => x.GetPersonaCoreMessageAsync())
-            .ReturnsAsync("Base persona");
+            .Setup(x => x.GetSystemCoreMessageAsync())
+            .ReturnsAsync("Base system");
 
         mockProviderFactory
             .Setup(x => x.GetProvider("OpenAI"))
@@ -95,8 +95,8 @@ public class SimpleChatServiceTests
         mockOptions.Setup(x => x.Value).Returns(llmOptions);
 
         mockMessageCache
-            .Setup(x => x.GetPersonaCoreMessageAsync())
-            .ReturnsAsync("Base persona");
+            .Setup(x => x.GetSystemCoreMessageAsync())
+            .ReturnsAsync("Base system");
 
         mockProviderFactory
             .Setup(x => x.GetProvider("OpenAI"))

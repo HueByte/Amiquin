@@ -15,10 +15,10 @@ public interface IMessageCacheService
     void ClearMessageCache();
 
     /// <summary>
-    /// Retrieves the core persona message from cache.
+    /// Retrieves the core system message from cache.
     /// </summary>
-    /// <returns>The persona core message if available; otherwise, null.</returns>
-    Task<string?> GetPersonaCoreMessageAsync();
+    /// <returns>The system core message if available; otherwise, null.</returns>
+    Task<string?> GetSystemCoreMessageAsync();
 
     /// <summary>
     /// Retrieves the server join message from cache.
