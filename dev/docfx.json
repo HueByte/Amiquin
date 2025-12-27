@@ -28,8 +28,8 @@
 				"files": ["toc.yml", "index.md"]
 			},
 			{
-				"src": "../docs",
-				"dest": "documentation",
+				"src": "./docs",
+				"dest": "docs",
 				"files": ["**/*.md", "**/toc.yml"],
 				"exclude": [
 					"api/**",
@@ -55,16 +55,16 @@
 		"resource": [
 			{
 				"files": [
-					"../docs/images/**",
+					"./docs/images/**",
 					"assets/**"
 				]
 			}
 		],
 		"overwrite": [
 			{
-				"files": ["../docs/overwrite/**/*.md"],
+				"files": ["./docs/overwrite/**/*.md"],
 				"exclude": [
-					"../docs/build/**",
+					"./docs/build/**",
 					"_site/**",
 					"_temp/**",
 					"**/bin/**",

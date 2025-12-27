@@ -134,15 +134,17 @@ COPY --from=libsodium-build /opt/libsodium/lib /usr/local/lib
 COPY --from=opus-build /opt/opus/lib /usr/local/lib
 
 # Create Data directory structure at volume mount point (as root)
-RUN mkdir -p /Data/Logs \
-    && mkdir -p /Data/Database \
-    && mkdir -p /Data/Messages \
-    && mkdir -p /Data/Sessions
+RUN mkdir -p /app/Data/Logs \
+    && mkdir -p /app/Data/Database \
+    && mkdir -p /app/Data/Messages \
+    && mkdir -p /app/Data/Sessions \
+    && mkdir -p /app/Data/Configuration \
+    && mkdir -p /app/Data/Plugins
 
 # Create non-root user with proper setup
 RUN useradd -ms /bin/bash -u 1000 amiquin \
     && chown -R amiquin:amiquin ${MAIN_WORK_DIR} \
-    && chown -R amiquin:amiquin /Data
+    && chown -R amiquin:amiquin /app
 
 # Copy Piper TTS installation to amiquin user
 USER amiquin
@@ -156,27 +158,33 @@ COPY --from=build --chown=amiquin:amiquin ${MAIN_WORK_DIR}/build ${MAIN_WORK_DIR
 # Set working directory to application
 WORKDIR ${MAIN_WORK_DIR}/build
 
-# Only use example if no appsettings.json was provided in source
-RUN if [ ! -f Data/Configuration/appsettings.json ] && [ -f Data/Configuration/appsettings.example.json ]; then \
-    echo "No appsettings.json found, using example configuration"; \
-    cp Data/Configuration/appsettings.example.json Data/Configuration/appsettings.json; \
+# Copy Data folder contents to volume location, including Configuration
+RUN if [ -d "${MAIN_WORK_DIR}/build/Data" ]; then \
+    echo "Copying Data folder contents to volume location"; \
+    cp -r ${MAIN_WORK_DIR}/build/Data/* /app/Data/ 2>/dev/null || true; \
+    rm -rf ${MAIN_WORK_DIR}/build/Data; \
     else \
-    echo "Using existing appsettings.json"; \
+    echo "No Data folder found in build"; \
     fi
 
-# Move any Data folders that were copied from build to the volume location
-RUN if [ -d "${MAIN_WORK_DIR}/build/Data" ]; then \
-    cp -r ${MAIN_WORK_DIR}/build/Data/* /Data/ 2>/dev/null || true; \
-    rm -rf ${MAIN_WORK_DIR}/build/Data; \
+# Only use example if no appsettings.json was provided
+RUN if [ ! -f /app/Data/Configuration/appsettings.json ] && [ -f /app/Data/Configuration/appsettings.example.json ]; then \
+    echo "No appsettings.json found, using example configuration"; \
+    cp /app/Data/Configuration/appsettings.example.json /app/Data/Configuration/appsettings.json; \
+    else \
+    echo "Using existing appsettings.json or no example found"; \
     fi
 
 # Set environment variables for data paths (pointing to volume)
-ENV AMQ_DataPaths__Logs=/Data/Logs
-ENV AMQ_DataPaths__Database=/Data/Database
-ENV AMQ_DataPaths__Messages=/Data/Messages
-ENV AMQ_DataPaths__Sessions=/Data/Sessions
+ENV AMQ_DataPaths__Logs=/app/Data/Logs
+ENV AMQ_DataPaths__Database=/app/Data/Database
+ENV AMQ_DataPaths__Messages=/app/Data/Messages
+ENV AMQ_DataPaths__Sessions=/app/Data/Sessions
+ENV AMQ_DataPaths__Configuration=/app/Data/Configuration
+ENV AMQ_DataPaths__Plugins=/app/Data/Plugins
+ENV AMQ_APPSETTINGS_PATH=/app/Data/Configuration/appsettings.json
 ENV AMQ_Database__Mode=1
-ENV AMQ_ConnectionStrings__AmiquinContext="Data Source=/Data/Database/amiquin.db"
+ENV AMQ_ConnectionStrings__AmiquinContext="Data Source=/app/Data/Database/amiquin.db"
 ENV PATH="${PATH}:/home/amiquin/.local/bin"
 
 # Health check for console application - just check if process is running

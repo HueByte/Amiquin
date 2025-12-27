@@ -32,11 +32,14 @@ public class LiveJobTests
         _mockServerRepository = new Mock<IServerMetaRepository>();
         _mockToggleService = new Mock<IToggleService>();
 
-        // Setup service scope factory
+        // Setup service scope factory - use GetService instead of GetRequiredService (extension method)
         _mockServiceScopeFactory.Setup(f => f.CreateScope()).Returns(_mockServiceScope.Object);
         _mockServiceScope.Setup(s => s.ServiceProvider).Returns(_mockServiceProvider.Object);
-        _mockServiceProvider.Setup(p => p.GetRequiredService<IServerMetaRepository>()).Returns(_mockServerRepository.Object);
-        _mockServiceProvider.Setup(p => p.GetRequiredService<IToggleService>()).Returns(_mockToggleService.Object);
+
+        // GetRequiredService is an extension method that calls GetService internally
+        // So we mock GetService instead
+        _mockServiceProvider.Setup(p => p.GetService(typeof(IServerMetaRepository))).Returns(_mockServerRepository.Object);
+        _mockServiceProvider.Setup(p => p.GetService(typeof(IToggleService))).Returns(_mockToggleService.Object);
 
         _liveJob = new LiveJob(_mockLogger.Object, _mockJobService.Object);
     }

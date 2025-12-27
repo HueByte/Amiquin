@@ -142,7 +142,7 @@ Tests both PowerShell and Bash markdownlint scripts:
 #### Features
 
 - **Automatic Installation**: Installs `markdownlint-cli` if not present
-- **Configuration Support**: Uses `dev/.markdownlint.json` configuration file (with fallback to legacy `.markdownlint.json`)
+- **Configuration Support**: Uses `dev/config/.markdownlint.json` configuration file with ignore patterns from `dev/config/.markdownlintignore`
 - **Auto-fix**: Can automatically fix many common issues
 - **Ignore Patterns**: Automatically ignores build directories and node_modules
 - **Colored Output**: Easy-to-read colored terminal output
@@ -150,7 +150,7 @@ Tests both PowerShell and Bash markdownlint scripts:
 
 #### Configuration
 
-The scripts use the `dev/.markdownlint.json` configuration file in the repository. This file contains rules for:
+The scripts use the `dev/config/.markdownlint.json` configuration file in the repository. This file contains rules for:
 
 - Line length limits (disabled)
 - HTML tags in markdown (allowed)

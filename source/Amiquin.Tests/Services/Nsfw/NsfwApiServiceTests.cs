@@ -29,9 +29,10 @@ public class NsfwApiServiceTests : IDisposable
         _mockProvider.Setup(p => p.Name).Returns("TestProvider");
         _mockProvider.Setup(p => p.IsAvailable).Returns(true);
 
-        // Setup mock scrapper
+        // Setup mock scrapper - DISABLED by default so providers are used
+        // When scrapper is enabled, providerCount = count - scrapperCount becomes 0
         _mockScrapper.Setup(s => s.SourceName).Returns("TestScrapper");
-        _mockScrapper.Setup(s => s.IsEnabled).Returns(true);
+        _mockScrapper.Setup(s => s.IsEnabled).Returns(false);
         _mockScrapper.Setup(s => s.ScrapeAsync<NsfwImage>(It.IsAny<int>(), It.IsAny<bool>())).ReturnsAsync(new List<NsfwImage>());
 
         var providers = new List<INsfwProvider> { _mockProvider.Object };
@@ -59,11 +60,13 @@ public class NsfwApiServiceTests : IDisposable
     [Fact]
     public async Task GetWaifuImagesAsync_ReturnsImagesFromProvider()
     {
-        // Arrange
+        // Arrange - Use provider name "waifu" which is the preferred provider for GetWaifuImagesAsync
+        _mockProvider.Setup(p => p.Name).Returns("waifu");
+
         var expectedImage = new NsfwImage
         {
             Url = "https://example.com/image1.jpg",
-            Source = "TestProvider",
+            Source = "waifu",
             Tags = "test",
             Width = 1920,
             Height = 1080
@@ -80,7 +83,7 @@ public class NsfwApiServiceTests : IDisposable
         Assert.NotNull(result);
         Assert.Single(result);
         Assert.Equal("https://example.com/image1.jpg", result[0].Url);
-        Assert.Equal("TestProvider", result[0].Source);
+        Assert.Equal("waifu", result[0].Source);
 
         // Verify the provider was called
         _mockProvider.Verify(p => p.FetchImageAsync(), Times.AtLeastOnce);

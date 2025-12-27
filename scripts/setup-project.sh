@@ -376,6 +376,13 @@ AMQ_DataPaths__Plugins="$PLUGINS_PATH"
 AMQ_DataPaths__Configuration="$CONFIGURATION_PATH"
 
 # ======================
+# Configuration File Path
+# ======================
+# Path to appsettings.json file - defaults to {AppDirectory.BaseDirectory}/Data/Configuration/appsettings.json
+# For Docker volumes, set to /app/Data/Configuration/appsettings.json
+AMQ_APPSETTINGS_PATH="/app/Data/Configuration/appsettings.json"
+
+# ======================
 # Voice/TTS Configuration
 # ======================
 AMQ_Voice__TTSModelName="$TTS_MODEL_NAME"

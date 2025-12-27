@@ -147,15 +147,19 @@ print_success "✅ markdownlint-cli version: $MARKDOWNLINT_VERSION"
 echo
 
 # Check for markdownlint configuration
+# Use markdownlint configuration from dev/config/
 CONFIG_FILE=""
-if [[ -f "dev/.markdownlint.json" ]]; then
-    print_info "📋 Using configuration from dev/.markdownlint.json"
-    CONFIG_FILE="--config dev/.markdownlint.json"
-elif [[ -f ".markdownlint.json" ]]; then
-    print_info "📋 Using configuration from .markdownlint.json (legacy location)"
-    CONFIG_FILE="--config .markdownlint.json"
+IGNORE_FILE=""
+if [[ -f "dev/config/.markdownlint.json" ]]; then
+    print_info "📋 Using configuration from dev/config/.markdownlint.json"
+    CONFIG_FILE="--config dev/config/.markdownlint.json"
+    if [[ -f "dev/config/.markdownlintignore" ]]; then
+        print_info "📋 Using ignore file dev/config/.markdownlintignore"
+        IGNORE_FILE="--ignore-path dev/config/.markdownlintignore"
+    fi
 else
-    print_warning "⚠️  No .markdownlint.json found, using default rules"
+    print_error "❌ Configuration file dev/config/.markdownlint.json not found"
+    exit 1
 fi
 
 # Build markdownlint command arguments
@@ -175,6 +179,11 @@ MARKDOWNLINT_ARGS=(
 # Add configuration file if present
 if [[ -n "$CONFIG_FILE" ]]; then
     MARKDOWNLINT_ARGS+=($CONFIG_FILE)
+fi
+
+# Add ignore file if present
+if [[ -n "$IGNORE_FILE" ]]; then
+    MARKDOWNLINT_ARGS+=($IGNORE_FILE)
 fi
 
 # Add fix flag if requested

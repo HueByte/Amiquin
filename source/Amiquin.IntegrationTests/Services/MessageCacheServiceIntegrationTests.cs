@@ -1,5 +1,7 @@
+using Amiquin.Core.IRepositories;
 using Amiquin.Core.Models;
 using Amiquin.Core.Services.MessageCache;
+using Amiquin.Core.Services.SessionManager;
 using Amiquin.IntegrationTests.Fixtures;
 using Microsoft.Extensions.Caching.Memory;
 using OpenAI.Chat;
@@ -18,7 +20,7 @@ public class MessageCacheServiceIntegrationTests : IClassFixture<DatabaseFixture
     }
 
     [Fact]
-    public async Task GetOrCreateChatMessagesAsync_WithExistingMessages_ShouldReturnMessagesFromDatabase()
+    public async Task GetOrCreateChatMessagesAsync_WithExistingMessages_ShouldReturnMessagesFromSession()
     {
         // Arrange
         await _fixture.CleanupAsync();
@@ -28,36 +30,16 @@ public class MessageCacheServiceIntegrationTests : IClassFixture<DatabaseFixture
         var serverMetaService = _fixture.ServiceProvider.GetRequiredService<Core.Services.Meta.IServerMetaService>();
         await serverMetaService.CreateServerMetaAsync(serverId, "Test Server for Messages");
 
-        // Add messages directly to database
-        var messages = new List<Message>
-        {
-            new Message
-            {
-                Id = Guid.NewGuid().ToString(),
-                ServerId = serverId,
-                Content = "Hello from user",
-                IsUser = true,
-                CreatedAt = DateTime.UtcNow.AddMinutes(-5)
-            },
-            new Message
-            {
-                Id = Guid.NewGuid().ToString(),
-                ServerId = serverId,
-                Content = "Hello from assistant",
-                IsUser = false,
-                CreatedAt = DateTime.UtcNow.AddMinutes(-4)
-            },
-            new Message
-            {
-                Id = Guid.NewGuid().ToString(),
-                ServerId = serverId,
-                Content = "Another user message",
-                IsUser = true,
-                CreatedAt = DateTime.UtcNow.AddMinutes(-3)
-            }
-        };
+        // Create a session using SessionManagerService (required by MessageCacheService)
+        var sessionManagerService = _fixture.ServiceProvider.GetRequiredService<ISessionManagerService>();
+        var session = await sessionManagerService.CreateSessionAsync(serverId, "Test Session", setAsActive: true);
 
-        _fixture.DbContext.Messages.AddRange(messages);
+        // Add session messages using the repository
+        var sessionMessageRepository = _fixture.ServiceProvider.GetRequiredService<ISessionMessageRepository>();
+
+        await sessionMessageRepository.AddSessionMessageAsync(session.Id, "user", "Hello from user");
+        await sessionMessageRepository.AddSessionMessageAsync(session.Id, "assistant", "Hello from assistant");
+        await sessionMessageRepository.AddSessionMessageAsync(session.Id, "user", "Another user message");
         await _fixture.DbContext.SaveChangesAsync();
 
         // Act
@@ -283,22 +265,13 @@ public class MessageCacheServiceIntegrationTests : IClassFixture<DatabaseFixture
         var serverMetaService = _fixture.ServiceProvider.GetRequiredService<Core.Services.Meta.IServerMetaService>();
         await serverMetaService.CreateServerMetaAsync(serverId, "Test Server for Persistence");
 
-        // Add messages using first service instance
-        var modelMessages = new List<Message>
-        {
-            new Message
-            {
-                Id = Guid.NewGuid().ToString(),
-                ServerId = serverId,
-                Content = "Persistent message",
-                IsUser = true,
-                CreatedAt = DateTime.UtcNow
-            }
-        };
+        // Create a session using SessionManagerService (required by MessageCacheService)
+        var sessionManagerService = _fixture.ServiceProvider.GetRequiredService<ISessionManagerService>();
+        var session = await sessionManagerService.CreateSessionAsync(serverId, "Test Session", setAsActive: true);
 
-        await _messageCacheService.AddChatExchangeAsync(serverId, new List<ChatMessage>(), modelMessages);
-
-        // Ensure database context is saved and changes are committed
+        // Add a session message using the repository
+        var sessionMessageRepository = _fixture.ServiceProvider.GetRequiredService<ISessionMessageRepository>();
+        await sessionMessageRepository.AddSessionMessageAsync(session.Id, "user", "Persistent message");
         await _fixture.DbContext.SaveChangesAsync();
 
         // Act - Clear cache to force database retrieval and test persistence

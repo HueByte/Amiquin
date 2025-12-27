@@ -422,3 +422,5 @@ FodyWeavers.xsd
 CLAUDE.md
 nul
 source/Amiquin.Bot/Configuration/appsettings.backup.json
+dev/_temp/api/*
+!dev/_temp/api/index.md

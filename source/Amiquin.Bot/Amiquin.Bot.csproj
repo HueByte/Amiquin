@@ -48,4 +48,26 @@
       </Content>
   </ItemGroup>
 
+  <!-- Copy appsettings.example.json to appsettings.json if it doesn't exist -->
+  <Target Name="EnsureAppSettings" AfterTargets="CopyFilesToOutputDirectory">
+    <PropertyGroup>
+      <AppSettingsDestination>$(OutputPath)Data\Configuration\appsettings.json</AppSettingsDestination>
+      <AppSettingsExample>$(OutputPath)Data\Configuration\appsettings.example.json</AppSettingsExample>
+    </PropertyGroup>
+    
+    <Message Text="Checking for appsettings.json at: $(AppSettingsDestination)" Importance="normal" />
+    <Message Text="Example file path: $(AppSettingsExample)" Importance="normal" />
+    <Message Text="Example file exists: $([System.IO.File]::Exists('$(AppSettingsExample)'))" Importance="normal" />
+    <Message Text="Destination file exists: $([System.IO.File]::Exists('$(AppSettingsDestination)'))" Importance="normal" />
+    
+    <Copy SourceFiles="$(AppSettingsExample)" 
+          DestinationFiles="$(AppSettingsDestination)" 
+          Condition="!Exists('$(AppSettingsDestination)') AND Exists('$(AppSettingsExample)')"
+          OverwriteReadOnlyFiles="true" />
+    
+    <Message Text="Copied appsettings.example.json to appsettings.json in Data/Configuration" 
+             Importance="high" 
+             Condition="!Exists('$(AppSettingsDestination)') AND Exists('$(AppSettingsExample)')" />
+  </Target>
+
 </Project>

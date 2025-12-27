@@ -84,9 +84,14 @@ Log.CloseAndFlush();
 async Task RunAsync(string[] args)
 {
     var basePath = AppContext.BaseDirectory;
+    
+    // Get appsettings path from environment variable or use default
+    var appSettingsPath = System.Environment.GetEnvironmentVariable(Amiquin.Core.Constants.Environment.AppSettingsPath) 
+                         ?? Path.Combine(basePath, "Data", "Configuration", "appsettings.json");
+    
     var configurationManager = new ConfigurationManager()
         .SetBasePath(basePath)
-        .AddJsonFile(Path.Combine(basePath, "Data", "Configuration", "appsettings.json"), optional: false)
+        .AddJsonFile(appSettingsPath, optional: false)
         .AddEnvironmentVariables()
         .AddEnvironmentVariables(prefix: "AMQ_")
         .AddCommandLine(args);

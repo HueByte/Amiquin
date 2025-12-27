@@ -9,7 +9,8 @@
 param(
     [switch]$Help,
     [switch]$NonInteractive,
-    [switch]$Default
+    [switch]$Default,
+    [switch]$Production
 )
 
 if ($Help) {
@@ -23,10 +24,11 @@ if ($Help) {
     Write-Host "  - Building the solution"
     Write-Host ""
     Write-Host "Usage:"
-    Write-Host "  ./setup-project.ps1           # Interactive mode (recommended)"
-    Write-Host "  ./setup-project.ps1 -Default  # Interactive with sensible defaults"
-    Write-Host "  ./setup-project.ps1 -NonInteractive  # Automated setup with defaults"
-    Write-Host "  ./setup-project.ps1 -Help     # Show this help"
+    Write-Host "  ./setup-project.ps1                # Interactive mode (recommended)"
+    Write-Host "  ./setup-project.ps1 -Default       # Interactive with sensible defaults"
+    Write-Host "  ./setup-project.ps1 -Production    # Production mode with security hardening"
+    Write-Host "  ./setup-project.ps1 -NonInteractive # Automated setup with defaults"
+    Write-Host "  ./setup-project.ps1 -Help          # Show this help"
     exit 0
 }
 
@@ -339,6 +341,13 @@ AMQ_DataPaths__Messages=`"$($config.MessagesPath)`"
 AMQ_DataPaths__Sessions=`"$($config.SessionsPath)`"
 AMQ_DataPaths__Plugins=`"$($config.PluginsPath)`"
 AMQ_DataPaths__Configuration=`"$($config.ConfigurationPath)`"
+
+# ======================
+# Configuration File Path
+# ======================
+# Path to appsettings.json file - defaults to {AppDirectory.BaseDirectory}/Data/Configuration/appsettings.json
+# For Docker volumes, set to /app/Data/Configuration/appsettings.json
+AMQ_APPSETTINGS_PATH=`"/app/Data/Configuration/appsettings.json`"
 
 # ======================
 # Voice/TTS Configuration

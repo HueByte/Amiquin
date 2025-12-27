@@ -116,19 +116,20 @@ public class CommandHandlerService : ICommandHandlerService
         {
             try
             {
-                var scope = _serviceScopeFactory.CreateAsyncScope();
-                var autocompleteContext = new ExtendedShardedInteractionContext(_discordClient, interaction, scope);
+                using var autocompleteScope = _serviceScopeFactory.CreateAsyncScope();
+                var autocompleteContext = new ExtendedShardedInteractionContext(_discordClient, interaction, autocompleteScope);
 
                 _logger.LogDebug("Executing autocomplete interaction for user {userId} in guild {guildId}",
                     interaction.User.Id, GetGuildId(interaction));
 
-                await _interactionService.ExecuteCommandAsync(autocompleteContext, scope.ServiceProvider);
+                await _interactionService.ExecuteCommandAsync(autocompleteContext, autocompleteScope.ServiceProvider);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to execute autocomplete interaction for user {userId} in guild {guildId}",
                     interaction.User.Id, GetGuildId(interaction));
             }
+
             return;
         }
         // Don't defer modal commands or modal submissions - they need to respond immediately
@@ -138,12 +139,13 @@ public class CommandHandlerService : ICommandHandlerService
             await interaction.DeferAsync(isEphemeral);
         }
 
+        IServiceScope? scope = null;
         ExtendedShardedInteractionContext? extendedContext = null;
 
         try
         {
-            var scope = _serviceScopeFactory.CreateAsyncScope();
-            extendedContext = new ExtendedShardedInteractionContext(_discordClient, interaction, scope);
+            scope = _serviceScopeFactory.CreateAsyncScope();
+            extendedContext = new ExtendedShardedInteractionContext(_discordClient, interaction, (AsyncServiceScope)scope);
 
             var botContext = scope.ServiceProvider.GetRequiredService<BotContextAccessor>();
             var serverMetaService = scope.ServiceProvider.GetRequiredService<IServerMetaService>();
@@ -169,6 +171,11 @@ public class CommandHandlerService : ICommandHandlerService
                 GetCommandName(interaction), interaction.User.Id, GetGuildId(interaction));
 
             await HandleCommandErrorAsync(interaction, ex);
+
+            if (scope != null && scope is AsyncServiceScope)
+                await ((AsyncServiceScope)scope).DisposeAsync();
+            else
+                scope?.Dispose();
 
             // On exception in HandleCommandAsync, we need to clean up ourselves since HandleSlashCommandExecuted won't be called
             if (extendedContext is not null)

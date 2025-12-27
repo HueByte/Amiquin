@@ -86,35 +86,6 @@ public class TaskManagerJobIntegrationTests
         var optionsMock = new Mock<IOptions<JobManagerOptions>>();
         optionsMock.Setup(o => o.Value).Returns(jobOptions);
 
-        // Capture TaskManager interactions
-        string? capturedRequestId = null;
-        TrackedAmiquinJob? capturedResult = null;
-
-        mockTaskManager
-            .Setup(tm => tm.ExternalExecuteAsync<TrackedAmiquinJob>(
-                It.IsAny<string>(),
-                It.IsAny<string>(),
-                It.IsAny<Func<Task>>(),
-                It.IsAny<CancellationToken>()))
-            .Returns<string, string, Func<Task>, CancellationToken>((instanceId, requestId, task, ct) =>
-            {
-                capturedRequestId = requestId;
-                // Execute the task and return a completed task
-                return Task.FromResult(new TrackedAmiquinJob
-                {
-                    Id = "test-job",
-                    Name = "TestJob",
-                    Status = JobStatus.Completed
-                });
-            });
-
-        mockTaskManager
-            .Setup(tm => tm.SetTaskResult(It.IsAny<string>(), It.IsAny<TrackedAmiquinJob>()))
-            .Callback<string, TrackedAmiquinJob>((requestId, result) =>
-            {
-                capturedResult = result;
-            });
-
         var jobService = new JobService(
             mockLogger.Object,
             mockServiceScopeFactory.Object,
@@ -130,14 +101,14 @@ public class TaskManagerJobIntegrationTests
             Task = (factory, token) => Task.CompletedTask
         });
 
-        // Assert
+        // Assert - Job creation should succeed
         Assert.True(createResult);
 
-        // Give a moment for potential async operations
-        await Task.Delay(50);
-
-        // Verify TaskManager integration points are set up correctly
-        Assert.NotNull(capturedRequestId);
+        // Verify the job was created and is tracked
+        var createdJob = jobService.GetJob("test-job");
+        Assert.NotNull(createdJob);
+        Assert.Equal("TestJob", createdJob.Name);
+        Assert.Equal(1, jobService.ActiveJobCount);
 
         await jobService.DisposeAsync();
     }

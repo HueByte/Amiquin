@@ -112,18 +112,19 @@ try {
     Write-ColorOutput "✅ markdownlint-cli version: $markdownlintVersion" $SuccessColor
     Write-ColorOutput ""
 
-    # Check for markdownlint configuration
-    if (Test-Path "dev\.markdownlint.json") {
-        Write-ColorOutput "📋 Using configuration from dev\.markdownlint.json" $InfoColor
-        $configFile = "dev\.markdownlint.json"
-    }
-    elseif (Test-Path ".markdownlint.json") {
-        Write-ColorOutput "📋 Using configuration from .markdownlint.json (legacy location)" $InfoColor
-        $configFile = ".markdownlint.json"
+    # Use markdownlint configuration from dev/config/
+    $configFile = "dev\config\.markdownlint.json"
+    $ignoreFile = "dev\config\.markdownlintignore"
+    
+    if (Test-Path $configFile) {
+        Write-ColorOutput "📋 Using configuration from $configFile" $InfoColor
+        if (Test-Path $ignoreFile) {
+            Write-ColorOutput "📋 Using ignore file $ignoreFile" $InfoColor
+        }
     }
     else {
-        Write-ColorOutput "⚠️  No .markdownlint.json found, using default rules" $WarningColor
-        $configFile = $null
+        Write-ColorOutput "❌ Configuration file $configFile not found" $ErrorColor
+        exit 1
     }
 
     # Build markdownlint command
@@ -152,10 +153,14 @@ try {
     $markdownlintArgs += "--ignore"
     $markdownlintArgs += "obj"
     
-    # Add configuration file if present
-    if ($configFile) {
-        $markdownlintArgs += "--config"
-        $markdownlintArgs += $configFile
+    # Add configuration file
+    $markdownlintArgs += "--config"
+    $markdownlintArgs += $configFile
+    
+    # Add ignore file if present
+    if (Test-Path $ignoreFile) {
+        $markdownlintArgs += "--ignore-path"
+        $markdownlintArgs += $ignoreFile
     }
     
     # Add fix flag if requested

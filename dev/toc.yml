@@ -2,35 +2,6 @@
   href: index.md
 - name: Documentation
   href: docs/
-  items:
-    - name: Getting Started
-      href: docs/getting-started.md
-    - name: Installation
-      href: docs/installation.md
-    - name: Configuration
-      href: docs/configuration.md
-    - name: Commands Reference
-      href: docs/commands.md
-    - name: User Guide
-      href: docs/user-guide.md
-    - name: Project Structure
-      href: docs/project-structure.md
-    - name: Architecture
-      href: docs/architecture.md
-    - name: Development
-      href: docs/development.md
-    - name: Git Setup
-      href: docs/git-setup.md
-    - name: Contributing
-      href: docs/contributing.md
-    - name: Scripts Reference
-      href: docs/scripts-reference.md
-    - name: Database Schema
-      href: docs/database-schema.md
-    - name: Database Provider Connections
-      href: docs/database-provider-connections.md
-    - name: Changelog
-      href: docs/changelog/
 - name: API Reference
   href: api/
   homepage: api/index.md

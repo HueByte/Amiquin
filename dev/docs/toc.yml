@@ -16,6 +16,8 @@
 # Deployment & Operations
 - name: Docker Setup
   href: docker-setup.md
+- name: Docker File Structure
+  href: docker-file-structure.md
 - name: Production Deployment
   href: production-deployment.md
 - name: Memory System
@@ -26,6 +28,8 @@
   href: project-structure.md
 - name: Architecture
   href: architecture.md
+- name: Conversation System
+  href: conversation-system.md
 - name: Chat Service Architecture
   href: chat-service-architecture.md
 - name: Development

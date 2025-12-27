@@ -4,6 +4,7 @@ using Amiquin.Core.Services.ChatSession;
 using Amiquin.Core.Services.MessageCache;
 using Amiquin.Core.Services.Meta;
 using Amiquin.Core.Services.Nacho;
+using Amiquin.Core.Services.SessionManager;
 using Amiquin.Core.Services.Toggle;
 using Amiquin.Infrastructure;
 using Amiquin.Infrastructure.Repositories;
@@ -65,6 +66,7 @@ public class DatabaseFixture : IDisposable, IAsyncLifetime
         services.AddScoped<INachoService, NachoService>();
         services.AddScoped<IMessageCacheService, MessageCacheService>();
         services.AddScoped<IChatSessionService, ChatSessionService>();
+        services.AddScoped<ISessionManagerService, SessionManagerService>();
 
         ServiceProvider = services.BuildServiceProvider();
 

@@ -45,6 +45,7 @@ public class Constants
         public const string TTSModelName = "AMQ_TTS_MODEL_NAME";
         public const string PiperCommand = "AMQ_PIPER_COMMAND";
         public const string MessageFetchCount = "AMQ_MESSAGE_FETCH_COUNT";
+        public const string AppSettingsPath = "AMQ_APPSETTINGS_PATH";
         #endregion
 
         #region Bot Metadata 

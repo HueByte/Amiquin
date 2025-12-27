@@ -38,7 +38,7 @@ public class SimpleChatServiceTests
 
         mockMessageCache
             .Setup(x => x.GetSystemCoreMessageAsync())
-            .ReturnsAsync("Base system");
+            .ReturnsAsync("Base system message content");
 
         mockProviderFactory
             .Setup(x => x.GetProvider("OpenAI"))
@@ -60,18 +60,18 @@ public class SimpleChatServiceTests
             mockOptions.Object);
 
         // Act
-        var result = await service.CoreRequestAsync("Hello", "Custom persona");
+        var result = await service.CoreRequestAsync("Hello", "Custom system message");
 
         // Assert
         Assert.Equal("Test response", result.Content);
 
-        // Verify the system message contains both base and custom persona
+        // Verify the system message contains both base system message and custom system message
         mockProvider.Verify(x => x.ChatAsync(
             It.Is<List<SessionMessage>>(msgs =>
                 msgs.Count == 2 &&
                 msgs[0].Role == "system" &&
-                msgs[0].Content.Contains("Base persona") &&
-                msgs[0].Content.Contains("Custom persona")),
+                msgs[0].Content.Contains("Base system message content") &&
+                msgs[0].Content.Contains("Custom system message")),
             It.IsAny<ChatCompletionOptions>()), Times.Once);
     }
 
