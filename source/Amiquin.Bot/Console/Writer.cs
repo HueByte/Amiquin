@@ -33,8 +33,12 @@ public static class Writer
         var objectProps = typeof(T).GetProperties();
         foreach (var prop in objectProps)
         {
+            // Skip properties without a setter (read-only properties)
+            if (!prop.CanWrite || prop.SetMethod is null)
+                continue;
+
             var anomifyAttrib = prop.GetCustomAttributes(typeof(AnomifyAttribute), false);
-            if (anomifyAttrib is null)
+            if (anomifyAttrib is null || anomifyAttrib.Length == 0)
                 continue;
 
             var propValue = prop.GetValue(objectCopy);

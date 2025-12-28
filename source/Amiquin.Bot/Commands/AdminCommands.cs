@@ -354,11 +354,12 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
                 return;
             }
 
-            // Update server meta
+            // Update server meta with both provider and model
             var serverMeta = _botContextAccessor.ServerMeta;
             if (serverMeta != null)
             {
                 serverMeta.PreferredProvider = provider;
+                serverMeta.PreferredModel = model;
                 await _serverMetaService.UpdateServerMetaAsync(serverMeta);
             }
 
@@ -630,6 +631,8 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
                         }
 
                         serverMeta.PreferredProvider = matchedProvider;
+                        // Clear the model when provider changes to avoid mismatched provider/model
+                        serverMeta.PreferredModel = null;
                         await _serverMetaService.UpdateServerMetaAsync(serverMeta);
 
                         componentsBuilder = new ComponentBuilderV2()
@@ -638,6 +641,7 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
                                 container.WithTextDisplay("# ✅ Provider Updated");
                                 container.WithTextDisplay($"AI provider has been set to **{matchedProvider}**");
                                 container.WithTextDisplay($"**Provider:** {matchedProvider}");
+                                container.WithTextDisplay("*Note: Model has been reset to provider default. Use `/admin set-model` to select a specific model.*");
                             });
                         break;
 
@@ -767,13 +771,14 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
 
                     case "provider":
                         serverMeta.PreferredProvider = null;
+                        serverMeta.PreferredModel = null; // Also reset model when resetting provider
                         settingDisplayName = "AI Provider";
                         componentsBuilder = new ComponentBuilderV2()
                             .WithContainer(container =>
                             {
                                 container.WithTextDisplay("# 🔄 Configuration Reset");
                                 container.WithTextDisplay($"**{settingDisplayName}** has been reset to default.");
-                                container.WithTextDisplay("The server will now use the global default AI provider.");
+                                container.WithTextDisplay("The server will now use the global default AI provider and model.");
                             });
                         break;
 
@@ -840,6 +845,7 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
                 export.AppendLine($"- Primary Channel ID: {serverMeta?.PrimaryChannelId?.ToString() ?? "Not configured"}");
                 export.AppendLine($"- NSFW Channel ID: {serverMeta?.NsfwChannelId?.ToString() ?? "Not configured"}");
                 export.AppendLine($"- Preferred Provider: {serverMeta?.PreferredProvider ?? "Default"}");
+                export.AppendLine($"- Preferred Model: {serverMeta?.PreferredModel ?? "Provider default"}");
                 export.AppendLine();
 
                 export.AppendLine("## Feature Toggles");

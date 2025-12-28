@@ -1,5 +1,7 @@
 using Amiquin.Bot.Commands;
 using Amiquin.Core;
+using Amiquin.Core.Configuration;
+using Amiquin.Core.IRepositories;
 using Amiquin.Core.Job;
 using Amiquin.Core.Options;
 using Amiquin.Core.Services.ChatContext;
@@ -34,7 +36,9 @@ public class AmiquinHost : IHostedService
     private readonly DiscordOptions _discordOptions;
     private readonly VoiceOptions _voiceOptions;
     private readonly DataPathOptions _dataPathOptions;
+    private readonly MemoryOptions _memoryOptions;
     private readonly IJobService _jobService;
+    private readonly IQdrantMemoryRepository _qdrantMemoryRepository;
     private bool _isInitialized = false;
 
     public AmiquinHost(
@@ -49,7 +53,9 @@ public class AmiquinHost : IHostedService
         IOptions<DiscordOptions> discordOptions,
         IOptions<VoiceOptions> voiceOptions,
         IOptions<DataPathOptions> dataPathOptions,
-        IJobService jobService)
+        IOptions<MemoryOptions> memoryOptions,
+        IJobService jobService,
+        IQdrantMemoryRepository qdrantMemoryRepository)
     {
         _eventHandlerService = eventHandlerService;
         _client = discordClient;
@@ -62,12 +68,15 @@ public class AmiquinHost : IHostedService
         _discordOptions = discordOptions.Value;
         _voiceOptions = voiceOptions.Value;
         _dataPathOptions = dataPathOptions.Value;
+        _memoryOptions = memoryOptions.Value;
         _jobService = jobService;
+        _qdrantMemoryRepository = qdrantMemoryRepository;
     }
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         await CreateDatabaseAsync();
+        await InitializeQdrantAsync();
         await _commandHandlerService.InitializeAsync();
 
         // Initialize configuration interaction handlers with scoped service
@@ -144,6 +153,38 @@ public class AmiquinHost : IHostedService
         _logger.LogInformation("Applying migrations to database");
         _logger.LogInformation("Using provider: {Provider}", dbContext.Database.ProviderName);
         await dbContext.Database.MigrateAsync();
+    }
+
+    private async Task InitializeQdrantAsync()
+    {
+        if (!_memoryOptions.Enabled)
+        {
+            _logger.LogInformation("Memory system is disabled, skipping Qdrant initialization");
+            return;
+        }
+
+        try
+        {
+            _logger.LogInformation("Initializing Qdrant vector database collection");
+            var result = await _qdrantMemoryRepository.InitializeCollectionAsync();
+
+            if (result)
+            {
+                _logger.LogInformation("Qdrant collection initialized successfully");
+
+                // Log collection info
+                var isHealthy = await _qdrantMemoryRepository.IsHealthyAsync();
+                _logger.LogInformation("Qdrant health status: {Status}", isHealthy ? "Healthy" : "Unhealthy");
+            }
+            else
+            {
+                _logger.LogWarning("Qdrant collection initialization returned false - collection may not be available");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to initialize Qdrant collection. Memory features may not work correctly.");
+        }
     }
 
     private void DisplayData()

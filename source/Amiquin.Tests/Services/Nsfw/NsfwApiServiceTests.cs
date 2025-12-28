@@ -13,7 +13,7 @@ public class NsfwApiServiceTests : IDisposable
 {
     private readonly Mock<ILogger<NsfwApiService>> _loggerMock;
     private readonly Mock<INsfwProvider> _mockProvider;
-    private readonly Mock<IDataScrapper> _mockScrapper;
+    private readonly Mock<IScrapperManagerService> _mockScrapperManager;
     private readonly NsfwApiService _nsfwApiService;
 
     public NsfwApiServiceTests()
@@ -23,20 +23,17 @@ public class NsfwApiServiceTests : IDisposable
 
         _loggerMock = new Mock<ILogger<NsfwApiService>>();
         _mockProvider = new Mock<INsfwProvider>();
-        _mockScrapper = new Mock<IDataScrapper>();
+        _mockScrapperManager = new Mock<IScrapperManagerService>();
 
         // Setup mock provider
         _mockProvider.Setup(p => p.Name).Returns("TestProvider");
         _mockProvider.Setup(p => p.IsAvailable).Returns(true);
 
-        // Setup mock scrapper - DISABLED by default so providers are used
-        // When scrapper is enabled, providerCount = count - scrapperCount becomes 0
-        _mockScrapper.Setup(s => s.SourceName).Returns("TestScrapper");
-        _mockScrapper.Setup(s => s.IsEnabled).Returns(false);
-        _mockScrapper.Setup(s => s.ScrapeAsync<NsfwImage>(It.IsAny<int>(), It.IsAny<bool>())).ReturnsAsync(new List<NsfwImage>());
+        // Setup mock scrapper manager - returns empty list by default so providers are used
+        _mockScrapperManager.Setup(m => m.GetDataScrapers()).Returns(new List<IDataScrapper>());
 
         var providers = new List<INsfwProvider> { _mockProvider.Object };
-        _nsfwApiService = new NsfwApiService(_loggerMock.Object, providers, _mockScrapper.Object);
+        _nsfwApiService = new NsfwApiService(_loggerMock.Object, providers, _mockScrapperManager.Object);
     }
 
     public void Dispose()

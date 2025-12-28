@@ -93,6 +93,19 @@ public class OpenAILLMProvider : LLMProviderBase
 
             _logger.LogDebug("Received response from OpenAI API: {FinishReason}", choice.FinishReason);
 
+            // Extract cached token information for cost tracking
+            var cachedTokens = openAIResponse.Usage?.PromptTokensDetails?.CachedTokens;
+            var promptTokens = openAIResponse.Usage?.PromptTokens ?? 0;
+            float? cacheHitRatio = (cachedTokens.HasValue && promptTokens > 0)
+                ? (float)cachedTokens.Value / promptTokens
+                : null;
+
+            if (cachedTokens.HasValue && cachedTokens > 0)
+            {
+                _logger.LogDebug("OpenAI prompt cache hit: {CachedTokens}/{PromptTokens} tokens ({CacheHitRatio:P0})",
+                    cachedTokens, promptTokens, cacheHitRatio);
+            }
+
             return new ChatCompletionResponse
             {
                 Content = choice.Message?.Content ?? string.Empty,
@@ -101,6 +114,8 @@ public class OpenAILLMProvider : LLMProviderBase
                 PromptTokens = openAIResponse.Usage?.PromptTokens,
                 CompletionTokens = openAIResponse.Usage?.CompletionTokens,
                 TotalTokens = openAIResponse.Usage?.TotalTokens,
+                CachedPromptTokens = cachedTokens,
+                CacheHitRatio = cacheHitRatio,
                 CreatedAt = DateTime.UtcNow,
                 Metadata = new Dictionary<string, object>
                 {
@@ -260,6 +275,42 @@ public class OpenAILLMProvider : LLMProviderBase
 
             [JsonPropertyName("total_tokens")]
             public int TotalTokens { get; set; }
+
+            [JsonPropertyName("prompt_tokens_details")]
+            public PromptTokensDetails? PromptTokensDetails { get; set; }
+
+            [JsonPropertyName("completion_tokens_details")]
+            public CompletionTokensDetails? CompletionTokensDetails { get; set; }
+        }
+
+        public class PromptTokensDetails
+        {
+            [JsonPropertyName("cached_tokens")]
+            public int? CachedTokens { get; set; }
+
+            [JsonPropertyName("audio_tokens")]
+            public int? AudioTokens { get; set; }
+
+            [JsonPropertyName("text_tokens")]
+            public int? TextTokens { get; set; }
+
+            [JsonPropertyName("image_tokens")]
+            public int? ImageTokens { get; set; }
+        }
+
+        public class CompletionTokensDetails
+        {
+            [JsonPropertyName("reasoning_tokens")]
+            public int? ReasoningTokens { get; set; }
+
+            [JsonPropertyName("audio_tokens")]
+            public int? AudioTokens { get; set; }
+
+            [JsonPropertyName("accepted_prediction_tokens")]
+            public int? AcceptedPredictionTokens { get; set; }
+
+            [JsonPropertyName("rejected_prediction_tokens")]
+            public int? RejectedPredictionTokens { get; set; }
         }
     }
 }

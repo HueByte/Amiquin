@@ -126,11 +126,11 @@ services:
         hard: 65536
       memlock: -1
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:6333/health || exit 1"]
+      test: ["CMD-SHELL", "timeout 5 bash -c '</dev/tcp/localhost/6333' || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 60s
+      start_period: 10s
     networks:
       - amiquin-network
     logging:
@@ -182,7 +182,7 @@ services:
     environment:
       # Container networking overrides
       AMQ_Memory__Qdrant__Host: qdrant
-      AMQ_ConnectionStrings__Amiquin-Mysql: "Server=mysql;Port=3306;Database=${AMQ_DB_NAME};Uid=${AMQ_DB_USER};Pwd=${AMQ_DB_USER_PASSWORD};SslMode=None;AllowPublicKeyRetrieval=True;Pooling=True;MinimumPoolSize=5;MaximumPoolSize=50;ConnectionTimeout=30;CommandTimeout=30;"
+      AMQ_ConnectionStrings__Amiquin-Mysql: "Server=mysql;Port=3306;Database=${AMQ_DB_NAME};Uid=${AMQ_DB_USER};Pwd=${AMQ_DB_USER_PASSWORD};SslMode=None;AllowPublicKeyRetrieval=True;Pooling=True;MinimumPoolSize=5;MaximumPoolSize=50;ConnectionTimeout=30;DefaultCommandTimeout=30;"
       
       # Container path overrides for proper volume mapping
       AMQ_DataPaths__Logs: "/app/Data/Logs"

@@ -77,6 +77,14 @@ public class GrokLLMProvider : LLMProviderBase
             using var httpClient = CreateHttpClient();
             httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_config.ApiKey}");
 
+            // Add conversation ID header for improved prompt caching hit rates
+            // xAI uses this to route requests to the same cache cluster
+            if (!string.IsNullOrEmpty(options.ConversationId))
+            {
+                httpClient.DefaultRequestHeaders.Add("x-grok-conv-id", options.ConversationId);
+                _logger.LogDebug("Using conversation ID for Grok cache optimization: {ConvId}", options.ConversationId);
+            }
+
             var response = await httpClient.PostAsync("chat/completions", httpContent);
 
             // Handle response
@@ -99,6 +107,19 @@ public class GrokLLMProvider : LLMProviderBase
 
             _logger.LogDebug("Received response from Grok API: {FinishReason}", choice.FinishReason);
 
+            // Extract cached token information for cost tracking
+            var cachedTokens = grokResponse.Usage?.PromptTokensDetails?.CachedTokens;
+            var promptTokens = grokResponse.Usage?.PromptTokens ?? 0;
+            float? cacheHitRatio = (cachedTokens.HasValue && promptTokens > 0)
+                ? (float)cachedTokens.Value / promptTokens
+                : null;
+
+            if (cachedTokens.HasValue && cachedTokens > 0)
+            {
+                _logger.LogDebug("Grok prompt cache hit: {CachedTokens}/{PromptTokens} tokens ({CacheHitRatio:P0})",
+                    cachedTokens, promptTokens, cacheHitRatio);
+            }
+
             return new ChatCompletionResponse
             {
                 Content = choice.Message?.Content ?? string.Empty,
@@ -107,6 +128,8 @@ public class GrokLLMProvider : LLMProviderBase
                 PromptTokens = grokResponse.Usage?.PromptTokens,
                 CompletionTokens = grokResponse.Usage?.CompletionTokens,
                 TotalTokens = grokResponse.Usage?.TotalTokens,
+                CachedPromptTokens = cachedTokens,
+                CacheHitRatio = cacheHitRatio,
                 CreatedAt = DateTime.UtcNow,
                 Metadata = new Dictionary<string, object>
                 {
@@ -266,6 +289,24 @@ public class GrokLLMProvider : LLMProviderBase
 
             [JsonPropertyName("total_tokens")]
             public int TotalTokens { get; set; }
+
+            [JsonPropertyName("prompt_tokens_details")]
+            public GrokPromptTokensDetails? PromptTokensDetails { get; set; }
+        }
+
+        public class GrokPromptTokensDetails
+        {
+            [JsonPropertyName("cached_tokens")]
+            public int? CachedTokens { get; set; }
+
+            [JsonPropertyName("audio_tokens")]
+            public int? AudioTokens { get; set; }
+
+            [JsonPropertyName("text_tokens")]
+            public int? TextTokens { get; set; }
+
+            [JsonPropertyName("image_tokens")]
+            public int? ImageTokens { get; set; }
         }
     }
 }

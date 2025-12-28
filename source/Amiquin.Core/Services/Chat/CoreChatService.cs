@@ -72,6 +72,31 @@ public class CoreChatService : IChatCoreService
         string? sessionContext = null,
         string? provider = null)
     {
+        return await ChatAsync(instanceId, messages, customPersona, sessionContext, sessionId: null, provider);
+    }
+
+    /// <inheritdoc />
+    public async Task<ChatCompletionResponse> ChatAsync(
+        ulong instanceId,
+        List<SessionMessage> messages,
+        string? customPersona = null,
+        string? sessionContext = null,
+        string? sessionId = null,
+        string? provider = null)
+    {
+        return await ChatAsync(instanceId, messages, customPersona, sessionContext, sessionId, provider, model: null);
+    }
+
+    /// <inheritdoc />
+    public async Task<ChatCompletionResponse> ChatAsync(
+        ulong instanceId,
+        List<SessionMessage> messages,
+        string? customPersona = null,
+        string? sessionContext = null,
+        string? sessionId = null,
+        string? provider = null,
+        string? model = null)
+    {
         // Use semaphore to prevent concurrent requests for the same instance
         var semaphore = _semaphoreManager.GetOrCreateInstanceSemaphore(instanceId.ToString());
         await semaphore.WaitAsync();
@@ -89,8 +114,8 @@ public class CoreChatService : IChatCoreService
             };
             fullMessages.AddRange(messages);
 
-            // Execute with provider selection and fallback
-            return await ExecuteWithFallbackAsync(fullMessages, null, provider);
+            // Execute with provider selection and fallback, passing session ID and model for cache optimization
+            return await ExecuteWithFallbackAsync(fullMessages, null, provider, sessionId, model);
         }
         finally
         {
@@ -118,13 +143,24 @@ public class CoreChatService : IChatCoreService
     private async Task<ChatCompletionResponse> ExecuteWithFallbackAsync(
         List<SessionMessage> messages,
         int? maxTokens,
-        string? preferredProvider)
+        string? preferredProvider,
+        string? sessionId = null,
+        string? model = null)
     {
         var options = new ChatCompletionOptions
         {
             MaxTokens = maxTokens ?? 1200,
-            Temperature = _llmOptions.GlobalTemperature
+            Temperature = _llmOptions.GlobalTemperature,
+            // Pass session ID for prompt cache optimization (Grok uses x-grok-conv-id header)
+            ConversationId = sessionId,
+            // Pass specific model if provided (overrides provider's default model)
+            Model = model
         };
+
+        if (!string.IsNullOrWhiteSpace(model))
+        {
+            _logger.LogInformation("Using specific model: {Model}", model);
+        }
 
         // Determine provider order
         var providersToTry = GetProviderOrder(preferredProvider);

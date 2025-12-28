@@ -1,3 +1,4 @@
+using Amiquin.Core.Options;
 using Amiquin.Core.Services.ComponentHandler;
 using Amiquin.Core.Services.ErrorHandling;
 using Amiquin.Core.Services.Meta;
@@ -8,6 +9,7 @@ using Amiquin.Core.Utilities;
 using Discord;
 using Discord.WebSocket;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using System.Text;
 
 namespace Amiquin.Core.Services.Configuration;
@@ -24,6 +26,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
     private readonly IPaginationService _paginationService;
     private readonly IModalService _modalService;
     private readonly IInteractionErrorHandlerService _errorHandlerService;
+    private readonly LLMOptions _llmOptions;
 
     // Component prefixes
     private const string ConfigMenuPrefix = "config_menu";
@@ -40,7 +43,8 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         IToggleService toggleService,
         IPaginationService paginationService,
         IModalService modalService,
-        IInteractionErrorHandlerService errorHandlerService)
+        IInteractionErrorHandlerService errorHandlerService,
+        IOptions<LLMOptions> llmOptions)
     {
         _logger = logger;
         _componentHandler = componentHandler;
@@ -49,6 +53,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         _paginationService = paginationService;
         _modalService = modalService;
         _errorHandlerService = errorHandlerService;
+        _llmOptions = llmOptions.Value;
     }
 
     public void Initialize()
@@ -1651,19 +1656,83 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
 
         var configuredChannelsContent = $"**📺 Configured Channels**\n{channelInfo.ToString().TrimEnd()}";
 
-        // Section 2: AI Related Information
-        var aiInfo = new StringBuilder();
-        aiInfo.AppendLine($"**🤖 Provider:** {serverMeta?.PreferredProvider ?? "*Using default (OpenAI)*"}");
+        // Section 2: AI Provider and Model Configuration
+        var serverProvider = serverMeta?.PreferredProvider ?? _llmOptions.DefaultProvider;
+        var providerConfig = _llmOptions.GetProvider(serverProvider);
 
-        // TODO: Add actual message count and token estimates when these services are available
-        aiInfo.AppendLine($"**💬 Conversation Messages:** *Data not available*");
-        aiInfo.AppendLine($"**🧠 Memory Tokens (Est.):** *Data not available*");
+        var aiConfigContent = new StringBuilder();
+        aiConfigContent.AppendLine($"**🤖 AI Configuration**");
+        aiConfigContent.AppendLine($"**Server Provider:** {serverProvider}{(serverMeta?.PreferredProvider == null ? " *(default)*" : "")}");
 
-        var aiConfigContent = $"**🤖 AI Configuration**\n{aiInfo.ToString().TrimEnd()}";
+        // Show configured model - from ServerMeta.PreferredModel or fallback to provider default
+        var serverModel = serverMeta?.PreferredModel;
+        var effectiveModel = serverModel ?? providerConfig?.DefaultModel ?? "default";
+        aiConfigContent.AppendLine($"**Server Model:** `{effectiveModel}`{(serverModel == null ? " *(provider default)*" : "")}");
+
+        aiConfigContent.AppendLine($"**Fallback Enabled:** {(_llmOptions.EnableFallback ? "✅ Yes" : "❌ No")}");
+        if (_llmOptions.EnableFallback && _llmOptions.FallbackOrder.Count > 0)
+        {
+            aiConfigContent.AppendLine($"**Fallback Order:** {string.Join(" → ", _llmOptions.FallbackOrder)}");
+        }
+        aiConfigContent.AppendLine($"**Temperature:** {_llmOptions.GlobalTemperature}");
+        aiConfigContent.AppendLine($"**Timeout:** {_llmOptions.GlobalTimeout}s");
+
+        // Section 3: Provider Details with Models
+        var providersContent = new StringBuilder();
+        providersContent.AppendLine($"**🔌 Available Providers**");
+
+        foreach (var (providerName, providerOptions) in _llmOptions.Providers.OrderByDescending(p => p.Key == serverProvider))
+        {
+            var isActive = providerName == serverProvider;
+            var statusIcon = providerOptions.Enabled ? (isActive ? "🟢" : "⚪") : "🔴";
+            var activeIndicator = isActive ? " **[ACTIVE]**" : "";
+
+            providersContent.AppendLine($"\n{statusIcon} **{providerName}**{activeIndicator}");
+            providersContent.AppendLine($"  • Status: {(providerOptions.Enabled ? "Enabled" : "Disabled")}");
+            providersContent.AppendLine($"  • Default Model: `{providerOptions.DefaultModel}`");
+
+            // Show all configured models for this provider
+            if (providerOptions.Models.Count > 0)
+            {
+                var modelList = providerOptions.Models
+                    .Select(m => $"`{m.Key}`")
+                    .Take(5);
+                providersContent.AppendLine($"  • Models: {string.Join(", ", modelList)}{(providerOptions.Models.Count > 5 ? $" (+{providerOptions.Models.Count - 5} more)" : "")}");
+            }
+        }
+
+        // Section 4: Current Model Details (for the active provider)
+        var modelDetailsContent = new StringBuilder();
+        if (providerConfig != null)
+        {
+            modelDetailsContent.AppendLine($"**📊 Current Provider Details: {serverProvider}**");
+
+            // Show the model that will actually be used (server preference or provider default)
+            var activeModelId = serverModel ?? providerConfig.DefaultModel;
+            var activeModelConfig = providerConfig.GetModel(activeModelId) ?? providerConfig.GetDefaultModel();
+            if (activeModelConfig != null)
+            {
+                var isServerConfigured = serverModel != null;
+                modelDetailsContent.AppendLine($"**Active Model:** {activeModelConfig.Name} (`{activeModelId}`){(isServerConfigured ? " 🎯" : "")}");
+                modelDetailsContent.AppendLine($"**Context Window:** {activeModelConfig.MaxTokens:N0} tokens");
+                modelDetailsContent.AppendLine($"**Max Output:** {activeModelConfig.MaxOutputTokens:N0} tokens");
+            }
+
+            // Show all models for active provider
+            if (providerConfig.Models.Count > 0)
+            {
+                modelDetailsContent.AppendLine($"\n**All {serverProvider} Models:**");
+                foreach (var (modelId, modelConfig) in providerConfig.Models.Take(8))
+                {
+                    var isDefault = modelId == providerConfig.DefaultModel;
+                    modelDetailsContent.AppendLine($"• **{modelConfig.Name}** (`{modelId}`){(isDefault ? " 🎯" : "")}");
+                    modelDetailsContent.AppendLine($"  Context: {modelConfig.MaxTokens:N0} | Output: {modelConfig.MaxOutputTokens:N0}");
+                }
+            }
+        }
 
         // Feature Toggle Summary
         var enabledToggles = toggles.Where(t => t.IsEnabled).ToList();
-        var disabledToggles = toggles.Where(t => !t.IsEnabled).ToList();
 
         var featureSummaryContent = $"**🎛️ Feature Summary**\n" +
             $"**Enabled:** {enabledToggles.Count}/{toggles.Count}\n" +
@@ -1678,14 +1747,6 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                 $"**Updated:** <t:{((DateTimeOffset)serverMeta.LastUpdated).ToUnixTimeSeconds()}:R>";
         }
 
-        var builder = new ComponentBuilderV2()
-            .WithActionRow([
-                new ButtonBuilder()
-                    .WithCustomId(_componentHandler.GenerateCustomId(NavigationPrefix, "back"))
-                    .WithLabel("← Back")
-                    .WithStyle(ButtonStyle.Secondary)
-            ]);
-
         var components = new ComponentBuilderV2()
             .WithContainer(container =>
             {
@@ -1693,7 +1754,14 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
 
                 container.WithTextDisplay(configuredChannelsContent);
 
-                container.WithTextDisplay(aiConfigContent);
+                container.WithTextDisplay(aiConfigContent.ToString().TrimEnd());
+
+                container.WithTextDisplay(providersContent.ToString().TrimEnd());
+
+                if (modelDetailsContent.Length > 0)
+                {
+                    container.WithTextDisplay(modelDetailsContent.ToString().TrimEnd());
+                }
 
                 container.WithTextDisplay(featureSummaryContent);
 

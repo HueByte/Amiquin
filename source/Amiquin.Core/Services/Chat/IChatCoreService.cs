@@ -52,4 +52,42 @@ public interface IChatCoreService
         string? customPersona = null,
         string? sessionContext = null,
         string? provider = null);
+
+    /// <summary>
+    /// Chat request - calls LLM with conversation history, session context, and cache optimization
+    /// </summary>
+    /// <param name="instanceId">Instance/channel ID for semaphore management</param>
+    /// <param name="messages">List of conversation messages</param>
+    /// <param name="customPersona">Optional custom persona to append to base persona</param>
+    /// <param name="sessionContext">Optional session context (conversation summary)</param>
+    /// <param name="sessionId">Optional session ID for prompt cache optimization (used by Grok x-grok-conv-id header)</param>
+    /// <param name="provider">Optional provider override</param>
+    /// <returns>The LLM response</returns>
+    Task<ChatCompletionResponse> ChatAsync(
+        ulong instanceId,
+        List<SessionMessage> messages,
+        string? customPersona = null,
+        string? sessionContext = null,
+        string? sessionId = null,
+        string? provider = null);
+
+    /// <summary>
+    /// Chat request - calls LLM with conversation history, session context, cache optimization, and specific model
+    /// </summary>
+    /// <param name="instanceId">Instance/channel ID for semaphore management</param>
+    /// <param name="messages">List of conversation messages</param>
+    /// <param name="customPersona">Optional custom persona to append to base persona</param>
+    /// <param name="sessionContext">Optional session context (conversation summary)</param>
+    /// <param name="sessionId">Optional session ID for prompt cache optimization (used by Grok x-grok-conv-id header)</param>
+    /// <param name="provider">Optional provider override</param>
+    /// <param name="model">Optional specific model to use (overrides provider's default model)</param>
+    /// <returns>The LLM response</returns>
+    Task<ChatCompletionResponse> ChatAsync(
+        ulong instanceId,
+        List<SessionMessage> messages,
+        string? customPersona = null,
+        string? sessionContext = null,
+        string? sessionId = null,
+        string? provider = null,
+        string? model = null);
 }

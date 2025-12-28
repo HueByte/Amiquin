@@ -92,6 +92,52 @@ public class MemoryOptions
         { "emotion", 0.5f },
         { "event", 0.7f }
     };
+
+    /// <summary>
+    /// Session management configuration
+    /// </summary>
+    public SessionOptions Session { get; set; } = new();
+}
+
+/// <summary>
+/// Configuration options for session management and auto-refresh
+/// </summary>
+public class SessionOptions
+{
+    /// <summary>
+    /// Minutes of inactivity before session is considered stale and refreshed
+    /// </summary>
+    public int InactivityTimeoutMinutes { get; set; } = 30;
+
+    /// <summary>
+    /// Whether to enable automatic session refresh after inactivity
+    /// </summary>
+    public bool EnableAutoRefresh { get; set; } = true;
+
+    /// <summary>
+    /// Maximum messages in a session before auto-compaction is triggered
+    /// </summary>
+    public int MaxMessagesBeforeCompaction { get; set; } = 50;
+
+    /// <summary>
+    /// Number of recent messages to keep after compaction (others become memories)
+    /// </summary>
+    public int MessagesToKeepAfterCompaction { get; set; } = 10;
+
+    /// <summary>
+    /// Whether to extract memories from old messages during compaction
+    /// </summary>
+    public bool ExtractMemoriesOnCompaction { get; set; } = true;
+
+    /// <summary>
+    /// Maximum memories to inject when refreshing a stale session
+    /// </summary>
+    public int MaxMemoriesOnSessionRefresh { get; set; } = 5;
+
+    /// <summary>
+    /// Whether to create a summary memory when session is refreshed
+    /// </summary>
+    public bool CreateSummaryOnRefresh { get; set; } = true;
 }
 
 /// <summary>

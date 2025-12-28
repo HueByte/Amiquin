@@ -1,3 +1,4 @@
+using Amiquin.Core.Configuration;
 using Amiquin.Core.IRepositories;
 using Amiquin.Core.Models;
 using Amiquin.Core.Options;
@@ -6,6 +7,7 @@ using Amiquin.Core.Services.ChatSession;
 using Amiquin.Core.Services.Memory;
 using Amiquin.Core.Services.MessageCache;
 using Amiquin.Core.Services.Meta;
+using Amiquin.Core.Services.SessionManager;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -24,8 +26,10 @@ public class PersonaChatService : IPersonaChatService
     private readonly IMessageCacheService _messageCache;
     private readonly IServerMetaService _serverMetaService;
     private readonly IMemoryService _memoryService;
+    private readonly ISessionManagerService _sessionManager;
     private readonly IServiceProvider _serviceProvider;
     private readonly BotOptions _botOptions;
+    private readonly MemoryOptions _memoryOptions;
 
     // Semaphores to prevent duplicate requests per instance
     private static readonly ConcurrentDictionary<ulong, SemaphoreSlim> _instanceSemaphores = new();
@@ -47,16 +51,20 @@ public class PersonaChatService : IPersonaChatService
         IMessageCacheService messageCache,
         IServerMetaService serverMetaService,
         IMemoryService memoryService,
+        ISessionManagerService sessionManager,
         IServiceProvider serviceProvider,
-        IOptions<BotOptions> botOptions)
+        IOptions<BotOptions> botOptions,
+        IOptions<MemoryOptions> memoryOptions)
     {
         _logger = logger;
         _coreChatService = coreChatService;
         _messageCache = messageCache;
         _serverMetaService = serverMetaService;
         _memoryService = memoryService;
+        _sessionManager = sessionManager;
         _serviceProvider = serviceProvider;
         _botOptions = botOptions.Value;
+        _memoryOptions = memoryOptions.Value;
     }
 
     public async Task<string> ChatAsync(ulong instanceId, ulong userId, ulong botId, string message)
@@ -99,15 +107,26 @@ public class PersonaChatService : IPersonaChatService
         {
             _logger.LogDebug("Processing chat for instance {InstanceId}, user {UserId}", instanceId, userId);
 
+            // 0. Check if session needs refresh (stale after inactivity) or compaction
+            var sessionRefreshResult = await CheckAndRefreshSessionAsync(instanceId, userId);
+            string? refreshMemoryContext = sessionRefreshResult?.MemoryContext;
+
             // 1. Get message history from cache/database
             var messages = await GetMessageHistoryAsync(instanceId);
+
+            // 1.5. Check if compaction is needed
+            await CheckAndCompactSessionAsync(instanceId);
 
             // 2. Get server-specific persona and session context
             var (serverPersona, sessionContext) = await GetServerContextAsync(instanceId);
 
-            // 3. Get relevant memories for context
+            // 3. Get relevant memories for context (now with cross-session support)
             var sessionId = instanceId.ToString();
-            var memoryContext = await _memoryService.GetMemoryContextAsync(sessionId, message);
+            var memoryContext = refreshMemoryContext ?? await _memoryService.GetCombinedMemoryContextAsync(
+                sessionId,
+                userId,
+                instanceId, // ServerId is the same as instanceId for server-based chat
+                message);
 
             // 4. Add the new user message to history
             var userMessage = new SessionMessage
@@ -120,20 +139,24 @@ public class PersonaChatService : IPersonaChatService
             };
             messages.Add(userMessage);
 
-            // 5. Select provider based on server configuration
-            var provider = await GetServerProviderAsync(instanceId);
-            _logger.LogInformation("Using provider {Provider} for instance {InstanceId}", provider ?? "default", instanceId);
+            // 5. Select provider and model based on server/session configuration
+            var (provider, model) = await GetServerProviderAndModelAsync(instanceId);
+            _logger.LogInformation("Using provider {Provider} with model {Model} for instance {InstanceId}",
+                provider ?? "default", model ?? "default", instanceId);
 
             // 6. Combine session context with memory context
             var combinedContext = CombineContexts(sessionContext, memoryContext);
 
             // 7. Send to LLM with fallback support
+            // Pass session ID for prompt cache optimization (Grok uses x-grok-conv-id header)
             var response = await _coreChatService.ChatAsync(
                 instanceId,
                 messages,
                 customPersona: serverPersona,
                 sessionContext: combinedContext,
-                provider: provider);
+                sessionId: sessionId,
+                provider: provider,
+                model: model);
 
             // 8. Store the exchange
             await StoreMessageExchangeAsync(instanceId, userId, botId, message, response.Content);
@@ -280,11 +303,31 @@ public class PersonaChatService : IPersonaChatService
         return contexts.Any() ? string.Join("\n\n", contexts) : null;
     }
 
-    private async Task<string?> GetServerProviderAsync(ulong instanceId)
+    private async Task<(string? Provider, string? Model)> GetServerProviderAndModelAsync(ulong instanceId)
     {
-        // Get server-specific provider preference
+        // Get server-specific provider and model preference from server meta
         var serverMeta = await _serverMetaService.GetServerMetaAsync(instanceId);
-        return serverMeta?.PreferredProvider;
+        var provider = serverMeta?.PreferredProvider;
+
+        // Try to get model from the active session first
+        var activeSession = await _sessionManager.GetActiveSessionAsync(instanceId);
+        var model = activeSession?.Model;
+
+        // Fallback to ServerMeta.PreferredModel if session doesn't have a model
+        if (string.IsNullOrWhiteSpace(model))
+        {
+            model = serverMeta?.PreferredModel;
+            if (!string.IsNullOrWhiteSpace(model))
+            {
+                _logger.LogDebug("Using server preferred model: {Model} for instance {InstanceId}", model, instanceId);
+            }
+        }
+        else
+        {
+            _logger.LogDebug("Using session model: {Model} for instance {InstanceId}", model, instanceId);
+        }
+
+        return (provider, model);
     }
 
     private async Task StoreMessageExchangeAsync(
@@ -516,11 +559,26 @@ public class PersonaChatService : IPersonaChatService
             var promptTokens = response.PromptTokens ?? 0;
             var completionTokens = response.CompletionTokens ?? 0;
             var totalTokens = response.TotalTokens ?? (promptTokens + completionTokens);
+            var cachedTokens = response.CachedPromptTokens ?? 0;
+            var cacheHitRatio = response.CacheHitRatio ?? 0f;
 
-            // Log detailed token usage
-            _logger.LogInformation("Token Usage - Instance: {InstanceId}, Provider: {Provider}, Model: {Model}, " +
-                                 "Prompt: {PromptTokens}, Completion: {CompletionTokens}, Total: {TotalTokens}",
-                instanceId, providerName, model, promptTokens, completionTokens, totalTokens);
+            // Log detailed token usage including cache information
+            if (cachedTokens > 0)
+            {
+                _logger.LogInformation(
+                    "Token Usage - Instance: {InstanceId}, Provider: {Provider}, Model: {Model}, " +
+                    "Prompt: {PromptTokens} (Cached: {CachedTokens}, {CacheHitRatio:P0}), " +
+                    "Completion: {CompletionTokens}, Total: {TotalTokens}",
+                    instanceId, providerName, model, promptTokens, cachedTokens, cacheHitRatio,
+                    completionTokens, totalTokens);
+            }
+            else
+            {
+                _logger.LogInformation(
+                    "Token Usage - Instance: {InstanceId}, Provider: {Provider}, Model: {Model}, " +
+                    "Prompt: {PromptTokens}, Completion: {CompletionTokens}, Total: {TotalTokens}",
+                    instanceId, providerName, model, promptTokens, completionTokens, totalTokens);
+            }
 
             // Log additional metadata if available
             if (response.Metadata?.Count > 0)
@@ -557,6 +615,76 @@ public class PersonaChatService : IPersonaChatService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Failed to log token usage for instance {InstanceId}", instanceId);
+        }
+    }
+
+    /// <summary>
+    /// Checks if the session is stale and refreshes it if needed
+    /// </summary>
+    private async Task<SessionRefreshResult?> CheckAndRefreshSessionAsync(ulong instanceId, ulong userId)
+    {
+        if (!_memoryOptions.Session.EnableAutoRefresh)
+            return null;
+
+        try
+        {
+            var refreshResult = await _sessionManager.RefreshStaleSessionAsync(instanceId, userId);
+
+            if (refreshResult.WasRefreshed)
+            {
+                _logger.LogInformation(
+                    "Session refreshed for instance {InstanceId}. Inactive for {Minutes} minutes. Retrieved {MemoryCount} memories for context",
+                    instanceId,
+                    (int)refreshResult.InactivityDuration.TotalMinutes,
+                    refreshResult.MemoriesRetrieved);
+            }
+
+            return refreshResult;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to check/refresh session for instance {InstanceId}", instanceId);
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Checks if the session needs compaction and performs it if needed
+    /// </summary>
+    private async Task CheckAndCompactSessionAsync(ulong instanceId)
+    {
+        try
+        {
+            var activeSession = await _sessionManager.GetActiveSessionAsync(instanceId);
+            if (activeSession == null)
+                return;
+
+            var needsCompaction = await _sessionManager.NeedsCompactionAsync(
+                activeSession.Id,
+                _memoryOptions.Session.MaxMessagesBeforeCompaction);
+
+            if (needsCompaction)
+            {
+                _logger.LogInformation("Session {SessionId} needs compaction, starting...", activeSession.Id);
+
+                var compactionResult = await _sessionManager.CompactSessionAsync(
+                    activeSession.Id,
+                    _memoryOptions.Session.MessagesToKeepAfterCompaction);
+
+                if (compactionResult.WasCompacted)
+                {
+                    _logger.LogInformation(
+                        "Session {SessionId} compacted: archived {Archived} messages, kept {Kept}, created {Memories} memories",
+                        activeSession.Id,
+                        compactionResult.MessagesArchived,
+                        compactionResult.MessagesKept,
+                        compactionResult.MemoriesCreated);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to check/compact session for instance {InstanceId}", instanceId);
         }
     }
 }

@@ -31,6 +31,17 @@ public class ChatCompletionResponse
     public int? TotalTokens { get; set; }
 
     /// <summary>
+    /// Number of prompt tokens that were served from cache (cost savings).
+    /// OpenAI and Grok automatically cache prompts - cached tokens cost 50-90% less.
+    /// </summary>
+    public int? CachedPromptTokens { get; set; }
+
+    /// <summary>
+    /// Cache hit ratio (0.0 to 1.0) - percentage of prompt tokens served from cache
+    /// </summary>
+    public float? CacheHitRatio { get; set; }
+
+    /// <summary>
     /// The model that was used for the completion
     /// </summary>
     public string? Model { get; set; }

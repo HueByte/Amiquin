@@ -3,6 +3,32 @@ using Qdrant.Client.Grpc;
 namespace Amiquin.Core.Models;
 
 /// <summary>
+/// Defines the scope level for memory storage and retrieval
+/// </summary>
+public enum MemoryScope
+{
+    /// <summary>
+    /// Memory is scoped to the current chat session only
+    /// </summary>
+    Session = 0,
+
+    /// <summary>
+    /// Memory is scoped to the user across all sessions
+    /// </summary>
+    User = 1,
+
+    /// <summary>
+    /// Memory is scoped to the server/guild across all users
+    /// </summary>
+    Server = 2,
+
+    /// <summary>
+    /// Memory is global (shared across all servers and users)
+    /// </summary>
+    Global = 3
+}
+
+/// <summary>
 /// Represents a memory stored in Qdrant vector database
 /// </summary>
 public class QdrantMemory
@@ -51,6 +77,16 @@ public class QdrantMemory
     /// Associated Discord User ID if this memory is user-specific
     /// </summary>
     public ulong? UserId { get; set; }
+
+    /// <summary>
+    /// Associated Discord Server/Guild ID for server-scoped memories
+    /// </summary>
+    public ulong? ServerId { get; set; }
+
+    /// <summary>
+    /// Memory scope level for retrieval prioritization
+    /// </summary>
+    public MemoryScope Scope { get; set; } = MemoryScope.Session;
 
     /// <summary>
     /// Estimated token count for this memory content
@@ -108,6 +144,13 @@ public class QdrantMemory
             payload["userId"] = new Value { StringValue = UserId.Value.ToString() };
         }
 
+        if (ServerId.HasValue)
+        {
+            payload["serverId"] = new Value { StringValue = ServerId.Value.ToString() };
+        }
+
+        payload["scope"] = new Value { IntegerValue = (int)Scope };
+
         // Add custom metadata
         foreach (var kvp in Metadata)
         {
@@ -157,9 +200,16 @@ public class QdrantMemory
         if (payload.TryGetValue("accessCount", out var accessCount))
             memory.AccessCount = (int)accessCount.IntegerValue;
 
-        if (payload.TryGetValue("userId", out var userId) && 
+        if (payload.TryGetValue("userId", out var userId) &&
             ulong.TryParse(userId.StringValue, out var parsedUserId))
             memory.UserId = parsedUserId;
+
+        if (payload.TryGetValue("serverId", out var serverId) &&
+            ulong.TryParse(serverId.StringValue, out var parsedServerId))
+            memory.ServerId = parsedServerId;
+
+        if (payload.TryGetValue("scope", out var scope))
+            memory.Scope = (MemoryScope)(int)scope.IntegerValue;
 
         if (payload.TryGetValue("estimatedTokens", out var tokens))
             memory.EstimatedTokens = (int)tokens.IntegerValue;
@@ -209,9 +259,16 @@ public class QdrantMemory
         if (payload.TryGetValue("accessCount", out var accessCount))
             memory.AccessCount = (int)accessCount.IntegerValue;
 
-        if (payload.TryGetValue("userId", out var userId) && 
+        if (payload.TryGetValue("userId", out var userId) &&
             ulong.TryParse(userId.StringValue, out var parsedUserId))
             memory.UserId = parsedUserId;
+
+        if (payload.TryGetValue("serverId", out var serverId) &&
+            ulong.TryParse(serverId.StringValue, out var parsedServerId))
+            memory.ServerId = parsedServerId;
+
+        if (payload.TryGetValue("scope", out var scope))
+            memory.Scope = (MemoryScope)(int)scope.IntegerValue;
 
         if (payload.TryGetValue("estimatedTokens", out var tokens))
             memory.EstimatedTokens = (int)tokens.IntegerValue;

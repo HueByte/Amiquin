@@ -81,6 +81,68 @@ public interface IMemoryService
     /// <param name="importance">New importance score</param>
     /// <returns>Updated memory</returns>
     Task<QdrantMemory?> UpdateMemoryImportanceAsync(string memoryId, float importance);
+
+    // Cross-session memory methods for long-term memory
+
+    /// <summary>
+    /// Creates a new memory with full scoping information
+    /// </summary>
+    /// <param name="sessionId">Chat session ID</param>
+    /// <param name="content">Memory content</param>
+    /// <param name="memoryType">Type of memory</param>
+    /// <param name="userId">Discord User ID</param>
+    /// <param name="serverId">Discord Server ID</param>
+    /// <param name="scope">Memory scope level</param>
+    /// <param name="importance">Optional importance score override</param>
+    /// <returns>Created memory</returns>
+    Task<QdrantMemory> CreateScopedMemoryAsync(
+        string sessionId,
+        string content,
+        string memoryType,
+        ulong userId,
+        ulong serverId,
+        MemoryScope scope = MemoryScope.Session,
+        float? importance = null);
+
+    /// <summary>
+    /// Gets combined memory context from session, user, and server scopes
+    /// </summary>
+    /// <param name="sessionId">Current chat session ID</param>
+    /// <param name="userId">Discord User ID</param>
+    /// <param name="serverId">Discord Server ID</param>
+    /// <param name="currentQuery">Current user query for similarity matching</param>
+    /// <returns>Formatted memory context string with memories from all scopes</returns>
+    Task<string?> GetCombinedMemoryContextAsync(
+        string sessionId,
+        ulong userId,
+        ulong serverId,
+        string? currentQuery = null);
+
+    /// <summary>
+    /// Gets memories for a specific user across all sessions
+    /// </summary>
+    /// <param name="userId">Discord User ID</param>
+    /// <param name="query">Optional query for similarity search</param>
+    /// <param name="maxResults">Maximum memories to return</param>
+    /// <returns>List of user memories</returns>
+    Task<List<(QdrantMemory Memory, float SimilarityScore)>> GetUserMemoriesAsync(
+        ulong userId,
+        string? query = null,
+        int maxResults = 10);
+
+    /// <summary>
+    /// Deletes all memories for a specific user
+    /// </summary>
+    /// <param name="userId">Discord User ID</param>
+    /// <returns>Number of memories deleted</returns>
+    Task<int> DeleteUserMemoriesAsync(ulong userId);
+
+    /// <summary>
+    /// Gets memory statistics for a user across all sessions
+    /// </summary>
+    /// <param name="userId">Discord User ID</param>
+    /// <returns>Memory statistics</returns>
+    Task<MemoryStats> GetUserMemoryStatsAsync(ulong userId);
 }
 
 /// <summary>

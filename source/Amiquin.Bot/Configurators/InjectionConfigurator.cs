@@ -311,7 +311,7 @@ public class InjectionConfigurator
                  .AddScoped<ICommandLogRepository, CommandLogRepository>()
                  .AddScoped<IBotStatisticsRepository, BotStatisticsRepository>()
                  .AddScoped<IChatSessionRepository, ChatSessionRepository>()
-                 .AddScoped<IQdrantMemoryRepository, QdrantMemoryRepository>()
+                 .AddSingleton<IQdrantMemoryRepository, QdrantMemoryRepository>() // Singleton - QdrantClient is designed for reuse
                  .AddScoped<IPaginationSessionRepository, PaginationSessionRepository>()
                  .AddScoped<IUserStatsRepository, UserStatsRepository>();
 

@@ -16,5 +16,6 @@ public class ServerMeta : DbModel<ulong>
     public List<NachoPack>? NachoPacks { get; set; }
     public ulong? PrimaryChannelId { get; set; }
     public string? PreferredProvider { get; set; }
+    public string? PreferredModel { get; set; }
     public ulong? NsfwChannelId { get; set; }
 }

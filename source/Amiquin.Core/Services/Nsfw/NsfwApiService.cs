@@ -23,7 +23,7 @@ public class NsfwApiService : INsfwApiService
 {
     private readonly ILogger<NsfwApiService> _logger;
     private readonly IEnumerable<INsfwProvider> _providers;
-    private readonly IDataScrapper? _scrapper;
+    private readonly IScrapperManagerService? _scrapperManager;
     private readonly Random _random = new();
 
     // Circuit breaker for rate limiting
@@ -31,16 +31,20 @@ public class NsfwApiService : INsfwApiService
     private static readonly TimeSpan _rateLimitCooldown = TimeSpan.FromMinutes(10);
     private static int _consecutiveRateLimits = 0;
 
-    public NsfwApiService(ILogger<NsfwApiService> logger, IEnumerable<INsfwProvider> providers, IDataScrapper? scrapper)
+    public NsfwApiService(
+        ILogger<NsfwApiService> logger,
+        IEnumerable<INsfwProvider> providers,
+        IScrapperManagerService? scrapperManager = null)
     {
         _logger = logger;
         _providers = providers;
-        _scrapper = scrapper;
+        _scrapperManager = scrapperManager;
 
         var providerNames = _providers.Select(p => p.Name).ToList();
-        if (_scrapper?.IsEnabled == true)
+        var enabledScrappers = _scrapperManager?.GetDataScrapers().Where(s => s.IsEnabled).ToList() ?? new();
+        foreach (var scrapper in enabledScrappers)
         {
-            providerNames.Add($"Scrapper({_scrapper.SourceName})");
+            providerNames.Add($"Scrapper({scrapper.SourceName})");
         }
 
         _logger.LogInformation("NSFW API service initialized with providers: {Providers}",
@@ -130,8 +134,11 @@ public class NsfwApiService : INsfwApiService
                 return new List<NsfwImage>();
             }
 
-            // Calculate how many images to get from scrapper vs providers
-            var scrapperCount = _scrapper.IsEnabled ? count : 0; // Up to half from scrapper
+            // Get enabled scrappers
+            var enabledScrappers = _scrapperManager?.GetDataScrapers().Where(s => s.IsEnabled).ToList() ?? new();
+
+            // Calculate how many images to get from scrappers vs providers
+            var scrapperCount = enabledScrappers.Count > 0 ? count : 0;
             var providerCount = count - scrapperCount;
 
             var tasks = new List<Task>();
@@ -165,14 +172,14 @@ public class NsfwApiService : INsfwApiService
                 })));
             }
 
-            // Get images from scrapper
-            if (scrapperCount > 0 && _scrapper.IsEnabled)
+            // Get images from scrappers
+            foreach (var scrapper in enabledScrappers)
             {
                 var scrapperTask = Task.Run(async () =>
                 {
                     try
                     {
-                        var images = await _scrapper.ScrapeAsync<NsfwImage>(scrapperCount);
+                        var images = await scrapper.ScrapeAsync<NsfwImage>(scrapperCount / Math.Max(1, enabledScrappers.Count));
                         foreach (var image in images)
                         {
                             if (image != null && !string.IsNullOrEmpty(image.Url))
@@ -181,11 +188,11 @@ public class NsfwApiService : INsfwApiService
                             }
                         }
                         _logger.LogDebug("Scrapper {SourceName} successfully fetched {Count} images",
-                            _scrapper.SourceName, images.Count);
+                            scrapper.SourceName, images.Count);
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogDebug(ex, "Scrapper {SourceName} failed to fetch images", _scrapper.SourceName);
+                        _logger.LogDebug(ex, "Scrapper {SourceName} failed to fetch images", scrapper.SourceName);
                     }
                 });
                 tasks.Add(scrapperTask);
@@ -193,7 +200,7 @@ public class NsfwApiService : INsfwApiService
 
             await Task.WhenAll(tasks);
 
-            var totalSourcesUsed = (providerCount > 0 ? 1 : 0) + (scrapperCount > 0 ? 1 : 0);
+            var totalSourcesUsed = (providerCount > 0 ? 1 : 0) + enabledScrappers.Count;
 
             _logger.LogInformation("Fetched {ActualCount} out of {RequestedCount} NSFW images from {SourceCount} source types",
                 results.Count, count, totalSourcesUsed);

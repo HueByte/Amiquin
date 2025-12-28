@@ -92,4 +92,77 @@ public interface IQdrantMemoryRepository
     /// </summary>
     /// <returns>Collection info including count and configuration</returns>
     Task<(long Count, uint VectorSize, string Distance)> GetCollectionInfoAsync();
+
+    // Cross-session memory retrieval methods for long-term memory
+
+    /// <summary>
+    /// Retrieves memories for a specific user across all sessions
+    /// </summary>
+    /// <param name="userId">Discord User ID</param>
+    /// <param name="queryEmbedding">Optional query embedding for similarity search</param>
+    /// <param name="topK">Maximum number of memories to return</param>
+    /// <param name="similarityThreshold">Minimum similarity score (0.0 to 1.0)</param>
+    /// <returns>List of user memories with similarity scores</returns>
+    Task<List<(QdrantMemory Memory, float SimilarityScore)>> GetUserMemoriesAsync(
+        ulong userId,
+        float[]? queryEmbedding = null,
+        int topK = 10,
+        float similarityThreshold = 0.6f);
+
+    /// <summary>
+    /// Retrieves memories for a specific server across all users and sessions
+    /// </summary>
+    /// <param name="serverId">Discord Server/Guild ID</param>
+    /// <param name="queryEmbedding">Optional query embedding for similarity search</param>
+    /// <param name="topK">Maximum number of memories to return</param>
+    /// <param name="similarityThreshold">Minimum similarity score (0.0 to 1.0)</param>
+    /// <returns>List of server memories with similarity scores</returns>
+    Task<List<(QdrantMemory Memory, float SimilarityScore)>> GetServerMemoriesAsync(
+        ulong serverId,
+        float[]? queryEmbedding = null,
+        int topK = 10,
+        float similarityThreshold = 0.6f);
+
+    /// <summary>
+    /// Retrieves combined memories from session, user, and server scopes
+    /// </summary>
+    /// <param name="sessionId">Current chat session ID</param>
+    /// <param name="userId">Discord User ID</param>
+    /// <param name="serverId">Discord Server/Guild ID</param>
+    /// <param name="queryEmbedding">Query embedding for similarity search</param>
+    /// <param name="maxSessionMemories">Maximum session-scoped memories</param>
+    /// <param name="maxUserMemories">Maximum user-scoped memories</param>
+    /// <param name="maxServerMemories">Maximum server-scoped memories</param>
+    /// <param name="similarityThreshold">Minimum similarity score</param>
+    /// <returns>Combined list of memories from all scopes</returns>
+    Task<List<(QdrantMemory Memory, float SimilarityScore, MemoryScope Source)>> GetCombinedMemoriesAsync(
+        string sessionId,
+        ulong userId,
+        ulong serverId,
+        float[] queryEmbedding,
+        int maxSessionMemories = 5,
+        int maxUserMemories = 3,
+        int maxServerMemories = 2,
+        float similarityThreshold = 0.65f);
+
+    /// <summary>
+    /// Gets memory statistics for a specific user across all sessions
+    /// </summary>
+    /// <param name="userId">Discord User ID</param>
+    /// <returns>Memory count and total estimated tokens</returns>
+    Task<(int Count, int TotalTokens)> GetUserMemoryStatsAsync(ulong userId);
+
+    /// <summary>
+    /// Gets memory statistics for a specific server
+    /// </summary>
+    /// <param name="serverId">Discord Server/Guild ID</param>
+    /// <returns>Memory count and total estimated tokens</returns>
+    Task<(int Count, int TotalTokens)> GetServerMemoryStatsAsync(ulong serverId);
+
+    /// <summary>
+    /// Deletes all memories for a specific user
+    /// </summary>
+    /// <param name="userId">Discord User ID</param>
+    /// <returns>Number of memories deleted</returns>
+    Task<int> DeleteUserMemoriesAsync(ulong userId);
 }

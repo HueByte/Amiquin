@@ -1,3 +1,4 @@
+using Amiquin.Core.Configuration;
 using Amiquin.Core.Models;
 using Amiquin.Core.Options;
 using Amiquin.Core.Services.Chat;
@@ -5,6 +6,7 @@ using Amiquin.Core.Services.Chat.Providers;
 using Amiquin.Core.Services.Memory;
 using Amiquin.Core.Services.MessageCache;
 using Amiquin.Core.Services.Meta;
+using Amiquin.Core.Services.SessionManager;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -123,11 +125,16 @@ public class SimpleChatServiceTests
         var mockMessageCache = new Mock<IMessageCacheService>();
         var mockServerMetaService = new Mock<IServerMetaService>();
         var mockMemoryService = new Mock<IMemoryService>();
+        var mockSessionManager = new Mock<ISessionManagerService>();
         var mockServiceProvider = new Mock<IServiceProvider>();
 
         var botOptions = new BotOptions { Name = "TestBot", MaxTokens = 4000 };
         var mockBotOptions = new Mock<IOptions<BotOptions>>();
         mockBotOptions.Setup(x => x.Value).Returns(botOptions);
+
+        var memoryOptions = new MemoryOptions();
+        var mockMemoryOptions = new Mock<IOptions<MemoryOptions>>();
+        mockMemoryOptions.Setup(x => x.Value).Returns(memoryOptions);
 
         // Setup basic successful response
         mockCoreChatService
@@ -140,8 +147,10 @@ public class SimpleChatServiceTests
             mockMessageCache.Object,
             mockServerMetaService.Object,
             mockMemoryService.Object,
+            mockSessionManager.Object,
             mockServiceProvider.Object,
-            mockBotOptions.Object);
+            mockBotOptions.Object,
+            mockMemoryOptions.Object);
 
         // Act
         var result = await service.ExchangeMessageAsync(12345, "Hello");

@@ -51,6 +51,13 @@ public class ChatCompletionOptions
     public string? Model { get; set; }
 
     /// <summary>
+    /// Conversation/session ID for prompt caching optimization.
+    /// Used by Grok (x-grok-conv-id header) to increase cache hit rates.
+    /// Should be a consistent UUID for the same conversation context.
+    /// </summary>
+    public string? ConversationId { get; set; }
+
+    /// <summary>
     /// Additional provider-specific options
     /// </summary>
     public Dictionary<string, object>? AdditionalOptions { get; set; }

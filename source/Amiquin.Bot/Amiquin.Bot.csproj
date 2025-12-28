@@ -8,7 +8,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Discord.Net" Version="3.18.0-nightly.20250728.601"/>
+    <PackageReference Include="Discord.Net" Version="3.18.0" />
     <PackageReference Include="DotNetEnv" Version="3.1.1" />
     <PackageReference Include="Jiro.Shared" Version="1.4.4">
       <ExcludeAssets>contentFiles</ExcludeAssets>
@@ -60,14 +60,9 @@
     <Message Text="Example file exists: $([System.IO.File]::Exists('$(AppSettingsExample)'))" Importance="normal" />
     <Message Text="Destination file exists: $([System.IO.File]::Exists('$(AppSettingsDestination)'))" Importance="normal" />
     
-    <Copy SourceFiles="$(AppSettingsExample)" 
-          DestinationFiles="$(AppSettingsDestination)" 
-          Condition="!Exists('$(AppSettingsDestination)') AND Exists('$(AppSettingsExample)')"
-          OverwriteReadOnlyFiles="true" />
+    <Copy SourceFiles="$(AppSettingsExample)" DestinationFiles="$(AppSettingsDestination)" Condition="!Exists('$(AppSettingsDestination)') AND Exists('$(AppSettingsExample)')" OverwriteReadOnlyFiles="true" />
     
-    <Message Text="Copied appsettings.example.json to appsettings.json in Data/Configuration" 
-             Importance="high" 
-             Condition="!Exists('$(AppSettingsDestination)') AND Exists('$(AppSettingsExample)')" />
+    <Message Text="Copied appsettings.example.json to appsettings.json in Data/Configuration" Importance="high" Condition="!Exists('$(AppSettingsDestination)') AND Exists('$(AppSettingsExample)')" />
   </Target>
 
 </Project>

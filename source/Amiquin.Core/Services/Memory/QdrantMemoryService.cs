@@ -372,11 +372,11 @@ public class QdrantMemoryService : IMemoryService
     {
         // Extract preferences from user messages
         var userMessages = messages.Where(m => m.Role == "user").ToList();
-        
+
         foreach (var message in userMessages)
         {
-            if (message.Content.Contains("prefer") || 
-                message.Content.Contains("don't like") || 
+            if (message.Content.Contains("prefer") ||
+                message.Content.Contains("don't like") ||
                 message.Content.Contains("favorite"))
             {
                 try
@@ -390,5 +390,213 @@ public class QdrantMemoryService : IMemoryService
                 }
             }
         }
+    }
+
+    // Cross-session memory methods for long-term memory
+
+    /// <inheritdoc />
+    public async Task<QdrantMemory> CreateScopedMemoryAsync(
+        string sessionId,
+        string content,
+        string memoryType,
+        ulong userId,
+        ulong serverId,
+        MemoryScope scope = MemoryScope.Session,
+        float? importance = null)
+    {
+        if (!_options.Enabled)
+            throw new InvalidOperationException("Memory system is disabled");
+
+        // Calculate importance score with scope-based adjustments
+        var importanceScore = importance ?? CalculateImportanceScore(content, memoryType);
+
+        // Boost importance for user and server scoped memories (they're meant to be persistent)
+        if (scope == MemoryScope.User)
+            importanceScore = Math.Min(1.0f, importanceScore + 0.1f);
+        else if (scope == MemoryScope.Server)
+            importanceScore = Math.Min(1.0f, importanceScore + 0.05f);
+
+        if (importanceScore < _options.MinImportanceScore)
+        {
+            _logger.LogDebug("Memory content has low importance score {Score}, skipping creation", importanceScore);
+            throw new InvalidOperationException($"Memory importance score {importanceScore} is below minimum threshold {_options.MinImportanceScore}");
+        }
+
+        // Generate embedding
+        var embedding = await GenerateEmbeddingAsync(content);
+        if (embedding == null || embedding.Length == 0)
+        {
+            throw new InvalidOperationException("Failed to generate embedding for memory content");
+        }
+
+        // Estimate tokens
+        var tokens = EstimateTokens(content);
+
+        var qdrantMemory = new QdrantMemory
+        {
+            ChatSessionId = sessionId,
+            Content = content,
+            MemoryType = memoryType,
+            UserId = userId,
+            ServerId = serverId,
+            Scope = scope,
+            ImportanceScore = importanceScore,
+            EstimatedTokens = tokens
+        };
+
+        var createdMemory = await _memoryRepository.CreateAsync(qdrantMemory, embedding);
+
+        _logger.LogInformation(
+            "Created scoped memory {MemoryId} for user {UserId} on server {ServerId} with scope {Scope}, type {Type}, importance {Importance}",
+            createdMemory.Id, userId, serverId, scope, memoryType, importanceScore);
+
+        return createdMemory;
+    }
+
+    /// <inheritdoc />
+    public async Task<string?> GetCombinedMemoryContextAsync(
+        string sessionId,
+        ulong userId,
+        ulong serverId,
+        string? currentQuery = null)
+    {
+        if (!_options.Enabled)
+            return null;
+
+        if (string.IsNullOrWhiteSpace(currentQuery))
+        {
+            // Fall back to simple session-based retrieval
+            return await GetMemoryContextAsync(sessionId, currentQuery);
+        }
+
+        // Generate embedding for the query
+        var queryEmbedding = await GenerateEmbeddingAsync(currentQuery);
+        if (queryEmbedding == null || queryEmbedding.Length == 0)
+        {
+            _logger.LogWarning("Failed to generate embedding for query, falling back to session context");
+            return await GetMemoryContextAsync(sessionId, currentQuery);
+        }
+
+        // Get combined memories from all scopes
+        var combinedMemories = await _memoryRepository.GetCombinedMemoriesAsync(
+            sessionId,
+            userId,
+            serverId,
+            queryEmbedding,
+            maxSessionMemories: 5,
+            maxUserMemories: 3,
+            maxServerMemories: 2,
+            similarityThreshold: _options.SimilarityThreshold);
+
+        if (!combinedMemories.Any())
+            return null;
+
+        var contextParts = new List<string>();
+        var totalTokens = 0;
+
+        // Group by scope for organized context
+        var sessionMemories = combinedMemories.Where(m => m.Source == MemoryScope.Session).ToList();
+        var userMemories = combinedMemories.Where(m => m.Source == MemoryScope.User).ToList();
+        var serverMemories = combinedMemories.Where(m => m.Source == MemoryScope.Server).ToList();
+
+        // Add session memories
+        if (sessionMemories.Any())
+        {
+            contextParts.Add("From this conversation:");
+            foreach (var (memory, score, _) in sessionMemories)
+            {
+                if (totalTokens + memory.EstimatedTokens > _options.MaxMemoryTokens)
+                    break;
+                contextParts.Add($"  [{memory.MemoryType}] {memory.Content}");
+                totalTokens += memory.EstimatedTokens;
+            }
+        }
+
+        // Add user memories (cross-session)
+        if (userMemories.Any() && totalTokens < _options.MaxMemoryTokens)
+        {
+            contextParts.Add("From your previous conversations:");
+            foreach (var (memory, score, _) in userMemories)
+            {
+                if (totalTokens + memory.EstimatedTokens > _options.MaxMemoryTokens)
+                    break;
+                contextParts.Add($"  [{memory.MemoryType}] {memory.Content}");
+                totalTokens += memory.EstimatedTokens;
+            }
+        }
+
+        // Add server memories (shared knowledge)
+        if (serverMemories.Any() && totalTokens < _options.MaxMemoryTokens)
+        {
+            contextParts.Add("Server shared knowledge:");
+            foreach (var (memory, score, _) in serverMemories)
+            {
+                if (totalTokens + memory.EstimatedTokens > _options.MaxMemoryTokens)
+                    break;
+                contextParts.Add($"  [{memory.MemoryType}] {memory.Content}");
+                totalTokens += memory.EstimatedTokens;
+            }
+        }
+
+        if (contextParts.Count <= 3) // Only headers, no actual content
+            return null;
+
+        var context = string.Join("\n", contextParts);
+        _logger.LogDebug(
+            "Generated combined memory context: {SessionCount} session, {UserCount} user, {ServerCount} server memories, {Tokens} tokens",
+            sessionMemories.Count, userMemories.Count, serverMemories.Count, totalTokens);
+
+        return $"Relevant memories:\n{context}";
+    }
+
+    /// <inheritdoc />
+    public async Task<List<(QdrantMemory Memory, float SimilarityScore)>> GetUserMemoriesAsync(
+        ulong userId,
+        string? query = null,
+        int maxResults = 10)
+    {
+        if (!_options.Enabled)
+            return new List<(QdrantMemory Memory, float SimilarityScore)>();
+
+        float[]? queryEmbedding = null;
+        if (!string.IsNullOrWhiteSpace(query))
+        {
+            queryEmbedding = await GenerateEmbeddingAsync(query);
+        }
+
+        return await _memoryRepository.GetUserMemoriesAsync(
+            userId,
+            queryEmbedding,
+            maxResults,
+            _options.SimilarityThreshold);
+    }
+
+    /// <inheritdoc />
+    public async Task<int> DeleteUserMemoriesAsync(ulong userId)
+    {
+        var deletedCount = await _memoryRepository.DeleteUserMemoriesAsync(userId);
+        _logger.LogInformation("Deleted {Count} memories for user {UserId}", deletedCount, userId);
+        return deletedCount;
+    }
+
+    /// <inheritdoc />
+    public async Task<MemoryStats> GetUserMemoryStatsAsync(ulong userId)
+    {
+        var (count, totalTokens) = await _memoryRepository.GetUserMemoryStatsAsync(userId);
+        var userMemories = await _memoryRepository.GetUserMemoriesAsync(userId, topK: int.MaxValue);
+        var memories = userMemories.Select(m => m.Memory).ToList();
+
+        var stats = new MemoryStats
+        {
+            TotalCount = count,
+            TotalTokens = totalTokens,
+            AverageImportance = memories.Any() ? memories.Average(m => m.ImportanceScore) : 0,
+            OldestMemory = memories.OrderBy(m => m.CreatedAt).FirstOrDefault()?.CreatedAt,
+            NewestMemory = memories.OrderByDescending(m => m.CreatedAt).FirstOrDefault()?.CreatedAt,
+            MemoryTypeDistribution = memories.GroupBy(m => m.MemoryType)
+                                       .ToDictionary(g => g.Key, g => g.Count())
+        };
+
+        return stats;
     }
 }
