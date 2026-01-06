@@ -36,9 +36,9 @@
     <Version>1.0.0</Version>
   </PropertyGroup>
 
-  <!-- Copy appsettings files to output -->
+  <!-- Copy appsettings files to output (appsettings.json is optional for Docker builds) -->
   <ItemGroup>
-    <Content Include="appsettings.json" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="appsettings.json" Condition="Exists('appsettings.json')" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="appsettings.example.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 

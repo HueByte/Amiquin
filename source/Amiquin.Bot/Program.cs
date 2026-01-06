@@ -85,12 +85,23 @@ async Task RunAsync(string[] args)
 {
     var basePath = AppContext.BaseDirectory;
     var appSettingsPath = Path.Combine(basePath, "appsettings.json");
+    var appSettingsExamplePath = Path.Combine(basePath, "appsettings.example.json");
 
+    // Use appsettings.json if it exists, otherwise fall back to appsettings.example.json
+    // Docker builds may only have the example file, with configuration provided via environment variables
     if (!File.Exists(appSettingsPath))
     {
-        Console.WriteLine($"Error: appsettings.json not found at {appSettingsPath}");
-        Console.WriteLine("Please ensure appsettings.json exists. Copy from appsettings.example.json and configure your settings.");
-        throw new FileNotFoundException("appsettings.json not found", appSettingsPath);
+        if (File.Exists(appSettingsExamplePath))
+        {
+            Console.WriteLine($"appsettings.json not found, using appsettings.example.json as fallback");
+            appSettingsPath = appSettingsExamplePath;
+        }
+        else
+        {
+            Console.WriteLine($"Error: No configuration file found at {appSettingsPath}");
+            Console.WriteLine("Please ensure appsettings.json exists. Copy from appsettings.example.json and configure your settings.");
+            throw new FileNotFoundException("appsettings.json not found", appSettingsPath);
+        }
     }
 
     var configurationManager = new ConfigurationManager()

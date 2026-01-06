@@ -80,6 +80,12 @@ RUN dotnet restore source.sln --runtime linux-x64
 
 # Copy source code and build the application
 COPY . ./
+
+# Create appsettings.json from example if it doesn't exist (for Docker builds without local config)
+RUN if [ ! -f "Amiquin.Bot/appsettings.json" ]; then \
+    cp Amiquin.Bot/appsettings.example.json Amiquin.Bot/appsettings.json; \
+    fi
+
 RUN dotnet publish Amiquin.Bot/Amiquin.Bot.csproj \
     -c Release \
     -o build \
