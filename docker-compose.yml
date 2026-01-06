@@ -190,8 +190,7 @@ services:
         condition: service_healthy
     environment:
       - OLLAMA_HOST=http://ollama:11434
-    entrypoint: ["/bin/sh", "-lc"]
-    command: "ollama pull ${AMQ_Embedding__Ollama__Model:-nomic-embed-text}"
+    entrypoint: ["/bin/sh", "-c", "echo 'Pulling embedding model: nomic-embed-text' && ollama pull nomic-embed-text && echo 'Model ready'"]
     networks:
       - amiquin-network
 
@@ -234,6 +233,8 @@ services:
         condition: service_healthy
       qdrant:
         condition: service_healthy
+      ollama-init:
+        condition: service_completed_successfully
     restart: unless-stopped
     networks:
       - amiquin-network
