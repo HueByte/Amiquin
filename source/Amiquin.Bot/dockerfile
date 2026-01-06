@@ -127,6 +127,7 @@ RUN if [ "${INSTALL_PIPER_TTS}" = "true" ]; then \
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 ARG AMQ_BOT_NAME=amiquin
 ARG MAIN_WORK_DIR=/home/app/${AMQ_BOT_NAME}
+ARG AMIQUIN_UID=1000
 WORKDIR ${MAIN_WORK_DIR}
 
 # Copy runtime dependencies from cached layer
@@ -150,9 +151,12 @@ RUN mkdir -p /app/Data/Logs \
     && mkdir -p /app/Data/Plugins
 
 # Create non-root user with proper setup
-RUN useradd -ms /bin/bash -u 1000 amiquin \
-    && chown -R amiquin:amiquin ${MAIN_WORK_DIR} \
-    && chown -R amiquin:amiquin /app
+RUN set -eux; \
+    uid="${AMIQUIN_UID}"; \
+    while getent passwd "${uid}" >/dev/null; do uid="$((uid + 1))"; done; \
+    useradd -ms /bin/bash -u "${uid}" amiquin; \
+    chown -R amiquin:amiquin "${MAIN_WORK_DIR}"; \
+    chown -R amiquin:amiquin /app
 
 # Copy Piper TTS installation to amiquin user
 USER amiquin
