@@ -1,14 +1,13 @@
 using Amiquin.Core.Options;
-using Amiquin.Core.Services.ApiClients;
 using Amiquin.Core.Services.BotContext;
 using Amiquin.Core.Services.Chat;
 using Amiquin.Core.Services.MessageCache;
 using Amiquin.Core.Services.Meta;
 using Amiquin.Core.Utilities;
+using Amiquin.Core.Utilities.Caching;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using System.Text;
 
 namespace Amiquin.Core.Services.Persona;
 
@@ -21,7 +20,6 @@ public class PersonaService : IPersonaService
     private readonly ILogger<PersonaService> _logger;
     private readonly IMessageCacheService _messageCacheService;
     private readonly IChatCoreService _coreChatService;
-    private readonly INewsApiClient _newsApiClient;
     private readonly IMemoryCache _memoryCache;
     private readonly IChatSemaphoreManager _chatSemaphoreManager;
     private readonly IServerMetaService _serverMetaService;
@@ -34,18 +32,24 @@ public class PersonaService : IPersonaService
     /// <param name="logger">Logger instance for recording service operations.</param>
     /// <param name="messageCacheService">Service for managing message cache operations.</param>
     /// <param name="chatService">Core chat service for AI interactions.</param>
-    /// <param name="newsApiClient">Client for accessing news API services.</param>
     /// <param name="memoryCache">Memory cache for storing frequently accessed data.</param>
     /// <param name="chatSemaphoreManager">Manager for controlling concurrent chat operations.</param>
     /// <param name="serverMetaService">Service for managing server metadata.</param>
     /// <param name="botContextAccessor">Accessor for bot context information.</param>
     /// <param name="botOptions">Bot configuration options.</param>
-    public PersonaService(ILogger<PersonaService> logger, IMessageCacheService messageCacheService, IChatCoreService chatService, INewsApiClient newsApiClient, IMemoryCache memoryCache, IChatSemaphoreManager chatSemaphoreManager, IServerMetaService serverMetaService, BotContextAccessor botContextAccessor, IOptions<BotOptions> botOptions)
+    public PersonaService(
+        ILogger<PersonaService> logger,
+        IMessageCacheService messageCacheService,
+        IChatCoreService chatService,
+        IMemoryCache memoryCache,
+        IChatSemaphoreManager chatSemaphoreManager,
+        IServerMetaService serverMetaService,
+        BotContextAccessor botContextAccessor,
+        IOptions<BotOptions> botOptions)
     {
         _logger = logger;
         _messageCacheService = messageCacheService;
         _coreChatService = chatService;
-        _newsApiClient = newsApiClient;
         _memoryCache = memoryCache;
         _chatSemaphoreManager = chatSemaphoreManager;
         _serverMetaService = serverMetaService;
@@ -128,8 +132,7 @@ public class PersonaService : IPersonaService
             personaMessage = $"{baseSystem}\n\n{Constants.SystemDefaults.DefaultSystemTemplate}";
         }
 
-        var computedMood = await GetComputedMoodAsync();
-        personaMessage = ReplaceSystemKeywords(personaMessage, computedMood);
+        personaMessage = ReplaceSystemKeywords(personaMessage);
 
         _memoryCache.Set(computedSystemCacheKey, personaMessage, TimeSpan.FromDays(Constants.SystemDefaults.SystemCacheDurationDays));
         _logger.LogInformation("Computed persona message: {personaMessage}", personaMessage);
@@ -139,10 +142,10 @@ public class PersonaService : IPersonaService
 
     private async Task<string> LoadBaseSystemAsync()
     {
-        const string baseSystemCacheKey = "BaseSystem";
+        const string baseSystemCacheKey = Constants.CacheKeys.BaseSystemMessageKey;
 
         // Check cache first
-        if (_memoryCache.TryGetValue(baseSystemCacheKey, out string? cachedBaseSystem))
+        if (_memoryCache.TryGetTypedValue(baseSystemCacheKey, out string? cachedBaseSystem))
         {
             if (!string.IsNullOrEmpty(cachedBaseSystem))
             {
@@ -157,7 +160,7 @@ public class PersonaService : IPersonaService
             if (File.Exists(systemFilePath))
             {
                 string baseSystem = await File.ReadAllTextAsync(systemFilePath);
-                _memoryCache.Set(baseSystemCacheKey, baseSystem, TimeSpan.FromDays(7)); // Cache for 7 days
+                _memoryCache.SetAbsolute(baseSystemCacheKey, baseSystem, TimeSpan.FromDays(7)); // Cache for 7 days
                 _logger.LogDebug("Loaded base system message from file: {Path}", systemFilePath);
                 return baseSystem;
             }
@@ -171,62 +174,6 @@ public class PersonaService : IPersonaService
         {
             _logger.LogError(ex, "Error loading base system file");
             return "# System Message — Amiquin\n\nYou are Amiquin, a virtual clanmate AI assistant for Discord.";
-        }
-    }
-
-    private async Task<string> GetComputedMoodAsync()
-    {
-        StringBuilder sb = new();
-        try
-        {
-            sb.AppendLine(await GetInfoFromNewsAsync());
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error while computing mood");
-        }
-
-        return sb.ToString();
-    }
-
-    private async Task<string> GetInfoFromNewsAsync()
-    {
-        StringBuilder sb = new();
-        try
-        {
-            var news = await _newsApiClient.GetNewsAsync();
-            if (news is null || news.Data is null || news.Data.NewsList is null || news.Data.NewsList.Count == 0)
-            {
-                _logger.LogWarning("No news data received from API.");
-                return Constants.SystemDefaults.NewsMoodNotAvailableMessage;
-            }
-
-            var botName = GetBotName();
-            sb.AppendLine($"{botName} just received some juicy news and is bursting with snarky curiosity. Express {botName}'s thoughts in the third person—never say \"I,\" only \"Amiquin.\" Keep the playful, sarcastic edge, but don't let it overshadow the message. Reflect how {botName} feels about the latest updates and respond accordingly.");
-            foreach (var newsObj in news.Data.NewsList)
-            {
-                if (newsObj.NewsObj is null || string.IsNullOrEmpty(newsObj.NewsObj.Content))
-                {
-                    _logger.LogWarning("Skipping news item with missing content.");
-                    continue;
-                }
-
-                _logger.LogInformation("News: {newsTitle}", newsObj.NewsObj.Title);
-                sb.AppendLine(newsObj.NewsObj.Content);
-            }
-
-            var response = await _coreChatService.CoreRequestAsync(
-                sb.ToString(),
-                tokenLimit: Constants.SystemDefaults.NewsSystemTokenLimit);
-            var personaOpinion = response.Content;
-            _logger.LogInformation("Persona Opinion: {personaOpinion}", personaOpinion);
-
-            return personaOpinion;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error while computing mood in GetInfoFromNewsAsync.");
-            return Constants.SystemDefaults.NewsProcessingErrorMessage;
         }
     }
 
@@ -257,9 +204,8 @@ public class PersonaService : IPersonaService
     /// Replaces system keywords with actual values in the system message.
     /// </summary>
     /// <param name="message">The system message template.</param>
-    /// <param name="mood">The computed mood to replace.</param>
     /// <returns>The system message with replaced keywords.</returns>
-    private string ReplaceSystemKeywords(string message, string mood)
+    private string ReplaceSystemKeywords(string message)
     {
         if (string.IsNullOrEmpty(message))
             return message;
@@ -268,7 +214,7 @@ public class PersonaService : IPersonaService
         string version = _botOptions.Version;
 
         return message
-            .Replace(Constants.SystemKeywordsCache.Mood, mood)
+            .Replace(Constants.SystemKeywordsCache.Mood, string.Empty) // Mood no longer used
             .Replace(Constants.SystemKeywordsCache.Name, name)
             .Replace(Constants.SystemKeywordsCache.Version, version);
     }

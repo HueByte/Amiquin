@@ -1,7 +1,7 @@
 # =============================================================================
 # Stage 0: Base dependencies layer for caching external dependencies
 # =============================================================================
-FROM mcr.microsoft.com/dotnet/sdk:9.0 AS dependencies-base
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS dependencies-base
 ARG AMQ_BOT_NAME=amiquin
 ARG MAIN_WORK_DIR=/home/app/${AMQ_BOT_NAME}
 
@@ -51,7 +51,7 @@ RUN curl -L "https://ftp.osuosl.org/pub/xiph/releases/opus/opus-${OPUS_VERSION}.
 # =============================================================================
 # Stage 3: .NET build layer with native dependencies
 # =============================================================================
-FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 ARG AMQ_BOT_NAME=amiquin
 ARG MAIN_WORK_DIR=/home/app/${AMQ_BOT_NAME}
 WORKDIR ${MAIN_WORK_DIR}
@@ -90,7 +90,7 @@ RUN dotnet publish Amiquin.Bot/Amiquin.Bot.csproj \
 # =============================================================================
 # Stage 4: Runtime dependencies layer for caching Python/Piper dependencies
 # =============================================================================
-FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime-deps
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime-deps
 ARG PIPER_VERSION=1.2.0
 
 # Install system runtime dependencies
@@ -116,7 +116,7 @@ RUN pipx install piper-tts==${PIPER_VERSION} && pipx ensurepath
 # =============================================================================
 # Stage 5: Final runtime image
 # =============================================================================
-FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 ARG AMQ_BOT_NAME=amiquin
 ARG MAIN_WORK_DIR=/home/app/${AMQ_BOT_NAME}
 WORKDIR ${MAIN_WORK_DIR}
@@ -152,39 +152,30 @@ RUN mkdir -p /home/amiquin/.local \
     && cp -r /tmp/.local/* /home/amiquin/.local/ \
     && echo 'export PATH="$PATH:/home/amiquin/.local/bin"' >> /home/amiquin/.bashrc
 
-# Copy application from build stage
-COPY --from=build --chown=amiquin:amiquin ${MAIN_WORK_DIR}/build ${MAIN_WORK_DIR}/build
+# Copy application from build stage to /app
+COPY --from=build --chown=amiquin:amiquin ${MAIN_WORK_DIR}/build /app
 
-# Set working directory to application
-WORKDIR ${MAIN_WORK_DIR}/build
+# Set working directory to /app (where the application runs from)
+WORKDIR /app
 
-# Copy Data folder contents to volume location, including Configuration
-RUN if [ -d "${MAIN_WORK_DIR}/build/Data" ]; then \
-    echo "Copying Data folder contents to volume location"; \
-    cp -r ${MAIN_WORK_DIR}/build/Data/* /app/Data/ 2>/dev/null || true; \
-    rm -rf ${MAIN_WORK_DIR}/build/Data; \
+# Copy Data folder contents from build output to the volume location
+# The built Data folder contains Messages and Configuration defaults
+RUN if [ -d "/app/Data" ]; then \
+    echo "Data folder already present in build output"; \
     else \
-    echo "No Data folder found in build"; \
+    echo "Creating Data directory structure"; \
+    mkdir -p /app/Data/Logs /app/Data/Database /app/Data/Messages /app/Data/Sessions /app/Data/Configuration /app/Data/Plugins; \
     fi
 
-# Only use example if no appsettings.json was provided
+# If appsettings.json doesn't exist but example does, copy it (for first-time setup)
 RUN if [ ! -f /app/Data/Configuration/appsettings.json ] && [ -f /app/Data/Configuration/appsettings.example.json ]; then \
-    echo "No appsettings.json found, using example configuration"; \
+    echo "No appsettings.json found, copying from example"; \
     cp /app/Data/Configuration/appsettings.example.json /app/Data/Configuration/appsettings.json; \
-    else \
-    echo "Using existing appsettings.json or no example found"; \
     fi
 
-# Set environment variables for data paths (pointing to volume)
-ENV AMQ_DataPaths__Logs=/app/Data/Logs
-ENV AMQ_DataPaths__Database=/app/Data/Database
-ENV AMQ_DataPaths__Messages=/app/Data/Messages
-ENV AMQ_DataPaths__Sessions=/app/Data/Sessions
-ENV AMQ_DataPaths__Configuration=/app/Data/Configuration
-ENV AMQ_DataPaths__Plugins=/app/Data/Plugins
-ENV AMQ_APPSETTINGS_PATH=/app/Data/Configuration/appsettings.json
+# Set environment variables
+# Database defaults to SQLite at /app/Data/Database/amiquin.db
 ENV AMQ_Database__Mode=1
-ENV AMQ_ConnectionStrings__AmiquinContext="Data Source=/app/Data/Database/amiquin.db"
 ENV PATH="${PATH}:/home/amiquin/.local/bin"
 
 # Health check for console application - just check if process is running

@@ -1,6 +1,7 @@
 using Amiquin.Core.Services.BotContext;
 using Amiquin.Core.Services.Chat;
 using Amiquin.Core.Services.Meta;
+using Amiquin.Core.Services.Sleep;
 using Amiquin.Core.Services.Toggle;
 using Discord;
 using Discord.WebSocket;
@@ -14,6 +15,7 @@ public class ChatContextService : IChatContextService
 {
     private readonly ILogger<ChatContextService> _logger;
     private readonly IServiceScopeFactory _serviceScopeFactory;
+    private readonly ISleepService _sleepService;
     public readonly ConcurrentDictionary<ulong, ConcurrentBag<SocketMessage>> Messages = new();
 
     // Track engagement multipliers per guild (higher = more engagement)
@@ -25,19 +27,28 @@ public class ChatContextService : IChatContextService
     // Track semaphores for each guild to prevent concurrent processing
     private readonly ConcurrentDictionary<ulong, SemaphoreSlim> _guildSemaphores = new();
 
-    public ChatContextService(ILogger<ChatContextService> logger, IServiceScopeFactory serviceScopeFactory)
+    // Track last cleanup time to prevent excessive cleanup operations
+    private DateTime _lastCleanupTime = DateTime.MinValue;
+    private readonly TimeSpan _cleanupInterval = TimeSpan.FromMinutes(30);
+    private readonly TimeSpan _inactiveGuildThreshold = TimeSpan.FromHours(24);
+
+    public ChatContextService(
+        ILogger<ChatContextService> logger,
+        IServiceScopeFactory serviceScopeFactory,
+        ISleepService sleepService)
     {
         _logger = logger;
         _serviceScopeFactory = serviceScopeFactory;
+        _sleepService = sleepService;
     }
 
-    public Task HandleUserMessageAsync(ulong scopeId, SocketMessage socketMessage)
+    public async Task HandleUserMessageAsync(ulong scopeId, SocketMessage socketMessage)
     {
         var message = socketMessage.Content.Trim();
         if (socketMessage.Author.IsBot || string.IsNullOrWhiteSpace(message))
         {
             _logger.LogDebug("Ignoring message from bot or empty message in scope {ScopeId}", scopeId);
-            return Task.CompletedTask;
+            return;
         }
 
         // Filter out messages from excluded channels (moderation, admin, bot channels)
@@ -45,11 +56,14 @@ public class ChatContextService : IChatContextService
         {
             _logger.LogDebug("Ignoring message from excluded channel {ChannelName} in scope {ScopeId}",
                 socketMessage.Channel.Name, scopeId);
-            return Task.CompletedTask;
+            return;
         }
 
         var username = socketMessage.Author.GlobalName ?? socketMessage.Author.Username;
         _logger.LogDebug("Received message from {Username} in scope {ScopeId}: {Message}", username, scopeId, message);
+
+        // Record activity for initiative/deep sleep tracking
+        await _sleepService.RecordActivityAsync(scopeId);
 
         // Track activity timestamp for real-time detection
         TrackActivityTimestamp(scopeId);
@@ -60,7 +74,7 @@ public class ChatContextService : IChatContextService
         // Check for sudden activity spike and potentially trigger immediate engagement
         _ = Task.Run(() => CheckActivitySpikeAsync(scopeId, socketMessage));
 
-        return AddMessageToContextAsync(scopeId, socketMessage);
+        await AddMessageToContextAsync(scopeId, socketMessage);
     }
 
     private Task AddMessageToContextAsync(ulong scopeId, SocketMessage socketMessage)
@@ -498,45 +512,6 @@ public class ChatContextService : IChatContextService
         }
     }
 
-    public async Task<string?> ShareNewsAsync(ulong guildId, IMessageChannel? channel = null)
-    {
-        try
-        {
-            _logger.LogInformation("Sharing news for guild {GuildId}", guildId);
-
-            using var scope = _serviceScopeFactory.CreateScope();
-            var discordClient = scope.ServiceProvider.GetRequiredService<DiscordShardedClient>();
-            var personaChatService = scope.ServiceProvider.GetRequiredService<IPersonaChatService>();
-
-            var prompt = "[System]: Share interesting tech news, gaming updates, or general interesting developments. " +
-                        "Keep it conversational and engaging, focusing on things that would interest a Discord community. " +
-                        "Don't make up specific facts - keep it general and discussion-oriented. " +
-                        "Don't use quotation marks.";
-
-            // Use session-based chat service like /chat command
-            var response = await personaChatService.ChatAsync(guildId, discordClient.CurrentUser.Id, discordClient.CurrentUser.Id, prompt);
-
-            if (!string.IsNullOrWhiteSpace(response))
-            {
-                var targetChannel = await GetTargetChannelAsync(guildId, channel);
-                if (targetChannel != null)
-                {
-                    await targetChannel.SendMessageAsync(response);
-                    _logger.LogInformation("Shared news in guild {GuildId}: {News}",
-                        guildId, response.Substring(0, Math.Min(response.Length, 100)) + "...");
-                }
-                return response;
-            }
-
-            return null;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error sharing news for guild {GuildId}", guildId);
-            return null;
-        }
-    }
-
     public async Task<string?> IncreaseEngagementAsync(ulong guildId, IMessageChannel? channel = null)
     {
         try
@@ -741,11 +716,11 @@ public class ChatContextService : IChatContextService
             _logger.LogDebug("Found general channel: {ChannelName} in guild {GuildName}", generalChannel.Name, guild.Name);
 
             // Get the last 10 messages from the general channel
-            var messageBatches = await generalChannel.GetMessagesAsync(10, CacheMode.AllowDownload).ToListAsync();
-            var messages = messageBatches.SelectMany(x => x).OrderBy(m => m.Timestamp).ToArray();
+            var messages = await generalChannel.GetMessagesAsync(10, CacheMode.AllowDownload).FlattenAsync();
+            var orderedMessages = messages.OrderBy(m => m.Timestamp).ToArray();
 
             var processedCount = 0;
-            foreach (var message in messages)
+            foreach (var message in orderedMessages)
             {
                 // Convert to SocketMessage for processing (we need to simulate the message structure)
                 if (message is SocketMessage socketMessage)
@@ -1111,6 +1086,64 @@ public class ChatContextService : IChatContextService
                 timestamps.Dequeue();
             }
         }
+
+        // Periodically cleanup inactive guilds to prevent memory leaks
+        if (now - _lastCleanupTime > _cleanupInterval)
+        {
+            _ = Task.Run(CleanupInactiveGuilds);
+        }
+    }
+
+    /// <summary>
+    /// Cleans up tracking data for guilds that have been inactive for 24+ hours.
+    /// This prevents memory leaks from guilds that left the bot or became inactive.
+    /// </summary>
+    private void CleanupInactiveGuilds()
+    {
+        var now = DateTime.UtcNow;
+
+        // Only run cleanup once per interval
+        if (now - _lastCleanupTime < _cleanupInterval)
+            return;
+
+        _lastCleanupTime = now;
+        var cutoff = now - _inactiveGuildThreshold;
+        var cleanedCount = 0;
+
+        // Find and remove inactive guilds from activity timestamps
+        foreach (var kvp in _activityTimestamps)
+        {
+            var guildId = kvp.Key;
+            var timestamps = kvp.Value;
+
+            bool shouldRemove;
+            lock (timestamps)
+            {
+                // If empty or all timestamps are older than threshold, remove
+                shouldRemove = timestamps.Count == 0 ||
+                               (timestamps.Count > 0 && timestamps.Max() < cutoff);
+            }
+
+            if (shouldRemove)
+            {
+                _activityTimestamps.TryRemove(guildId, out _);
+                _engagementMultipliers.TryRemove(guildId, out _);
+                Messages.TryRemove(guildId, out _);
+
+                // Also cleanup semaphores for this guild
+                if (_guildSemaphores.TryRemove(guildId, out var semaphore))
+                {
+                    semaphore.Dispose();
+                }
+
+                cleanedCount++;
+            }
+        }
+
+        if (cleanedCount > 0)
+        {
+            _logger.LogInformation("Cleaned up tracking data for {Count} inactive guilds", cleanedCount);
+        }
     }
 
     /// <summary>
@@ -1160,17 +1193,18 @@ public class ChatContextService : IChatContextService
             // Detect activity spike (sudden jump to high activity)
             var isActivitySpike = currentActivity >= 1.3 && previousMultiplier < 1.5f;
 
-            // Random chance for immediate engagement on activity spikes (10% chance - reduced from 30%)
-            if (isActivitySpike && new Random().NextDouble() < 0.10)
+            // Random chance for immediate engagement on activity spikes (15% chance)
+            // Use Random.Shared for thread-safe randomization
+            if (isActivitySpike && Random.Shared.NextDouble() < 0.15)
             {
                 _logger.LogInformation("Activity spike detected in scope {ScopeId}, triggering immediate engagement", scopeId);
 
                 // Wait a short random delay to feel natural (2-8 seconds)
-                var delay = TimeSpan.FromSeconds(new Random().Next(2, 9));
+                var delay = TimeSpan.FromSeconds(Random.Shared.Next(2, 9));
                 await Task.Delay(delay);
 
                 // Trigger engagement appropriate for high activity
-                var actionChoice = new Random().Next(3) switch
+                var actionChoice = Random.Shared.Next(3) switch
                 {
                     0 => 5, // IncreaseEngagement - join the conversation
                     1 => 1, // AskQuestion - ask about what's happening

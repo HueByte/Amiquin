@@ -84,11 +84,18 @@ Log.CloseAndFlush();
 async Task RunAsync(string[] args)
 {
     var basePath = AppContext.BaseDirectory;
-    
-    // Get appsettings path from environment variable or use default
-    var appSettingsPath = System.Environment.GetEnvironmentVariable(Amiquin.Core.Constants.Environment.AppSettingsPath) 
-                         ?? Path.Combine(basePath, "Data", "Configuration", "appsettings.json");
-    
+    var configPath = Path.Combine(basePath, "Data", "Configuration");
+    var appSettingsPath = Path.Combine(configPath, "appsettings.json");
+    var exampleSettingsPath = Path.Combine(configPath, "appsettings.example.json");
+
+    // If appsettings.json doesn't exist but example does, copy it
+    if (!File.Exists(appSettingsPath) && File.Exists(exampleSettingsPath))
+    {
+        Directory.CreateDirectory(configPath);
+        File.Copy(exampleSettingsPath, appSettingsPath);
+        Console.WriteLine($"Created appsettings.json from example. Please configure your Discord token and API keys.");
+    }
+
     var configurationManager = new ConfigurationManager()
         .SetBasePath(basePath)
         .AddJsonFile(appSettingsPath, optional: false)

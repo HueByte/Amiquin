@@ -188,7 +188,7 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
                         .WithStyle(ButtonStyle.Primary),
                     new ButtonBuilder()
                         .WithLabel("🎨 Generate Palette")
-                        .WithCustomId($"generate_palette_{cleanHex}")
+                        .WithCustomId($"generate_palette:{cleanHex}")
                         .WithStyle(ButtonStyle.Secondary)
                 ])
                 .Build();
@@ -435,8 +435,8 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
                         .WithContent("**💬 Support**\nGet help and report issues"))
                     .WithAccessory(new ButtonBuilder()
                         .WithLabel("Get Support")
-                        .WithCustomId("bot_support")
-                        .WithStyle(ButtonStyle.Secondary)));
+                        .WithStyle(ButtonStyle.Link)
+                        .WithUrl("https://github.com/HueByte/Amiquin/issues")));
             })
             .Build();
 

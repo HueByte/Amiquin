@@ -20,8 +20,8 @@ public class StatisticsCollector : IStatisticsCollector
     private const int DefaultFrequencySeconds = Constants.JobFrequencies.StatisticsCollectionFrequency;
     private const int DatabaseTimeoutSeconds = Constants.Timeouts.DatabaseOperationTimeoutSeconds;
     private const string LoggerPrefix = "StatisticsCollector";
-    private const string UnknownVersion = Constants.DefaultValues.UnknownValue;
-    private const string FallbackBotName = Constants.DefaultValues.BotName;
+    private const string UnknownVersion = "Unknown";
+    private const string FallbackBotName = "Amiquin";
 
     public int FrequencyInSeconds { get; set; } = DefaultFrequencySeconds;
 
@@ -96,7 +96,7 @@ public class StatisticsCollector : IStatisticsCollector
             var cacheMetrics = CollectCacheMetrics(services.MemoryCache);
 
             var botName = services.BotSessionService.BotName;
-            var version = services.Configuration.GetValue<string>(Constants.Environment.BotVersion) ?? UnknownVersion;
+            var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? UnknownVersion;
 
             var statistics = new BotStatistics
             {
@@ -323,7 +323,7 @@ public class StatisticsCollector : IStatisticsCollector
             BotName = !string.IsNullOrEmpty(services.BotSessionService.BotName)
                 ? services.BotSessionService.BotName
                 : FallbackBotName,
-            Version = services.Configuration.GetValue<string>(Constants.Environment.BotVersion) ?? UnknownVersion,
+            Version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? UnknownVersion,
             UpTimeInSeconds = (int)(DateTime.UtcNow - services.BotSessionService.StartedAt).TotalSeconds
         };
     }
@@ -338,14 +338,13 @@ public class StatisticsCollector : IStatisticsCollector
             using var scope = serviceScopeFactory.CreateScope();
             var logger = scope.ServiceProvider.GetRequiredService<ILogger<StatisticsCollector>>();
             var statisticsRepository = scope.ServiceProvider.GetRequiredService<IBotStatisticsRepository>();
-            var config = scope.ServiceProvider.GetRequiredService<IConfiguration>();
 
             var fallbackStats = new BotStatistics
             {
                 Id = Guid.NewGuid().ToString(),
                 CreatedDate = DateTime.UtcNow,
                 BotName = FallbackBotName,
-                Version = config.GetValue<string>(Constants.Environment.BotVersion) ?? UnknownVersion
+                Version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? UnknownVersion
             };
 
             await statisticsRepository.AddAsync(fallbackStats);

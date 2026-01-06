@@ -9,6 +9,13 @@
 # Development local files and ideas
 dev-local/
 
+# Root Data folder (runtime data, logs, sessions)
+/Data/
+
+# SQLite database files
+*.db
+*.sqlite
+
 # DocFX generated documentation
 generated/
 dev/api/*

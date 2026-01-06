@@ -136,7 +136,13 @@ public class PaginationService : IPaginationService
 
         if (session == null || session.IsExpired)
         {
-            await component.ModifyOriginalResponseAsync(msg => msg.Content = "This pagination session has expired.");
+            await component.ModifyOriginalResponseAsync(msg =>
+            {
+                msg.Content = "This pagination session has expired.";
+                msg.Components = new ComponentBuilder().Build();
+                msg.Flags = MessageFlags.None;
+                msg.Embed = null;
+            });
             return true;
         }
 
@@ -163,6 +169,22 @@ public class PaginationService : IPaginationService
 
         // Deserialize pages from the database
         var pages = await DeserializePagesFromSession(session);
+        if (pages.Count == 0 || newPage < 0 || newPage >= pages.Count)
+        {
+            _logger.LogWarning(
+                "Pagination session {SessionId} has invalid page data: requested {RequestedPage}, deserializedCount {Count}",
+                sessionId, newPage, pages.Count);
+
+            await component.ModifyOriginalResponseAsync(msg =>
+            {
+                msg.Content = "❌ Failed to load pagination page data. Please re-run the command.";
+                msg.Components = new ComponentBuilder().Build();
+                msg.Flags = MessageFlags.None;
+                msg.Embed = null;
+            });
+
+            return true;
+        }
         var newComponent = CreatePaginatedComponentsV2(pages[newPage], sessionId, newPage, session.TotalPages);
 
         await component.ModifyOriginalResponseAsync(properties =>
@@ -191,18 +213,14 @@ public class PaginationService : IPaginationService
                 // Add title if present
                 if (!string.IsNullOrWhiteSpace(page.Title))
                 {
-                    if (string.IsNullOrEmpty(page.ThumbnailUrl))
-                    {
-                        var sectionBuilder = new SectionBuilder()
-                            .WithTextDisplay($"# {page.Title}")
+                    if (!string.IsNullOrWhiteSpace(page.ThumbnailUrl))
+                        container.AddComponent(new SectionBuilder()
+                            .AddComponent(new TextDisplayBuilder().WithContent($"# {page.Title}"))
                             .WithAccessory(new ThumbnailBuilder(page.ThumbnailUrl))
-                            .WithSeparator(spacing: SeparatorSpacingSize.Large);
-                    }
+                            .WithSeparator(spacing: SeparatorSpacingSize.Large));
                     else
-                    {
                         container.WithTextDisplay($"# {page.Title}")
                             .WithSeparator(spacing: SeparatorSpacingSize.Large);
-                    }
                 }
 
                 // Add main content

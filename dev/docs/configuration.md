@@ -401,8 +401,8 @@ AMQ_Serilog__MinimumLevel__Override__Microsoft.EntityFrameworkCore.Database.Comm
 # Request Timeouts
 AMQ_LLM__GlobalTimeout=120
 
-# Token Limits
-AMQ_Bot__MaxTokens=20000
+# Token Limits (conversation compaction threshold, not model context)
+AMQ_Bot__ConversationTokenLimit=40000
 AMQ_Bot__MessageFetchCount=40
 ```
 

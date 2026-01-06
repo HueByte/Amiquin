@@ -142,15 +142,30 @@ public class AmiquinContext : DbContext
 
         #endregion
 
-        // Configure UserStats unique constraint  
+        // Configure UserStats unique constraint
         builder.Entity<InfraUserStats>()
             .HasIndex(u => new { u.UserId, u.ServerId })
             .IsUnique();
+
+        #region GlobalToggle Configuration
+
+        builder.Entity<GlobalToggle>()
+            .HasKey(g => g.Id);
+
+        builder.Entity<GlobalToggle>()
+            .HasIndex(g => g.Name)
+            .IsUnique();
+
+        builder.Entity<GlobalToggle>()
+            .HasIndex(g => g.Category);
+
+        #endregion
 
         base.OnModelCreating(builder);
     }
 
     public DbSet<ServerMeta> ServerMetas { get; set; } = default!;
+    public DbSet<GlobalToggle> GlobalToggles { get; set; } = default!;
     public DbSet<Message> Messages { get; set; } = default!;
     public DbSet<Toggle> Toggles { get; set; } = default!;
     public DbSet<CommandLog> CommandLogs { get; set; } = default!;

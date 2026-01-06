@@ -17,7 +17,6 @@ public class VoiceService : IVoiceService
     private readonly ILogger<VoiceService> _logger;
     private readonly IVoiceStateManager _voiceStateManager;
     private readonly IChatSemaphoreManager _chatSemaphoreManager;
-    private readonly ExternalOptions _externalOptions;
     private readonly VoiceOptions _voiceOptions;
     private readonly IExternalProcessRunnerService _externalProcessRunner;
 
@@ -27,15 +26,13 @@ public class VoiceService : IVoiceService
     /// <param name="logger">Logger instance for recording service operations.</param>
     /// <param name="voiceStateManager">Manager for handling voice channel state.</param>
     /// <param name="chatSemaphoreManager">Manager for handling voice operation synchronization.</param>
-    /// <param name="externalOptions">Options for external tool configurations.</param>
     /// <param name="voiceOptions">Options for voice/TTS configurations.</param>
     /// <param name="externalProcessRunner">Service for running external processes like Piper and FFmpeg.</param>
-    public VoiceService(ILogger<VoiceService> logger, IVoiceStateManager voiceStateManager, IChatSemaphoreManager chatSemaphoreManager, IOptions<ExternalOptions> externalOptions, IOptions<VoiceOptions> voiceOptions, IExternalProcessRunnerService externalProcessRunner)
+    public VoiceService(ILogger<VoiceService> logger, IVoiceStateManager voiceStateManager, IChatSemaphoreManager chatSemaphoreManager, IOptions<VoiceOptions> voiceOptions, IExternalProcessRunnerService externalProcessRunner)
     {
         _logger = logger;
         _voiceStateManager = voiceStateManager;
         _chatSemaphoreManager = chatSemaphoreManager;
-        _externalOptions = externalOptions.Value;
         _voiceOptions = voiceOptions.Value;
         _externalProcessRunner = externalProcessRunner;
     }

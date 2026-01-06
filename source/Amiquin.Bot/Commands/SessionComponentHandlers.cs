@@ -38,7 +38,10 @@ public class SessionComponentHandlers
     {
         if (component.GuildId == null)
         {
-            await component.RespondAsync("❌ This action can only be used in a server.", ephemeral: true);
+            if (component.HasResponded)
+                await component.FollowupAsync("❌ This action can only be used in a server.", ephemeral: true);
+            else
+                await component.RespondAsync("❌ This action can only be used in a server.", ephemeral: true);
             return true;
         }
 
@@ -46,13 +49,19 @@ public class SessionComponentHandlers
 
         if (!sessions.Any())
         {
-            await component.RespondAsync("❌ No sessions found.", ephemeral: true);
+            if (component.HasResponded)
+                await component.FollowupAsync("❌ No sessions found.", ephemeral: true);
+            else
+                await component.RespondAsync("❌ No sessions found.", ephemeral: true);
             return true;
         }
 
         if (sessions.Count == 1)
         {
-            await component.RespondAsync("ℹ️ Only one session exists. Use `/session create` to create more sessions.", ephemeral: true);
+            if (component.HasResponded)
+                await component.FollowupAsync("ℹ️ Only one session exists. Use `/session create` to create more sessions.", ephemeral: true);
+            else
+                await component.RespondAsync("ℹ️ Only one session exists. Use `/session create` to create more sessions.", ephemeral: true);
             return true;
         }
 
@@ -65,7 +74,10 @@ public class SessionComponentHandlers
     /// </summary>
     private async Task<bool> HandleSessionCreateButtonAsync(SocketMessageComponent component, ComponentContext context)
     {
-        await component.RespondAsync("To create a new session, use the `/session create <name>` command.", ephemeral: true);
+        if (component.HasResponded)
+            await component.FollowupAsync("To create a new session, use the `/session create <name>` command.", ephemeral: true);
+        else
+            await component.RespondAsync("To create a new session, use the `/session create <name>` command.", ephemeral: true);
         return true;
     }
 
@@ -76,14 +88,20 @@ public class SessionComponentHandlers
     {
         if (component.GuildId == null)
         {
-            await component.RespondAsync("❌ This action can only be used in a server.", ephemeral: true);
+            if (component.HasResponded)
+                await component.FollowupAsync("❌ This action can only be used in a server.", ephemeral: true);
+            else
+                await component.RespondAsync("❌ This action can only be used in a server.", ephemeral: true);
             return true;
         }
 
         var selectedSessionId = component.Data.Values.FirstOrDefault();
         if (string.IsNullOrEmpty(selectedSessionId))
         {
-            await component.RespondAsync("❌ No session selected.", ephemeral: true);
+            if (component.HasResponded)
+                await component.FollowupAsync("❌ No session selected.", ephemeral: true);
+            else
+                await component.RespondAsync("❌ No session selected.", ephemeral: true);
             return true;
         }
 
@@ -115,13 +133,19 @@ public class SessionComponentHandlers
             }
             else
             {
-                await component.RespondAsync("❌ Failed to switch session. Session may no longer exist.", ephemeral: true);
+                if (component.HasResponded)
+                    await component.FollowupAsync("❌ Failed to switch session. Session may no longer exist.", ephemeral: true);
+                else
+                    await component.RespondAsync("❌ Failed to switch session. Session may no longer exist.", ephemeral: true);
             }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error switching session {SessionId} for guild {GuildId}", selectedSessionId, component.GuildId);
-            await component.RespondAsync("❌ An error occurred while switching sessions.", ephemeral: true);
+            if (component.HasResponded)
+                await component.FollowupAsync("❌ An error occurred while switching sessions.", ephemeral: true);
+            else
+                await component.RespondAsync("❌ An error occurred while switching sessions.", ephemeral: true);
         }
 
         return true;

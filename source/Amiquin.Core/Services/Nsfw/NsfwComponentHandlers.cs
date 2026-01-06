@@ -2,6 +2,7 @@ using Amiquin.Core.DiscordExtensions;
 using Amiquin.Core.Services.ComponentHandler;
 using Amiquin.Core.Services.Fun;
 using Amiquin.Core.Services.Scrappers;
+using Amiquin.Core.Services.Toggle;
 using Amiquin.Core.Utilities;
 using Discord;
 using Discord.WebSocket;
@@ -17,17 +18,20 @@ public class NsfwComponentHandlers
     private readonly IComponentHandlerService _componentHandler;
     private readonly IFunService _funService;
     private readonly IScrapperManagerService _scrapperManager;
+    private readonly IToggleService _toggleService;
     private readonly ILogger<NsfwComponentHandlers> _logger;
 
     public NsfwComponentHandlers(
         IComponentHandlerService componentHandler,
         IFunService funService,
         IScrapperManagerService scrapperManager,
+        IToggleService toggleService,
         ILogger<NsfwComponentHandlers> logger)
     {
         _componentHandler = componentHandler;
         _funService = funService;
         _scrapperManager = scrapperManager;
+        _toggleService = toggleService;
         _logger = logger;
 
         // Register component handlers
@@ -41,7 +45,201 @@ public class NsfwComponentHandlers
         _componentHandler.RegisterHandler("nsfw_random_waifu", HandleRandomWaifuAsync);
         _componentHandler.RegisterHandler("nsfw_gallery", HandleGalleryAsync);
 
+        // Register handlers for parameterized NSFW category interactions
+        _componentHandler.RegisterHandler("nsfw_random", HandleNsfwRandomAsync);
+        _componentHandler.RegisterHandler("nsfw_get", HandleNsfwGetAsync);
+
+        // Toggle buttons shown by /nsfw toggle (button-only UX)
+        _componentHandler.RegisterHandler("nsfw_toggle_enable", HandleNsfwToggleAsync);
+        _componentHandler.RegisterHandler("nsfw_toggle_disable", HandleNsfwToggleAsync);
+
+        // Daily NSFW job buttons
+        _componentHandler.RegisterHandler("nsfw_daily_refresh", HandleDailyRefreshAsync);
+        _componentHandler.RegisterHandler("nsfw_daily_random", HandleDailyRandomAsync);
+
         _logger.LogDebug("Registered NSFW component handlers");
+    }
+
+    private async Task<bool> HandleNsfwRandomAsync(SocketMessageComponent component, ComponentContext context)
+    {
+        var nsfwType = context.Parameters.Length > 0 ? context.Parameters[0] : null;
+        if (string.IsNullOrWhiteSpace(nsfwType))
+        {
+            await DiscordUtilities.SendErrorMessageAsync(component, "Invalid request", "Missing NSFW category.");
+            return true;
+        }
+
+        return await HandleNsfwCategoryAsync(component, nsfwType);
+    }
+
+    private async Task<bool> HandleNsfwGetAsync(SocketMessageComponent component, ComponentContext context)
+    {
+        var nsfwType = context.Parameters.Length > 0 ? context.Parameters[0] : null;
+        if (string.IsNullOrWhiteSpace(nsfwType))
+        {
+            await DiscordUtilities.SendErrorMessageAsync(component, "Invalid request", "Missing NSFW category.");
+            return true;
+        }
+
+        return await HandleNsfwCategoryAsync(component, nsfwType);
+    }
+
+    private async Task<bool> HandleNsfwToggleAsync(SocketMessageComponent component, ComponentContext context)
+    {
+        try
+        {
+            var serverId = component.GuildId ?? 0;
+            if (serverId == 0)
+            {
+                await DiscordUtilities.SendErrorMessageAsync(component, "Server Required", "This action can only be used in a server!");
+                return true;
+            }
+
+            if (component.User is not SocketGuildUser guildUser || !guildUser.GuildPermissions.Administrator)
+            {
+                await DiscordUtilities.SendErrorMessageAsync(component, "Permission Required", "You must be a server administrator to change NSFW settings.");
+                return true;
+            }
+
+            var enable = component.Data.CustomId == "nsfw_toggle_enable";
+
+            await _toggleService.SetServerToggleAsync(serverId, Constants.ToggleNames.EnableNSFW, enable,
+                "Enable or disable NSFW content in this server");
+
+            var isEnabled = await _funService.IsNsfwEnabledAsync(serverId);
+            var status = isEnabled ? "enabled" : "disabled";
+            var statusIcon = isEnabled ? "🔞" : "🚫";
+            var statusColor = isEnabled ? "🔴" : "🟢";
+
+            var components = new ComponentBuilderV2()
+                .WithTextDisplay($"# {statusIcon} NSFW Status\n## Currently {status}")
+                .WithTextDisplay($"**Status:** {statusColor} NSFW content is **{status}** for this server")
+                .WithTextDisplay("**How to change:** Server administrators can use `/nsfw toggle enable:true` or `/nsfw toggle enable:false` to change this setting")
+                .WithActionRow([
+                    new ButtonBuilder()
+                        .WithLabel(isEnabled ? "🚫 Disable NSFW" : "🔞 Enable NSFW")
+                        .WithCustomId(isEnabled ? "nsfw_toggle_disable" : "nsfw_toggle_enable")
+                        .WithStyle(isEnabled ? ButtonStyle.Danger : ButtonStyle.Success)
+                ])
+                .Build();
+
+            await component.ModifyOriginalResponseAsync(msg =>
+            {
+                msg.Components = components;
+                msg.Flags = MessageFlags.ComponentsV2;
+                msg.Embed = null;
+                msg.Content = null;
+            });
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error handling NSFW toggle button interaction");
+            await DiscordUtilities.SendErrorMessageAsync(component, "Error", "Failed to update NSFW setting. Please try again.");
+            return true;
+        }
+    }
+
+    private async Task<bool> HandleDailyRefreshAsync(SocketMessageComponent component, ComponentContext context)
+        => await HandleNewGalleryAsync(component, context);
+
+    private async Task<bool> HandleDailyRandomAsync(SocketMessageComponent component, ComponentContext context)
+        => await HandleRandomWaifuAsync(component, context);
+
+    private async Task<bool> HandleNsfwCategoryAsync(SocketMessageComponent component, string nsfwType)
+    {
+        try
+        {
+            var serverId = component.GuildId ?? 0;
+            if (serverId == 0)
+            {
+                await DiscordUtilities.SendErrorMessageAsync(component, "Server Required", "NSFW commands can only be used in a server!");
+                return true;
+            }
+
+            // Check if channel is NSFW
+            if (component.Channel is Discord.ITextChannel textChannel && !textChannel.IsNsfw)
+            {
+                await DiscordUtilities.SendErrorMessageAsync(component, "NSFW Channel Required", "This command can only be used in NSFW channels!");
+                return true;
+            }
+
+            // Check if NSFW is enabled for the server
+            if (!await _funService.IsNsfwEnabledAsync(serverId))
+            {
+                await DiscordUtilities.SendErrorMessageAsync(component,
+                    "NSFW content is disabled for this server.",
+                    "An administrator can enable it using `/nsfw toggle enable:true`");
+                return true;
+            }
+
+            var imageUrl = await _funService.GetNsfwGifAsync(serverId, nsfwType);
+
+            if (string.IsNullOrEmpty(imageUrl))
+            {
+                await component.ModifyOriginalResponseAsync(msg => msg.Content =
+                    $"🔧 **{nsfwType} Not Available Right Now** 🤖\n\n" +
+                    $"The {nsfwType.ToLower()} service is having a temporary hiccup!\n\n" +
+                    $"**Quick fixes to try:**\n" +
+                    $"• Wait a minute and try again\n" +
+                    $"• Try a different category with `/nsfw get`\n" +
+                    $"• Check out the gallery with `/nsfw gallery`\n\n" +
+                    $"*This usually resolves itself quickly!* ⚡");
+                return true;
+            }
+
+            var title = nsfwType.Replace('_', ' ');
+
+            var components = new ComponentBuilderV2()
+                .WithContainer(container =>
+                {
+                    container.WithTextDisplay($"# 🔞 {title}\n## NSFW Content");
+                    container.WithMediaGallery([imageUrl]);
+                    container.WithTextDisplay($"*Requested by {component.User.Username}*");
+
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent("**🎲 Get Random**\nFetch another random image from this category"))
+                        .WithAccessory(new ButtonBuilder()
+                            .WithLabel("Random")
+                            .WithCustomId($"nsfw_random:{nsfwType}")
+                            .WithStyle(ButtonStyle.Primary)));
+
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent("**🖼️ View Gallery**\nSee a collection of multiple images"))
+                        .WithAccessory(new ButtonBuilder()
+                            .WithLabel("Gallery")
+                            .WithCustomId("nsfw_gallery")
+                            .WithStyle(ButtonStyle.Secondary)));
+
+                    container.AddComponent(new SectionBuilder()
+                        .AddComponent(new TextDisplayBuilder()
+                            .WithContent("**🔄 New Image**\nGet a different image from this category"))
+                        .WithAccessory(new ButtonBuilder()
+                            .WithLabel("New Image")
+                            .WithCustomId($"nsfw_get:{nsfwType}")
+                            .WithStyle(ButtonStyle.Secondary)));
+                })
+                .Build();
+
+            await component.ModifyOriginalResponseAsync(msg =>
+            {
+                msg.Components = components;
+                msg.Flags = MessageFlags.ComponentsV2;
+                msg.Embed = null;
+                msg.Content = null;
+            });
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error handling NSFW category button interaction ({NsfwType})", nsfwType);
+            await DiscordUtilities.SendErrorMessageAsync(component, "Error", "Failed to fetch NSFW content. Please try again.");
+            return true;
+        }
     }
 
     private async Task<bool> HandleNewGalleryAsync(SocketMessageComponent component, ComponentContext context)
@@ -69,8 +267,8 @@ public class NsfwComponentHandlers
             // Check if NSFW is enabled for the server
             if (!await _funService.IsNsfwEnabledAsync(serverId))
             {
-                await DiscordUtilities.SendErrorMessageAsync(component, 
-                    "NSFW content is disabled for this server.", 
+                await DiscordUtilities.SendErrorMessageAsync(component,
+                    "NSFW content is disabled for this server.",
                     "An administrator can enable it using `/nsfw toggle enable:true`");
                 return true;
             }

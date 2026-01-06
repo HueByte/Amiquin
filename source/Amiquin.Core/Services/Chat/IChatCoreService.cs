@@ -90,4 +90,28 @@ public interface IChatCoreService
         string? sessionId = null,
         string? provider = null,
         string? model = null);
+
+    /// <summary>
+    /// Chat request with cache-optimized message ordering.
+    /// Memory context is appended at the end (not in system message) to maximize prompt cache hits.
+    /// OpenAI and Grok cache from the left side of prompts, so stable content should come first.
+    /// </summary>
+    /// <param name="instanceId">Instance/channel ID for semaphore management</param>
+    /// <param name="messages">List of conversation messages</param>
+    /// <param name="customPersona">Optional custom persona to append to base persona (stable, cached)</param>
+    /// <param name="sessionContext">Optional session context/summary (semi-stable, cached)</param>
+    /// <param name="memoryContext">Optional memory context to append after conversation (dynamic, not cached)</param>
+    /// <param name="sessionId">Optional session ID for prompt cache optimization</param>
+    /// <param name="provider">Optional provider override</param>
+    /// <param name="model">Optional specific model to use</param>
+    /// <returns>The LLM response</returns>
+    Task<ChatCompletionResponse> ChatWithMemoryContextAsync(
+        ulong instanceId,
+        List<SessionMessage> messages,
+        string? customPersona = null,
+        string? sessionContext = null,
+        string? memoryContext = null,
+        string? sessionId = null,
+        string? provider = null,
+        string? model = null);
 }

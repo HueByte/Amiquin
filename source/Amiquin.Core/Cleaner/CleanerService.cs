@@ -120,7 +120,7 @@ public class CleanerService : ICleanerService
     {
         try
         {
-            var logsPath = configuration.GetValue<string>("DataPaths:Logs") ?? Constants.Paths.DefaultDataLogsPath;
+            var logsPath = configuration.GetValue<string>("DataPaths:Logs") ?? "Data/Logs";
             var logDirectory = Path.GetFullPath(logsPath);
 
             if (!Directory.Exists(logDirectory))

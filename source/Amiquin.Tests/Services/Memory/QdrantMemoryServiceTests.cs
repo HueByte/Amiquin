@@ -1,6 +1,7 @@
 using Amiquin.Core.Configuration;
 using Amiquin.Core.IRepositories;
 using Amiquin.Core.Models;
+using Amiquin.Core.Services.Embeddings;
 using Amiquin.Core.Services.Memory;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -13,6 +14,7 @@ public class QdrantMemoryServiceTests
 {
     private readonly Mock<IQdrantMemoryRepository> _mockRepository;
     private readonly Mock<ILogger<QdrantMemoryService>> _mockLogger;
+    private readonly Mock<IEmbeddingProvider> _mockEmbeddingProvider;
     private readonly MemoryOptions _memoryOptions;
     private readonly QdrantMemoryService _memoryService;
 
@@ -20,7 +22,13 @@ public class QdrantMemoryServiceTests
     {
         _mockRepository = new Mock<IQdrantMemoryRepository>();
         _mockLogger = new Mock<ILogger<QdrantMemoryService>>();
-        
+        _mockEmbeddingProvider = new Mock<IEmbeddingProvider>();
+
+        // Setup embedding provider mock
+        _mockEmbeddingProvider.Setup(x => x.ProviderId).Returns("test-provider");
+        _mockEmbeddingProvider.Setup(x => x.EmbeddingDimension).Returns(1536);
+        _mockEmbeddingProvider.Setup(x => x.IsAvailableAsync()).ReturnsAsync(true);
+
         _memoryOptions = new MemoryOptions
         {
             Enabled = true,
@@ -41,7 +49,8 @@ public class QdrantMemoryServiceTests
         _memoryService = new QdrantMemoryService(
             _mockRepository.Object,
             _mockLogger.Object,
-            optionsMock.Object);
+            optionsMock.Object,
+            _mockEmbeddingProvider.Object);
     }
 
     [Fact]
@@ -51,6 +60,7 @@ public class QdrantMemoryServiceTests
         var sessionId = "test-session";
         var content = "This is an important fact about the user";
         var memoryType = "fact";
+        var mockEmbedding = new float[1536];
 
         var expectedQdrantMemory = new QdrantMemory
         {
@@ -61,13 +71,37 @@ public class QdrantMemoryServiceTests
             ImportanceScore = 0.5f
         };
 
+        _mockEmbeddingProvider.Setup(e => e.GenerateEmbeddingAsync(content))
+                              .ReturnsAsync(mockEmbedding);
+
         _mockRepository.Setup(r => r.CreateAsync(It.IsAny<QdrantMemory>(), It.IsAny<float[]>()))
                       .ReturnsAsync(expectedQdrantMemory);
 
-        // Act & Assert - This will fail without OpenAI client for embeddings
+        // Act
+        var result = await _memoryService.CreateMemoryAsync(sessionId, content, memoryType);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(sessionId, result.ChatSessionId);
+        Assert.Equal(content, result.Content);
+        Assert.Equal(memoryType, result.MemoryType);
+    }
+
+    [Fact]
+    public async Task CreateMemoryAsync_WhenEmbeddingFails_ShouldThrowException()
+    {
+        // Arrange
+        var sessionId = "test-session";
+        var content = "This is an important fact about the user";
+        var memoryType = "fact";
+
+        _mockEmbeddingProvider.Setup(e => e.GenerateEmbeddingAsync(content))
+                              .ReturnsAsync((float[]?)null);
+
+        // Act & Assert
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
             () => _memoryService.CreateMemoryAsync(sessionId, content, memoryType));
-        
+
         Assert.Contains("Failed to generate embedding", exception.Message);
     }
 

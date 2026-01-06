@@ -84,14 +84,6 @@ public interface IChatContextService
     Task<string?> ShareUsefulContentAsync(ulong guildId, IMessageChannel? channel = null);
 
     /// <summary>
-    /// Shares news or current events.
-    /// </summary>
-    /// <param name="guildId">The guild ID where content should be shared.</param>
-    /// <param name="channel">Optional specific channel, otherwise uses configured primary channel.</param>
-    /// <returns>The generated content, or null if failed.</returns>
-    Task<string?> ShareNewsAsync(ulong guildId, IMessageChannel? channel = null);
-
-    /// <summary>
     /// Increases engagement through various interaction methods.
     /// </summary>
     /// <param name="guildId">The guild ID where engagement should be increased.</param>

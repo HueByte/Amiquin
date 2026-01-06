@@ -123,6 +123,60 @@ public class CoreChatService : IChatCoreService
         }
     }
 
+    /// <inheritdoc />
+    public async Task<ChatCompletionResponse> ChatWithMemoryContextAsync(
+        ulong instanceId,
+        List<SessionMessage> messages,
+        string? customPersona = null,
+        string? sessionContext = null,
+        string? memoryContext = null,
+        string? sessionId = null,
+        string? provider = null,
+        string? model = null)
+    {
+        // Use semaphore to prevent concurrent requests for the same instance
+        var semaphore = _semaphoreManager.GetOrCreateInstanceSemaphore(instanceId.ToString());
+        await semaphore.WaitAsync();
+
+        try
+        {
+            // Build system message with STABLE components only (for cache optimization)
+            // Memory context is NOT included here - it changes frequently and would invalidate cache
+            var baseSystem = await _messageCache.GetSystemCoreMessageAsync() ?? _llmOptions.GlobalSystemMessage;
+            var systemMessage = BuildSystemMessage(baseSystem, customPersona, sessionContext);
+
+            // Prepare messages with cache-optimized ordering:
+            // 1. System message (stable - cached)
+            // 2. Conversation history (semi-stable - partially cached)
+            // 3. Memory context as system note (dynamic - not cached, appended)
+            var fullMessages = new List<SessionMessage>
+            {
+                new() { Role = "system", Content = systemMessage, CreatedAt = DateTime.UtcNow }
+            };
+            fullMessages.AddRange(messages);
+
+            // Append memory context AFTER conversation history as a system note
+            // This ensures the cache prefix (system + history) remains stable
+            if (!string.IsNullOrWhiteSpace(memoryContext))
+            {
+                fullMessages.Add(new SessionMessage
+                {
+                    Role = "system",
+                    Content = $"[Memory Context - use this information to inform your response]\n{memoryContext}",
+                    CreatedAt = DateTime.UtcNow,
+                    IncludeInContext = false // Don't persist this injected context
+                });
+            }
+
+            // Execute with provider selection and fallback
+            return await ExecuteWithFallbackAsync(fullMessages, null, provider, sessionId, model);
+        }
+        finally
+        {
+            semaphore.Release();
+        }
+    }
+
     private string BuildSystemMessage(string basePersona, string? customPersona = null, string? sessionContext = null)
     {
         var parts = new List<string> { basePersona };

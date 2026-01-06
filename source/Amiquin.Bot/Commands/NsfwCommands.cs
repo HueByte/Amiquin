@@ -375,7 +375,7 @@ public class NsfwCommands : InteractionModuleBase<ExtendedShardedInteractionCont
                             .WithContent("**🎲 Get Random**\nFetch another random image from this category"))
                         .WithAccessory(new ButtonBuilder()
                             .WithLabel("Random")
-                            .WithCustomId($"nsfw_random_{nsfwType}")
+                            .WithCustomId($"nsfw_random:{nsfwType}")
                             .WithStyle(ButtonStyle.Primary)));
 
                     container.AddComponent(new SectionBuilder()
@@ -391,7 +391,7 @@ public class NsfwCommands : InteractionModuleBase<ExtendedShardedInteractionCont
                             .WithContent("**🔄 New Image**\nGet a different image from this category"))
                         .WithAccessory(new ButtonBuilder()
                             .WithLabel("New Image")
-                            .WithCustomId($"nsfw_get_{nsfwType}")
+                            .WithCustomId($"nsfw_get:{nsfwType}")
                             .WithStyle(ButtonStyle.Secondary)));
                 })
                 .Build();

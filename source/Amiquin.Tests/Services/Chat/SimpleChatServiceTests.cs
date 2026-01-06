@@ -128,13 +128,17 @@ public class SimpleChatServiceTests
         var mockSessionManager = new Mock<ISessionManagerService>();
         var mockServiceProvider = new Mock<IServiceProvider>();
 
-        var botOptions = new BotOptions { Name = "TestBot", MaxTokens = 4000 };
+        var botOptions = new BotOptions { Name = "TestBot", ConversationTokenLimit = 4000 };
         var mockBotOptions = new Mock<IOptions<BotOptions>>();
         mockBotOptions.Setup(x => x.Value).Returns(botOptions);
 
         var memoryOptions = new MemoryOptions();
         var mockMemoryOptions = new Mock<IOptions<MemoryOptions>>();
         mockMemoryOptions.Setup(x => x.Value).Returns(memoryOptions);
+
+        var chatOptions = new ChatOptions();
+        var mockChatOptions = new Mock<IOptions<ChatOptions>>();
+        mockChatOptions.Setup(x => x.Value).Returns(chatOptions);
 
         // Setup basic successful response
         mockCoreChatService
@@ -150,7 +154,8 @@ public class SimpleChatServiceTests
             mockSessionManager.Object,
             mockServiceProvider.Object,
             mockBotOptions.Object,
-            mockMemoryOptions.Object);
+            mockMemoryOptions.Object,
+            mockChatOptions.Object);
 
         // Act
         var result = await service.ExchangeMessageAsync(12345, "Hello");

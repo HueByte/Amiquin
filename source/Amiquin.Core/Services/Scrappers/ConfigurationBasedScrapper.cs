@@ -1,6 +1,9 @@
 using Amiquin.Core.Models;
 using Amiquin.Core.Options;
 using Amiquin.Core.Services.Scrappers.Models;
+using Amiquin.Core.Utilities;
+using Amiquin.Core.Utilities.Caching;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using System.Text.RegularExpressions;
 
@@ -14,23 +17,26 @@ public class ConfigurationBasedScrapper : IDataScrapper, IImageScraper
     private readonly ILogger<ConfigurationBasedScrapper> _logger;
     private readonly HttpClient _httpClient;
     private readonly ScrapperProviderOptions _options;
+    private readonly IMemoryCache _memoryCache;
     private readonly Random _random;
-    
-    // Cache for scraped image URLs
-    private static readonly Dictionary<string, (List<string> urls, DateTime cachedAt)> _cache = new();
+
     private readonly int _cacheSize;
     private readonly TimeSpan _cacheExpiration;
+
+    private sealed record ScrapperUrlCache(List<string> Urls, DateTime CachedAt);
 
     public ConfigurationBasedScrapper(
         ILogger<ConfigurationBasedScrapper> logger,
         HttpClient httpClient,
         ScrapperProviderOptions options,
+        IMemoryCache memoryCache,
         int cacheSize = 200,
         int cacheExpirationMinutes = 60)
     {
         _logger = logger;
         _httpClient = httpClient;
         _options = options;
+        _memoryCache = memoryCache;
         _random = new Random();
         _cacheSize = cacheSize;
         _cacheExpiration = TimeSpan.FromMinutes(cacheExpirationMinutes);
@@ -75,62 +81,64 @@ public class ConfigurationBasedScrapper : IDataScrapper, IImageScraper
     {
         try
         {
-            var cacheKey = SourceName;
+            var cacheKey = StringModifier.CreateCacheKey(Constants.CacheKeys.ScrapperImageUrls, SourceName);
             var result = new List<string>();
-            
+
             // Check cache if enabled
-            if (useCache && _cache.TryGetValue(cacheKey, out var cachedData))
+            ScrapperUrlCache cachedData;
+            if (useCache && _memoryCache.TryGetTypedValue(cacheKey, out ScrapperUrlCache? cachedEntry) && cachedEntry is not null)
             {
-                var isCacheValid = DateTime.UtcNow - cachedData.cachedAt < _cacheExpiration;
+                cachedData = cachedEntry;
+                var isCacheValid = DateTime.UtcNow - cachedData.CachedAt < _cacheExpiration;
                 if (!isCacheValid)
                 {
                     _logger.LogDebug("Cache expired for {SourceName}, clearing", SourceName);
-                    _cache.Remove(cacheKey);
-                    cachedData = (new List<string>(), DateTime.MinValue);
+                    _memoryCache.Remove(cacheKey);
+                    cachedData = new ScrapperUrlCache(new List<string>(), DateTime.MinValue);
                 }
             }
             else
             {
-                cachedData = (new List<string>(), DateTime.MinValue);
+                cachedData = new ScrapperUrlCache(new List<string>(), DateTime.MinValue);
             }
 
             // Hybrid strategy: Use mix of cache and fresh scraping when cache has enough data
-            if (useCache && cachedData.urls.Count >= 200)
+            if (useCache && cachedData.Urls.Count >= 200)
             {
                 var cacheCount = Math.Max(1, count / 2); // Use half from cache
                 var scrapeCount = count - cacheCount; // Rest from fresh scraping
-                
-                _logger.LogInformation("Using hybrid strategy for {SourceName}: {CacheCount} from cache ({CachedTotal} available), {ScrapeCount} from fresh scraping", 
-                    SourceName, cacheCount, cachedData.urls.Count, scrapeCount);
+
+                _logger.LogInformation("Using hybrid strategy for {SourceName}: {CacheCount} from cache ({CachedTotal} available), {ScrapeCount} from fresh scraping",
+                    SourceName, cacheCount, cachedData.Urls.Count, scrapeCount);
 
                 // Get images from cache
-                var fromCache = randomize 
-                    ? cachedData.urls.OrderBy(x => _random.Next()).Take(cacheCount).ToList()
-                    : cachedData.urls.Take(cacheCount).ToList();
+                var fromCache = randomize
+                    ? cachedData.Urls.OrderBy(x => _random.Next()).Take(cacheCount).ToList()
+                    : cachedData.Urls.Take(cacheCount).ToList();
                 result.AddRange(fromCache);
 
                 // Get fresh images from scraping
                 if (scrapeCount > 0)
                 {
                     var freshImages = await ScrapeNewImagesAsync(scrapeCount, randomize);
-                    
+
                     // Add fresh images to result, avoiding duplicates with cache
                     var uniqueFreshImages = freshImages.Where(url => !fromCache.Contains(url)).ToList();
                     result.AddRange(uniqueFreshImages);
-                    
+
                     // Update cache with fresh images (merge and maintain cache size limit)
                     if (freshImages.Length > 0)
                     {
-                        var updatedCache = cachedData.urls.Concat(freshImages).Distinct().ToList();
-                        
+                        var updatedCache = cachedData.Urls.Concat(freshImages).Distinct().ToList();
+
                         // Limit cache size and keep most recent
                         if (updatedCache.Count > _cacheSize)
                         {
                             updatedCache = updatedCache.Skip(updatedCache.Count - _cacheSize).ToList();
                         }
-                        
-                        _cache[cacheKey] = (updatedCache, DateTime.UtcNow);
-                        _logger.LogDebug("Updated cache for {SourceName}: added {NewCount} fresh images, cache now has {TotalCount} URLs", 
+
+                        _memoryCache.Set(cacheKey, new ScrapperUrlCache(updatedCache, DateTime.UtcNow), _cacheExpiration);
+                        _logger.LogDebug("Updated cache for {SourceName}: added {NewCount} fresh images, cache now has {TotalCount} URLs",
                             SourceName, freshImages.Length, updatedCache.Count);
                     }
                 }
@@ -138,31 +146,31 @@ public class ConfigurationBasedScrapper : IDataScrapper, IImageScraper
                 _logger.LogInformation("Hybrid result for {SourceName}: {FromCacheCount} from cache + {FreshCount} fresh = {TotalCount} total",
                     SourceName, fromCache.Count, result.Count - fromCache.Count, result.Count);
             }
-            else if (useCache && cachedData.urls.Count >= count)
+            else if (useCache && cachedData.Urls.Count >= count)
             {
                 // Use cache only if we have enough
-                _logger.LogDebug("Using cached data for {SourceName}, cache has {Count} URLs", SourceName, cachedData.urls.Count);
-                
-                result = randomize 
-                    ? cachedData.urls.OrderBy(x => _random.Next()).Take(count).ToList()
-                    : cachedData.urls.Take(count).ToList();
+                _logger.LogDebug("Using cached data for {SourceName}, cache has {Count} URLs", SourceName, cachedData.Urls.Count);
+
+                result = randomize
+                    ? cachedData.Urls.OrderBy(x => _random.Next()).Take(count).ToList()
+                    : cachedData.Urls.Take(count).ToList();
             }
             else
             {
                 // Cache miss or insufficient data - scrape new data and build cache
-                _logger.LogDebug("Cache insufficient for {SourceName} (has {CacheCount}, need {RequestedCount}), scraping fresh data", 
-                    SourceName, cachedData.urls.Count, count);
-                
+                _logger.LogDebug("Cache insufficient for {SourceName} (has {CacheCount}, need {RequestedCount}), scraping fresh data",
+                    SourceName, cachedData.Urls.Count, count);
+
                 var freshImages = await ScrapeNewImagesAsync(_cacheSize, true);
-                
+
                 if (freshImages.Length > 0)
                 {
                     // Update cache
-                    _cache[cacheKey] = (freshImages.ToList(), DateTime.UtcNow);
+                    _memoryCache.Set(cacheKey, new ScrapperUrlCache(freshImages.ToList(), DateTime.UtcNow), _cacheExpiration);
                     _logger.LogDebug("Built cache for {SourceName} with {Count} fresh URLs", SourceName, freshImages.Length);
-                    
+
                     // Return requested count
-                    result = randomize 
+                    result = randomize
                         ? freshImages.OrderBy(x => _random.Next()).Take(count).ToList()
                         : freshImages.Take(count).ToList();
                 }
@@ -190,17 +198,17 @@ public class ConfigurationBasedScrapper : IDataScrapper, IImageScraper
 
             if (fullUrls.Count != extractedData.Count)
             {
-                _logger.LogDebug("Removed {DuplicateCount} duplicate URLs, {UniqueCount} unique URLs remaining for {SourceName}", 
+                _logger.LogDebug("Removed {DuplicateCount} duplicate URLs, {UniqueCount} unique URLs remaining for {SourceName}",
                     extractedData.Count - fullUrls.Count, fullUrls.Count, SourceName);
             }
 
             // Validate URLs
             _logger.LogDebug("Validating {Count} fresh URLs for {SourceName}", fullUrls.Count, SourceName);
             var validUrls = await ValidateImageUrlsAsync(fullUrls.ToArray());
-            
+
             if (validUrls.Length < fullUrls.Count)
             {
-                _logger.LogDebug("URL validation filtered out {FilteredCount} invalid URLs from {TotalCount} fresh URLs for {SourceName}", 
+                _logger.LogDebug("URL validation filtered out {FilteredCount} invalid URLs from {TotalCount} fresh URLs for {SourceName}",
                     fullUrls.Count - validUrls.Length, fullUrls.Count, SourceName);
             }
 
@@ -250,12 +258,9 @@ public class ConfigurationBasedScrapper : IDataScrapper, IImageScraper
 
     public void ClearCache()
     {
-        var cacheKey = SourceName;
-        if (_cache.ContainsKey(cacheKey))
-        {
-            _cache.Remove(cacheKey);
-            _logger.LogInformation("Cache cleared for {SourceName}", SourceName);
-        }
+        var cacheKey = StringModifier.CreateCacheKey(Constants.CacheKeys.ScrapperImageUrls, SourceName);
+        _memoryCache.Remove(cacheKey);
+        _logger.LogInformation("Cache cleared for {SourceName}", SourceName);
     }
 
     private async Task<List<string>> ExecuteScrapingStepsAsync(int count = 10)
@@ -518,7 +523,7 @@ public class ConfigurationBasedScrapper : IDataScrapper, IImageScraper
             return extractedUrl;
 
         // If the URL is already absolute (starts with http:// or https://), return as is
-        if (extractedUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || 
+        if (extractedUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
             extractedUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
         {
             _logger.LogDebug("URL is already absolute: {Url}", extractedUrl);
@@ -575,7 +580,7 @@ public class ConfigurationBasedScrapper : IDataScrapper, IImageScraper
         // Check if it has an image file extension
         var path = uri.AbsolutePath.ToLowerInvariant();
         var imageExtensions = new[] { ".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".svg" };
-        
+
         var hasValidExtension = imageExtensions.Any(ext => path.EndsWith(ext));
         if (!hasValidExtension)
         {

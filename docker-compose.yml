@@ -6,18 +6,24 @@
 #   - qdrant-dev: Qdrant with web UI for development
 #   - database: Just MySQL database
 #   - vector/memory: Just Qdrant (alias for qdrant-only)
+#   - ollama: Just Ollama for local embeddings
+#   - ollama-dev: Ollama with Qdrant for local embedding development
 #   - bot: Just the Amiquin bot (requires external dependencies)
 #   - dev: Full development stack (bot + mysql + qdrant + web UI)
+#   - dev-local: Full dev stack with Ollama for local embeddings
 #
 # Production profiles:
 #   - prod: Production stack (bot + mysql + qdrant with optimizations)
 #   - prod-full: Production with all services and monitoring
+#   - prod-local: Production with Ollama for local embeddings (no OpenAI needed)
 #
 # Usage examples:
 #   docker-compose --profile qdrant-only up -d
+#   docker-compose --profile ollama up -d
 #   docker-compose --profile dev up -d
+#   docker-compose --profile dev-local up -d
 #   docker-compose --profile prod up -d
-#   docker-compose --profile prod-full up -d
+#   docker-compose --profile prod-local up -d
 
 services:
   # MySQL Database Service
@@ -25,8 +31,10 @@ services:
     profiles:
       - database
       - dev
+      - dev-local
       - prod
       - prod-full
+      - prod-local
     container_name: mysql-${AMQ_BOT_NAME:-amiquin}
     image: mysql:${MYSQL_VERSION:-latest}
     restart: unless-stopped
@@ -70,11 +78,14 @@ services:
     profiles:
       - qdrant-only
       - qdrant-dev
+      - ollama-dev
       - vector
       - memory
       - dev
+      - dev-local
       - prod
       - prod-full
+      - prod-local
     container_name: qdrant-${AMQ_BOT_NAME:-amiquin}
     image: qdrant/qdrant:${QDRANT_VERSION:-latest}
     restart: unless-stopped
@@ -150,6 +161,7 @@ services:
     profiles:
       - qdrant-dev
       - dev
+      - dev-local
     container_name: qdrant-ui-${AMQ_BOT_NAME:-amiquin}
     image: qdrant/qdrant-web-ui:latest
     restart: unless-stopped
@@ -163,13 +175,53 @@ services:
     networks:
       - amiquin-network
 
+  # Ollama Local LLM Service (for local embeddings)
+  ollama:
+    profiles:
+      - ollama
+      - ollama-dev
+      - dev-local
+      - prod-local
+    container_name: ollama-${AMQ_BOT_NAME:-amiquin}
+    image: ollama/ollama:${OLLAMA_VERSION:-latest}
+    restart: unless-stopped
+    ports:
+      - "${AMQ_OLLAMA_PORT:-11434}:11434"
+    volumes:
+      - amq-ollama-data:/root/.ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+      - OLLAMA_KEEP_ALIVE=${OLLAMA_KEEP_ALIVE:-5m}
+      - OLLAMA_NUM_PARALLEL=${OLLAMA_NUM_PARALLEL:-1}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:11434/api/tags || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    networks:
+      - amiquin-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      resources:
+        limits:
+          memory: ${OLLAMA_MEMORY_LIMIT:-4G}
+        reservations:
+          memory: ${OLLAMA_MEMORY_RESERVATION:-1G}
+
   # Amiquin Bot Service
   amiquinbot:
     profiles:
       - bot
       - dev
+      - dev-local
       - prod
       - prod-full
+      - prod-local
     container_name: bot-${AMQ_BOT_NAME:-amiquin}
     build:
       context: ./source
@@ -180,30 +232,22 @@ services:
     env_file:
       - .env
     environment:
-      # Container networking overrides
+      # Container networking overrides (when using docker-compose services)
       AMQ_Memory__Qdrant__Host: qdrant
-      AMQ_ConnectionStrings__Amiquin-Mysql: "Server=mysql;Port=3306;Database=${AMQ_DB_NAME};Uid=${AMQ_DB_USER};Pwd=${AMQ_DB_USER_PASSWORD};SslMode=None;AllowPublicKeyRetrieval=True;Pooling=True;MinimumPoolSize=5;MaximumPoolSize=50;ConnectionTimeout=30;DefaultCommandTimeout=30;"
-      
-      # Container path overrides for proper volume mapping
-      AMQ_DataPaths__Logs: "/app/Data/Logs"
-      AMQ_DataPaths__Messages: "/app/Data/Messages" 
-      AMQ_DataPaths__Sessions: "/app/Data/Sessions"
-      AMQ_DataPaths__Plugins: "/app/Data/Plugins"
+      AMQ_Embedding__Ollama__BaseUrl: "http://ollama:11434"
+      # MySQL connection (only used when AMQ_Database__Mode=0)
+      AMQ_Database__ConnectionString: "Server=mysql;Port=3306;Database=${AMQ_DB_NAME:-amiquin_db};Uid=${AMQ_DB_USER:-amiquin_user};Pwd=${AMQ_DB_USER_PASSWORD};SslMode=None;AllowPublicKeyRetrieval=True;Pooling=True;MinimumPoolSize=5;MaximumPoolSize=50;ConnectionTimeout=30;DefaultCommandTimeout=30;"
 
-      # Production performance settings (only for production profiles)
+      # Production performance settings
       DOTNET_GCServer: ${DOTNET_GC_SERVER:-true}
       DOTNET_GCConcurrent: ${DOTNET_GC_CONCURRENT:-true}
       DOTNET_GCRetainVM: ${DOTNET_GC_RETAIN_VM:-true}
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
-      ASPNETCORE_FORWARDEDHEADERS_ENABLED: ${ASPNETCORE_FORWARDEDHEADERS_ENABLED:-true}
     ports:
       - "${AMQ_BOT_PORT:-10001}:10000"
     volumes:
+      # Single volume for all persistent data (database, logs, sessions, plugins, config)
       - amq-data:/app/Data
-      - amq-logs:/app/Data/Logs
-      - amq-messages:/app/Data/Messages
-      - amq-sessions:/app/Data/Sessions
-      - amq-plugins:/app/Data/Plugins
     depends_on:
       mysql:
         condition: service_healthy
@@ -224,30 +268,28 @@ services:
         reservations:
           memory: ${AMIQUIN_MEMORY_RESERVATION:-512M}
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:10000/health || exit 1"]
+      test: ["CMD-SHELL", "pgrep -f 'dotnet.*Amiquin.Bot.dll' || exit 1"]
       interval: 60s
       timeout: 10s
       retries: 3
       start_period: 120s
 
 volumes:
+  # Amiquin bot data (database, logs, sessions, plugins, config)
   amq-data:
     driver: local
+  # MySQL database data
   amq-db-data:
     driver: local
+  # Qdrant vector database storage
   amq-qdrant-data:
     driver: local
   amq-qdrant-snapshots:
     driver: local
   amq-qdrant-temp:
     driver: local
-  amq-logs:
-    driver: local
-  amq-messages:
-    driver: local
-  amq-sessions:
-    driver: local
-  amq-plugins:
+  # Ollama models storage
+  amq-ollama-data:
     driver: local
 
 networks:

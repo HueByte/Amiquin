@@ -30,16 +30,6 @@ public class ToggleAutoCompleteHandler : AutocompleteHandler
                 }
             }
 
-            // Add system exclusive toggles for admins
-            foreach (var toggle in Constants.ToggleNames.SystemExclusiveTogglesList)
-            {
-                if (string.IsNullOrWhiteSpace(userInput) || toggle.ToLowerInvariant().Contains(userInput))
-                {
-                    var displayName = $"[System] {GetToggleDisplayName(toggle)}";
-                    suggestions.Add(new AutocompleteResult(displayName, toggle));
-                }
-            }
-
             return Task.FromResult(AutocompletionResult.FromSuccess(suggestions.Take(25)));
         }
         catch
@@ -64,7 +54,8 @@ public class ToggleAutoCompleteHandler : AutocompleteHandler
             Constants.ToggleNames.EnableJoinMessage => "EnableJoinMessage - Enable welcome messages",
             Constants.ToggleNames.EnableLiveJob => "EnableLiveJob - Enable background jobs",
             Constants.ToggleNames.EnableAIWelcome => "EnableAIWelcome - Enable AI-powered welcome messages",
-            Constants.ToggleNames.SystemExclusiveToggles.EnableNews => "EnableNews - Enable news updates",
+            Constants.ToggleNames.EnableNSFW => "EnableNSFW - Enable NSFW content features",
+            Constants.ToggleNames.EnableDailyNSFW => "EnableDailyNSFW - Enable daily NSFW posting",
             _ => toggleName
         };
     }

@@ -278,7 +278,7 @@ AMQ_Discord__ActivityMessage=`"Chatting with AI`"
 AMQ_Bot__Name=`"$($config.BotName)`"
 AMQ_Bot__PrintLogo=false
 AMQ_Bot__MessageFetchCount=40
-AMQ_Bot__MaxTokens=20000
+AMQ_Bot__ConversationTokenLimit=40000
 
 # ======================
 # LLM (AI Language Model) Configuration

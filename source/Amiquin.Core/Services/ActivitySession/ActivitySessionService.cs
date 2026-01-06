@@ -1,13 +1,17 @@
 using Amiquin.Core.Abstractions;
+using Amiquin.Core.Configuration;
 using Amiquin.Core.Services.ChatContext;
+using Amiquin.Core.Services.Sleep;
 using Amiquin.Core.Services.Toggle;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using System.Collections.Concurrent;
 
 namespace Amiquin.Core.Services.ActivitySession;
 
 /// <summary>
-/// Service for executing activity session logic for Discord servers
+/// Service for executing activity session logic for Discord servers.
+/// Integrates with the initiative system for natural, human-like engagement.
 /// </summary>
 public class ActivitySessionService : IActivitySessionService
 {
@@ -15,6 +19,8 @@ public class ActivitySessionService : IActivitySessionService
     private readonly IChatContextService _chatContextService;
     private readonly IToggleService _toggleService;
     private readonly IDiscordClientWrapper _discordClient;
+    private readonly ISleepService _sleepService;
+    private readonly InitiativeOptions _initiativeOptions;
 
     // Semaphores to prevent concurrent executions per guild
     private readonly ConcurrentDictionary<ulong, SemaphoreSlim> _guildSemaphores = new();
@@ -26,12 +32,16 @@ public class ActivitySessionService : IActivitySessionService
         ILogger<ActivitySessionService> logger,
         IChatContextService chatContextService,
         IToggleService toggleService,
-        IDiscordClientWrapper discordClient)
+        IDiscordClientWrapper discordClient,
+        ISleepService sleepService,
+        IOptions<InitiativeOptions> initiativeOptions)
     {
         _logger = logger;
         _chatContextService = chatContextService;
         _toggleService = toggleService;
         _discordClient = discordClient;
+        _sleepService = sleepService;
+        _initiativeOptions = initiativeOptions.Value;
     }
 
     /// <summary>
@@ -82,10 +92,34 @@ public class ActivitySessionService : IActivitySessionService
             // Check cancellation token
             cancellationToken.ThrowIfCancellationRequested();
 
+            // Check if initiative system is enabled globally
+            if (!_initiativeOptions.Enabled)
+            {
+                _logger.LogDebug("Initiative system disabled globally, skipping execution for guild {GuildId}", guildId);
+                return false;
+            }
+
             // Check if LiveJob is enabled for this server
             if (!await _toggleService.IsEnabledAsync(guildId, Constants.ToggleNames.EnableLiveJob))
             {
                 _logger.LogDebug("LiveJob disabled for guild {GuildId}, skipping execution", guildId);
+                return false;
+            }
+
+            // Check initiative state (deep sleep, manual sleep, consecutive limits, etc.)
+            var initiativeState = await _sleepService.GetInitiativeStateAsync(guildId);
+
+            if (initiativeState.IsInDeepSleep)
+            {
+                _logger.LogDebug("Guild {GuildId} is in deep sleep, skipping initiative", guildId);
+                adjustFrequencyCallback?.Invoke(0.05); // Very low frequency during deep sleep
+                return false;
+            }
+
+            if (initiativeState.IsInManualSleep)
+            {
+                _logger.LogDebug("Guild {GuildId} is in manual sleep, skipping initiative", guildId);
+                adjustFrequencyCallback?.Invoke(0.0);
                 return false;
             }
 
@@ -97,16 +131,20 @@ public class ActivitySessionService : IActivitySessionService
 
             // Get context messages
             var contextMessages = _chatContextService.GetContextMessages(guildId);
-            if (contextMessages.Length == 0)
+
+            // Check minimum context messages requirement
+            if (contextMessages.Length < _initiativeOptions.Engagement.MinContextMessages)
             {
-                _logger.LogDebug("No context messages for guild {GuildId}, adjusting frequency", guildId);
+                _logger.LogDebug("Not enough context messages for guild {GuildId} ({Count}/{Min}), adjusting frequency",
+                    guildId, contextMessages.Length, _initiativeOptions.Engagement.MinContextMessages);
 
                 // Adjust frequency for low activity and return
                 adjustFrequencyCallback?.Invoke(0.1);
                 return false;
             }
 
-            _logger.LogDebug("Guild {GuildId} activity: {Activity}, messages: {Count}", guildId, currentActivity, contextMessages.Length);
+            _logger.LogDebug("Guild {GuildId} activity: {Activity}, messages: {Count}, initiative state: waking={Waking}, consecutive={Consecutive}",
+                guildId, currentActivity, contextMessages.Length, initiativeState.IsWakingUp, initiativeState.ConsecutiveInitiatives);
 
             // Adjust job frequency based on activity
             adjustFrequencyCallback?.Invoke(currentActivity);
@@ -118,6 +156,17 @@ public class ActivitySessionService : IActivitySessionService
                 msg.Contains("@Amiquin", StringComparison.OrdinalIgnoreCase) ||
                 msg.Contains($"<@{_discordClient.CurrentUser?.Id}>", StringComparison.OrdinalIgnoreCase));
 
+            // Get initiative probability multiplier from sleep service (handles deep sleep, consecutive limits, timing, etc.)
+            var initiativeProbabilityMultiplier = await _sleepService.GetInitiativeProbabilityMultiplierAsync(guildId);
+
+            // If initiative is blocked (returns 0), skip unless bot was mentioned
+            if (initiativeProbabilityMultiplier <= 0 && !botMentioned)
+            {
+                _logger.LogDebug("Initiative blocked for guild {GuildId} (multiplier: {Multiplier}), skipping",
+                    guildId, initiativeProbabilityMultiplier);
+                return false;
+            }
+
             // Get engagement multiplier and cap it during high activity periods
             var rawEngagementMultiplier = _chatContextService.GetEngagementMultiplier(guildId);
             var engagementMultiplier = currentActivity switch
@@ -128,20 +177,28 @@ public class ActivitySessionService : IActivitySessionService
                 _ => rawEngagementMultiplier                        // Normal: no cap
             };
 
-            // Calculate engagement probability with activity dampening for high activity
+            // Calculate engagement probability using initiative options
             var baseChance = CalculateBaseChance(currentActivity);
 
-            // Apply much stronger dampening for high activity scenarios
-            var activityMultiplier = currentActivity switch
+            // Apply activity-based multipliers from initiative options
+            var activityThresholds = _initiativeOptions.Engagement.ActivityThresholds;
+            double activityMultiplier;
+            if (currentActivity <= activityThresholds.LowActivityThreshold)
             {
-                >= 2.0 => 0.1,    // Extremely high: 10% of normal multiplier effect
-                >= 1.5 => 0.2,    // Very high: 20% of normal multiplier effect  
-                >= 1.0 => 0.4,    // High: 40% of normal multiplier effect
-                >= 0.7 => 0.7,    // Moderate: 70% of normal multiplier effect
-                _ => 1.0           // Low/Normal: full multiplier effect
-            };
+                activityMultiplier = activityThresholds.LowActivityMultiplier;
+            }
+            else if (currentActivity >= activityThresholds.HighActivityThreshold)
+            {
+                activityMultiplier = activityThresholds.HighActivityMultiplier;
+            }
+            else
+            {
+                // Linear interpolation between low and high thresholds
+                activityMultiplier = 1.0;
+            }
 
-            var adjustedChance = baseChance * engagementMultiplier * activityMultiplier;
+            // Combine all multipliers
+            var adjustedChance = baseChance * engagementMultiplier * activityMultiplier * initiativeProbabilityMultiplier;
 
             // Force engagement for mentions
             if (botMentioned)
@@ -151,25 +208,16 @@ public class ActivitySessionService : IActivitySessionService
             }
             else
             {
-                // Apply dynamic caps based on activity level to prevent over-engagement
-                var maxChance = currentActivity switch
-                {
-                    >= 2.0 => 0.10,   // Extremely high activity: cap at 10%
-                    >= 1.5 => 0.20,   // Very high activity: cap at 20%
-                    >= 1.0 => 0.35,   // High activity: cap at 35%
-                    >= 0.7 => 0.60,   // Moderate activity: cap at 60%
-                    _ => 0.90          // Low/Normal activity: cap at 90%
-                };
-
-                adjustedChance = Math.Min(adjustedChance, maxChance);
+                // Apply max probability cap from initiative options
+                adjustedChance = Math.Min(adjustedChance, _initiativeOptions.Engagement.MaxProbability);
             }
 
-            // Random engagement check
-            var random = new Random();
-            var shouldEngage = random.NextDouble() < adjustedChance;
+            // Random engagement check with human-like delay consideration
+            // Use Random.Shared for thread-safe, properly seeded randomization
+            var shouldEngage = Random.Shared.NextDouble() < adjustedChance;
 
-            _logger.LogDebug("Guild {GuildId}: activity={Activity}, multiplier={Multiplier}, chance={Chance}%, engage={Engage}",
-                guildId, currentActivity, engagementMultiplier, adjustedChance * 100, shouldEngage);
+            _logger.LogDebug("Guild {GuildId}: activity={Activity}, engagementMult={EngMult}, initiativeMult={InitMult}, chance={Chance}%, engage={Engage}",
+                guildId, currentActivity, engagementMultiplier, initiativeProbabilityMultiplier, adjustedChance * 100, shouldEngage);
 
             if (!shouldEngage)
             {
@@ -188,13 +236,21 @@ public class ActivitySessionService : IActivitySessionService
             // Check cancellation token before engagement action
             cancellationToken.ThrowIfCancellationRequested();
 
+            // Add human-like delay before responding
+            var delaySeconds = Random.Shared.Next(
+                _initiativeOptions.Timing.MinResponseDelaySeconds,
+                _initiativeOptions.Timing.MaxResponseDelaySeconds + 1);
+            _logger.LogDebug("Adding human-like delay of {Delay} seconds before initiative action for guild {GuildId}",
+                delaySeconds, guildId);
+            await Task.Delay(TimeSpan.FromSeconds(delaySeconds), cancellationToken);
+
             // Select and execute appropriate engagement action with retry mechanism
             var maxRetries = 3;
             for (int retryAttempt = 0; retryAttempt < maxRetries; retryAttempt++)
             {
                 try
                 {
-                    var actionChoice = SelectEngagementAction(currentActivity, random, botMentioned);
+                    var actionChoice = SelectEngagementAction(currentActivity, botMentioned);
                     _logger.LogDebug("Attempting action {Action} for guild {GuildName} (attempt {Attempt}/{MaxRetries})",
                         actionChoice, guild.Name, retryAttempt + 1, maxRetries);
 
@@ -204,6 +260,9 @@ public class ActivitySessionService : IActivitySessionService
                     {
                         _logger.LogInformation("ActivitySession executed action {Action} for guild {GuildName}: success",
                             actionChoice, guild.Name);
+
+                        // Record that an initiative action was taken
+                        await _sleepService.RecordInitiativeActionAsync(guildId);
 
                         // Clear context messages after successful engagement
                         _chatContextService.ClearContextMessages(guildId);
@@ -275,41 +334,74 @@ public class ActivitySessionService : IActivitySessionService
     }
 
     /// <summary>
-    /// Selects engagement action based on activity level
+    /// Selects engagement action based on activity level and configured action weights
     /// </summary>
-    private static int SelectEngagementAction(double activityLevel, Random random, bool botMentioned = false)
+    private int SelectEngagementAction(double activityLevel, bool botMentioned = false)
     {
         // When bot is mentioned in context, 90% chance of adaptive response
         if (botMentioned)
         {
-            var mentionActions = new[] { 7, 7, 7, 7, 7, 7, 7, 7, 7, 5 }; // 90% adaptive response, 10% increase engagement
-            return mentionActions[random.Next(mentionActions.Length)];
+            return Random.Shared.NextDouble() < 0.9 ? 7 : 5; // 90% adaptive, 10% increase engagement
         }
 
-        // HIGH ACTIVITY (>=1.5): Chat is very active - heavily favor adaptive responses
+        // Get weights from configuration
+        var weights = _initiativeOptions.ActionWeights;
+
+        // Adjust weights based on activity level
+        var adjustedWeights = new Dictionary<int, float>
+        {
+            { 0, weights.StartTopic },        // StartTopic
+            { 1, weights.AskQuestion },       // AskQuestion
+            { 2, weights.ShareInteresting },  // ShareInteresting
+            { 3, weights.ShareFunny },        // ShareFunny
+            { 4, weights.ShareUseful },       // ShareUseful
+            { 5, weights.IncreaseEngagement },// IncreaseEngagement
+            { 6, weights.ShareOpinion },      // ShareOpinion
+            { 7, weights.AdaptiveResponse }   // AdaptiveResponse
+        };
+
+        // Adjust weights based on activity level
         if (activityLevel >= 1.5)
         {
-            var highActivityActions = new[] { 7, 7, 7, 7, 7, 7, 7, 7, 5, 6, 1, 7 }; // 75% adaptive response, 25% other actions
-            return highActivityActions[random.Next(highActivityActions.Length)];
+            // High activity: strongly favor adaptive responses, reduce topic starters
+            adjustedWeights[7] *= 2.0f;  // Double adaptive weight
+            adjustedWeights[0] *= 0.2f;  // Reduce topic starters
+            adjustedWeights[2] *= 0.5f;  // Reduce sharing
+            adjustedWeights[4] *= 0.3f;  // Reduce useful tips
         }
-
-        // MODERATE-HIGH ACTIVITY (>=1.0): Good activity - favor adaptive with some variety
-        if (activityLevel >= 1.0)
+        else if (activityLevel >= 1.0)
         {
-            var moderateHighActions = new[] { 7, 7, 7, 7, 7, 7, 7, 5, 6, 1, 3, 7 }; // 66% adaptive, 34% other
-            return moderateHighActions[random.Next(moderateHighActions.Length)];
+            // Moderate-high activity: favor adaptive
+            adjustedWeights[7] *= 1.5f;
+            adjustedWeights[0] *= 0.5f;
         }
-
-        // MODERATE ACTIVITY (>=0.7): Normal activity - balanced but adaptive-heavy
-        if (activityLevel >= 0.7)
+        else if (activityLevel < 0.5)
         {
-            var moderateActions = new[] { 7, 7, 7, 7, 7, 7, 1, 5, 6, 0, 3, 7 }; // 58% adaptive, 42% other
-            return moderateActions[random.Next(moderateActions.Length)];
+            // Low activity: favor topic starters and engagement boosters
+            adjustedWeights[0] *= 1.5f;  // More topic starters
+            adjustedWeights[5] *= 1.5f;  // More engagement
+            adjustedWeights[1] *= 1.3f;  // More questions
+            adjustedWeights[7] *= 0.7f;  // Less adaptive (nothing to adapt to)
         }
 
-        // LOW ACTIVITY (<0.7): Chat is quiet - still favor adaptive but mix with topic starters
-        var lowActivityActions = new[] { 7, 7, 7, 7, 7, 0, 0, 2, 6, 1, 4, 7 }; // 50% adaptive, 50% topic starters and engagement
-        return lowActivityActions[random.Next(lowActivityActions.Length)];
+        // Calculate total weight
+        var totalWeight = adjustedWeights.Values.Sum();
+
+        // Random selection based on weights using thread-safe Random.Shared
+        var roll = Random.Shared.NextDouble() * totalWeight;
+        var cumulative = 0f;
+
+        foreach (var kvp in adjustedWeights)
+        {
+            cumulative += kvp.Value;
+            if (roll <= cumulative)
+            {
+                return kvp.Key;
+            }
+        }
+
+        // Fallback to adaptive response
+        return 7;
     }
 
     /// <summary>

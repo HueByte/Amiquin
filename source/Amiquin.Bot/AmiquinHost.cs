@@ -7,6 +7,7 @@ using Amiquin.Core.Options;
 using Amiquin.Core.Services.ChatContext;
 using Amiquin.Core.Services.CommandHandler;
 using Amiquin.Core.Services.Configuration;
+using Amiquin.Core.Services.Embeddings;
 using Amiquin.Core.Services.EventHandler;
 using Amiquin.Core.Services.Nsfw;
 using Amiquin.Core.Utilities;
@@ -32,7 +33,6 @@ public class AmiquinHost : IHostedService
     private readonly ICommandHandlerService _commandHandlerService;
     private readonly IServiceScopeFactory _serviceScopeFactory;
     private readonly BotOptions _botOptions;
-    private readonly ExternalOptions _externalOptions;
     private readonly DiscordOptions _discordOptions;
     private readonly VoiceOptions _voiceOptions;
     private readonly DataPathOptions _dataPathOptions;
@@ -49,7 +49,6 @@ public class AmiquinHost : IHostedService
         IOptions<BotOptions> botOptions,
         ICommandHandlerService commandHandlerService,
         IServiceScopeFactory serviceScopeFactory,
-        IOptions<ExternalOptions> externalOptions,
         IOptions<DiscordOptions> discordOptions,
         IOptions<VoiceOptions> voiceOptions,
         IOptions<DataPathOptions> dataPathOptions,
@@ -64,7 +63,6 @@ public class AmiquinHost : IHostedService
         _commandHandlerService = commandHandlerService;
         _botOptions = botOptions.Value;
         _serviceScopeFactory = serviceScopeFactory;
-        _externalOptions = externalOptions.Value;
         _discordOptions = discordOptions.Value;
         _voiceOptions = voiceOptions.Value;
         _dataPathOptions = dataPathOptions.Value;
@@ -77,6 +75,7 @@ public class AmiquinHost : IHostedService
     {
         await CreateDatabaseAsync();
         await InitializeQdrantAsync();
+        await ValidateEmbeddingProviderAsync();
         await _commandHandlerService.InitializeAsync();
 
         // Initialize configuration interaction handlers with scoped service
@@ -187,13 +186,56 @@ public class AmiquinHost : IHostedService
         }
     }
 
+    private async Task ValidateEmbeddingProviderAsync()
+    {
+        if (!_memoryOptions.Enabled)
+        {
+            _logger.LogInformation("Memory system is disabled, skipping embedding provider validation");
+            return;
+        }
+
+        using var scope = _serviceScopeFactory.CreateScope();
+        var embeddingProvider = scope.ServiceProvider.GetRequiredService<IEmbeddingProvider>();
+        var embeddingOptions = scope.ServiceProvider.GetRequiredService<IOptions<EmbeddingOptions>>().Value;
+
+        _logger.LogInformation("Validating embedding provider '{ProviderId}' (configured: {ConfiguredProvider})",
+            embeddingProvider.ProviderId, embeddingOptions.Provider);
+
+        var isAvailable = await embeddingProvider.IsAvailableAsync();
+
+        if (!isAvailable)
+        {
+            var errorMessage = $"Embedding provider '{embeddingProvider.ProviderId}' is not available. " +
+                              $"Memory features require a working embedding provider. " +
+                              $"Please check your configuration and ensure the provider is running.";
+
+            _logger.LogCritical(errorMessage);
+
+            if (embeddingOptions.Provider.Equals("ollama", StringComparison.OrdinalIgnoreCase))
+            {
+                _logger.LogError("Ollama provider is configured but not available. " +
+                               "Ensure Ollama is running at {BaseUrl} and the model '{Model}' is pulled.",
+                    embeddingOptions.Ollama.BaseUrl, embeddingOptions.Ollama.Model);
+            }
+            else if (embeddingOptions.Provider.Equals("openai", StringComparison.OrdinalIgnoreCase))
+            {
+                _logger.LogError("OpenAI provider is configured but not available. " +
+                               "Ensure your OpenAI API key is valid and configured correctly.");
+            }
+
+            throw new InvalidOperationException(errorMessage);
+        }
+
+        _logger.LogInformation("Embedding provider '{ProviderId}' validated successfully (dimension: {Dimension})",
+            embeddingProvider.ProviderId, embeddingProvider.EmbeddingDimension);
+    }
+
     private void DisplayData()
     {
         if (_botOptions.PrintLogo)
             Console.Writer.WriteLogo();
 
         Console.Writer.WriteJsonData("Bot Options", _botOptions);
-        Console.Writer.WriteJsonData("External Options", _externalOptions);
         Console.Writer.WriteJsonData("Discord Options", _discordOptions);
         Console.Writer.WriteJsonData("Voice Options", _voiceOptions);
         Console.Writer.WriteJsonData("Data Path Options", _dataPathOptions);

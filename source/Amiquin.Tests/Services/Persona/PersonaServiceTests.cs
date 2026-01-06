@@ -1,9 +1,7 @@
 using Amiquin.Core;
 using Amiquin.Core.Options;
-using Amiquin.Core.Services.ApiClients;
 using Amiquin.Core.Services.BotContext;
 using Amiquin.Core.Services.Chat;
-using Amiquin.Core.Services.Chat.Providers;
 using Amiquin.Core.Services.MessageCache;
 using Amiquin.Core.Services.Meta;
 using Amiquin.Core.Services.Persona;
@@ -21,7 +19,6 @@ public class PersonaServiceTests : IDisposable
     private readonly Mock<ILogger<PersonaService>> _mockLogger;
     private readonly Mock<IMessageCacheService> _mockMessageCacheService;
     private readonly Mock<IChatCoreService> _mockCoreChatService;
-    private readonly Mock<INewsApiClient> _mockNewsApiClient;
     private readonly Mock<IChatSemaphoreManager> _mockChatSemaphoreManager;
     private readonly Mock<IServerMetaService> _mockServerMetaService;
     private readonly BotContextAccessor _botContextAccessor;
@@ -36,7 +33,6 @@ public class PersonaServiceTests : IDisposable
         _mockLogger = new Mock<ILogger<PersonaService>>();
         _mockMessageCacheService = new Mock<IMessageCacheService>();
         _mockCoreChatService = new Mock<IChatCoreService>();
-        _mockNewsApiClient = new Mock<INewsApiClient>();
         _mockChatSemaphoreManager = new Mock<IChatSemaphoreManager>();
         _mockServerMetaService = new Mock<IServerMetaService>();
         // Use real instance instead of mock - BotContextAccessor has complex constructor that can't be mocked
@@ -62,7 +58,6 @@ public class PersonaServiceTests : IDisposable
             _mockLogger.Object,
             _mockMessageCacheService.Object,
             _mockCoreChatService.Object,
-            _mockNewsApiClient.Object,
             _memoryCache,
             _mockChatSemaphoreManager.Object,
             _mockServerMetaService.Object,
@@ -86,10 +81,6 @@ public class PersonaServiceTests : IDisposable
         _mockServerMetaService
             .Setup(s => s.GetServerMetaAsync(serverId))
             .ReturnsAsync(serverMeta);
-
-        _mockCoreChatService
-            .Setup(c => c.CoreRequestAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string>()))
-            .ReturnsAsync(new ChatCompletionResponse { Content = "Mood-based persona addition" });
 
         // Act
         var result = await _personaService.GetPersonaAsync(serverId);
@@ -118,10 +109,6 @@ public class PersonaServiceTests : IDisposable
         _mockServerMetaService
             .Setup(s => s.GetServerMetaAsync(serverId))
             .ReturnsAsync(serverMeta);
-
-        _mockCoreChatService
-            .Setup(c => c.CoreRequestAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string>()))
-            .ReturnsAsync(new ChatCompletionResponse { Content = "Mood-based persona addition" });
 
         // Act
         var result = await _personaService.GetPersonaAsync(serverId);
@@ -174,10 +161,6 @@ public class PersonaServiceTests : IDisposable
             .Setup(s => s.GetServerMetaAsync(serverId))
             .ReturnsAsync(serverMeta);
 
-        _mockCoreChatService
-            .Setup(c => c.CoreRequestAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string>()))
-            .ReturnsAsync(new ChatCompletionResponse { Content = "Mood content" });
-
         // Act
         var result = await _personaService.GetPersonaAsync(serverId);
 
@@ -199,10 +182,6 @@ public class PersonaServiceTests : IDisposable
         var serverMeta = new Core.Models.ServerMeta { Id = serverId, Persona = null };
         _mockServerMetaService.Setup(s => s.GetServerMetaAsync(serverId)).ReturnsAsync(serverMeta);
 
-        _mockCoreChatService
-            .Setup(c => c.CoreRequestAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string>()))
-            .ReturnsAsync(new ChatCompletionResponse { Content = $"{_botOptions.Name} just received some news..." });
-
         // Act
         var result = await _personaService.GetPersonaAsync(serverId);
 
@@ -221,10 +200,6 @@ public class PersonaServiceTests : IDisposable
 
         var serverMeta = new Core.Models.ServerMeta { Id = serverId, Persona = null };
         _mockServerMetaService.Setup(s => s.GetServerMetaAsync(serverId)).ReturnsAsync(serverMeta);
-
-        _mockCoreChatService
-            .Setup(c => c.CoreRequestAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string>()))
-            .ReturnsAsync(new ChatCompletionResponse { Content = $"{_botOptions.Name} fallback news content..." });
 
         // Act
         var result = await _personaService.GetPersonaAsync(serverId);
@@ -265,10 +240,6 @@ public class PersonaServiceTests : IDisposable
         var serverMeta = new Core.Models.ServerMeta { Id = serverId, Persona = "Server persona" };
         _mockServerMetaService.Setup(s => s.GetServerMetaAsync(serverId)).ReturnsAsync(serverMeta);
 
-        _mockCoreChatService
-            .Setup(c => c.CoreRequestAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string>()))
-            .ReturnsAsync(new ChatCompletionResponse { Content = "Generated mood content" });
-
         // Act
         await _personaService.AddSummaryAsync(serverId, summaryMessage);
 
@@ -290,35 +261,11 @@ public class PersonaServiceTests : IDisposable
         var serverMeta = new Core.Models.ServerMeta { Id = serverId, Persona = null };
         _mockServerMetaService.Setup(s => s.GetServerMetaAsync(serverId)).ReturnsAsync(serverMeta);
 
-        _mockCoreChatService
-            .Setup(c => c.CoreRequestAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string>()))
-            .ReturnsAsync(new ChatCompletionResponse { Content = "Test mood content" });
-
         // Act
         await _personaService.GetPersonaAsync(serverId);
 
         // Assert - Verify the semaphore manager was called to get/create the semaphore
         _mockChatSemaphoreManager.Verify(m => m.GetOrCreateInstanceSemaphore(serverId), Times.Once);
-    }
-
-    [Fact]
-    public async Task GetPersonaAsync_WithNewsApiFailure_HandlesCategorError()
-    {
-        // Arrange
-        var serverId = 12345UL;
-        var serverMeta = new Core.Models.ServerMeta { Id = serverId, Persona = null };
-
-        _mockServerMetaService.Setup(s => s.GetServerMetaAsync(serverId)).ReturnsAsync(serverMeta);
-        _mockNewsApiClient.Setup(n => n.GetNewsAsync()).ThrowsAsync(new HttpRequestException("News API failed"));
-
-        // Act
-        var result = await _personaService.GetPersonaAsync(serverId);
-
-        // Assert
-        Assert.NotNull(result);
-        // Should contain fallback content when news fails
-        Assert.Contains("TestAmiquin", result);
-        // Should not throw exception, should handle gracefully
     }
 
     [Fact]
@@ -333,9 +280,6 @@ public class PersonaServiceTests : IDisposable
 
         var serverMeta = new Core.Models.ServerMeta { Id = serverId, Persona = null };
         _mockServerMetaService.Setup(s => s.GetServerMetaAsync(serverId)).ReturnsAsync(serverMeta);
-
-        // Note: NewsApiClient is not mocked to return news, so mood processing returns fallback message
-        // The service catches the null/empty news and returns Constants.SystemDefaults.NewsMoodNotAvailableMessage
 
         // Act
         var result = await _personaService.GetPersonaAsync(serverId);

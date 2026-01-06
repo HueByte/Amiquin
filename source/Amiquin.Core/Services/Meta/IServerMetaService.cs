@@ -60,4 +60,14 @@ public interface IServerMetaService
     /// <returns>The newly created or existing server metadata.</returns>
     /// <exception cref="ArgumentException">Thrown when the server ID is zero.</exception>
     Task<Models.ServerMeta> CreateServerMetaAsync(ulong serverId, string serverName);
+
+    /// <summary>
+    /// Retrieves existing server metadata or creates new metadata if it doesn't exist.
+    /// This is the preferred method for most use cases as it doesn't require an interaction context.
+    /// </summary>
+    /// <param name="serverId">The Discord server ID.</param>
+    /// <param name="serverName">Optional server name, used when creating new metadata.</param>
+    /// <returns>The existing or newly created server metadata.</returns>
+    /// <exception cref="ArgumentException">Thrown when the server ID is zero.</exception>
+    Task<Models.ServerMeta> GetOrCreateServerMetaAsync(ulong serverId, string? serverName = null);
 }

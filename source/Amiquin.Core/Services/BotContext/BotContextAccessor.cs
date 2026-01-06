@@ -11,7 +11,7 @@ namespace Amiquin.Core.Services.BotContext;
 /// </summary>
 public class BotContextAccessor : IDisposable
 {
-    private static readonly ConcurrentDictionary<string, object> _contextData = new();
+    private readonly ConcurrentDictionary<string, object> _contextData = new();
     private readonly ILogger<BotContextAccessor>? _logger;
     private readonly object _lock = new();
     private readonly Timer _timeoutTimer;
@@ -23,12 +23,12 @@ public class BotContextAccessor : IDisposable
     /// <summary>
     /// Gets the bot name from configuration or uses default value.
     /// </summary>
-    public string BotName { get; private set; } = Constants.DefaultValues.BotName;
+    public string BotName { get; private set; } = "Amiquin";
 
     /// <summary>
     /// Gets the bot version from configuration or uses default value.
     /// </summary>
-    public string BotVersion { get; private set; } = Constants.DefaultValues.BotVersion;
+    public string BotVersion { get; private set; } = "Unknown";
 
     /// <summary>
     /// Gets the unique identifier for this context instance.
@@ -129,8 +129,8 @@ public class BotContextAccessor : IDisposable
             ServerMeta = serverMeta;
 
             // Load configuration values with fallback to defaults
-            BotName = config.GetValue<string>(Constants.Environment.BotName) ?? Constants.DefaultValues.BotName;
-            BotVersion = config.GetValue<string>(Constants.Environment.BotVersion) ?? Constants.DefaultValues.BotVersion;
+            BotName = config.GetValue<string>("Bot:Name") ?? "Amiquin";
+            BotVersion = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "Unknown";
 
             _logger?.LogDebug("Initialized BotContextAccessor {ContextId} for server {ServerId} ({ServerName})",
                 ContextId, ServerId, serverMeta.ServerName);
@@ -156,7 +156,14 @@ public class BotContextAccessor : IDisposable
             _isFinished = true;
 
             // Stop the timeout timer since we've finished normally
-            _timeoutTimer?.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+            try
+            {
+                _timeoutTimer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+            }
+            catch (ObjectDisposedException)
+            {
+                // If the timer is already disposed, we can safely ignore.
+            }
 
             _logger?.LogDebug("Finished BotContextAccessor {ContextId} execution in {ExecutionTime}ms",
                 ContextId, ExecutionTimeMs);
@@ -226,8 +233,7 @@ public class BotContextAccessor : IDisposable
         if (_disposed) throw new ObjectDisposedException(GetType().Name);
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
 
-        var contextKey = $"{ContextId}:{key}";
-        _contextData.AddOrUpdate(contextKey, value, (_, _) => value);
+        _contextData.AddOrUpdate(key, value, (_, _) => value);
 
         _logger?.LogTrace("Set context data {Key} for context {ContextId}", key, ContextId);
     }
@@ -243,8 +249,7 @@ public class BotContextAccessor : IDisposable
         if (_disposed) throw new ObjectDisposedException(GetType().Name);
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
 
-        var contextKey = $"{ContextId}:{key}";
-        if (_contextData.TryGetValue(contextKey, out var value) && value is T typedValue)
+        if (_contextData.TryGetValue(key, out var value) && value is T typedValue)
         {
             return typedValue;
         }
@@ -287,20 +292,16 @@ public class BotContextAccessor : IDisposable
         {
             if (_disposed) return;
 
-            // Dispose timer first
-            _timeoutTimer?.Dispose();
-
-            // Clean up context-specific data
-            var keysToRemove = _contextData.Keys.Where(k => k.StartsWith($"{ContextId}:")).ToList();
-            foreach (var key in keysToRemove)
-            {
-                _contextData.TryRemove(key, out _);
-            }
-
             if (!_isFinished)
             {
                 Finish();
             }
+
+            // Clean up context data
+            _contextData.Clear();
+
+            // Dispose timer after finishing (Finish stops the timer)
+            _timeoutTimer.Dispose();
 
             _disposed = true;
             _logger?.LogTrace("Disposed BotContextAccessor {ContextId} after {ExecutionTime}ms",
@@ -310,11 +311,4 @@ public class BotContextAccessor : IDisposable
         GC.SuppressFinalize(this);
     }
 
-    /// <summary>
-    /// Finalizer to ensure cleanup if Dispose is not called.
-    /// </summary>
-    ~BotContextAccessor()
-    {
-        Dispose();
-    }
 }

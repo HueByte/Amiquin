@@ -8,11 +8,13 @@ using Amiquin.Core.Services.Memory;
 using Amiquin.Core.Services.MessageCache;
 using Amiquin.Core.Services.Meta;
 using Amiquin.Core.Services.SessionManager;
+using Amiquin.Core.Services.WebSearch;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Collections.Concurrent;
 using System.Text;
+using System.Text.Json;
 
 namespace Amiquin.Core.Services.Chat;
 
@@ -28,8 +30,10 @@ public class PersonaChatService : IPersonaChatService
     private readonly IMemoryService _memoryService;
     private readonly ISessionManagerService _sessionManager;
     private readonly IServiceProvider _serviceProvider;
+    private readonly IWebSearchService? _webSearchService;
     private readonly BotOptions _botOptions;
     private readonly MemoryOptions _memoryOptions;
+    private readonly ChatOptions _chatOptions;
 
     // Semaphores to prevent duplicate requests per instance
     private static readonly ConcurrentDictionary<ulong, SemaphoreSlim> _instanceSemaphores = new();
@@ -54,7 +58,8 @@ public class PersonaChatService : IPersonaChatService
         ISessionManagerService sessionManager,
         IServiceProvider serviceProvider,
         IOptions<BotOptions> botOptions,
-        IOptions<MemoryOptions> memoryOptions)
+        IOptions<MemoryOptions> memoryOptions,
+        IOptions<ChatOptions> chatOptions)
     {
         _logger = logger;
         _coreChatService = coreChatService;
@@ -63,8 +68,10 @@ public class PersonaChatService : IPersonaChatService
         _memoryService = memoryService;
         _sessionManager = sessionManager;
         _serviceProvider = serviceProvider;
+        _webSearchService = serviceProvider.GetService<IWebSearchService>();
         _botOptions = botOptions.Value;
         _memoryOptions = memoryOptions.Value;
+        _chatOptions = chatOptions.Value;
     }
 
     public async Task<string> ChatAsync(ulong instanceId, ulong userId, ulong botId, string message)
@@ -144,19 +151,36 @@ public class PersonaChatService : IPersonaChatService
             _logger.LogInformation("Using provider {Provider} with model {Model} for instance {InstanceId}",
                 provider ?? "default", model ?? "default", instanceId);
 
-            // 6. Combine session context with memory context
-            var combinedContext = CombineContexts(sessionContext, memoryContext);
-
-            // 7. Send to LLM with fallback support
-            // Pass session ID for prompt cache optimization (Grok uses x-grok-conv-id header)
-            var response = await _coreChatService.ChatAsync(
-                instanceId,
-                messages,
-                customPersona: serverPersona,
-                sessionContext: combinedContext,
-                sessionId: sessionId,
-                provider: provider,
-                model: model);
+            // 6. Execute ReAct reasoning loop if enabled and message qualifies
+            ChatCompletionResponse response;
+            if (ShouldUseReActReasoning(message))
+            {
+                response = await ExecuteReActLoopAsync(
+                    instanceId,
+                    messages,
+                    serverPersona,
+                    sessionContext,
+                    memoryContext,
+                    sessionId,
+                    provider,
+                    model,
+                    userId);
+            }
+            else
+            {
+                // 7. Send to LLM with cache-optimized message ordering
+                // Memory context is APPENDED (not in system message) to maximize prompt cache hits
+                // OpenAI/Grok cache from the left, so: system + persona + session context = cached prefix
+                response = await _coreChatService.ChatWithMemoryContextAsync(
+                    instanceId,
+                    messages,
+                    customPersona: serverPersona,
+                    sessionContext: sessionContext,
+                    memoryContext: memoryContext,
+                    sessionId: sessionId,
+                    provider: provider,
+                    model: model);
+            }
 
             // 8. Store the exchange
             await StoreMessageExchangeAsync(instanceId, userId, botId, message, response.Content);
@@ -172,7 +196,7 @@ public class PersonaChatService : IPersonaChatService
             };
             var conversationMessages = messages.Skip(Math.Max(0, messages.Count - 6)).ToList(); // Last 6 messages for context
             conversationMessages.Add(assistantMessage);
-            
+
             _ = Task.Run(async () =>
             {
                 try
@@ -188,8 +212,8 @@ public class PersonaChatService : IPersonaChatService
             // 10. Log comprehensive token usage
             LogTokenUsage(instanceId, response, provider);
 
-            // 11. Check if optimization is needed
-            if (response.TotalTokens.HasValue && response.TotalTokens > _botOptions.MaxTokens * 0.4)
+            // 11. Check if optimization is needed (triggered at configured threshold, default 80%)
+            if (response.TotalTokens.HasValue && response.TotalTokens > _botOptions.ConversationTokenLimit * _botOptions.HistoryOptimizationThreshold)
             {
                 _logger.LogInformation("Token limit approaching for instance {InstanceId}, triggering optimization", instanceId);
                 await OptimizeHistoryAsync(instanceId, messages, sessionContext);
@@ -284,6 +308,511 @@ public class PersonaChatService : IPersonaChatService
         var session = await chatSessionService.GetOrCreateServerSessionAsync(instanceId);
 
         return (serverPersona, session.Context);
+    }
+
+    /// <summary>
+    /// Determines if ReAct reasoning should be used for this message.
+    /// </summary>
+    private bool ShouldUseReActReasoning(string message)
+    {
+        if (!_chatOptions.ReAct.Enabled)
+            return false;
+
+        // Skip short messages (greetings, simple reactions)
+        if (message.Length < _chatOptions.ReAct.MinMessageLengthForReasoning)
+            return false;
+
+        return true;
+    }
+
+    /// <summary>
+    /// Executes the ReAct (Reason-Act-Think) loop for enhanced conversation handling.
+    /// This is a lightweight but impressive reasoning process designed for conversation bots.
+    /// </summary>
+    private async Task<ChatCompletionResponse> ExecuteReActLoopAsync(
+        ulong instanceId,
+        List<SessionMessage> messages,
+        string? serverPersona,
+        string? sessionContext,
+        string? memoryContext,
+        string sessionId,
+        string? provider,
+        string? model,
+        ulong userId)
+    {
+        var reactConfig = _chatOptions.ReAct;
+        var reasoning = new ReActReasoning();
+        var lastUserMessage = messages.LastOrDefault(m => m.Role == "user")?.Content ?? string.Empty;
+
+        _logger.LogDebug("Starting ReAct loop for instance {InstanceId}, max iterations: {MaxIterations}",
+            instanceId, reactConfig.MaxIterations);
+
+        // ReAct Loop - enhanced version with multiple actions and self-reflection
+        for (int iteration = 0; iteration < reactConfig.MaxIterations; iteration++)
+        {
+            // THINK: Analyze the situation
+            var thoughtPrompt = BuildThoughtPrompt(lastUserMessage, memoryContext, iteration, reasoning, messages);
+
+            var thoughtResponse = await _coreChatService.CoreRequestAsync(
+                thoughtPrompt,
+                customPersona: null, // No persona for reasoning
+                tokenLimit: reactConfig.ReasoningTokenLimit,
+                provider: provider);
+
+            var thought = ParseThought(thoughtResponse.Content);
+            reasoning.Thoughts.Add(thought);
+
+            if (reactConfig.LogReasoningTrace)
+            {
+                _logger.LogDebug("ReAct [{Iteration}/{Max}] Action: {Action} | Confidence: {Confidence:P0} | Analysis: {Analysis}",
+                    iteration + 1, reactConfig.MaxIterations, thought.Action, thought.Confidence, thought.Analysis);
+            }
+
+            // Check if we're confident enough to respond
+            if (thought.Action == ReActAction.Respond && thought.Confidence >= reactConfig.ConfidenceThreshold)
+            {
+                reasoning.FinalAction = "respond_confident";
+                reasoning.FinalConfidence = thought.Confidence;
+                break;
+            }
+
+            // ACT: Execute the decided action
+            switch (thought.Action)
+            {
+                case ReActAction.Respond:
+                    // Low confidence respond - continue reasoning if we have iterations left
+                    if (iteration < reactConfig.MaxIterations - 1 && thought.Confidence < reactConfig.ConfidenceThreshold)
+                    {
+                        reasoning.Observations.Add($"Low confidence ({thought.Confidence:P0}), continuing analysis...");
+                        continue;
+                    }
+                    reasoning.FinalAction = "respond";
+                    reasoning.FinalConfidence = thought.Confidence;
+                    goto LoopComplete;
+
+                case ReActAction.RecallMemory:
+                    // Try to get more specific memories
+                    if (reactConfig.UseMemoriesInReasoning && !string.IsNullOrEmpty(thought.ActionTarget))
+                    {
+                        var additionalMemories = await _memoryService.GetCombinedMemoryContextAsync(
+                            sessionId, userId, instanceId, thought.ActionTarget);
+                        if (!string.IsNullOrWhiteSpace(additionalMemories))
+                        {
+                            memoryContext = string.IsNullOrWhiteSpace(memoryContext)
+                                ? additionalMemories
+                                : $"{memoryContext}\n\n[Additional context for '{thought.ActionTarget}']\n{additionalMemories}";
+                            reasoning.Observations.Add($"Found memories about: {thought.ActionTarget}");
+                        }
+                        else
+                        {
+                            reasoning.Observations.Add($"No memories found for: {thought.ActionTarget}");
+                        }
+                    }
+                    break;
+
+                case ReActAction.AnalyzeContext:
+                    // Deeper analysis of conversation context
+                    var contextAnalysis = AnalyzeConversationContext(messages, thought.ActionTarget);
+                    reasoning.Observations.Add($"Context analysis: {contextAnalysis}");
+                    break;
+
+                case ReActAction.ConsiderTone:
+                    // Analyze the appropriate tone for response
+                    var toneAnalysis = AnalyzeTone(lastUserMessage, messages);
+                    reasoning.Observations.Add($"Tone consideration: {toneAnalysis}");
+                    reasoning.SuggestedTone = toneAnalysis;
+                    break;
+
+                case ReActAction.Reflect:
+                    // Self-reflection on reasoning so far
+                    if (reactConfig.EnableSelfReflection && reasoning.Thoughts.Count > 1)
+                    {
+                        var reflection = await PerformSelfReflectionAsync(reasoning, lastUserMessage, provider);
+                        reasoning.Observations.Add($"Reflection: {reflection}");
+                    }
+                    break;
+
+                case ReActAction.Clarify:
+                    // Note what needs clarification (we don't interrupt the conversation)
+                    reasoning.Observations.Add($"Clarification needed: {thought.ActionTarget}");
+                    reasoning.NeedsClarification = true;
+                    reasoning.ClarificationTopic = thought.ActionTarget;
+                    break;
+
+                case ReActAction.WebSearch:
+                    // Perform web search for real-time information
+                    if (_webSearchService != null && !string.IsNullOrEmpty(thought.ActionTarget))
+                    {
+                        _logger.LogDebug("Performing web search for: {Query}", thought.ActionTarget);
+                        var searchResult = await _webSearchService.SearchAsync(thought.ActionTarget, maxResults: 3);
+
+                        if (searchResult.Success && searchResult.Items.Any())
+                        {
+                            var searchSummary = string.Join("\n", searchResult.Items.Select((item, idx) =>
+                                $"{idx + 1}. {item.Title}: {item.Snippet}"));
+                            reasoning.Observations.Add($"Web search results for '{thought.ActionTarget}':\n{searchSummary}");
+                            _logger.LogInformation("Web search completed, found {Count} results", searchResult.Items.Count);
+                        }
+                        else
+                        {
+                            reasoning.Observations.Add($"Web search for '{thought.ActionTarget}' returned no results");
+                            _logger.LogWarning("Web search failed or returned no results: {Error}", searchResult.ErrorMessage);
+                        }
+                    }
+                    else if (_webSearchService == null)
+                    {
+                        reasoning.Observations.Add("Web search requested but service not available");
+                        _logger.LogWarning("Web search requested but IWebSearchService is not configured");
+                    }
+                    break;
+
+                default:
+                    // Unknown action, proceed to respond
+                    reasoning.FinalAction = "respond";
+                    goto LoopComplete;
+            }
+        }
+
+    LoopComplete:
+
+        // If we exhausted iterations without deciding, default to respond
+        if (string.IsNullOrEmpty(reasoning.FinalAction))
+        {
+            reasoning.FinalAction = "respond_exhausted";
+            reasoning.FinalConfidence = reasoning.Thoughts.LastOrDefault()?.Confidence ?? 0.5f;
+        }
+
+        if (reactConfig.LogReasoningTrace)
+        {
+            _logger.LogInformation(
+                "ReAct completed for instance {InstanceId} | Iterations: {ThoughtCount} | Final: {FinalAction} | Confidence: {Confidence:P0}",
+                instanceId, reasoning.Thoughts.Count, reasoning.FinalAction, reasoning.FinalConfidence);
+        }
+
+        // Build enriched context from reasoning
+        var enrichedMemoryContext = BuildEnrichedContext(memoryContext, reasoning);
+
+        // Use cache-optimized method for final response
+        return await _coreChatService.ChatWithMemoryContextAsync(
+            instanceId,
+            messages,
+            customPersona: serverPersona,
+            sessionContext: sessionContext,
+            memoryContext: enrichedMemoryContext,
+            sessionId: sessionId,
+            provider: provider,
+            model: model);
+    }
+
+    /// <summary>
+    /// Builds the prompt for the ReAct thinking step.
+    /// </summary>
+    private string BuildThoughtPrompt(string userMessage, string? memoryContext, int iteration, ReActReasoning reasoning, List<SessionMessage> conversationHistory)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("You are a reasoning engine analyzing a conversation. Think step-by-step.");
+        sb.AppendLine();
+        sb.AppendLine($"ITERATION: {iteration + 1}/{_chatOptions.ReAct.MaxIterations}");
+        sb.AppendLine();
+        sb.AppendLine($"USER MESSAGE: \"{userMessage}\"");
+
+        // Add conversation context summary
+        if (conversationHistory.Count > 1)
+        {
+            var recentExchanges = conversationHistory
+                .TakeLast(Math.Min(6, conversationHistory.Count - 1))
+                .Select(m => $"[{m.Role}]: {(m.Content.Length > 100 ? m.Content[..100] + "..." : m.Content)}");
+            sb.AppendLine();
+            sb.AppendLine("RECENT CONVERSATION:");
+            foreach (var exchange in recentExchanges)
+            {
+                sb.AppendLine($"  {exchange}");
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(memoryContext))
+        {
+            sb.AppendLine();
+            sb.AppendLine($"AVAILABLE MEMORIES:\n{memoryContext}");
+        }
+
+        if (reasoning.Thoughts.Any())
+        {
+            sb.AppendLine();
+            sb.AppendLine("PREVIOUS REASONING:");
+            for (int i = 0; i < reasoning.Thoughts.Count; i++)
+            {
+                var t = reasoning.Thoughts[i];
+                sb.AppendLine($"  [{i + 1}] {t.Action}: {t.Analysis} (confidence: {t.Confidence:P0})");
+            }
+        }
+
+        if (reasoning.Observations.Any())
+        {
+            sb.AppendLine();
+            sb.AppendLine("OBSERVATIONS:");
+            foreach (var obs in reasoning.Observations)
+            {
+                sb.AppendLine($"  - {obs}");
+            }
+        }
+
+        sb.AppendLine();
+        sb.AppendLine("AVAILABLE ACTIONS:");
+        sb.AppendLine("  - respond: Ready to generate response (include confidence 0.0-1.0)");
+        sb.AppendLine("  - recall_memory: Search for specific memories (specify search query)");
+        sb.AppendLine("  - analyze_context: Deeper analysis of conversation flow");
+        sb.AppendLine("  - consider_tone: Determine appropriate emotional tone");
+        sb.AppendLine("  - reflect: Self-evaluate reasoning so far");
+        sb.AppendLine("  - clarify: Note something that needs user clarification");
+        sb.AppendLine();
+        sb.AppendLine("Respond with JSON:");
+        sb.AppendLine("{");
+        sb.AppendLine("  \"analysis\": \"your brief reasoning about the situation\",");
+        sb.AppendLine("  \"action\": \"respond|recall_memory|analyze_context|consider_tone|reflect|clarify\",");
+        sb.AppendLine("  \"action_target\": \"specific target for the action (search query, topic, etc.)\",");
+        sb.AppendLine("  \"confidence\": 0.0-1.0,");
+        sb.AppendLine("  \"reasoning_note\": \"optional: why you chose this action\"");
+        sb.AppendLine("}");
+
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// Analyzes conversation context for patterns and topics.
+    /// </summary>
+    private string AnalyzeConversationContext(List<SessionMessage> messages, string? focus)
+    {
+        if (messages.Count < 2)
+            return "New conversation, no established context";
+
+        var userMessages = messages.Where(m => m.Role == "user").ToList();
+        var assistantMessages = messages.Where(m => m.Role == "assistant").ToList();
+
+        var insights = new List<string>();
+
+        // Analyze conversation length
+        if (messages.Count > 10)
+            insights.Add("Extended conversation");
+        else if (messages.Count > 4)
+            insights.Add("Ongoing conversation");
+        else
+            insights.Add("Early conversation");
+
+        // Analyze question patterns
+        var questionCount = userMessages.Count(m => m.Content.Contains('?'));
+        if (questionCount > userMessages.Count / 2)
+            insights.Add("User is asking many questions");
+
+        // Analyze message lengths
+        var avgUserLength = userMessages.Any() ? userMessages.Average(m => m.Content.Length) : 0;
+        if (avgUserLength > 200)
+            insights.Add("User writes detailed messages");
+        else if (avgUserLength < 50)
+            insights.Add("User prefers brief messages");
+
+        return string.Join("; ", insights);
+    }
+
+    /// <summary>
+    /// Analyzes the appropriate tone for the response.
+    /// </summary>
+    private string AnalyzeTone(string userMessage, List<SessionMessage> messages)
+    {
+        var indicators = new List<string>();
+
+        // Check for emotional indicators
+        var lowerMessage = userMessage.ToLowerInvariant();
+
+        if (lowerMessage.Contains("lol") || lowerMessage.Contains("haha") || lowerMessage.Contains("😂") || lowerMessage.Contains(":)"))
+            indicators.Add("playful/humorous");
+        if (lowerMessage.Contains("help") || lowerMessage.Contains("please") || lowerMessage.Contains("need"))
+            indicators.Add("helpful/supportive");
+        if (lowerMessage.Contains("?") && userMessage.Length < 50)
+            indicators.Add("concise/direct");
+        if (lowerMessage.Contains("thanks") || lowerMessage.Contains("appreciate"))
+            indicators.Add("warm/friendly");
+        if (userMessage.Any(char.IsUpper) && userMessage.Count(char.IsUpper) > userMessage.Length / 3)
+            indicators.Add("enthusiastic");
+
+        if (!indicators.Any())
+            indicators.Add("neutral/conversational");
+
+        return string.Join(", ", indicators);
+    }
+
+    /// <summary>
+    /// Performs self-reflection on the reasoning process.
+    /// </summary>
+    private async Task<string> PerformSelfReflectionAsync(ReActReasoning reasoning, string userMessage, string? provider)
+    {
+        var reflectionPrompt = new StringBuilder();
+        reflectionPrompt.AppendLine("Briefly evaluate this reasoning chain (1-2 sentences):");
+        reflectionPrompt.AppendLine($"User asked: \"{userMessage}\"");
+        reflectionPrompt.AppendLine("Reasoning steps:");
+        foreach (var thought in reasoning.Thoughts)
+        {
+            reflectionPrompt.AppendLine($"  - {thought.Action}: {thought.Analysis}");
+        }
+        reflectionPrompt.AppendLine("Is this reasoning helpful? What's missing?");
+
+        try
+        {
+            var response = await _coreChatService.CoreRequestAsync(
+                reflectionPrompt.ToString(),
+                customPersona: null,
+                tokenLimit: 100,
+                provider: provider);
+
+            return response.Content.Length > 150 ? response.Content[..150] : response.Content;
+        }
+        catch
+        {
+            return "Reflection skipped due to error";
+        }
+    }
+
+    /// <summary>
+    /// Builds enriched context from reasoning observations.
+    /// </summary>
+    private string? BuildEnrichedContext(string? memoryContext, ReActReasoning reasoning)
+    {
+        var contextParts = new List<string>();
+
+        if (!string.IsNullOrWhiteSpace(memoryContext))
+        {
+            contextParts.Add(memoryContext);
+        }
+
+        // Add reasoning insights
+        if (reasoning.Observations.Any())
+        {
+            var relevantObservations = reasoning.Observations
+                .Where(o => !o.StartsWith("Low confidence"))
+                .ToList();
+
+            if (relevantObservations.Any())
+            {
+                contextParts.Add($"[Reasoning insights]\n{string.Join("\n", relevantObservations.Select(o => $"- {o}"))}");
+            }
+        }
+
+        // Add tone suggestion if determined
+        if (!string.IsNullOrEmpty(reasoning.SuggestedTone))
+        {
+            contextParts.Add($"[Suggested tone: {reasoning.SuggestedTone}]");
+        }
+
+        // Add clarification note if needed
+        if (reasoning.NeedsClarification && !string.IsNullOrEmpty(reasoning.ClarificationTopic))
+        {
+            contextParts.Add($"[Note: Consider asking about '{reasoning.ClarificationTopic}' if response is uncertain]");
+        }
+
+        return contextParts.Any() ? string.Join("\n\n", contextParts) : null;
+    }
+
+    /// <summary>
+    /// Parses the thought response from the LLM.
+    /// </summary>
+    private ReActThought ParseThought(string response)
+    {
+        try
+        {
+            // Try to extract JSON from the response
+            var jsonStart = response.IndexOf('{');
+            var jsonEnd = response.LastIndexOf('}');
+
+            if (jsonStart >= 0 && jsonEnd > jsonStart)
+            {
+                var json = response.Substring(jsonStart, jsonEnd - jsonStart + 1);
+                var options = new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                };
+                var parsed = JsonSerializer.Deserialize<ReActThoughtDto>(json, options);
+
+                if (parsed != null)
+                {
+                    return new ReActThought
+                    {
+                        Analysis = parsed.Analysis ?? "Unable to analyze",
+                        Action = ParseAction(parsed.Action),
+                        ActionTarget = parsed.ActionTarget ?? string.Empty,
+                        Confidence = Math.Clamp(parsed.Confidence ?? 0.5f, 0f, 1f),
+                        ReasoningNote = parsed.ReasoningNote
+                    };
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Failed to parse ReAct thought JSON, using fallback");
+        }
+
+        // Fallback: treat the whole response as analysis and default to respond
+        return new ReActThought
+        {
+            Analysis = response.Length > 200 ? response[..200] : response,
+            Action = ReActAction.Respond,
+            ActionTarget = string.Empty,
+            Confidence = 0.5f
+        };
+    }
+
+    private static ReActAction ParseAction(string? action)
+    {
+        return action?.ToLowerInvariant().Replace("_", "") switch
+        {
+            "recallmemory" or "memory" => ReActAction.RecallMemory,
+            "analyzecontext" or "context" or "analyze" => ReActAction.AnalyzeContext,
+            "considertone" or "tone" => ReActAction.ConsiderTone,
+            "reflect" or "selfreflect" or "evaluate" => ReActAction.Reflect,
+            "clarify" or "ask" or "question" => ReActAction.Clarify,
+            "websearch" or "search" or "web" or "lookup" or "findonline" => ReActAction.WebSearch,
+            _ => ReActAction.Respond
+        };
+    }
+
+    // ReAct support classes
+    private class ReActReasoning
+    {
+        public List<ReActThought> Thoughts { get; } = new();
+        public List<string> Observations { get; } = new();
+        public string FinalAction { get; set; } = string.Empty;
+        public float FinalConfidence { get; set; }
+        public string? SuggestedTone { get; set; }
+        public bool NeedsClarification { get; set; }
+        public string? ClarificationTopic { get; set; }
+    }
+
+    private class ReActThought
+    {
+        public string Analysis { get; set; } = string.Empty;
+        public ReActAction Action { get; set; } = ReActAction.Respond;
+        public string ActionTarget { get; set; } = string.Empty;
+        public float Confidence { get; set; } = 0.5f;
+        public string? ReasoningNote { get; set; }
+    }
+
+    private class ReActThoughtDto
+    {
+        public string? Analysis { get; set; }
+        public string? Action { get; set; }
+        public string? ActionTarget { get; set; }
+        public float? Confidence { get; set; }
+        public string? ReasoningNote { get; set; }
+    }
+
+    private enum ReActAction
+    {
+        Respond,
+        RecallMemory,
+        AnalyzeContext,
+        ConsiderTone,
+        Reflect,
+        Clarify,
+        WebSearch
     }
 
     private string? CombineContexts(string? sessionContext, string? memoryContext)
@@ -505,7 +1034,7 @@ public class PersonaChatService : IPersonaChatService
                     {
                         var sessionIdStr = instanceId.ToString();
                         await _memoryService.ExtractMemoriesFromConversationAsync(sessionIdStr, messagesToSummarize);
-                        _logger.LogDebug("Extracted memories from {Count} messages during optimization for instance {InstanceId}", 
+                        _logger.LogDebug("Extracted memories from {Count} messages during optimization for instance {InstanceId}",
                             messagesToSummarize.Count, instanceId);
                     }
                     catch (Exception ex)

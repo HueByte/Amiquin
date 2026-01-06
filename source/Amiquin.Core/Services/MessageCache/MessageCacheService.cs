@@ -2,6 +2,7 @@ using Amiquin.Core.IRepositories;
 using Amiquin.Core.Models;
 using Amiquin.Core.Options;
 using Amiquin.Core.Services.SessionManager;
+using Amiquin.Core.Utilities.Caching;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -31,7 +32,8 @@ public class MessageCacheService : IMessageCacheService
     {
         _memoryCache = memoryCache;
         _serviceScopeFactory = serviceScopeFactory;
-        int messageFetchCount = configuration.GetValue<int>(Constants.Environment.MessageFetchCount);
+        // Configuration takes precedence, then BotOptions default
+        int messageFetchCount = configuration.GetValue<int>("Bot:MessageFetchCount");
         _messageFetchCount = messageFetchCount is not 0 ? messageFetchCount : botOptions.Value.MessageFetchCount;
     }
 
@@ -58,7 +60,7 @@ public class MessageCacheService : IMessageCacheService
     /// <inheritdoc/>
     public int GetChatMessageCount(ulong serverId)
     {
-        if (_memoryCache.TryGetValue(serverId, out List<ChatMessage>? channelMessages))
+        if (_memoryCache.TryGetTypedValue(serverId, out List<ChatMessage>? channelMessages))
         {
             return channelMessages?.Count ?? 0;
         }
@@ -71,7 +73,7 @@ public class MessageCacheService : IMessageCacheService
     {
         return await _memoryCache.GetOrCreateAsync<List<ChatMessage>?>(serverId, async entry =>
         {
-            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromDays(Constants.MessageCacheDefaults.MemoryCacheExpirationDays);
+            entry.ConfigureAbsolute(TimeSpan.FromDays(Constants.MessageCacheDefaults.MemoryCacheExpirationDays));
 
             // Create a new scope to avoid DbContext concurrency issues
             using var scope = _serviceScopeFactory.CreateScope();
@@ -106,7 +108,7 @@ public class MessageCacheService : IMessageCacheService
     {
         // Get existing messages or create new list
         List<ChatMessage> chatMessages;
-        if (_memoryCache.TryGetValue(instanceId, out List<ChatMessage>? existingMessages) && existingMessages != null)
+        if (_memoryCache.TryGetTypedValue(instanceId, out List<ChatMessage>? existingMessages) && existingMessages != null)
         {
             // Update the existing cached messages with the new ones
             existingMessages.AddRange(messages);
@@ -119,7 +121,7 @@ public class MessageCacheService : IMessageCacheService
         }
 
         // Update cache with the complete message list
-        _memoryCache.Set(instanceId, chatMessages, TimeSpan.FromDays(Constants.MessageCacheDefaults.MemoryCacheExpirationDays));
+        _memoryCache.SetAbsolute(instanceId, chatMessages, TimeSpan.FromDays(Constants.MessageCacheDefaults.MemoryCacheExpirationDays));
 
         // Persist to database using a new scope to avoid concurrency issues
         using var scope = _serviceScopeFactory.CreateScope();
@@ -131,12 +133,12 @@ public class MessageCacheService : IMessageCacheService
     /// <inheritdoc/>
     public void ClearOldMessages(ulong instanceId, int range)
     {
-        if (_memoryCache.TryGetValue(instanceId, out List<ChatMessage>? serverMessages))
+        if (_memoryCache.TryGetTypedValue(instanceId, out List<ChatMessage>? serverMessages))
         {
             if (serverMessages is not null && serverMessages.Count > range)
             {
                 serverMessages.RemoveRange(0, serverMessages.Count - range);
-                _memoryCache.Set(instanceId, serverMessages, TimeSpan.FromDays(Constants.MessageCacheDefaults.MemoryCacheExpirationDays));
+                _memoryCache.SetAbsolute(instanceId, serverMessages, TimeSpan.FromDays(Constants.MessageCacheDefaults.MemoryCacheExpirationDays));
             }
         }
     }
@@ -150,19 +152,19 @@ public class MessageCacheService : IMessageCacheService
     /// <inheritdoc/>
     public void ModifyMessage(string key, string message, int minutes = Constants.MessageCacheDefaults.DefaultModifyMessageTimeoutMinutes)
     {
-        _memoryCache.Set(key, message, TimeSpan.FromMinutes(minutes));
+        _memoryCache.SetAbsolute(key, message, TimeSpan.FromMinutes(minutes));
     }
 
     private async Task<string?> GetMessageAsync(string key)
     {
-        if (_memoryCache.TryGetValue(key, out string? message))
+        if (_memoryCache.TryGetTypedValue(key, out string? message))
         {
             return message;
         }
         else if (File.Exists(Path.Join(Constants.Paths.Assets, $"{key}.md")))
         {
             message = await File.ReadAllTextAsync(Path.Join(Constants.Paths.Assets, $"{key}.md"));
-            _memoryCache.Set(key, message, TimeSpan.FromMinutes(Constants.Timeouts.MessageCacheTimeoutMinutes));
+            _memoryCache.SetAbsolute(key, message, TimeSpan.FromMinutes(Constants.Timeouts.MessageCacheTimeoutMinutes));
             return message;
         }
 

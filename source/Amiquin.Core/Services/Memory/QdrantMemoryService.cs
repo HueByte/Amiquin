@@ -1,35 +1,35 @@
 using Amiquin.Core.Configuration;
 using Amiquin.Core.IRepositories;
 using Amiquin.Core.Models;
+using Amiquin.Core.Services.Embeddings;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using OpenAI;
-using OpenAI.Embeddings;
 using TiktokenSharp;
 
 namespace Amiquin.Core.Services.Memory;
 
 /// <summary>
-/// Qdrant-based service for managing conversation memories with vector embeddings
+/// Qdrant-based service for managing conversation memories with vector embeddings.
+/// Uses IEmbeddingProvider for model-agnostic embedding generation.
 /// </summary>
 public class QdrantMemoryService : IMemoryService
 {
     private readonly IQdrantMemoryRepository _memoryRepository;
     private readonly ILogger<QdrantMemoryService> _logger;
     private readonly MemoryOptions _options;
-    private readonly OpenAIClient? _openAIClient;
+    private readonly IEmbeddingProvider _embeddingProvider;
     private readonly TikToken _tokenizer;
 
     public QdrantMemoryService(
         IQdrantMemoryRepository memoryRepository,
         ILogger<QdrantMemoryService> logger,
         IOptions<MemoryOptions> options,
-        OpenAIClient? openAIClient = null)
+        IEmbeddingProvider embeddingProvider)
     {
         _memoryRepository = memoryRepository;
         _logger = logger;
         _options = options.Value;
-        _openAIClient = openAIClient;
+        _embeddingProvider = embeddingProvider;
         _tokenizer = TikToken.GetEncoding("cl100k_base");
     }
 
@@ -267,21 +267,27 @@ public class QdrantMemoryService : IMemoryService
 
     private async Task<float[]?> GenerateEmbeddingAsync(string text)
     {
-        if (_openAIClient == null)
+        if (!await _embeddingProvider.IsAvailableAsync())
         {
-            _logger.LogWarning("OpenAI client not available, cannot generate embeddings");
+            _logger.LogWarning("Embedding provider '{ProviderId}' not available", _embeddingProvider.ProviderId);
             return null;
         }
 
         try
         {
-            var embeddingClient = _openAIClient.GetEmbeddingClient(_options.EmbeddingModel);
-            var response = await embeddingClient.GenerateEmbeddingAsync(text);
-            return response.Value.ToFloats().ToArray();
+            var embedding = await _embeddingProvider.GenerateEmbeddingAsync(text);
+
+            if (embedding != null)
+            {
+                _logger.LogDebug("Generated embedding with {Dimension} dimensions via provider '{ProviderId}'",
+                    embedding.Length, _embeddingProvider.ProviderId);
+            }
+
+            return embedding;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to generate embedding for text");
+            _logger.LogError(ex, "Failed to generate embedding via provider '{ProviderId}'", _embeddingProvider.ProviderId);
             return null;
         }
     }

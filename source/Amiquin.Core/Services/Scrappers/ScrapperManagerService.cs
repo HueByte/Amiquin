@@ -1,4 +1,5 @@
 using Amiquin.Core.Options;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -14,15 +15,18 @@ public class ScrapperManagerService : IScrapperManagerService
     private readonly List<IDataScrapper> _dataScrapers;
     private readonly Random _random;
     private readonly ScrapperOptions _options;
+    private readonly IMemoryCache _memoryCache;
 
     public ScrapperManagerService(
         ILogger<ScrapperManagerService> logger,
         IHttpClientFactory httpClientFactory,
         ILoggerFactory loggerFactory,
+        IMemoryCache memoryCache,
         IOptions<ScrapperOptions> options)
     {
         _logger = logger;
         _options = options.Value;
+        _memoryCache = memoryCache;
         _random = new Random();
         _imageScrapers = new List<IImageScraper>();
         _dataScrapers = new List<IDataScrapper>();
@@ -31,7 +35,7 @@ public class ScrapperManagerService : IScrapperManagerService
     }
 
     public IEnumerable<IImageScraper> GetImageScrapers() => _imageScrapers.Where(s => s.IsEnabled);
-    
+
     public IEnumerable<IDataScrapper> GetDataScrapers() => _dataScrapers.Where(s => s.IsEnabled);
 
     public IImageScraper? GetImageScraper(string sourceName) =>
@@ -40,14 +44,14 @@ public class ScrapperManagerService : IScrapperManagerService
     public async Task<string[]> ScrapeGalleryImagesAsync(int count = 10, bool randomize = true, bool useCache = true)
     {
         var enabledScrapers = GetImageScrapers().ToList();
-        
+
         if (!enabledScrapers.Any())
         {
             _logger.LogWarning("No enabled image scrapers available for gallery");
             return Array.Empty<string>();
         }
 
-        _logger.LogInformation("Starting gallery scraping with {Count} scrapers for {RequestedCount} images", 
+        _logger.LogInformation("Starting gallery scraping with {Count} scrapers for {RequestedCount} images",
             enabledScrapers.Count, count);
 
         var allImageUrls = new List<string>();
@@ -60,9 +64,9 @@ public class ScrapperManagerService : IScrapperManagerService
                 // For gallery, we want to get a good variety, so let's get more images per scraper
                 // We'll get 5 random "albums" worth of content by requesting more and randomizing
                 var perScraperCount = Math.Max(5, count / enabledScrapers.Count + 5);
-                
+
                 _logger.LogDebug("Scraping {Count} images from {SourceName}", perScraperCount, scraper.SourceName);
-                
+
                 var scraperUrls = await scraper.ScrapeImagesUrlsAsync(perScraperCount, true, useCache);
                 if (scraperUrls.Length > 0)
                 {
@@ -85,20 +89,20 @@ public class ScrapperManagerService : IScrapperManagerService
         // Remove duplicates and validate
         var preDeduplicationCount = allImageUrls.Count;
         allImageUrls = allImageUrls.Distinct().ToList();
-        
+
         if (allImageUrls.Count != preDeduplicationCount)
         {
-            _logger.LogDebug("Removed {DuplicateCount} duplicate URLs across all providers, {UniqueCount} unique URLs remaining", 
+            _logger.LogDebug("Removed {DuplicateCount} duplicate URLs across all providers, {UniqueCount} unique URLs remaining",
                 preDeduplicationCount - allImageUrls.Count, allImageUrls.Count);
         }
 
         // Additional validation pass for gallery
         var preValidationCount = allImageUrls.Count;
         allImageUrls = allImageUrls.Where(url => !string.IsNullOrWhiteSpace(url) && url.Length < 2000).ToList();
-        
+
         if (allImageUrls.Count != preValidationCount)
         {
-            _logger.LogWarning("Gallery validation filtered out {FilteredCount} URLs, {RemainingCount} remaining", 
+            _logger.LogWarning("Gallery validation filtered out {FilteredCount} URLs, {RemainingCount} remaining",
                 preValidationCount - allImageUrls.Count, allImageUrls.Count);
         }
 
@@ -115,8 +119,8 @@ public class ScrapperManagerService : IScrapperManagerService
         }
 
         var result = allImageUrls.Take(count).ToArray();
-        
-        _logger.LogInformation("Gallery scraping completed: {ReturnedCount} images from {TotalScraped} total", 
+
+        _logger.LogInformation("Gallery scraping completed: {ReturnedCount} images from {TotalScraped} total",
             result.Length, allImageUrls.Count);
 
         // Final validation log for debugging
@@ -141,18 +145,18 @@ public class ScrapperManagerService : IScrapperManagerService
                 _logger.LogError(ex, "Failed to clear cache for scraper {SourceName}", scraper.SourceName);
             }
         }
-        
+
         _logger.LogInformation("Cleared caches for all scrapers");
     }
 
     private void InitializeScrapers(IHttpClientFactory httpClientFactory, ILoggerFactory loggerFactory)
     {
-        _logger.LogInformation("Initializing ScrapperManagerService with cache size: {CacheSize}, expiration: {CacheExpirationMinutes} minutes", 
+        _logger.LogInformation("Initializing ScrapperManagerService with cache size: {CacheSize}, expiration: {CacheExpirationMinutes} minutes",
             _options.CacheSize, _options.CacheExpirationMinutes);
 
         if (_options.Providers == null || _options.Providers.Length == 0)
         {
-            _logger.LogWarning("No scrapper providers configured - Providers is {ProvidersStatus}", 
+            _logger.LogWarning("No scrapper providers configured - Providers is {ProvidersStatus}",
                 _options.Providers == null ? "null" : "empty array");
             return;
         }
@@ -170,11 +174,12 @@ public class ScrapperManagerService : IScrapperManagerService
                 }
 
                 var httpClient = httpClientFactory.CreateClient($"Scrapper_{providerConfig.SourceName}");
-                
+
                 var scrapper = new ConfigurationBasedScrapper(
                     loggerFactory.CreateLogger<ConfigurationBasedScrapper>(),
                     httpClient,
                     providerConfig,
+                    _memoryCache,
                     _options.CacheSize,
                     _options.CacheExpirationMinutes);
 
@@ -185,7 +190,7 @@ public class ScrapperManagerService : IScrapperManagerService
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to initialize scrapper for provider: {SourceName}", 
+                _logger.LogError(ex, "Failed to initialize scrapper for provider: {SourceName}",
                     providerConfig.SourceName);
             }
         }

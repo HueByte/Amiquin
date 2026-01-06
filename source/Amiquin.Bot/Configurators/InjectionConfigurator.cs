@@ -8,7 +8,6 @@ using Amiquin.Core.IRepositories;
 using Amiquin.Core.Job;
 using Amiquin.Core.Options;
 using Amiquin.Core.Services.ActivitySession;
-using Amiquin.Core.Services.ApiClients;
 using Amiquin.Core.Services.BotContext;
 using Amiquin.Core.Services.BotSession;
 using Amiquin.Core.Services.Chat;
@@ -18,12 +17,13 @@ using Amiquin.Core.Services.ChatSession;
 using Amiquin.Core.Services.CommandHandler;
 using Amiquin.Core.Services.ComponentHandler;
 using Amiquin.Core.Services.Configuration;
+using Amiquin.Core.Services.Embeddings;
 using Amiquin.Core.Services.ErrorHandling;
 using Amiquin.Core.Services.EventHandler;
 using Amiquin.Core.Services.ExternalProcessRunner;
 using Amiquin.Core.Services.Fun;
-using Amiquin.Core.Services.MessageCache;
 using Amiquin.Core.Services.Memory;
+using Amiquin.Core.Services.MessageCache;
 using Amiquin.Core.Services.Meta;
 using Amiquin.Core.Services.Modal;
 using Amiquin.Core.Services.ModelProvider;
@@ -38,6 +38,7 @@ using Amiquin.Core.Services.SessionManager;
 using Amiquin.Core.Services.Sleep;
 using Amiquin.Core.Services.Toggle;
 using Amiquin.Core.Services.Voice;
+using Amiquin.Core.Services.WebSearch;
 using Amiquin.Infrastructure;
 using Amiquin.Infrastructure.Repositories;
 using Discord;
@@ -116,8 +117,7 @@ public class InjectionConfigurator
                  .AddMemoryCache();
 
         var dbOptions = _configuration.GetSection(DatabaseOptions.Database).Get<DatabaseOptions>();
-        var databaseMode = _configuration.GetValue<string>(Constants.Environment.DatabaseMode)
-            ?? dbOptions?.Mode.ToString() ?? "0";
+        var databaseMode = dbOptions?.Mode.ToString() ?? "1";
 
         var parsedDatabaseMode = GetDatabaseModeValue(databaseMode);
         switch (parsedDatabaseMode.ToLowerInvariant())
@@ -125,25 +125,25 @@ public class InjectionConfigurator
             case "sqlite":
                 _services.AddAmiquinContext(_configuration);
                 break;
-                
+
             case "mysql":
                 _services.AddAmiquinMySqlContext(_configuration);
                 break;
-                
+
             case "postgres":
                 Log.Warning("Postgres database mode is selected, but implementation is not yet available.");
                 throw new DatabaseNotImplementedException("Postgres database mode is not yet implemented.");
-                
-                // TODO: Implement Postgres context setup
-                // _services.AddAmiquinPostgresContext(_configuration);
-                
+
+            // TODO: Implement Postgres context setup
+            // _services.AddAmiquinPostgresContext(_configuration);
+
             case "mssql":
                 Log.Warning("MSSQL database mode is selected, but implementation is not yet available.");
                 throw new DatabaseNotImplementedException("MSSQL database mode is not yet implemented.");
-                
-                // TODO: Implement MSSQL context setup
-                // _services.AddAmiquinMssqlContext(_configuration);
-                
+
+            // TODO: Implement MSSQL context setup
+            // _services.AddAmiquinMssqlContext(_configuration);
+
             default:
                 throw new InvalidOperationException($"Unsupported database mode: {databaseMode}");
         }
@@ -171,12 +171,12 @@ public class InjectionConfigurator
                  .AddScoped<IPersonaChatService, PersonaChatService>()
                  .AddScoped<IFunService, FunService>()
                  .AddScoped<IVoiceService, VoiceService>()
-                 .AddScoped<INewsApiClient, NewsApiClient>()
                  .AddScoped<INsfwProvider, WaifuProvider>()
                  .AddScoped<INsfwApiService, NsfwApiService>()
                  .AddScoped<IToggleService, ToggleService>()
                  .AddScoped<BotContextAccessor>()
                  .AddSingleton<IServerMetaService, ServerMetaService>()
+                 .AddScoped<IServerContext, ServerContext>()
                  .AddScoped<INachoService, NachoService>()
                  .AddScoped<IChatSessionService, ChatSessionService>()
                  .AddScoped<IActivitySessionService, ActivitySessionService>()
@@ -185,7 +185,8 @@ public class InjectionConfigurator
                  .AddSingleton<IModelProviderMappingService, ModelProviderMappingService>()
                  .AddScoped<IMemoryService, QdrantMemoryService>()
                  .AddScoped<SessionComponentHandlers>()
-                 .AddScoped<NsfwComponentHandlers>();
+                 .AddScoped<NsfwComponentHandlers>()
+                 .AddSingleton<IWebSearchService, WebSearchService>();
 
         // Provider factory and providers for managing LLM providers
         _services.AddScoped<IChatProviderFactory, ChatProviderFactory>()
@@ -243,10 +244,31 @@ public class InjectionConfigurator
             return new OpenAIClient(openAIProvider.ApiKey);
         });
 
-        _services.AddHttpClient(typeof(INewsApiClient).Name, (services, client) =>
+        // Embedding provider - model-agnostic abstraction for generating embeddings
+        // Supports OpenAI (cloud) and Ollama (local) providers via configuration
+        _services.AddHttpClient("Ollama", (services, client) =>
         {
-            var externalUrls = services.GetRequiredService<IOptions<ExternalOptions>>().Value;
-            client.BaseAddress = new Uri(externalUrls.NewsApiUrl);
+            var embeddingOptions = services.GetRequiredService<IOptions<EmbeddingOptions>>().Value;
+            client.BaseAddress = new Uri(embeddingOptions.Ollama.BaseUrl);
+            client.Timeout = TimeSpan.FromSeconds(embeddingOptions.Ollama.TimeoutSeconds);
+        });
+
+        _services.AddScoped<IEmbeddingProvider>(services =>
+        {
+            var embeddingOptions = services.GetRequiredService<IOptions<EmbeddingOptions>>().Value;
+
+            return embeddingOptions.Provider.ToLowerInvariant() switch
+            {
+                "ollama" => new OllamaEmbeddingProvider(
+                    services.GetRequiredService<ILogger<OllamaEmbeddingProvider>>(),
+                    services.GetRequiredService<IHttpClientFactory>().CreateClient("Ollama"),
+                    embeddingOptions.Ollama),
+
+                _ => new OpenAIEmbeddingProvider(
+                    services.GetRequiredService<ILogger<OpenAIEmbeddingProvider>>(),
+                    services.GetService<OpenAIClient>(),
+                    embeddingOptions.OpenAI)
+            };
         });
 
         _services.AddHttpClient<WaifuProvider>((services, client) =>
@@ -257,7 +279,7 @@ public class InjectionConfigurator
 
         // Register scrapper manager service
         _services.AddSingleton<IScrapperManagerService, ScrapperManagerService>();
-        
+
         // Configure HTTP clients for scrapper providers - the manager will create specific clients per provider
         _services.AddHttpClient("Scrapper_Default", (services, client) =>
         {
@@ -274,7 +296,7 @@ public class InjectionConfigurator
             {
                 var currentLlmOptions = services.GetRequiredService<IOptions<LLMOptions>>().Value;
                 var currentProviderConfig = currentLlmOptions.GetProvider(providerName);
-                
+
                 if (currentProviderConfig != null && currentProviderConfig.Enabled && !string.IsNullOrEmpty(currentProviderConfig.BaseUrl))
                 {
                     client.BaseAddress = new Uri(currentProviderConfig.BaseUrl);
@@ -306,6 +328,7 @@ public class InjectionConfigurator
         _services.AddScoped<IMessageRepository, MessageRepository>()
                  .AddScoped<ISessionMessageRepository, SessionMessageRepository>()
                  .AddScoped<IToggleRepository, ToggleRepository>()
+                 .AddScoped<IGlobalToggleRepository, GlobalToggleRepository>()
                  .AddScoped<IServerMetaRepository, ServerMetaRepository>()
                  .AddScoped<INachoRepository, NachoRepository>()
                  .AddScoped<ICommandLogRepository, CommandLogRepository>()
@@ -322,7 +345,6 @@ public class InjectionConfigurator
     {
         // Main options
         _services.Configure<BotOptions>(_configuration.GetSection(BotOptions.Bot));
-        _services.Configure<ExternalOptions>(_configuration.GetSection(ExternalOptions.External));
         _services.Configure<DatabaseOptions>(_configuration.GetSection(DatabaseOptions.Database));
 
         // Configuration options
@@ -343,6 +365,15 @@ public class InjectionConfigurator
 
         // Memory configuration system
         _services.Configure<MemoryOptions>(_configuration.GetSection(MemoryOptions.Section));
+
+        // Embedding configuration system (model-agnostic)
+        _services.Configure<EmbeddingOptions>(_configuration.GetSection(EmbeddingOptions.Section));
+
+        // Initiative configuration system (deep sleep, engagement timing, etc.)
+        _services.Configure<InitiativeOptions>(_configuration.GetSection(InitiativeOptions.Section));
+
+        // Web search configuration for ReAct loop
+        _services.Configure<WebSearchOptions>(_configuration.GetSection(WebSearchOptions.SectionName));
 
         return this;
     }

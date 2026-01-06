@@ -9,10 +9,22 @@ public class BotOptions : IOption
     public string Name { get; set; } = Constants.DefaultValues.BotName;
     public bool PrintLogo { get; set; } = false;
     public int MessageFetchCount { get; set; } = 40;
-    public int MaxTokens { get; set; } = 20000;
+
+    /// <summary>
+    /// Maximum tokens per conversation before history optimization kicks in.
+    /// This is separate from model context limits - it controls when conversation
+    /// compaction triggers. Default: 40000 tokens.
+    /// </summary>
+    public int ConversationTokenLimit { get; set; } = 40000;
+
+    /// <summary>
+    /// Threshold (0.0-1.0) of ConversationTokenLimit at which history optimization is triggered.
+    /// Default: 0.8 (80% of limit triggers compaction).
+    /// </summary>
+    public float HistoryOptimizationThreshold { get; set; } = 0.8f;
 
     /// <summary>
     /// Gets the version from the assembly, not from configuration.
     /// </summary>
-    public string Version => Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? Constants.DefaultValues.UnknownValue;
+    public string Version => Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "Unknown";
 }

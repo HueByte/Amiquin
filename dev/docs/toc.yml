@@ -18,6 +18,8 @@
   href: docker-setup.md
 - name: Docker File Structure
   href: docker-file-structure.md
+- name: Docker Build Optimization
+  href: docker-build-optimization.md
 - name: Production Deployment
   href: production-deployment.md
 - name: Memory System

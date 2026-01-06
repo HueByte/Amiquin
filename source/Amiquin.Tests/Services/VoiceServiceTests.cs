@@ -18,7 +18,6 @@ public class VoiceServiceTests
     private readonly Mock<ILogger<VoiceService>> _loggerMock;
     private readonly Mock<IVoiceStateManager> _voiceStateManagerMock;
     private readonly Mock<IChatSemaphoreManager> _chatSemaphoreManagerMock;
-    private readonly Mock<IOptions<ExternalOptions>> _externalOptionsMock;
     private readonly Mock<IOptions<VoiceOptions>> _voiceOptionsMock;
     private readonly Mock<IExternalProcessRunnerService> _externalProcessRunnerMock;
     private readonly VoiceService _sut; // System Under Test
@@ -28,13 +27,6 @@ public class VoiceServiceTests
         _loggerMock = new Mock<ILogger<VoiceService>>();
         _voiceStateManagerMock = new Mock<IVoiceStateManager>();
         _chatSemaphoreManagerMock = new Mock<IChatSemaphoreManager>();
-
-        var externalOptions = new ExternalOptions
-        {
-            NewsApiUrl = "https://inshorts.com/"
-        };
-        _externalOptionsMock = new Mock<IOptions<ExternalOptions>>();
-        _externalOptionsMock.Setup(x => x.Value).Returns(externalOptions);
 
         var voiceOptions = new VoiceOptions
         {
@@ -51,7 +43,6 @@ public class VoiceServiceTests
             _loggerMock.Object,
             _voiceStateManagerMock.Object,
             _chatSemaphoreManagerMock.Object,
-            _externalOptionsMock.Object,
             _voiceOptionsMock.Object,
             _externalProcessRunnerMock.Object
         );
@@ -145,7 +136,6 @@ public class VoiceServiceTests
             _loggerMock.Object,
             _voiceStateManagerMock.Object,
             _chatSemaphoreManagerMock.Object,
-            _externalOptionsMock.Object,
             _voiceOptionsMock.Object,
             _externalProcessRunnerMock.Object
         )

@@ -1205,7 +1205,7 @@ public class FunService : IFunService
                         .WithStyle(Discord.ButtonStyle.Primary),
                     new Discord.ButtonBuilder()
                         .WithLabel("🎨 Generate Palette")
-                        .WithCustomId($"generate_palette_{randomHex.TrimStart('#')}")
+                        .WithCustomId($"generate_palette:{randomHex.TrimStart('#')}")
                         .WithStyle(Discord.ButtonStyle.Secondary)
                 ])
                 .Build();

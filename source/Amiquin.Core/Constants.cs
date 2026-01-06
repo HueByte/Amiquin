@@ -5,11 +5,6 @@ public class Constants
     public class ToggleNames
     {
         #region Toggle Names
-        public class SystemExclusiveToggles
-        {
-            public const string EnableNews = "EnableNews";
-        }
-
         public const string EnableTTS = "EnableTTS";
         public const string EnableJoinMessage = "EnableJoinMessage";
         public const string EnableChat = "EnableChat";
@@ -17,11 +12,6 @@ public class Constants
         public const string EnableAIWelcome = "EnableAIWelcome";
         public const string EnableNSFW = "EnableNSFW";
         public const string EnableDailyNSFW = "EnableDailyNSFW";
-
-        public static List<string> SystemExclusiveTogglesList = new()
-        {
-            SystemExclusiveToggles.EnableNews
-        };
 
         public static List<string> Toggles = new()
         {
@@ -38,34 +28,12 @@ public class Constants
 
     public class Environment
     {
-        #region General Environment Variables
-        public const string BotToken = "AMQ_BOT_TOKEN";
-        public const string OpenAiKey = "AMQ_OPEN_AI_KEY";
-        public const string PrintLogo = "AMQ_PRINT_LOGO";
-        public const string TTSModelName = "AMQ_TTS_MODEL_NAME";
-        public const string PiperCommand = "AMQ_PIPER_COMMAND";
-        public const string MessageFetchCount = "AMQ_MESSAGE_FETCH_COUNT";
-        public const string AppSettingsPath = "AMQ_APPSETTINGS_PATH";
-        #endregion
-
-        #region Bot Metadata 
-        public const string BotName = "AMQ_BOT_NAME";
-        public const string BotVersion = "AMQ_BOT_VERSION";
-        #endregion
-
-        #region Database Environment Variables
-        public const string DatabaseMode = "AMQ_DATABASE_MODE";
-        public const string LogsPath = "AMQ_LOGS_PATH";
-        public const string SQLitePath = "AMQ_SQLITE_PATH";
-        public const string DbConnectionString = "AMQ_DB_CONNECTION_STRING";
+        #region Docker/Compose Environment Variables
+        // These are used by docker-compose for MySQL service configuration
         public const string DbName = "AMQ_DB_NAME";
         public const string DbRootPassword = "AMQ_DB_ROOT_PASSWORD";
         public const string DbUserName = "AMQ_DB_USER";
         public const string DbUserPassword = "AMQ_DB_USER_PASSWORD";
-
-        // Provider-specific connection strings
-        public const string AmiquinSqliteConnectionString = "AMQ_ConnectionStrings__Amiquin-Sqlite";
-        public const string AmiquinMysqlConnectionString = "AMQ_ConnectionStrings__Amiquin-Mysql";
         #endregion
     }
 
@@ -75,10 +43,12 @@ public class Constants
         public const string JoinMessageKey = "ServerJoinMessage";
         public const string CoreSystemMessageKey = "System";
         public const string ComputedSystemMessageKey = "ComputedSystem";
+        public const string BaseSystemMessageKey = "BaseSystem";
         public const string ServerTogglesCreated = "ServerTogglesCreated";
         public const string ServerToggles = "ServerToggles";
         public const string ServerMeta = "ServerMeta";
         public const string GlobalToggles = "GlobalToggles";
+        public const string ScrapperImageUrls = "ScrapperImageUrls";
         #endregion
     }
 
@@ -116,17 +86,11 @@ public class Constants
     public class Paths
     {
         #region Application Paths
+        // These are computed paths based on AppContext.BaseDirectory
         public static string Assets = Path.Join(AppContext.BaseDirectory, "Data", "Messages");
         public static string TTSBasePath = Path.Join(AppContext.BaseDirectory, "Data", "TTS");
         public static string TTSBaseOutputPath = Path.Join(TTSBasePath, "output");
         public static string ApplicationTempPath = Path.Combine(Path.GetTempPath(), "Amiquin");
-        #endregion
-
-        #region Data Paths
-        public const string DefaultDataLogsPath = "Data/Logs";
-        public const string DefaultDataMessagesPath = "Data/Messages";
-        public const string DefaultDataSessionsPath = "Data/Sessions";
-        public const string DefaultDataPluginsPath = "Data/Plugins";
         #endregion
     }
 
@@ -141,29 +105,14 @@ public class Constants
         #endregion
     }
 
-    public class APIs
-    {
-        public class NewsApi
-        {
-            public const string Category = "all_news";
-            public const int MaxLimit = 5;
-            public const bool IncludeCard = true;
-        }
-    }
-
     public class DefaultValues
     {
         #region Default Values
         public const string BotName = "Amiquin";
-        public const string BotVersion = "1.0.0";
-        public const string DefaultLogsPath = "Data/Logs";
         public const string UnknownValue = "Unknown";
         public const string UnknownServer = "Unknown Server";
         public const string UnknownUser = "Unknown";
         public const string NoneActivity = "None";
-        public const string DefaultSQLiteDatabase = "data.db";
-        public const string DefaultSQLiteConnectionString = "Data Source=Data/Database/amiquin.db";
-        public const string DefaultMySQLConnectionString = "Server=localhost;Database=amiquin;User=root;Password=;";
         public const string InMemoryDatabase = "Data Source=:memory:";
         public const string ContainerEnvironmentVariable = "DOTNET_RUNNING_IN_CONTAINER";
         public const string ContainerEnvironmentValue = "true";
@@ -246,11 +195,8 @@ public class Constants
     public class SystemDefaults
     {
         #region System Configuration
-        public const int NewsSystemTokenLimit = 500;
         public const int SystemCacheDurationDays = 1;
-        public const string DefaultSystemTemplate = "You are [$Name$]. The AI assistant for discord.\n[$Mood$]";
-        public const string NewsMoodNotAvailableMessage = "I couldn't find any news at the moment.";
-        public const string NewsProcessingErrorMessage = "I'm having trouble processing the news right now.";
+        public const string DefaultSystemTemplate = "You are [$Name$]. The AI assistant for discord.";
         #endregion
     }
 

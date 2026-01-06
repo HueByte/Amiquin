@@ -245,33 +245,6 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
 
         builder.WithActionRow([selectMenu]);
 
-        // Quick Actions Row
-        var quickActionButtons = new List<ButtonBuilder>
-        {
-            new ButtonBuilder()
-                .WithCustomId(_componentHandler.GenerateCustomId(QuickSetupPrefix, "persona", guild.Id.ToString()))
-                .WithLabel("Set Persona")
-                .WithStyle(ButtonStyle.Primary)
-                .WithEmote(new Emoji("🎭")),
-            new ButtonBuilder()
-                .WithCustomId(_componentHandler.GenerateCustomId(QuickSetupPrefix, "channel", guild.Id.ToString()))
-                .WithLabel("Set Channel")
-                .WithStyle(ButtonStyle.Primary)
-                .WithEmote(new Emoji("💬")),
-            new ButtonBuilder()
-                .WithCustomId(_componentHandler.GenerateCustomId(QuickSetupPrefix, "provider", guild.Id.ToString()))
-                .WithLabel("Set Provider")
-                .WithStyle(ButtonStyle.Primary)
-                .WithEmote(new Emoji("🤖")),
-            new ButtonBuilder()
-                .WithCustomId(_componentHandler.GenerateCustomId(QuickSetupPrefix, "nsfw_channel", guild.Id.ToString()))
-                .WithLabel("Set NSFW Channel")
-                .WithStyle(ButtonStyle.Secondary)
-                .WithEmote(new Emoji("🔞"))
-        };
-
-        builder.WithActionRow(quickActionButtons);
-
         // Management Actions Row
         var managementButtons = new List<ButtonBuilder>
         {

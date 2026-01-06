@@ -1,11 +1,14 @@
 using Amiquin.Core;
 using Amiquin.Core.Abstractions;
+using Amiquin.Core.Configuration;
 using Amiquin.Core.Services.ActivitySession;
 using Amiquin.Core.Services.ChatContext;
+using Amiquin.Core.Services.Sleep;
 using Amiquin.Core.Services.Toggle;
 using Discord;
 using Discord.WebSocket;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Moq;
 using Xunit;
 
@@ -17,6 +20,8 @@ public class ActivitySessionServiceTests
     private readonly Mock<IChatContextService> _mockChatContextService;
     private readonly Mock<IToggleService> _mockToggleService;
     private readonly Mock<IDiscordClientWrapper> _mockDiscordClient;
+    private readonly Mock<ISleepService> _mockSleepService;
+    private readonly Mock<IOptions<InitiativeOptions>> _mockInitiativeOptions;
     private readonly ActivitySessionService _service;
 
     public ActivitySessionServiceTests()
@@ -25,14 +30,29 @@ public class ActivitySessionServiceTests
         _mockChatContextService = new Mock<IChatContextService>();
         _mockToggleService = new Mock<IToggleService>();
         _mockDiscordClient = new Mock<IDiscordClientWrapper>();
+        _mockSleepService = new Mock<ISleepService>();
+        _mockInitiativeOptions = new Mock<IOptions<InitiativeOptions>>();
+
         // Setup Discord client with current user - using null is fine for testing
         _mockDiscordClient.Setup(c => c.CurrentUser).Returns((SocketSelfUser?)null);
+
+        // Setup default initiative options
+        var initiativeOptions = new InitiativeOptions();
+        _mockInitiativeOptions.Setup(o => o.Value).Returns(initiativeOptions);
+
+        // Setup default sleep service behavior
+        _mockSleepService.Setup(s => s.GetInitiativeStateAsync(It.IsAny<ulong>()))
+            .ReturnsAsync(new InitiativeState { ProbabilityMultiplier = 1.0f });
+        _mockSleepService.Setup(s => s.GetInitiativeProbabilityMultiplierAsync(It.IsAny<ulong>()))
+            .ReturnsAsync(1.0f);
 
         _service = new ActivitySessionService(
             _mockLogger.Object,
             _mockChatContextService.Object,
             _mockToggleService.Object,
-            _mockDiscordClient.Object
+            _mockDiscordClient.Object,
+            _mockSleepService.Object,
+            _mockInitiativeOptions.Object
         );
     }
 

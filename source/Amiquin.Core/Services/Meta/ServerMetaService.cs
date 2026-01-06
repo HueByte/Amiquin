@@ -253,6 +253,94 @@ public class ServerMetaService : IServerMetaService, IDisposable
     }
 
     /// <inheritdoc/>
+    public async Task<Models.ServerMeta> GetOrCreateServerMetaAsync(ulong serverId, string? serverName = null)
+    {
+        ThrowIfDisposed();
+
+        if (serverId == 0)
+        {
+            throw new ArgumentException("ServerId cannot be zero.", nameof(serverId));
+        }
+
+        var stopwatch = Stopwatch.StartNew();
+        try
+        {
+            var cacheKey = GetServerMetaCacheKey(serverId);
+
+            // Check cache first
+            if (_memoryCache.TryGetValue(cacheKey, out Models.ServerMeta? serverMeta) && serverMeta is not null)
+            {
+                RecordMetric(CacheHitMetric, 1);
+                return serverMeta;
+            }
+
+            RecordMetric(CacheMissMetric, 1);
+
+            // Use semaphore for thread-safe get-or-create operation
+            var semaphoreEntry = GetOrCreateSemaphoreEntry(serverId);
+            var cancellationToken = new CancellationTokenSource(TimeSpan.FromSeconds(SemaphoreTimeoutSeconds)).Token;
+
+            if (!await semaphoreEntry.Semaphore.WaitAsync(TimeSpan.FromSeconds(SemaphoreTimeoutSeconds), cancellationToken))
+            {
+                throw new TimeoutException($"Timeout waiting for semaphore access for serverId {serverId}");
+            }
+
+            try
+            {
+                // Double-check cache after acquiring semaphore
+                if (_memoryCache.TryGetValue(cacheKey, out serverMeta) && serverMeta is not null)
+                {
+                    RecordMetric(CacheHitMetric, 1);
+                    return serverMeta;
+                }
+
+                // Query database
+                var queryStopwatch = Stopwatch.StartNew();
+                serverMeta = await ExecuteWithRepositoryAsync(async repo =>
+                    await repo.AsQueryable().FirstOrDefaultAsync(x => x.Id == serverId, cancellationToken));
+                queryStopwatch.Stop();
+                RecordMetric(DatabaseQueryMetric, queryStopwatch.ElapsedMilliseconds);
+
+                if (serverMeta is null)
+                {
+                    // Create new ServerMeta
+                    serverMeta = CreateNewServerMeta(serverId, serverName ?? Constants.DefaultValues.UnknownServer);
+
+                    _logger.LogInformation("Creating new ServerMeta for serverId {serverId} with name {serverName}",
+                        serverId, serverMeta.ServerName);
+
+                    await ExecuteWithRepositoryAsync(async repo =>
+                    {
+                        await repo.AddAsync(serverMeta);
+                        await repo.SaveChangesAsync();
+                    });
+                }
+
+                // Cache with sliding expiration
+                var cacheOptions = new MemoryCacheEntryOptions
+                {
+                    AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(DefaultCacheTimeoutMinutes),
+                    SlidingExpiration = TimeSpan.FromMinutes(DefaultCacheTimeoutMinutes / 2),
+                    Priority = CacheItemPriority.High
+                };
+
+                _memoryCache.Set(cacheKey, serverMeta, cacheOptions);
+                return serverMeta;
+            }
+            finally
+            {
+                semaphoreEntry.Semaphore.Release();
+                semaphoreEntry.LastUsed = DateTime.UtcNow;
+            }
+        }
+        finally
+        {
+            stopwatch.Stop();
+            RecordMetric("GetOrCreateServerMetaById", stopwatch.ElapsedMilliseconds);
+        }
+    }
+
+    /// <inheritdoc/>
     public async Task UpdateServerMetaAsync(Models.ServerMeta serverMeta)
     {
         ThrowIfDisposed();
