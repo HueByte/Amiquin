@@ -1,41 +1,22 @@
 # Unified Docker Compose Configuration for Amiquin
-# Supports multiple deployment profiles:
+# Supports two deployment profiles:
 #
-# Development profiles:
-#   - qdrant-only: Just Qdrant vector database for testing
-#   - qdrant-dev: Qdrant with web UI for development
-#   - database: Just MySQL database
-#   - vector/memory: Just Qdrant (alias for qdrant-only)
-#   - ollama: Just Ollama for local embeddings
-#   - ollama-dev: Ollama with Qdrant for local embedding development
-#   - bot: Just the Amiquin bot (requires external dependencies)
-#   - dev: Full development stack (bot + mysql + qdrant + web UI)
-#   - dev-local: Full dev stack with Ollama for local embeddings
-#
-# Production profiles:
-#   - prod: Production stack with local embeddings (bot + mysql + qdrant + ollama)
-#   - prod-full: Production with all services and monitoring
-#   - prod-local: Alias for prod (deprecated, use prod instead)
+#   - dev: Development stack (bot + mysql + qdrant + web UI + ollama)
+#   - prod: Production stack (bot + mysql + qdrant + ollama)
 #
 # Usage examples:
-#   docker-compose --profile qdrant-only up -d
-#   docker-compose --profile ollama up -d
 #   docker-compose --profile dev up -d
-#   docker-compose --profile dev-local up -d
 #   docker-compose --profile prod up -d
-#   docker-compose --profile prod-local up -d
+
+name: Amiquin
 
 services:
   # MySQL Database Service
   mysql:
     profiles:
-      - database
       - dev
-      - dev-local
       - prod
-      - prod-full
-      - prod-local
-    container_name: mysql-${AMQ_BOT_NAME:-amiquin}
+    container_name: amq-mysql
     image: mysql:${MYSQL_VERSION:-latest}
     restart: unless-stopped
     env_file:
@@ -76,17 +57,9 @@ services:
   # Qdrant Vector Database Service
   qdrant:
     profiles:
-      - qdrant-only
-      - qdrant-dev
-      - ollama-dev
-      - vector
-      - memory
       - dev
-      - dev-local
       - prod
-      - prod-full
-      - prod-local
-    container_name: qdrant-${AMQ_BOT_NAME:-amiquin}
+    container_name: amq-qdrant
     image: qdrant/qdrant:${QDRANT_VERSION:-latest}
     restart: unless-stopped
     env_file:
@@ -160,10 +133,8 @@ services:
   # Qdrant Web UI (Development only)
   qdrant-web-ui:
     profiles:
-      - qdrant-dev
       - dev
-      - dev-local
-    container_name: qdrant-ui-${AMQ_BOT_NAME:-amiquin}
+    container_name: amq-qdrant-ui
     image: qdrant/qdrant-web-ui:latest
     restart: unless-stopped
     ports:
@@ -179,13 +150,9 @@ services:
   # Ollama Local LLM Service (for local embeddings)
   ollama:
     profiles:
-      - ollama
-      - ollama-dev
-      - dev-local
+      - dev
       - prod
-      - prod-full
-      - prod-local
-    container_name: ollama-${AMQ_BOT_NAME:-amiquin}
+    container_name: amq-ollama
     image: ollama/ollama:${OLLAMA_VERSION:-latest}
     restart: unless-stopped
     ports:
@@ -197,7 +164,7 @@ services:
       - OLLAMA_KEEP_ALIVE=${OLLAMA_KEEP_ALIVE:-5m}
       - OLLAMA_NUM_PARALLEL=${OLLAMA_NUM_PARALLEL:-1}
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:11434/api/tags || exit 1"]
+      test: ["CMD", "ollama", "list"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -219,12 +186,9 @@ services:
   # One-shot init container to ensure the embedding model is available in Ollama
   ollama-init:
     profiles:
-      - ollama-dev
-      - dev-local
+      - dev
       - prod
-      - prod-full
-      - prod-local
-    container_name: ollama-init-${AMQ_BOT_NAME:-amiquin}
+    container_name: amq-ollama-init
     image: ollama/ollama:${OLLAMA_VERSION:-latest}
     restart: "no"
     depends_on:
@@ -240,13 +204,9 @@ services:
   # Amiquin Bot Service
   amiquinbot:
     profiles:
-      - bot
       - dev
-      - dev-local
       - prod
-      - prod-full
-      - prod-local
-    container_name: bot-${AMQ_BOT_NAME:-amiquin}
+    container_name: amq-bot
     build:
       context: ./source
       dockerfile: Amiquin.Bot/dockerfile
