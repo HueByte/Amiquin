@@ -92,6 +92,7 @@ RUN dotnet publish Amiquin.Bot/Amiquin.Bot.csproj \
 # =============================================================================
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime-deps
 ARG PIPER_VERSION=1.2.0
+ARG INSTALL_PIPER_TTS=true
 
 # Install system runtime dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -107,11 +108,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Create temporary user for pipx installation (pipx requires non-root)
-RUN useradd -m temp_user
+RUN useradd -m temp_user \
+    && mkdir -p /home/temp_user/.local \
+    && chown -R temp_user:temp_user /home/temp_user/.local
 
 # Install Piper TTS with specific version for better caching
 USER temp_user
-RUN pipx install piper-tts==${PIPER_VERSION} && pipx ensurepath
+RUN if [ "${INSTALL_PIPER_TTS}" = "true" ]; then \
+            pipx install piper-tts==${PIPER_VERSION} && pipx ensurepath; \
+        else \
+            echo "Skipping Piper TTS install (INSTALL_PIPER_TTS=false)"; \
+        fi \
+        || (echo "WARNING: Piper TTS install failed; continuing without voice runtime deps" && true)
 
 # =============================================================================
 # Stage 5: Final runtime image
@@ -149,7 +157,7 @@ RUN useradd -ms /bin/bash -u 1000 amiquin \
 # Copy Piper TTS installation to amiquin user
 USER amiquin
 RUN mkdir -p /home/amiquin/.local \
-    && cp -r /tmp/.local/* /home/amiquin/.local/ \
+    && cp -r /tmp/.local/. /home/amiquin/.local/ \
     && echo 'export PATH="$PATH:/home/amiquin/.local/bin"' >> /home/amiquin/.bashrc
 
 # Copy application from build stage to /app
