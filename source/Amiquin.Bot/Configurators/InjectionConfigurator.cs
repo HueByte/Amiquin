@@ -328,7 +328,6 @@ public class InjectionConfigurator
         _services.AddScoped<IMessageRepository, MessageRepository>()
                  .AddScoped<ISessionMessageRepository, SessionMessageRepository>()
                  .AddScoped<IToggleRepository, ToggleRepository>()
-                 .AddScoped<IGlobalToggleRepository, GlobalToggleRepository>()
                  .AddScoped<IServerMetaRepository, ServerMetaRepository>()
                  .AddScoped<INachoRepository, NachoRepository>()
                  .AddScoped<ICommandLogRepository, CommandLogRepository>()

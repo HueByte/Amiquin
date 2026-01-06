@@ -108,7 +108,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
 
     private async Task<MessageComponent> BuildCompleteConfigurationComponentsV2Async(Models.ServerMeta serverMeta, SocketGuild guild)
     {
-        var toggles = await _toggleService.GetTogglesByServerId(guild.Id);
+        var toggles = await _toggleService.GetAllTogglesAsync(guild.Id);
         var builder = new ComponentBuilderV2();
 
         builder.WithContainer(container =>
@@ -383,10 +383,18 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                         await SetProviderAsync(component, guildId.Value, provider);
                     }
                     break;
+                case "set_model":
+                    if (component.Data.Values.Any())
+                    {
+                        var model = component.Data.Values.First();
+                        await SetModelAsync(component, guildId.Value, model);
+                    }
+                    break;
                 case "clear_persona":
                 case "clear_channel":
                 case "clear_nsfw_channel":
                 case "clear_provider":
+                case "clear_model":
                     await ClearSettingAsync(component, guildId.Value, action.Replace("clear_", ""));
                     break;
                 default:
@@ -517,33 +525,15 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                 return true;
             }
 
-            // Get current toggle state
-            var toggles = await _toggleService.GetTogglesByServerId(guildId.Value);
-            var toggle = toggles.FirstOrDefault(t => t.Name == toggleName);
+            // Get current toggle state using the new method
+            var toggleState = await _toggleService.GetToggleStateAsync(guildId.Value, toggleName);
 
-            if (toggle != null)
-            {
-                // Toggle the state
-                var newState = !toggle.IsEnabled;
-                await _toggleService.SetServerToggleAsync(guildId.Value, toggleName, newState);
+            // Toggle the state
+            var newState = !toggleState.IsEnabled;
+            await _toggleService.SetServerToggleAsync(guildId.Value, toggleName, newState);
 
-                // Return to main configuration interface
-                var guild = (component.Channel as SocketGuildChannel)?.Guild;
-                if (guild != null)
-                {
-                    var components = await CreateConfigurationInterfaceAsync(guildId.Value, guild);
-                    await component.ModifyOriginalResponseAsync(msg =>
-                    {
-                        msg.Components = components;
-                        msg.Flags = MessageFlags.ComponentsV2;
-                        msg.Embed = null;
-                    });
-                }
-            }
-            else
-            {
-                await DiscordUtilities.SendErrorMessageAsync(component, "Toggle not found.");
-            }
+            // Return to toggle configuration view
+            await ShowToggleConfigurationAsync(component, guildId.Value);
 
             return true;
         }
@@ -1010,115 +1000,126 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         var serverMeta = await _serverMetaService.GetServerMetaAsync(guildId);
         var providers = new[] { "OpenAI", "Anthropic", "Gemini", "Grok" };
 
-        var title = "🤖 AI Provider Configuration";
-        var description = "Choose your preferred AI model provider";
+        var currentProvider = !string.IsNullOrWhiteSpace(serverMeta?.PreferredProvider)
+            ? serverMeta.PreferredProvider
+            : _llmOptions.DefaultProvider;
 
-        var currentProviderContent = "**Current Provider**\n" +
-            (!string.IsNullOrWhiteSpace(serverMeta?.PreferredProvider)
-                ? $"**{serverMeta.PreferredProvider}**"
-                : "*Using default*");
-
-        var availableProvidersContent = "**Available Providers**\n" +
-            string.Join("\n", providers.Select(p => $"• **{p}**"));
-
-        var builder = new ComponentBuilderV2();
+        var currentModel = !string.IsNullOrWhiteSpace(serverMeta?.PreferredModel)
+            ? serverMeta.PreferredModel
+            : "Default";
 
         // Create provider select menu
-        var selectMenuOptions = new List<SelectMenuOptionBuilder>();
+        var providerSelectOptions = new List<SelectMenuOptionBuilder>();
         foreach (var provider in providers)
         {
-            var isSelected = serverMeta?.PreferredProvider == provider;
+            var isSelected = currentProvider.Equals(provider, StringComparison.OrdinalIgnoreCase);
             var providerDescription = provider switch
             {
-                "OpenAI" => "GPT models",
-                "Anthropic" => "Claude models",
-                "Gemini" => "Google AI models",
-                "Grok" => "xAI models",
+                "OpenAI" => "GPT-5, GPT-4o, o3/o4 models",
+                "Anthropic" => "Claude 3.5, Claude 3 models",
+                "Gemini" => "Gemini 2.0, 1.5 Pro/Flash models",
+                "Grok" => "Grok-4, Grok-3 models",
                 _ => ""
             };
 
-            selectMenuOptions.Add(new SelectMenuOptionBuilder(
+            providerSelectOptions.Add(new SelectMenuOptionBuilder(
                 provider,
                 provider.ToLower(),
                 providerDescription,
                 isDefault: isSelected));
         }
 
-        var selectMenu = new SelectMenuBuilder(
+        var providerSelectMenu = new SelectMenuBuilder(
             _componentHandler.GenerateCustomId(ConfigActionPrefix, "set_provider"),
-            selectMenuOptions)
+            providerSelectOptions)
             .WithPlaceholder("Select a provider...")
             .WithMinValues(1)
             .WithMaxValues(1);
 
-        builder.WithActionRow([selectMenu]);
+        // Create model select menu based on current provider
+        var modelSelectOptions = GetModelsForProvider(currentProvider, serverMeta?.PreferredModel);
 
-        // Add navigation buttons
-        builder.WithActionRow([
-            new ButtonBuilder()
-                .WithCustomId(_componentHandler.GenerateCustomId(ConfigActionPrefix, "clear_provider"))
-                .WithLabel("🔄 Use Default")
-                .WithStyle(ButtonStyle.Secondary),
-            new ButtonBuilder()
-                .WithCustomId(_componentHandler.GenerateCustomId(NavigationPrefix, "back"))
-                .WithLabel("← Back")
-                .WithStyle(ButtonStyle.Secondary)
-        ]);
+        var modelSelectMenu = new SelectMenuBuilder(
+            _componentHandler.GenerateCustomId(ConfigActionPrefix, "set_model"),
+            modelSelectOptions)
+            .WithPlaceholder("Select a model...")
+            .WithMinValues(1)
+            .WithMaxValues(1);
 
-        // Implement proper Components V2 with containers and sections
-        var v2Components = new ComponentBuilderV2()
+        var components = new ComponentBuilderV2()
             .WithContainer(container =>
             {
                 container.WithAccentColor(new Color(52, 152, 219));
-
-                // Add main title and description section
-                container.WithTextDisplay($"# {title}\n{description}");
-
-                // Add content sections
-                container.WithTextDisplay(currentProviderContent);
-
-                container.WithTextDisplay(availableProvidersContent);
-
-                // Add components from the traditional ComponentBuilder
-                var builtComponents = builder.Build();
-                var actionRows = builtComponents.Components.OfType<ActionRowComponent>();
-
-                foreach (var row in actionRows)
-                {
-                    foreach (var component in row.Components)
-                    {
-                        // Create a section with this component as accessory and add descriptive text
-                        var componentDescription = component switch
-                        {
-                            ButtonComponent btn => $"**{btn.Label}**",
-                            SelectMenuComponent menu => $"**{menu.Placeholder}**",
-                            _ => "Configuration option"
-                        };
-
-                        var componentBuilder = ConvertToBuilder(component);
-                        if (componentBuilder != null)
-                        {
-                            container.AddComponent(new SectionBuilder()
-                                .AddComponent(new TextDisplayBuilder()
-                                    .WithContent(componentDescription))
-                                .WithAccessory(componentBuilder));
-                        }
-                    }
-                }
-
-                // Ensure we have at least one section if none were added
-                if (!actionRows.Any() || !actionRows.SelectMany(r => r.Components).Any())
-                {
-                    container.WithTextDisplay("Configuration options will appear here.");
-                }
+                container.WithTextDisplay("# 🤖 AI Provider Configuration");
+                container.WithTextDisplay($"**Current Provider:** {currentProvider}\n**Current Model:** {currentModel}");
             })
+            // Provider selection
+            .WithActionRow(new ActionRowBuilder().AddComponent(providerSelectMenu))
+            // Model selection
+            .WithActionRow(new ActionRowBuilder().AddComponent(modelSelectMenu))
+            // Navigation buttons
+            .WithActionRow(new ActionRowBuilder()
+                .AddComponent(new ButtonBuilder()
+                    .WithCustomId(_componentHandler.GenerateCustomId(ConfigActionPrefix, "clear_provider"))
+                    .WithLabel("Use Default")
+                    .WithStyle(ButtonStyle.Secondary)
+                    .WithEmote(new Emoji("🔄")))
+                .AddComponent(new ButtonBuilder()
+                    .WithCustomId(_componentHandler.GenerateCustomId(NavigationPrefix, "back"))
+                    .WithLabel("Back")
+                    .WithStyle(ButtonStyle.Secondary)
+                    .WithEmote(new Emoji("⬅️"))))
             .Build();
 
         await component.ModifyOriginalResponseAsync(msg =>
         {
-            msg.Components = v2Components;
+            msg.Components = components;
             msg.Flags = MessageFlags.ComponentsV2;
+            msg.Embed = null;
         });
+    }
+
+    private List<SelectMenuOptionBuilder> GetModelsForProvider(string provider, string? currentModel)
+    {
+        var models = provider.ToLower() switch
+        {
+            "openai" => new[]
+            {
+                ("gpt-4o", "GPT-4o - Fast & capable"),
+                ("gpt-4o-mini", "GPT-4o Mini - Budget friendly"),
+                ("gpt-4.1", "GPT-4.1 - Latest GPT-4"),
+                ("gpt-4.1-mini", "GPT-4.1 Mini - Compact"),
+                ("o3", "o3 - Advanced reasoning"),
+                ("o3-mini", "o3-mini - Fast reasoning"),
+                ("o4-mini", "o4-mini - Latest reasoning"),
+            },
+            "anthropic" => new[]
+            {
+                ("claude-3-5-sonnet-latest", "Claude 3.5 Sonnet - Balanced"),
+                ("claude-3-5-haiku-latest", "Claude 3.5 Haiku - Fast"),
+                ("claude-3-opus-latest", "Claude 3 Opus - Most capable"),
+            },
+            "gemini" => new[]
+            {
+                ("gemini-2.0-flash-exp", "Gemini 2.0 Flash - Latest"),
+                ("gemini-1.5-pro", "Gemini 1.5 Pro - Capable"),
+                ("gemini-1.5-flash", "Gemini 1.5 Flash - Fast"),
+            },
+            "grok" => new[]
+            {
+                ("grok-3", "Grok-3 - Latest"),
+                ("grok-3-mini", "Grok-3 Mini - Fast"),
+                ("grok-2", "Grok-2 - Stable"),
+            },
+            _ => new[] { ("default", "Use provider default") }
+        };
+
+        return models.Select(m => new SelectMenuOptionBuilder(
+            m.Item1,
+            m.Item1,
+            m.Item2,
+            isDefault: m.Item1.Equals(currentModel, StringComparison.OrdinalIgnoreCase)
+        )).ToList();
     }
 
     private async Task ShowToggleConfigurationAsync(SocketMessageComponent component, ulong guildId)
@@ -1126,7 +1127,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         // Ensure all toggles are created for this server
         await _toggleService.CreateServerTogglesIfNotExistsAsync(guildId);
 
-        var toggles = await _toggleService.GetTogglesByServerId(guildId);
+        var toggles = await _toggleService.GetAllTogglesAsync(guildId);
         var guild = (component.Channel as SocketGuildChannel)?.Guild;
 
         if (guild == null)
@@ -1135,97 +1136,41 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
             return;
         }
 
-        // Generate all pages for pagination
-        var pages = GenerateTogglePages(toggles.ToList(), guildId);
-
-        if (pages.Count == 1)
-        {
-            // Single page - convert embed to ComponentsV2
-            var page = pages[0];
-            var components = new ComponentBuilderV2()
-                .WithContainer(container =>
-                {
-                    container.WithTextDisplay($"# {page.Title}\n{page.Content}");
-
-                    foreach (var section in page.Sections)
-                    {
-                        container.WithTextDisplay($"**{section.Title}**\n{section.Content}");
-                    }
-
-                    // Add toggle buttons directly to container
-                    AddToggleButtonsToContainer(container, toggles.Take(8).ToList(), guildId);
-                })
-                .Build();
-
-            await component.ModifyOriginalResponseAsync(msg =>
+        // Build the toggles UI directly - no pagination needed for small number of toggles
+        var components = new ComponentBuilderV2()
+            .WithContainer(container =>
             {
-                msg.Components = components;
-                msg.Flags = MessageFlags.ComponentsV2;
-                msg.Embed = null;
-            });
-        }
-        else
-        {
-            // Multiple pages - use pagination service with ComponentsV2
-            var messageComponent = await _paginationService.CreatePaginatedMessageAsync(pages, component.User.Id);
+                container.WithAccentColor(new Color(241, 196, 15));
+                container.WithTextDisplay("# 🎛️ Feature Toggles\nEnable or disable features for your server");
 
-            await component.ModifyOriginalResponseAsync(msg =>
-            {
-                msg.Embed = null;
-                msg.Components = messageComponent;
-                msg.Flags = MessageFlags.ComponentsV2;
-            });
-        }
+                var enabledCount = toggles.Count(t => t.IsEnabled);
+                container.WithTextDisplay($"**📊 Summary:** {enabledCount}/{toggles.Count} features enabled");
+
+                // Add toggle buttons
+                AddToggleButtonsToContainer(container, toggles, guildId);
+            })
+            .Build();
+
+        await component.ModifyOriginalResponseAsync(msg =>
+        {
+            msg.Components = components;
+            msg.Flags = MessageFlags.ComponentsV2;
+            msg.Embed = null;
+        });
     }
 
-    private List<PaginationPage> GenerateTogglePages(List<Models.Toggle> toggles, ulong guildId)
-    {
-        const int itemsPerPage = 8;
-        var pages = new List<PaginationPage>();
-        var totalPages = (int)Math.Ceiling((double)toggles.Count / itemsPerPage);
-        var totalEnabled = toggles.Count(t => t.IsEnabled);
-
-        for (int page = 0; page < totalPages; page++)
-        {
-            var startIndex = page * itemsPerPage;
-            var pageToggles = toggles.Skip(startIndex).Take(itemsPerPage).ToList();
-            var enabledCount = pageToggles.Count(t => t.IsEnabled);
-
-            var paginationPage = new PaginationPage
-            {
-                Title = "🎛️ Feature Toggles",
-                Content = "Enable or disable features for your server",
-                Color = new Color(241, 196, 15),
-                Timestamp = DateTimeOffset.UtcNow,
-                Sections = new List<PageSection>()
-            };
-
-            // Add summary section
-            paginationPage.Sections.Add(new PageSection
-            {
-                Title = "📊 Summary",
-                Content = $"**Total Enabled:** {totalEnabled}/{toggles.Count} features\n" +
-                         $"**On this page:** {enabledCount}/{pageToggles.Count} enabled"
-            });
-
-            pages.Add(paginationPage);
-        }
-
-        return pages;
-    }
-
-    private void AddToggleButtonsToContainer(ContainerBuilder container, List<Models.Toggle> toggles, ulong guildId)
+    private void AddToggleButtonsToContainer(ContainerBuilder container, List<ToggleState> toggles, ulong guildId)
     {
         // Group toggles by enabled/disabled status and create proper sections
         var enabledToggles = toggles.Where(t => t.IsEnabled).ToList();
         var disabledToggles = toggles.Where(t => !t.IsEnabled).ToList();
 
         // Add individual sections for each enabled toggle
-        foreach (var toggle in enabledToggles.Take(10))
+        foreach (var toggle in enabledToggles)
         {
             var toggleSection = new SectionBuilder()
                 .AddComponent(new TextDisplayBuilder()
-                    .WithContent($"✅ {FormatToggleName(toggle.Name)}"))
+                    .WithContent($"✅ **{FormatToggleName(toggle.Name)}**\n{toggle.Description}"))
                 .WithAccessory(new ButtonBuilder()
                     .WithCustomId(_componentHandler.GenerateCustomId(TogglePrefix, toggle.Name))
                     .WithLabel("Disable")
@@ -1235,11 +1180,11 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         }
 
         // Add individual sections for each disabled toggle
-        foreach (var toggle in disabledToggles.Take(10))
+        foreach (var toggle in disabledToggles)
         {
             var toggleSection = new SectionBuilder()
                 .AddComponent(new TextDisplayBuilder()
-                    .WithContent($"❌ {FormatToggleName(toggle.Name)}"))
+                    .WithContent($"❌ **{FormatToggleName(toggle.Name)}**\n{toggle.Description}"))
                 .WithAccessory(new ButtonBuilder()
                     .WithCustomId(_componentHandler.GenerateCustomId(TogglePrefix, toggle.Name))
                     .WithLabel("Enable")
@@ -1285,7 +1230,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         if (guild == null) return;
 
         var serverMeta = await _serverMetaService.GetServerMetaAsync(guildId);
-        var toggles = await _toggleService.GetTogglesByServerId(guildId);
+        var toggles = await _toggleService.GetAllTogglesAsync(guildId);
 
         var export = new StringBuilder();
         export.AppendLine($"# Server Configuration Export");
@@ -1410,9 +1355,27 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
             };
 
             serverMeta.PreferredProvider = normalizedProvider;
+            // Clear model when provider changes to avoid mismatched provider/model
+            serverMeta.PreferredModel = null;
             await _serverMetaService.UpdateServerMetaAsync(serverMeta);
 
             await DiscordUtilities.SendSuccessMessageAsync(component, $"AI provider set to **{normalizedProvider}**");
+
+            // Refresh the interface after a short delay
+            await Task.Delay(2000);
+            await ShowProviderConfigurationAsync(component, guildId);
+        }
+    }
+
+    private async Task SetModelAsync(SocketMessageComponent component, ulong guildId, string model)
+    {
+        var serverMeta = await _serverMetaService.GetServerMetaAsync(guildId);
+        if (serverMeta != null)
+        {
+            serverMeta.PreferredModel = model;
+            await _serverMetaService.UpdateServerMetaAsync(serverMeta);
+
+            await DiscordUtilities.SendSuccessMessageAsync(component, $"AI model set to **{model}**");
 
             // Refresh the interface after a short delay
             await Task.Delay(2000);
@@ -1453,8 +1416,17 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
 
                 case "provider":
                     serverMeta.PreferredProvider = null;
+                    serverMeta.PreferredModel = null;
                     await _serverMetaService.UpdateServerMetaAsync(serverMeta);
-                    await DiscordUtilities.SendSuccessMessageAsync(component, "Provider reset to default.");
+                    await DiscordUtilities.SendSuccessMessageAsync(component, "Provider and model reset to default.");
+                    await Task.Delay(2000);
+                    await ShowProviderConfigurationAsync(component, guildId);
+                    break;
+
+                case "model":
+                    serverMeta.PreferredModel = null;
+                    await _serverMetaService.UpdateServerMetaAsync(serverMeta);
+                    await DiscordUtilities.SendSuccessMessageAsync(component, "Model reset to default.");
                     await Task.Delay(2000);
                     await ShowProviderConfigurationAsync(component, guildId);
                     break;

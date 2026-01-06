@@ -52,12 +52,12 @@ public class DevCommands : InteractionModuleBase<ExtendedShardedInteractionConte
         _serverMetaService = serverMetaService;
     }
 
-    [SlashCommand("toggle-feature", "Toggle a feature")]
+    [SlashCommand("toggle-feature", "Toggle a feature for this server")]
     [Ephemeral]
     public async Task ToggleAsync(string toggleName, bool isEnabled, string? description = null)
     {
-        await _toggleService.UpdateAllTogglesAsync(toggleName, isEnabled, description);
-        await ModifyOriginalResponseAsync((msg) => msg.Content = $"Set {toggleName} to {isEnabled} globally.");
+        await _toggleService.SetServerToggleAsync(Context.Guild.Id, toggleName, isEnabled, description);
+        await ModifyOriginalResponseAsync((msg) => msg.Content = $"Set {toggleName} to {isEnabled} for this server.");
     }
 
     [SlashCommand("voicedebug", "debug")]

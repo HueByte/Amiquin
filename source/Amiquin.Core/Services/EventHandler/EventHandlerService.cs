@@ -1,3 +1,4 @@
+using Amiquin.Core.Options;
 using Amiquin.Core.Services.Chat;
 using Amiquin.Core.Services.ChatContext;
 using Amiquin.Core.Services.CommandHandler;
@@ -12,6 +13,7 @@ using Discord.Interactions;
 using Discord.WebSocket;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Amiquin.Core.Services.EventHandler;
 
@@ -28,6 +30,7 @@ public class EventHandlerService : IEventHandlerService
     private readonly IComponentHandlerService _componentHandlerService;
     private readonly IModalService _modalService;
     private readonly IInteractionErrorHandlerService _errorHandlerService;
+    private readonly BotOptions _botOptions;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="EventHandlerService"/> class.
@@ -39,7 +42,8 @@ public class EventHandlerService : IEventHandlerService
     /// <param name="componentHandlerService">The service for handling component interactions.</param>
     /// <param name="modalService">The service for handling modal interactions.</param>
     /// <param name="errorHandlerService">The service for handling interaction errors.</param>
-    public EventHandlerService(ILogger<EventHandlerService> logger, ICommandHandlerService commandHandlerService, IServiceScopeFactory serviceScopeFactory, IChatContextService chatContextService, IComponentHandlerService componentHandlerService, IModalService modalService, IInteractionErrorHandlerService errorHandlerService)
+    /// <param name="botOptions">The bot options containing whitelist configuration.</param>
+    public EventHandlerService(ILogger<EventHandlerService> logger, ICommandHandlerService commandHandlerService, IServiceScopeFactory serviceScopeFactory, IChatContextService chatContextService, IComponentHandlerService componentHandlerService, IModalService modalService, IInteractionErrorHandlerService errorHandlerService, IOptions<BotOptions> botOptions)
     {
         _logger = logger;
         _commandHandlerService = commandHandlerService;
@@ -48,6 +52,7 @@ public class EventHandlerService : IEventHandlerService
         _componentHandlerService = componentHandlerService;
         _modalService = modalService;
         _errorHandlerService = errorHandlerService;
+        _botOptions = botOptions.Value;
     }
 
     /// <inheritdoc/>
@@ -70,6 +75,13 @@ public class EventHandlerService : IEventHandlerService
     public async Task OnMessageReceivedInnerAsync(SocketMessage message)
     {
         var guildId = (message.Channel as SocketGuildChannel)?.Guild.Id ?? 0;
+
+        // Check whitelist - skip if server is not whitelisted
+        if (guildId > 0 && !_botOptions.IsServerAllowed(guildId))
+        {
+            _logger.LogDebug("Server {GuildId} is not whitelisted, ignoring message", guildId);
+            return;
+        }
 
         // Handle the message for context tracking first
         await _chatContextService.HandleUserMessageAsync(guildId, message).ConfigureAwait(false);
@@ -121,6 +133,22 @@ public class EventHandlerService : IEventHandlerService
         _logger.LogInformation("Received interaction of type {InteractionType} with ID {InteractionId}", interaction.Type, interaction.Id);
         _logger.LogInformation("Is SocketMessageComponent: {IsMessageComponent}, Is SocketModal: {IsModal}",
             interaction is SocketMessageComponent, interaction is SocketModal);
+
+        // Check whitelist - block if server is not whitelisted
+        var guildId = interaction.GuildId ?? 0;
+        if (guildId > 0 && !_botOptions.IsServerAllowed(guildId))
+        {
+            _logger.LogDebug("Server {GuildId} is not whitelisted, blocking interaction", guildId);
+            try
+            {
+                await interaction.RespondAsync("This bot is not available for this server.", ephemeral: true);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to send whitelist rejection message to server {GuildId}", guildId);
+            }
+            return;
+        }
 
         // Handle component interactions (buttons, select menus, etc.)
         if (interaction is SocketMessageComponent component)
@@ -282,6 +310,13 @@ public class EventHandlerService : IEventHandlerService
         {
             _logger.LogInformation("User {Username} ({UserId}) joined guild {GuildName} ({GuildId})",
                 user.Username, user.Id, user.Guild.Name, user.Guild.Id);
+
+            // Check whitelist - skip if server is not whitelisted
+            if (!_botOptions.IsServerAllowed(user.Guild.Id))
+            {
+                _logger.LogDebug("Server {GuildId} is not whitelisted, skipping user join handling", user.Guild.Id);
+                return;
+            }
 
             using var scope = _serviceScopeFactory.CreateScope();
             var toggleService = scope.ServiceProvider.GetRequiredService<IToggleService>();

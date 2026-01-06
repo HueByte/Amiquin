@@ -172,7 +172,7 @@ public class ServiceIntegrationTests : IClassFixture<DatabaseFixture>
 
         await _serverMetaService.CreateServerMetaAsync(serverId, "Bulk Test Server");
 
-        // Act - Bulk toggle operations
+        // Act - Toggle operations
         var bulkToggles = new Dictionary<string, (bool IsEnabled, string? Description)>
         {
             { "Toggle1", (true, "Description 1") },
@@ -182,7 +182,10 @@ public class ServiceIntegrationTests : IClassFixture<DatabaseFixture>
             { "Toggle5", (true, "Description 5") }
         };
 
-        await _toggleService.SetServerTogglesBulkAsync(serverId, bulkToggles);
+        foreach (var toggle in bulkToggles)
+        {
+            await _toggleService.SetServerToggleAsync(serverId, toggle.Key, toggle.Value.IsEnabled, toggle.Value.Description);
+        }
 
         // Assert - Verify all toggles were created correctly
         var toggles = await _toggleService.GetTogglesByServerId(serverId);

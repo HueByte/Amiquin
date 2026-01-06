@@ -186,7 +186,7 @@ public class ToggleServiceIntegrationTests : IClassFixture<DatabaseFixture>
     }
 
     [Fact]
-    public async Task SetServerTogglesBulkAsync_ShouldCreateMultipleToggles()
+    public async Task SetServerToggleAsync_ShouldCreateMultipleToggles()
     {
         // Arrange
         await _fixture.CleanupAsync();
@@ -199,8 +199,11 @@ public class ToggleServiceIntegrationTests : IClassFixture<DatabaseFixture>
             { "BulkToggle3", (true, "Bulk description 3") }
         };
 
-        // Act
-        await _toggleService.SetServerTogglesBulkAsync(serverId, toggles);
+        // Act - Set each toggle individually
+        foreach (var toggle in toggles)
+        {
+            await _toggleService.SetServerToggleAsync(serverId, toggle.Key, toggle.Value.IsEnabled, toggle.Value.Description);
+        }
 
         // Assert
         var result = await _toggleService.GetTogglesByServerId(serverId);
