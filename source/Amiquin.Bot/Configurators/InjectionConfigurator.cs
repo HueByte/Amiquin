@@ -4,6 +4,7 @@ using Amiquin.Core.Abstraction;
 using Amiquin.Core.Abstractions;
 using Amiquin.Core.Configuration;
 using Amiquin.Core.Exceptions;
+using Serilog;
 using Amiquin.Core.IRepositories;
 using Amiquin.Core.Job;
 using Amiquin.Core.Options;
@@ -51,7 +52,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using OpenAI;
 using OpenAI.Chat;
-using Serilog;
 
 namespace Amiquin.Bot.Configurators;
 
