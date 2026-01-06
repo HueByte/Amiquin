@@ -115,11 +115,11 @@ RUN useradd -m temp_user \
 # Install Piper TTS with specific version for better caching
 USER temp_user
 RUN if [ "${INSTALL_PIPER_TTS}" = "true" ]; then \
-            pipx install piper-tts==${PIPER_VERSION} && pipx ensurepath; \
-        else \
-            echo "Skipping Piper TTS install (INSTALL_PIPER_TTS=false)"; \
-        fi \
-        || (echo "WARNING: Piper TTS install failed; continuing without voice runtime deps" && true)
+    pipx install piper-tts==${PIPER_VERSION} && pipx ensurepath; \
+    else \
+    echo "Skipping Piper TTS install (INSTALL_PIPER_TTS=false)"; \
+    fi \
+    || (echo "WARNING: Piper TTS install failed; continuing without voice runtime deps" && true)
 
 # =============================================================================
 # Stage 5: Final runtime image
