@@ -97,6 +97,12 @@ QDRANT_PORT="6334"
 VOICE_ENABLED="true"
 TTS_MODEL_NAME="en_GB-northern_english_male-medium"
 
+# Web Search
+WEB_SEARCH_ENABLED="false"
+WEB_SEARCH_PROVIDER="DuckDuckGo"
+WEB_SEARCH_API_KEY=""
+WEB_SEARCH_ENGINE_ID=""
+
 # Function to create directory
 ensure_directory() {
     local dir="$1"
@@ -161,6 +167,52 @@ else
         echo -e "${GREEN}Waifu API token configured successfully${NC}"
     else
         echo -e "${YELLOW}Waifu API token can be configured later in the .env file for better NSFW functionality${NC}"
+    fi
+    
+    # Web Search Configuration
+    echo -e "\n${CYAN}=== Web Search Configuration ===${NC}"
+    echo "Web search allows the bot to look up current information during conversations (used in ReAct reasoning)"
+    echo "Provider options: DuckDuckGo (free, no API key), Google, Bing"
+    if [ "$DEFAULT" = false ]; then
+        read -p "Enable web search? (y/N) [N]: " enable_search
+        if [ "$enable_search" = "y" ] || [ "$enable_search" = "Y" ]; then
+            WEB_SEARCH_ENABLED="true"
+            
+            echo "Select provider:"
+            echo "1. DuckDuckGo (default - no API key required)"
+            echo "2. Google Custom Search (requires API key + Search Engine ID)"
+            echo "3. Bing Search API (requires API key)"
+            read -p "Enter choice [1]: " provider_choice
+            
+            case $provider_choice in
+                2)
+                    WEB_SEARCH_PROVIDER="Google"
+                    read -p "Enter Google API key: " input
+                    if [ ! -z "$input" ]; then
+                        WEB_SEARCH_API_KEY="$input"
+                    fi
+                    read -p "Enter Google Search Engine ID: " input
+                    if [ ! -z "$input" ]; then
+                        WEB_SEARCH_ENGINE_ID="$input"
+                    fi
+                    ;;
+                3)
+                    WEB_SEARCH_PROVIDER="Bing"
+                    read -p "Enter Bing API key: " input
+                    if [ ! -z "$input" ]; then
+                        WEB_SEARCH_API_KEY="$input"
+                    fi
+                    ;;
+                *)
+                    WEB_SEARCH_PROVIDER="DuckDuckGo"
+                    echo -e "${GREEN}Using DuckDuckGo (no API key required)${NC}"
+                    ;;
+            esac
+        else
+            echo -e "Web search disabled (can be enabled later in configuration)"
+        fi
+    else
+        echo -e "Web search disabled by default (enable in configuration if needed)"
     fi
     
     # System Message
@@ -435,6 +487,18 @@ $(if [ ! -z "$WAIFU_API_TOKEN" ]; then echo "AMQ_WaifuApi__Token=\"$WAIFU_API_TO
 AMQ_WaifuApi__BaseUrl="https://api.waifu.im"
 AMQ_WaifuApi__Version="v5"
 AMQ_WaifuApi__Enabled=true
+
+# ======================
+# Web Search Configuration
+# ======================
+AMQ_WebSearch__Enabled=$WEB_SEARCH_ENABLED
+AMQ_WebSearch__Provider="$WEB_SEARCH_PROVIDER"
+$(if [ ! -z "$WEB_SEARCH_API_KEY" ]; then echo "AMQ_WebSearch__ApiKey=\"$WEB_SEARCH_API_KEY\""; else echo "# AMQ_WebSearch__ApiKey=\"your-api-key-here\" # Required for Google/Bing"; fi)
+$(if [ ! -z "$WEB_SEARCH_ENGINE_ID" ]; then echo "AMQ_WebSearch__SearchEngineId=\"$WEB_SEARCH_ENGINE_ID\""; else echo "# AMQ_WebSearch__SearchEngineId=\"your-search-engine-id\" # Required for Google"; fi)
+AMQ_WebSearch__MaxResults=5
+AMQ_WebSearch__TimeoutSeconds=10
+AMQ_WebSearch__EnableCaching=true
+AMQ_WebSearch__CacheExpirationMinutes=30
 
 # ======================
 # Logging Configuration

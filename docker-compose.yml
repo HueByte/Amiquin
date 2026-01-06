@@ -13,9 +13,9 @@
 #   - dev-local: Full dev stack with Ollama for local embeddings
 #
 # Production profiles:
-#   - prod: Production stack (bot + mysql + qdrant with optimizations)
+#   - prod: Production stack with local embeddings (bot + mysql + qdrant + ollama)
 #   - prod-full: Production with all services and monitoring
-#   - prod-local: Production with Ollama for local embeddings (no OpenAI needed)
+#   - prod-local: Alias for prod (deprecated, use prod instead)
 #
 # Usage examples:
 #   docker-compose --profile qdrant-only up -d
@@ -137,7 +137,8 @@ services:
         hard: 65536
       memlock: -1
     healthcheck:
-      test: ["CMD-SHELL", "timeout 5 bash -c '</dev/tcp/localhost/6333' || exit 1"]
+      test:
+        ["CMD-SHELL", "timeout 5 bash -c '</dev/tcp/localhost/6333' || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -181,6 +182,8 @@ services:
       - ollama
       - ollama-dev
       - dev-local
+      - prod
+      - prod-full
       - prod-local
     container_name: ollama-${AMQ_BOT_NAME:-amiquin}
     image: ollama/ollama:${OLLAMA_VERSION:-latest}
@@ -213,6 +216,27 @@ services:
         reservations:
           memory: ${OLLAMA_MEMORY_RESERVATION:-1G}
 
+  # One-shot init container to ensure the embedding model is available in Ollama
+  ollama-init:
+    profiles:
+      - ollama-dev
+      - dev-local
+      - prod
+      - prod-full
+      - prod-local
+    container_name: ollama-init-${AMQ_BOT_NAME:-amiquin}
+    image: ollama/ollama:${OLLAMA_VERSION:-latest}
+    restart: "no"
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+    entrypoint: ["/bin/sh", "-lc"]
+    command: "ollama pull ${AMQ_Embedding__Ollama__Model:-nomic-embed-text}"
+    networks:
+      - amiquin-network
+
   # Amiquin Bot Service
   amiquinbot:
     profiles:
@@ -235,6 +259,9 @@ services:
       # Container networking overrides (when using docker-compose services)
       AMQ_Memory__Qdrant__Host: qdrant
       AMQ_Embedding__Ollama__BaseUrl: "http://ollama:11434"
+
+      # Default to local embeddings in containers (override in .env if needed)
+      AMQ_Embedding__Provider: ${AMQ_Embedding__Provider:-ollama}
       # MySQL connection (only used when AMQ_Database__Mode=0)
       AMQ_Database__ConnectionString: "Server=mysql;Port=3306;Database=${AMQ_DB_NAME:-amiquin_db};Uid=${AMQ_DB_USER:-amiquin_user};Pwd=${AMQ_DB_USER_PASSWORD};SslMode=None;AllowPublicKeyRetrieval=True;Pooling=True;MinimumPoolSize=5;MaximumPoolSize=50;ConnectionTimeout=30;DefaultCommandTimeout=30;"
 

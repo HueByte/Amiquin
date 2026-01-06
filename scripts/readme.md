@@ -2,6 +2,133 @@
 
 This directory contains utility scripts for the Amiquin project.
 
+## Setup & Deployment Scripts
+
+### setup-project.ps1 / setup-project.sh ⭐ **START HERE**
+
+**Interactive project setup** - Configures the Amiquin project for first-time use or deployment.
+
+#### Features
+
+- ✅ **Guided configuration** - Interactive prompts for all required settings
+- ✅ **Secure defaults** - Auto-generates strong passwords for MySQL, Qdrant
+- ✅ **Multi-provider support** - Configure OpenAI, Grok, or Gemini
+- ✅ **Optional features** - Memory system (Qdrant), web search, voice/TTS
+- ✅ **Database choice** - SQLite (default) or MySQL for production
+- ✅ **Docker ready** - Generates docker-compose compatible .env file
+
+#### Usage
+
+**PowerShell (Windows):**
+
+```powershell
+# Interactive setup (recommended)
+.\setup-project.ps1
+
+# Quick setup with defaults
+.\setup-project.ps1 -Default
+
+# Production setup with security hardening
+.\setup-project.ps1 -Production
+
+# Non-interactive mode
+.\setup-project.ps1 -NonInteractive
+```
+
+**Bash (Linux/macOS):**
+
+```bash
+# Interactive setup (recommended)
+./setup-project.sh
+
+# Quick setup with defaults
+./setup-project.sh --default
+
+# Non-interactive mode
+./setup-project.sh --non-interactive
+```
+
+### pre-deployment-checklist.ps1 / pre-deployment-checklist.sh ⭐ **VALIDATE BEFORE DEPLOY**
+
+**Pre-deployment validation** - Comprehensive checklist to verify project readiness for deployment.
+
+#### Features
+
+- ✅ **Configuration validation** - Checks .env and appsettings.json
+- ✅ **Dependency checks** - Verifies Docker, .NET, ffmpeg, etc.
+- ✅ **Build validation** - Compiles solution and checks for errors
+- ✅ **Security checks** - Production-level security validation
+- ✅ **Service connectivity** - Tests MySQL, Qdrant, web search
+- ✅ **Auto-fix** - Attempts to fix common issues automatically
+
+#### Usage
+
+**PowerShell (Windows):**
+
+```powershell
+# Basic validation
+.\pre-deployment-checklist.ps1
+
+# Production-level checks (recommended)
+.\pre-deployment-checklist.ps1 -Production
+
+# Auto-fix issues
+.\pre-deployment-checklist.ps1 -Fix
+
+# Detailed output
+.\pre-deployment-checklist.ps1 -Verbose -Production
+```
+
+**Bash (Linux/macOS):**
+
+```bash
+# Basic validation
+./pre-deployment-checklist.sh
+
+# Production-level checks (recommended)
+./pre-deployment-checklist.sh --production
+
+# Auto-fix issues
+./pre-deployment-checklist.sh --fix
+
+# Detailed output
+./pre-deployment-checklist.sh --verbose --production
+```
+
+#### Checks Performed
+
+1. **Configuration Files** - .env, appsettings.json, docker-compose.yml
+2. **Dependencies** - .NET SDK, Docker, Docker Compose, ffmpeg
+3. **Project Structure** - Solution files, data directories
+4. **Build Status** - Compilation success, DLL generation
+5. **Database** - Mode selection, connection strings, container status
+6. **Memory System** - Qdrant configuration and connectivity
+7. **Web Search** - Provider setup, API keys
+8. **Security** - Password strength, secret management (production only)
+
+### deploy-production.ps1 / deploy-production.sh
+
+**Production deployment** - Automated deployment script with monitoring and backup options.
+
+#### Usage
+
+**PowerShell:**
+
+```powershell
+# Basic production deployment
+.\deploy-production.ps1 -DatabaseType mysql
+
+# With monitoring and backups
+.\deploy-production.ps1 -EnableMonitoring -EnableBackups
+
+# Dry run (validate only)
+.\deploy-production.ps1 -DryRun
+```
+
+### validate-setup.ps1 / validate-setup.sh
+
+**Setup validation** - Validates project configuration and dependencies.
+
 ## Migration Scripts
 
 ### generate-migration.ps1 ⭐ **RECOMMENDED**

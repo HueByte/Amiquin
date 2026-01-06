@@ -38,45 +38,51 @@ Write-Host ""
 # Configuration values aligned with current AMQ_ prefix system
 $config = @{
     # Bot configuration
-    BotToken = ""
-    BotName = "Amiquin"
+    BotToken           = ""
+    BotName            = "Amiquin"
     
     # LLM configuration
-    LLMProvider = "OpenAI"
-    OpenAIApiKey = ""
-    SystemMessage = "I want you to act as personal assistant called Amiquin. You are friendly, helpful and professional."
-    DefaultModel = "gpt-4o-mini"
+    LLMProvider        = "OpenAI"
+    OpenAIApiKey       = ""
+    SystemMessage      = "I want you to act as personal assistant called Amiquin. You are friendly, helpful and professional."
+    DefaultModel       = "gpt-4o-mini"
     
     # NSFW/Waifu API configuration
-    WaifuApiToken = ""
+    WaifuApiToken      = ""
     
     # Database
-    DatabaseMode = 1  # SQLite by default
+    DatabaseMode       = 1  # SQLite by default
     DatabaseConnection = "Data Source=Data/Database/amiquin.db"
     
     # Docker MySQL configuration (passwords will be generated later)
-    BotInstanceName = "amiquin-instance"
-    MySQLRootPassword = ""
-    MySQLDatabase = "amiquin_db"
-    MySQLUser = "amiquin_user"
-    MySQLUserPassword = ""
+    BotInstanceName    = "amiquin-instance"
+    MySQLRootPassword  = ""
+    MySQLDatabase      = "amiquin_db"
+    MySQLUser          = "amiquin_user"
+    MySQLUserPassword  = ""
     
     # Qdrant configuration (API key will be generated if needed)
-    QdrantApiKey = ""
-    QdrantEnableAuth = $false
-    QdrantHost = "localhost"
-    QdrantPort = "6334"
+    QdrantApiKey       = ""
+    QdrantEnableAuth   = $false
+    QdrantHost         = "localhost"
+    QdrantPort         = "6334"
     
     # Data paths
-    LogsPath = "Data/Logs"
-    MessagesPath = "Data/Messages"
-    SessionsPath = "Data/Sessions"
-    PluginsPath = "Data/Plugins"
-    ConfigurationPath = "Configuration"
+    LogsPath           = "Data/Logs"
+    MessagesPath       = "Data/Messages"
+    SessionsPath       = "Data/Sessions"
+    PluginsPath        = "Data/Plugins"
+    ConfigurationPath  = "Configuration"
     
     # Voice/TTS
-    VoiceEnabled = $true
-    TTSModelName = "en_GB-northern_english_male-medium"
+    VoiceEnabled       = $true
+    TTSModelName       = "en_GB-northern_english_male-medium"
+    
+    # Web Search
+    WebSearchEnabled   = $false
+    WebSearchProvider  = "DuckDuckGo"
+    WebSearchApiKey    = ""
+    WebSearchEngineId  = ""
 }
 
 # Generate secure defaults without shell-problematic characters
@@ -108,7 +114,8 @@ $config.MySQLUserPassword = New-SecureString -Length 24
 
 if ($NonInteractive) {
     Write-Host "Running in non-interactive mode with default values" -ForegroundColor Yellow
-} else {
+}
+else {
     Write-Host "This script will configure your Amiquin project with the necessary settings." -ForegroundColor Green
     Write-Host "Press Enter to use default values shown in [brackets]" -ForegroundColor Gray
     Write-Host ""
@@ -119,7 +126,8 @@ if ($NonInteractive) {
     if ($botToken) { 
         $config.BotToken = $botToken 
         Write-Host "Discord bot token configured successfully" -ForegroundColor Green
-    } else {
+    }
+    else {
         Write-Host "Discord bot token will need to be configured later" -ForegroundColor Yellow
     }
     
@@ -129,7 +137,8 @@ if ($NonInteractive) {
     if ($openAIKey) { 
         $config.OpenAIApiKey = $openAIKey 
         Write-Host "OpenAI API key configured successfully" -ForegroundColor Green
-    } else {
+    }
+    else {
         Write-Host "OpenAI API key will need to be configured later for AI features to work" -ForegroundColor Yellow
     }
     
@@ -141,14 +150,53 @@ if ($NonInteractive) {
     if ($waifuToken) { 
         $config.WaifuApiToken = $waifuToken 
         Write-Host "Waifu API token configured successfully" -ForegroundColor Green
-    } else {
+    }
+    else {
         Write-Host "Waifu API token can be configured later in the .env file for better NSFW functionality" -ForegroundColor Yellow
+    }
+    
+    # Web Search Configuration
+    Write-Host "\n=== Web Search Configuration ===" -ForegroundColor Cyan
+    Write-Host "Web search allows the bot to look up current information during conversations"
+    Write-Host "Provider options: DuckDuckGo (free, no API key), Google, Bing"
+    if (!$Default) {
+        Write-Host "Enable web search? (y/N)"
+        $enableSearch = Read-Host "Enter choice [N]"
+        if ($enableSearch -eq "y" -or $enableSearch -eq "Y") {
+            $config.WebSearchEnabled = $true
+            
+            Write-Host "Select provider:"
+            Write-Host "1. DuckDuckGo (default - no API key required)"
+            Write-Host "2. Google Custom Search (requires API key + Search Engine ID)"
+            Write-Host "3. Bing Search API (requires API key)"
+            $providerChoice = Read-Host "Enter choice [1]"
+            
+            switch ($providerChoice) {
+                "2" {
+                    $config.WebSearchProvider = "Google"
+                    $searchApiKey = Read-Host "Enter Google API key"
+                    if ($searchApiKey) { $config.WebSearchApiKey = $searchApiKey }
+                    $searchEngineId = Read-Host "Enter Google Search Engine ID"
+                    if ($searchEngineId) { $config.WebSearchEngineId = $searchEngineId }
+                }
+                "3" {
+                    $config.WebSearchProvider = "Bing"
+                    $searchApiKey = Read-Host "Enter Bing API key"
+                    if ($searchApiKey) { $config.WebSearchApiKey = $searchApiKey }
+                }
+                default {
+                    $config.WebSearchProvider = "DuckDuckGo"
+                    Write-Host "Using DuckDuckGo (no API key required)" -ForegroundColor Green
+                }
+            }
+        }
     }
     
     # System Message
     if ($Default) {
         Write-Host "Using default system message for Amiquin" -ForegroundColor Gray
-    } else {
+    }
+    else {
         $systemMessage = Read-Host "Enter AI system message [$($config.SystemMessage)]"
         if ($systemMessage) { $config.SystemMessage = $systemMessage }
     }
@@ -173,7 +221,8 @@ if ($NonInteractive) {
             if ($keyChoice -eq "2") {
                 $qdrantKey = Read-Host "Enter Qdrant API key"
                 if ($qdrantKey) { $config.QdrantApiKey = $qdrantKey }
-            } else {
+            }
+            else {
                 $config.QdrantApiKey = New-SecureString -Length 32
                 Write-Host "Generated secure Qdrant API key" -ForegroundColor Green
             }
@@ -193,7 +242,8 @@ if ($NonInteractive) {
         if ($config.QdrantEnableAuth) {
             Write-Host "  API Key: Generated securely"
         }
-    } else {
+    }
+    else {
         Write-Host "Using default Qdrant configuration (no authentication)" -ForegroundColor Green
     }
     
@@ -235,26 +285,27 @@ if ($NonInteractive) {
             Write-Host "  Instance: $($config.BotInstanceName)"
             Write-Host "  Passwords: Already generated securely"
         }
-    } else {
+    }
+    else {
         # In default mode, MySQL passwords are already generated in config defaults
         Write-Host "MySQL passwords generated for Docker compatibility" -ForegroundColor Green
     }
 }
     
-    # Model selection
-    if (!$NonInteractive -and !$Default) {
-        Write-Host "\n=== AI Model Selection ===" -ForegroundColor Cyan
-        Write-Host "1. gpt-4o-mini (default - faster, cheaper)"
-        Write-Host "2. gpt-4o (more capable, more expensive)"
-        Write-Host "3. gpt-3.5-turbo (legacy, cheapest)"
-        $modelChoice = Read-Host "Enter choice [1]"
+# Model selection
+if (!$NonInteractive -and !$Default) {
+    Write-Host "\n=== AI Model Selection ===" -ForegroundColor Cyan
+    Write-Host "1. gpt-4o-mini (default - faster, cheaper)"
+    Write-Host "2. gpt-4o (more capable, more expensive)"
+    Write-Host "3. gpt-3.5-turbo (legacy, cheapest)"
+    $modelChoice = Read-Host "Enter choice [1]"
         
-        switch ($modelChoice) {
-            "2" { $config.DefaultModel = "gpt-4o" }
-            "3" { $config.DefaultModel = "gpt-3.5-turbo" }
-            default { $config.DefaultModel = "gpt-4o-mini" }
-        }
+    switch ($modelChoice) {
+        "2" { $config.DefaultModel = "gpt-4o" }
+        "3" { $config.DefaultModel = "gpt-3.5-turbo" }
+        default { $config.DefaultModel = "gpt-4o-mini" }
     }
+}
 
 # Create .env file
 Write-Host ""
@@ -404,6 +455,18 @@ AMQ_WaifuApi__Version=`"v5`"
 AMQ_WaifuApi__Enabled=true
 
 # ======================
+# Web Search Configuration
+# ======================
+AMQ_WebSearch__Enabled=$($config.WebSearchEnabled.ToString().ToLower())
+AMQ_WebSearch__Provider=`"$($config.WebSearchProvider)`"
+$(if ($config.WebSearchApiKey) { "AMQ_WebSearch__ApiKey=`"$($config.WebSearchApiKey)`"" } else { "# AMQ_WebSearch__ApiKey=`"your-api-key-here`" # Required for Google/Bing" })
+$(if ($config.WebSearchEngineId) { "AMQ_WebSearch__SearchEngineId=`"$($config.WebSearchEngineId)`"" } else { "# AMQ_WebSearch__SearchEngineId=`"your-search-engine-id`" # Required for Google" })
+AMQ_WebSearch__MaxResults=5
+AMQ_WebSearch__TimeoutSeconds=10
+AMQ_WebSearch__EnableCaching=true
+AMQ_WebSearch__CacheExpirationMinutes=30
+
+# ======================
 # Logging Configuration
 # ======================
 AMQ_Serilog__MinimumLevel__Default=`"Information`"
@@ -470,105 +533,105 @@ $examplePath = Join-Path $configDir "appsettings.example.json"
 # Create streamlined appsettings.json that relies on environment variables
 $appSettings = @{
     # Basic structure - most values come from environment variables
-    Bot = @{
-        Token = "your-discord-bot-token-here"
-        Name = $config.BotName
-        PrintLogo = $false
+    Bot               = @{
+        Token             = "your-discord-bot-token-here"
+        Name              = $config.BotName
+        PrintLogo         = $false
         MessageFetchCount = 40
     }
-    LLM = @{
-        DefaultProvider = $config.LLMProvider
-        EnableFallback = $true
+    LLM               = @{
+        DefaultProvider     = $config.LLMProvider
+        EnableFallback      = $true
         GlobalSystemMessage = $config.SystemMessage
-        GlobalTemperature = 0.6
-        GlobalTimeout = 120
-        Providers = @{
+        GlobalTemperature   = 0.6
+        GlobalTimeout       = 120
+        Providers           = @{
             OpenAI = @{
-                Enabled = $true
-                ApiKey = if ($config.OpenAIApiKey) { $config.OpenAIApiKey } else { "your-openai-api-key-here" }
-                BaseUrl = "https://api.openai.com/v1/"
+                Enabled      = $true
+                ApiKey       = if ($config.OpenAIApiKey) { $config.OpenAIApiKey } else { "your-openai-api-key-here" }
+                BaseUrl      = "https://api.openai.com/v1/"
                 DefaultModel = $config.DefaultModel
             }
         }
     }
-    Database = @{
+    Database          = @{
         Mode = $config.DatabaseMode
     }
     ConnectionStrings = @{
-        AmiquinContext = $config.DatabaseConnection
+        AmiquinContext   = $config.DatabaseConnection
         "Amiquin-Sqlite" = if ($config.DatabaseMode -eq 1) { "Data Source=Data/Database/amiquin.db" } else { "Data Source=Data/Database/amiquin.db" }
-        "Amiquin-Mysql" = if ($config.DatabaseMode -eq 0) { $config.DatabaseConnection } else { "Server=localhost;Database=amiquin;User=amiquin;Password=your_password;Pooling=True;" }
+        "Amiquin-Mysql"  = if ($config.DatabaseMode -eq 0) { $config.DatabaseConnection } else { "Server=localhost;Database=amiquin;User=amiquin;Password=your_password;Pooling=True;" }
     }
-    DataPaths = @{
-        Logs = $config.LogsPath
-        Messages = $config.MessagesPath
-        Sessions = $config.SessionsPath
-        Plugins = $config.PluginsPath
+    DataPaths         = @{
+        Logs          = $config.LogsPath
+        Messages      = $config.MessagesPath
+        Sessions      = $config.SessionsPath
+        Plugins       = $config.PluginsPath
         Configuration = $config.ConfigurationPath
     }
-    Memory = @{
-        Enabled = $true
+    Memory            = @{
+        Enabled               = $true
         MaxMemoriesPerSession = 1000
-        MaxContextMemories = 10
-        SimilarityThreshold = 0.7
-        MinImportanceScore = 0.3
-        MinMessagesForMemory = 3
-        AutoCleanup = $true
-        CleanupOlderThanDays = 30
-        EmbeddingModel = "text-embedding-3-small"
-        MemoryTypeImportance = @{
-            summary = 0.8
-            fact = 0.9
+        MaxContextMemories    = 10
+        SimilarityThreshold   = 0.7
+        MinImportanceScore    = 0.3
+        MinMessagesForMemory  = 3
+        AutoCleanup           = $true
+        CleanupOlderThanDays  = 30
+        EmbeddingModel        = "text-embedding-3-small"
+        MemoryTypeImportance  = @{
+            summary    = 0.8
+            fact       = 0.9
             preference = 0.7
-            context = 0.6
-            emotion = 0.5
-            event = 0.7
+            context    = 0.6
+            emotion    = 0.5
+            event      = 0.7
         }
-        Qdrant = @{
-            Host = "localhost"
-            Port = 6334
-            UseHttps = $false
-            ApiKey = $null
-            CollectionName = "amiquin_memories"
-            VectorSize = 1536
-            Distance = "Cosine"
+        Qdrant                = @{
+            Host                 = "localhost"
+            Port                 = 6334
+            UseHttps             = $false
+            ApiKey               = $null
+            CollectionName       = "amiquin_memories"
+            VectorSize           = 1536
+            Distance             = "Cosine"
             AutoCreateCollection = $true
         }
     }
-    Voice = @{
+    Voice             = @{
         TTSModelName = $config.TTSModelName
         PiperCommand = "/usr/local/bin/piper"
-        Enabled = $config.VoiceEnabled
+        Enabled      = $config.VoiceEnabled
     }
-    WaifuApi = @{
-        Token = if ($config.WaifuApiToken) { $config.WaifuApiToken } else { "your-waifu-api-token-here" }
+    WaifuApi          = @{
+        Token   = if ($config.WaifuApiToken) { $config.WaifuApiToken } else { "your-waifu-api-token-here" }
         BaseUrl = "https://api.waifu.im"
         Version = "v5"
         Enabled = $true
     }
-    Serilog = @{
+    Serilog           = @{
         MinimumLevel = @{
-            Default = "Information"
+            Default  = "Information"
             Override = @{
-                System = "Warning"
+                System    = "Warning"
                 Microsoft = "Warning"
-                Discord = "Information"
+                Discord   = "Information"
             }
         }
-        WriteTo = @(
+        WriteTo      = @(
             @{ Name = "Console" }
             @{
                 Name = "File"
                 Args = @{
-                    path = "$($config.LogsPath)/amiquin-.log"
-                    rollingInterval = "Day"
+                    path                   = "$($config.LogsPath)/amiquin-.log"
+                    rollingInterval        = "Day"
                     retainedFileCountLimit = 7
-                    outputTemplate = "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz}] [{Level:u3}] [{SourceContext}] {Message:lj}{NewLine}{Exception}"
+                    outputTemplate         = "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz}] [{Level:u3}] [{SourceContext}] {Message:lj}{NewLine}{Exception}"
                 }
             }
         )
-        Enrich = @("FromLogContext", "WithThreadId", "WithEnvironmentName")
-        Properties = @{
+        Enrich       = @("FromLogContext", "WithThreadId", "WithEnvironmentName")
+        Properties   = @{
             Application = "Amiquin"
         }
     }
@@ -588,7 +651,8 @@ try {
     $exampleJson = $exampleSettings | ConvertTo-Json -Depth 10
     Set-Content -Path $examplePath -Value $exampleJson -Encoding UTF8
     Write-Host "Created appsettings.example.json" -ForegroundColor Green
-} catch {
+}
+catch {
     Write-Host "Error creating configuration files: $($_.Exception.Message)" -ForegroundColor Red
     Write-Host "Please create appsettings.json manually using appsettings.example.json as a template" -ForegroundColor Yellow
 }
@@ -623,10 +687,12 @@ if (Test-Path $solutionPath) {
     
     if ($LASTEXITCODE -eq 0) {
         Write-Host "Solution built successfully" -ForegroundColor Green
-    } else {
+    }
+    else {
         Write-Host "Build failed. Please check the errors above." -ForegroundColor Red
     }
-} else {
+}
+else {
     Write-Host "Solution file not found at expected location: $solutionPath" -ForegroundColor Yellow
 }
 
@@ -700,7 +766,8 @@ if (Test-Path $solutionPath) {
     Write-Host "$stepNumber. Start the application:"
     Write-Host "   cd source/Amiquin.Bot && dotnet run"
     Write-Host "   # Or with Docker: docker-compose --profile full up -d"
-} else {
+}
+else {
     Write-Host "$stepNumber. Check that the solution exists at: source/source.sln"
     Write-Host "   Current directory: $PSScriptRoot"
 }

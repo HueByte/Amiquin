@@ -77,6 +77,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
 
         // Register modal handlers
         _modalService.RegisterHandler(ModalPrefix, HandleModalSubmissionAsync);
+        _modalService.RegisterHandler("config_import_modal", HandleConfigImportModalAsync);
 
         // Register modal triggers (specific interactions that will respond with modals)
         _componentHandler.RegisterModalTrigger($"{QuickSetupPrefix}:persona"); // Quick setup persona
@@ -126,7 +127,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                 .AddComponent(new TextDisplayBuilder()
                     .WithContent(personaContent))
                 .WithAccessory(new ButtonBuilder()
-                    .WithCustomId(_componentHandler.GenerateCustomId(ConfigMenuPrefix, "persona", guild.Id.ToString()))
+                    .WithCustomId(_componentHandler.GenerateCustomId(QuickSetupPrefix, "persona"))
                     .WithLabel("Configure Persona")
                     .WithStyle(ButtonStyle.Primary)
                     .WithEmote(new Emoji("🎭"))));
@@ -822,10 +823,29 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
             currentChannelContent += "*Not configured*";
         }
 
-        var builder = new ComponentBuilderV2();
-
-        // Create channel select menu with available text channels
+        // Build ComponentsV2 with channel select menu
         var channelGuild = (component.Channel as SocketGuildChannel)?.Guild;
+        var componentsV2Builder = new ComponentBuilderV2()
+            .WithContainer(container =>
+            {
+                container.WithTextDisplay($"# {title}\n{description}");
+                container.WithTextDisplay(currentChannelContent);
+
+                var hasChannels = channelGuild?.TextChannels
+                    .Where(c => channelGuild.CurrentUser.GetPermissions(c).SendMessages)
+                    .Any() == true;
+
+                if (hasChannels)
+                {
+                    container.WithTextDisplay("**Instructions**\nSelect a text channel from the dropdown below. Only text channels where the bot has permissions will work properly.");
+                }
+                else
+                {
+                    container.WithTextDisplay("**No Channels Available**\nNo text channels found where the bot has permission to send messages.");
+                }
+            });
+
+        // Add channel select menu as an action row (ComponentsV2 supports action rows)
         if (channelGuild != null)
         {
             var textChannels = channelGuild.TextChannels
@@ -857,49 +877,19 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                     .WithMinValues(1)
                     .WithMaxValues(1);
 
-                builder.WithActionRow(new ActionRowBuilder().AddComponent(channelSelectMenu));
+                componentsV2Builder.WithActionRow(new ActionRowBuilder().AddComponent(channelSelectMenu));
             }
         }
 
-        // Add navigation buttons
-        builder.WithActionRow(new ActionRowBuilder().AddComponent(
+        // Add navigation button
+        componentsV2Builder.WithActionRow(new ActionRowBuilder().AddComponent(
             new ButtonBuilder()
                 .WithCustomId(_componentHandler.GenerateCustomId(NavigationPrefix, "back"))
                 .WithLabel("← Back to Channel Config")
                 .WithStyle(ButtonStyle.Secondary)
         ));
 
-        var components = new ComponentBuilderV2()
-            .WithContainer(container =>
-            {
-                container.WithTextDisplay($"# {title}\n{description}");
-
-                container.WithTextDisplay(currentChannelContent);
-
-                var displayGuild = (component.Channel as SocketGuildChannel)?.Guild;
-                var hasChannels = displayGuild?.TextChannels
-                    .Where(c => displayGuild.CurrentUser.GetPermissions(c).SendMessages)
-                    .Any() == true;
-
-                if (hasChannels)
-                {
-                    container.WithTextDisplay("**Instructions**\nSelect a text channel from the dropdown below. Only text channels where the bot has permissions will work properly.");
-                }
-                else
-                {
-                    container.WithTextDisplay("**No Channels Available**\nNo text channels found where the bot has permission to send messages.");
-                }
-
-                // Add navigation section
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent("**Navigation**\nReturn to channel configuration"))
-                    .WithAccessory(new ButtonBuilder()
-                        .WithCustomId(_componentHandler.GenerateCustomId(NavigationPrefix, "back"))
-                        .WithLabel("← Back")
-                        .WithStyle(ButtonStyle.Secondary)));
-            })
-            .Build();
+        var components = componentsV2Builder.Build();
 
         await component.ModifyOriginalResponseAsync(msg =>
         {
@@ -938,10 +928,30 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
 
         var dailyNsfwStatusContent = $"**Daily NSFW Status**\n{warningText}";
 
-        var builder = new ComponentBuilderV2();
-
-        // Create channel select menu with available NSFW text channels
+        // Build ComponentsV2 with channel select menu
         var nsfwGuild = (component.Channel as SocketGuildChannel)?.Guild;
+        var componentsV2Builder = new ComponentBuilderV2()
+            .WithContainer(container =>
+            {
+                container.WithTextDisplay($"# {title}\n{description}");
+                container.WithTextDisplay(currentNsfwChannelContent);
+                container.WithTextDisplay(dailyNsfwStatusContent);
+
+                var hasNsfwChannels = nsfwGuild?.TextChannels
+                    .Where(c => c.IsNsfw && nsfwGuild.CurrentUser.GetPermissions(c).SendMessages)
+                    .Any() == true;
+
+                if (hasNsfwChannels)
+                {
+                    container.WithTextDisplay("**Instructions**\n⚠️ **Important:** Only select channels that are marked as NSFW (18+) in Discord's channel settings. The bot will verify this before setting the channel.");
+                }
+                else
+                {
+                    container.WithTextDisplay("**No NSFW Channels Available**\nNo NSFW channels found where the bot has permission. Please mark a channel as 18+ in channel settings first.");
+                }
+            });
+
+        // Add NSFW channel select menu as an action row
         if (nsfwGuild != null)
         {
             var nsfwChannels = nsfwGuild.TextChannels
@@ -973,51 +983,19 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
                     .WithMinValues(1)
                     .WithMaxValues(1);
 
-                builder.WithActionRow(new ActionRowBuilder().AddComponent(channelSelectMenu));
+                componentsV2Builder.WithActionRow(new ActionRowBuilder().AddComponent(channelSelectMenu));
             }
         }
 
-        // Add navigation buttons
-        builder.WithActionRow(new ActionRowBuilder().AddComponent(
+        // Add navigation button
+        componentsV2Builder.WithActionRow(new ActionRowBuilder().AddComponent(
             new ButtonBuilder()
                 .WithCustomId(_componentHandler.GenerateCustomId(NavigationPrefix, "back"))
                 .WithLabel("← Back to NSFW Config")
                 .WithStyle(ButtonStyle.Secondary)
         ));
 
-        var components = new ComponentBuilderV2()
-            .WithContainer(container =>
-            {
-                container.WithTextDisplay($"# {title}\n{description}");
-
-                container.WithTextDisplay(currentNsfwChannelContent);
-
-                container.WithTextDisplay(dailyNsfwStatusContent);
-
-                var displayNsfwGuild = (component.Channel as SocketGuildChannel)?.Guild;
-                var hasNsfwChannels = displayNsfwGuild?.TextChannels
-                    .Where(c => c.IsNsfw && displayNsfwGuild.CurrentUser.GetPermissions(c).SendMessages)
-                    .Any() == true;
-
-                if (hasNsfwChannels)
-                {
-                    container.WithTextDisplay("**Instructions**\n⚠️ **Important:** Only select channels that are marked as NSFW (18+) in Discord's channel settings. The bot will verify this before setting the channel.");
-                }
-                else
-                {
-                    container.WithTextDisplay("**No NSFW Channels Available**\nNo NSFW channels found where the bot has permission. Please mark a channel as 18+ in channel settings first.");
-                }
-
-                // Add navigation section
-                container.AddComponent(new SectionBuilder()
-                    .AddComponent(new TextDisplayBuilder()
-                        .WithContent("**Navigation**\nReturn to NSFW channel configuration"))
-                    .WithAccessory(new ButtonBuilder()
-                        .WithCustomId(_componentHandler.GenerateCustomId(NavigationPrefix, "back"))
-                        .WithLabel("← Back")
-                        .WithStyle(ButtonStyle.Secondary)));
-            })
-            .Build();
+        var components = componentsV2Builder.Build();
 
         await component.ModifyOriginalResponseAsync(msg =>
         {
@@ -1645,7 +1623,10 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         aiConfigContent.AppendLine($"**Fallback Enabled:** {(_llmOptions.EnableFallback ? "✅ Yes" : "❌ No")}");
         if (_llmOptions.EnableFallback && _llmOptions.FallbackOrder.Count > 0)
         {
-            aiConfigContent.AppendLine($"**Fallback Order:** {string.Join(" → ", _llmOptions.FallbackOrder)}");
+            // Build effective fallback order: start with server provider, then configured fallbacks (excluding the server provider)
+            var effectiveFallbackOrder = new List<string> { serverProvider };
+            effectiveFallbackOrder.AddRange(_llmOptions.FallbackOrder.Where(p => !p.Equals(serverProvider, StringComparison.OrdinalIgnoreCase)));
+            aiConfigContent.AppendLine($"**Fallback Order:** {string.Join(" → ", effectiveFallbackOrder)}");
         }
         aiConfigContent.AppendLine($"**Temperature:** {_llmOptions.GlobalTemperature}");
         aiConfigContent.AppendLine($"**Timeout:** {_llmOptions.GlobalTimeout}s");
@@ -2311,6 +2292,155 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
             SelectMenuComponent => null, // SelectMenus cannot be used as section accessories
             _ => throw new ArgumentException($"Unsupported component type: {component.GetType()}")
         };
+    }
+
+    /// <summary>
+    /// Handles the configuration import modal submission
+    /// </summary>
+    private async Task<bool> HandleConfigImportModalAsync(SocketModal modal, ModalContext context)
+    {
+        try
+        {
+            await modal.DeferAsync(ephemeral: true);
+
+            var guildChannel = modal.Channel as SocketGuildChannel;
+            if (guildChannel == null)
+            {
+                await modal.ModifyOriginalResponseAsync(msg => msg.Content = "❌ This command can only be used in a server.");
+                return true;
+            }
+
+            var guildId = guildChannel.Guild.Id;
+            var configJson = modal.Data.Components.FirstOrDefault(c => c.CustomId == "config_json")?.Value;
+
+            if (string.IsNullOrWhiteSpace(configJson))
+            {
+                await modal.ModifyOriginalResponseAsync(msg => msg.Content = "❌ No configuration data provided.");
+                return true;
+            }
+
+            // Parse the configuration (simple text format for now)
+            var lines = configJson.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+            var importedSettings = new Dictionary<string, string>();
+            var importedToggles = new Dictionary<string, bool>();
+
+            string? currentSection = null;
+            foreach (var line in lines)
+            {
+                var trimmedLine = line.Trim();
+
+                if (trimmedLine.StartsWith("##"))
+                {
+                    currentSection = trimmedLine.TrimStart('#').Trim();
+                    continue;
+                }
+
+                if (trimmedLine.StartsWith("-") || trimmedLine.StartsWith("•"))
+                {
+                    var content = trimmedLine.TrimStart('-', '•').Trim();
+                    var colonIndex = content.IndexOf(':');
+
+                    if (colonIndex > 0)
+                    {
+                        var key = content[..colonIndex].Trim();
+                        var value = content[(colonIndex + 1)..].Trim();
+
+                        if (currentSection == "Feature Toggles")
+                        {
+                            importedToggles[key] = value.Equals("Enabled", StringComparison.OrdinalIgnoreCase);
+                        }
+                        else if (currentSection == "Server Settings")
+                        {
+                            importedSettings[key] = value;
+                        }
+                    }
+                }
+            }
+
+            // Apply the imported configuration
+            var serverMeta = await _serverMetaService.GetServerMetaAsync(guildId);
+            if (serverMeta == null)
+            {
+                await modal.ModifyOriginalResponseAsync(msg => msg.Content = "❌ Server metadata not found.");
+                return true;
+            }
+
+            int appliedCount = 0;
+
+            // Apply server settings
+            foreach (var (key, value) in importedSettings)
+            {
+                if (value == "Not configured" || value == "Default" || value == "Provider default")
+                    continue;
+
+                switch (key)
+                {
+                    case "Persona":
+                        serverMeta.Persona = value;
+                        appliedCount++;
+                        break;
+                    case "Preferred Provider":
+                        serverMeta.PreferredProvider = value;
+                        appliedCount++;
+                        break;
+                    case "Preferred Model":
+                        serverMeta.PreferredModel = value;
+                        appliedCount++;
+                        break;
+                }
+            }
+
+            await _serverMetaService.UpdateServerMetaAsync(serverMeta);
+
+            // Apply toggle settings
+            foreach (var (toggleName, isEnabled) in importedToggles)
+            {
+                try
+                {
+                    await _toggleService.SetServerToggleAsync(guildId, toggleName, isEnabled);
+                    appliedCount++;
+                }
+                catch
+                {
+                    // Skip toggles that don't exist
+                }
+            }
+
+            var components = new ComponentBuilderV2()
+                .WithContainer(container =>
+                {
+                    container.WithTextDisplay("# ✅ Configuration Imported");
+                    container.WithTextDisplay($"Successfully imported **{appliedCount}** settings.");
+                    container.WithTextDisplay("**Note:** Channel IDs were not imported as they must be configured manually for this server.");
+                    container.WithTextDisplay($"*Settings from {importedSettings.Count + importedToggles.Count} items processed*");
+                })
+                .Build();
+
+            await modal.ModifyOriginalResponseAsync(msg =>
+            {
+                msg.Components = components;
+                msg.Flags = MessageFlags.ComponentsV2;
+                msg.Content = null;
+            });
+
+            _logger.LogInformation("User {UserId} imported configuration for guild {GuildId} - {Count} settings applied",
+                modal.User.Id, guildId, appliedCount);
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error handling config import modal");
+            try
+            {
+                await modal.ModifyOriginalResponseAsync(msg => msg.Content = "❌ An error occurred while importing the configuration. Please check the format.");
+            }
+            catch
+            {
+                // Ignore errors modifying response
+            }
+            return true;
+        }
     }
 
 }

@@ -179,6 +179,7 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
 
     [SlashCommand("nuke", "Delete multiple messages from the channel")]
     [RequireUserPermission(GuildPermission.ManageMessages)]
+    [Ephemeral]
     public async Task NukeAsync(int messageCount)
     {
         if (messageCount < Constants.Limits.MessageHistoryMinCount || messageCount > Constants.Limits.MessageHistoryMaxCount)
@@ -195,8 +196,10 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
 
             if (messagesToDelete.Any())
             {
+                // Delete messages first
                 await ((ITextChannel)Context.Channel).DeleteMessagesAsync(messagesToDelete);
 
+                // Update the ephemeral response (which won't be deleted)
                 var components = new ComponentBuilderV2()
                     .WithContainer(container =>
                     {
@@ -206,13 +209,21 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
                     })
                     .Build();
 
-                await ModifyOriginalResponseAsync(msg =>
+                try
                 {
-                    msg.Components = components;
-                    msg.Flags = MessageFlags.ComponentsV2;
-                    msg.Embed = null;
-                    msg.Content = null;
-                });
+                    await ModifyOriginalResponseAsync(msg =>
+                    {
+                        msg.Components = components;
+                        msg.Flags = MessageFlags.ComponentsV2;
+                        msg.Embed = null;
+                        msg.Content = null;
+                    });
+                }
+                catch (Discord.Net.HttpException httpEx) when (httpEx.DiscordCode == Discord.DiscordErrorCode.UnknownMessage)
+                {
+                    _logger.LogWarning("Original response was deleted during nuke operation");
+                    // Response was deleted, that's okay for this command
+                }
             }
             else
             {
@@ -222,7 +233,15 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error during nuke command for guild {GuildId}", Context.Guild.Id);
-            await ModifyOriginalResponseAsync(msg => msg.Content = "❌ An error occurred while deleting messages.");
+            try
+            {
+                await ModifyOriginalResponseAsync(msg => msg.Content = "❌ An error occurred while deleting messages.");
+            }
+            catch
+            {
+                // If we can't even modify the response, log and move on
+                _logger.LogWarning("Could not update response after nuke error");
+            }
         }
     }
 
@@ -246,12 +265,7 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
                 .WithContainer(container =>
                 {
                     container.WithTextDisplay("# 😌 Calming Down...");
-
-                    // Add avatar as a section header
-                    container.AddComponent(new SectionBuilder()
-                        .AddComponent(new TextDisplayBuilder()
-                            .WithContent($"**{Context.Client.CurrentUser.Username}** - Taking a break")));
-
+                    container.WithTextDisplay($"**{Context.Client.CurrentUser.Username}** - Taking a break");
                     container.WithTextDisplay("I'll take it easy for a bit. My engagement has been reset to baseline.");
                     container.WithTextDisplay($"**Engagement Level:** Reset to {currentLevel:F1}x (baseline)\n**Context:** Cleared all conversation context\n**Status:** 🌙 Relaxed mode activated");
                     container.WithTextDisplay("*Use mentions to re-engage me if needed*");
@@ -395,6 +409,7 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
     }
 
     [SlashCommand("sleep", "Put Amiquin to sleep for a specified duration")]
+    [Ephemeral]
     public async Task AdminSleepAsync(
         [Summary("minutes", "Duration in minutes (max 1440 for 24 hours)")]
         [MinValue(1)]
@@ -410,8 +425,20 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
                 if (remainingSleep.HasValue)
                 {
                     var remainingMinutes = (int)remainingSleep.Value.TotalMinutes + 1; // Round up
-                    await ModifyOriginalResponseAsync(msg => msg.Content = $"😴 I'm already sleeping! I'll wake up in about **{remainingMinutes} minutes**.\n" +
-                                     "Use `/admin wake-up` to wake me up early.");
+
+                    var alreadySleepingComponents = new ComponentBuilderV2()
+                        .WithTextDisplay("# 😴 Already Sleeping")
+                        .WithTextDisplay($"I'm already sleeping! I'll wake up in about **{remainingMinutes} minutes**.")
+                        .WithTextDisplay("*Use `/admin wake-up` to wake me up early.*")
+                        .Build();
+
+                    await ModifyOriginalResponseAsync(msg =>
+                    {
+                        msg.Components = alreadySleepingComponents;
+                        msg.Flags = MessageFlags.ComponentsV2;
+                        msg.Embed = null;
+                        msg.Content = null;
+                    });
                     return;
                 }
             }
@@ -451,6 +478,7 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
     }
 
     [SlashCommand("wake-up", "Wake up Amiquin if it's sleeping")]
+    [Ephemeral]
     public async Task WakeUpAsync()
     {
         try
@@ -466,20 +494,26 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
                     .WithTextDisplay("*Ready to assist!*")
                     .Build();
 
-                await RespondAsync(components: components, flags: MessageFlags.ComponentsV2);
+                await ModifyOriginalResponseAsync(msg =>
+                {
+                    msg.Components = components;
+                    msg.Flags = MessageFlags.ComponentsV2;
+                    msg.Embed = null;
+                    msg.Content = null;
+                });
 
                 _logger.LogInformation("Admin {UserId} woke up bot on server {ServerId}",
                     Context.User.Id, Context.Guild.Id);
             }
             else
             {
-                await RespondAsync("☀️ I'm already awake! No need to wake me up.", ephemeral: true);
+                await ModifyOriginalResponseAsync(msg => msg.Content = "☀️ I'm already awake! No need to wake me up.");
             }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error waking up bot on server {ServerId}", Context.Guild.Id);
-            await RespondAsync("❌ An error occurred while waking up the bot.", ephemeral: true);
+            await ModifyOriginalResponseAsync(msg => msg.Content = "❌ An error occurred while waking up the bot.");
         }
     }
 
@@ -871,6 +905,31 @@ public class AdminCommands : InteractionModuleBase<ExtendedShardedInteractionCon
             {
                 _logger.LogError(ex, "Error exporting config for server {ServerId}", Context.Guild.Id);
                 await ModifyOriginalResponseAsync(msg => msg.Content = "❌ An error occurred while exporting the configuration.");
+            }
+        }
+
+        [SlashCommand("import", "Import server configuration from JSON")]
+        [Ephemeral]
+        public async Task ImportConfigAsync()
+        {
+            try
+            {
+                var modal = new ModalBuilder()
+                    .WithTitle("Import Server Configuration")
+                    .WithCustomId("config_import_modal")
+                    .AddTextInput("Configuration JSON", "config_json", TextInputStyle.Paragraph,
+                        "Paste exported configuration JSON here...",
+                        required: true,
+                        minLength: 10,
+                        maxLength: 4000)
+                    .Build();
+
+                await Context.Interaction.RespondWithModalAsync(modal);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error showing import modal for server {ServerId}", Context.Guild.Id);
+                await ModifyOriginalResponseAsync(msg => msg.Content = "❌ An error occurred while preparing the import.");
             }
         }
 

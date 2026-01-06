@@ -178,7 +178,7 @@ public class MainCommands : InteractionModuleBase<ExtendedShardedInteractionCont
             // Create ComponentsV2 display with color information
             var components = new ComponentBuilderV2()
                 .WithTextDisplay($"# 🎨 Color Information")
-                .WithTextDisplay($"## #{cleanHex}")
+                .WithTextDisplay($"**#{cleanHex}**")
                 .WithTextDisplay($"**Hex:** #{cleanHex}\n**RGB:** {r}, {g}, {b}\n**HSL:** {h:F0}°, {s:F0}%, {l:F0}%")
                 .WithMediaGallery([imageUrl])
                 .WithActionRow([

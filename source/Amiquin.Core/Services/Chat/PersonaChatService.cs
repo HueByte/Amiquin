@@ -410,6 +410,40 @@ public class PersonaChatService : IPersonaChatService
                     }
                     break;
 
+                case ReActAction.StoreMemory:
+                    // Store important information to long-term memory
+                    if (!string.IsNullOrEmpty(thought.ActionTarget))
+                    {
+                        try
+                        {
+                            // Determine memory type based on content
+                            var memoryType = DetermineMemoryType(thought.ActionTarget);
+
+                            // Store the memory with appropriate scope
+                            var storedMemory = await _memoryService.CreateScopedMemoryAsync(
+                                sessionId: sessionId,
+                                content: thought.ActionTarget,
+                                memoryType: memoryType,
+                                userId: userId,
+                                serverId: instanceId,
+                                scope: MemoryScope.User, // Default to user scope for intentional memories
+                                importance: 0.8f); // High importance for explicitly stored memories
+
+                            reasoning.Observations.Add($"Stored to memory: {thought.ActionTarget.Substring(0, Math.Min(50, thought.ActionTarget.Length))}{(thought.ActionTarget.Length > 50 ? "..." : "")}");
+                            _logger.LogInformation("Stored memory via ReAct for user {UserId}: {Content}", userId, thought.ActionTarget);
+                        }
+                        catch (Exception ex)
+                        {
+                            reasoning.Observations.Add($"Failed to store memory: {ex.Message}");
+                            _logger.LogWarning(ex, "Failed to store memory via ReAct for user {UserId}", userId);
+                        }
+                    }
+                    else
+                    {
+                        reasoning.Observations.Add("Cannot store memory: no content specified");
+                    }
+                    break;
+
                 case ReActAction.AnalyzeContext:
                     // Deeper analysis of conversation context
                     var contextAnalysis = AnalyzeConversationContext(messages, thought.ActionTarget);
@@ -561,16 +595,18 @@ public class PersonaChatService : IPersonaChatService
         sb.AppendLine("AVAILABLE ACTIONS:");
         sb.AppendLine("  - respond: Ready to generate response (include confidence 0.0-1.0)");
         sb.AppendLine("  - recall_memory: Search for specific memories (specify search query)");
+        sb.AppendLine("  - store_memory: Save important information to long-term memory (specify what to remember)");
         sb.AppendLine("  - analyze_context: Deeper analysis of conversation flow");
         sb.AppendLine("  - consider_tone: Determine appropriate emotional tone");
         sb.AppendLine("  - reflect: Self-evaluate reasoning so far");
         sb.AppendLine("  - clarify: Note something that needs user clarification");
+        sb.AppendLine("  - web_search: Search the web for real-time information (specify search query)");
         sb.AppendLine();
         sb.AppendLine("Respond with JSON:");
         sb.AppendLine("{");
         sb.AppendLine("  \"analysis\": \"your brief reasoning about the situation\",");
-        sb.AppendLine("  \"action\": \"respond|recall_memory|analyze_context|consider_tone|reflect|clarify\",");
-        sb.AppendLine("  \"action_target\": \"specific target for the action (search query, topic, etc.)\",");
+        sb.AppendLine("  \"action\": \"respond|recall_memory|store_memory|analyze_context|consider_tone|reflect|clarify|web_search\",");
+        sb.AppendLine("  \"action_target\": \"specific target for the action (search query, what to remember, etc.)\",");
         sb.AppendLine("  \"confidence\": 0.0-1.0,");
         sb.AppendLine("  \"reasoning_note\": \"optional: why you chose this action\"");
         sb.AppendLine("}");
@@ -765,6 +801,7 @@ public class PersonaChatService : IPersonaChatService
         return action?.ToLowerInvariant().Replace("_", "") switch
         {
             "recallmemory" or "memory" => ReActAction.RecallMemory,
+            "storememory" or "remember" or "store" or "save" or "savememory" => ReActAction.StoreMemory,
             "analyzecontext" or "context" or "analyze" => ReActAction.AnalyzeContext,
             "considertone" or "tone" => ReActAction.ConsiderTone,
             "reflect" or "selfreflect" or "evaluate" => ReActAction.Reflect,
@@ -808,6 +845,7 @@ public class PersonaChatService : IPersonaChatService
     {
         Respond,
         RecallMemory,
+        StoreMemory,
         AnalyzeContext,
         ConsiderTone,
         Reflect,
@@ -1215,5 +1253,48 @@ public class PersonaChatService : IPersonaChatService
         {
             _logger.LogWarning(ex, "Failed to check/compact session for instance {InstanceId}", instanceId);
         }
+    }
+
+    /// <summary>
+    /// Determines the appropriate memory type based on content
+    /// </summary>
+    private string DetermineMemoryType(string content)
+    {
+        var lowerContent = content.ToLowerInvariant();
+
+        // Check for preferences
+        if (lowerContent.Contains("prefer") ||
+            lowerContent.Contains("like") ||
+            lowerContent.Contains("don't like") ||
+            lowerContent.Contains("favorite") ||
+            lowerContent.Contains("hate"))
+        {
+            return "preference";
+        }
+
+        // Check for facts/information
+        if (lowerContent.Contains("is ") ||
+            lowerContent.Contains("are ") ||
+            lowerContent.Contains("was ") ||
+            lowerContent.Contains("were ") ||
+            lowerContent.Contains("my name") ||
+            lowerContent.Contains("i am") ||
+            lowerContent.Contains("i'm"))
+        {
+            return "fact";
+        }
+
+        // Check for instructions/reminders
+        if (lowerContent.Contains("remember to") ||
+            lowerContent.Contains("remind me") ||
+            lowerContent.Contains("don't forget") ||
+            lowerContent.Contains("always") ||
+            lowerContent.Contains("never"))
+        {
+            return "instruction";
+        }
+
+        // Default to context
+        return "context";
     }
 }
