@@ -125,8 +125,7 @@ QDRANT_MEMORY_LIMIT=8G
 QDRANT_MEMORY_RESERVATION=4G
 AMIQUIN_MEMORY_LIMIT=4G
 AMIQUIN_MEMORY_RESERVATION=1G
-MYSQL_INNODB_BUFFER_POOL_SIZE=2G
-REDIS_MAX_MEMORY=1.5gb
+# MySQL tuning is done via mysql/conf.d/production.cnf
 ```
 
 ### MySQL Production Configuration
@@ -333,19 +332,23 @@ DOTNET_GCRetainVM=true            # Retain virtual memory
 ### Vertical Scaling
 
 1. **Increase Resources**:
+
    ```bash
    # Update resource limits in .env
    QDRANT_MEMORY_LIMIT=16G
    AMIQUIN_MEMORY_LIMIT=8G
-   MYSQL_INNODB_BUFFER_POOL_SIZE=4G
+   # MySQL tuning: edit mysql/conf.d/production.cnf
+   # innodb_buffer_pool_size = 4G
    ```
 
 2. **CPU Optimization**:
+
    ```bash
    # Optimize for more CPU cores
    QDRANT_MAX_WORKERS=8
-   MYSQL_INNODB_READ_IO_THREADS=16
-   MYSQL_INNODB_WRITE_IO_THREADS=16
+   # MySQL tuning: edit mysql/conf.d/production.cnf
+   # innodb_read_io_threads = 16
+   # innodb_write_io_threads = 16
    ```
 
 ## Troubleshooting
@@ -362,13 +365,14 @@ DOTNET_GCRetainVM=true            # Retain virtual memory
    ```
 
 2. **MySQL Connection Pool Exhaustion**:
+
    ```bash
    # Check connections
    docker-compose -f docker-compose.production.yml exec mysql mysql \
      -u root -p -e "SHOW PROCESSLIST;"
-   
-   # Increase pool size
-   MYSQL_MAX_CONNECTIONS=500
+
+   # Increase pool size: edit mysql/conf.d/production.cnf
+   # max_connections = 500
    ```
 
 3. **Disk Space Issues**:

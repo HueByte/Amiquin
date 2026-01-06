@@ -345,12 +345,9 @@ AMQ_QDRANT_LOG_LEVEL=WARN  # Reduce logging overhead
 
 ### MySQL Optimization
 
-```bash
-# Add MySQL performance settings to docker-compose.yml
-environment:
-  MYSQL_INNODB_BUFFER_POOL_SIZE: 1G
-  MYSQL_INNODB_LOG_FILE_SIZE: 256M
-```
+MySQL tuning is done via the configuration file at `mysql/conf.d/production.cnf`.
+The file contains InnoDB, connection, and performance settings that are loaded
+automatically when the MySQL container starts.
 
 ## Backup and Recovery
 

@@ -26,11 +26,6 @@ services:
       MYSQL_DATABASE: ${AMQ_DB_NAME}
       MYSQL_USER: ${AMQ_DB_USER}
       MYSQL_PASSWORD: ${AMQ_DB_USER_PASSWORD}
-      # Production MySQL optimizations (only applied in production profiles)
-      MYSQL_INNODB_BUFFER_POOL_SIZE: ${MYSQL_INNODB_BUFFER_POOL_SIZE:-1G}
-      MYSQL_INNODB_LOG_FILE_SIZE: ${MYSQL_INNODB_LOG_FILE_SIZE:-256M}
-      MYSQL_MAX_CONNECTIONS: ${MYSQL_MAX_CONNECTIONS:-200}
-      MYSQL_QUERY_CACHE_SIZE: ${MYSQL_QUERY_CACHE_SIZE:-64M}
     ports:
       - "${AMQ_MYSQL_PORT:-3306}:3306"
     volumes:
@@ -39,7 +34,6 @@ services:
     command: >
       --character-set-server=utf8mb4
       --collation-server=utf8mb4_unicode_ci
-      ${MYSQL_PRODUCTION_ARGS:-}
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 30s
@@ -233,7 +227,7 @@ services:
     ports:
       - "${AMQ_BOT_PORT:-10001}:10000"
     volumes:
-      # Single volume for all persistent data (database, logs, sessions, plugins, config)
+      # Persistent data volume (database, logs, sessions, plugins)
       - amq-data:/app/Data
     depends_on:
       mysql:
@@ -262,7 +256,7 @@ services:
       start_period: 120s
 
 volumes:
-  # Amiquin bot data (database, logs, sessions, plugins, config)
+  # Amiquin bot persistent data (database, logs, sessions, plugins)
   amq-data:
     driver: local
   # MySQL database data

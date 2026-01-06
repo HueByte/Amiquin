@@ -143,11 +143,10 @@ COPY --from=libsodium-build /opt/libsodium/lib /usr/local/lib
 COPY --from=opus-build /opt/opus/lib /usr/local/lib
 
 # Create Data directory structure at volume mount point (as root)
+# Note: Configuration is now part of the build, not in Data volume
 RUN mkdir -p /app/Data/Logs \
     && mkdir -p /app/Data/Database \
-    && mkdir -p /app/Data/Messages \
     && mkdir -p /app/Data/Sessions \
-    && mkdir -p /app/Data/Configuration \
     && mkdir -p /app/Data/Plugins
 
 # Create non-root user with proper setup
@@ -170,24 +169,13 @@ COPY --from=build --chown=amiquin:amiquin ${MAIN_WORK_DIR}/build /app
 # Set working directory to /app (where the application runs from)
 WORKDIR /app
 
-# Copy Data folder contents from build output to the volume location
-# The built Data folder contains Messages and Configuration defaults
-RUN if [ -d "/app/Data" ]; then \
-    echo "Data folder already present in build output"; \
-    else \
-    echo "Creating Data directory structure"; \
-    mkdir -p /app/Data/Logs /app/Data/Database /app/Data/Messages /app/Data/Sessions /app/Data/Configuration /app/Data/Plugins; \
-    fi
-
-# If appsettings.json doesn't exist but example does, copy it (for first-time setup)
-RUN if [ ! -f /app/Data/Configuration/appsettings.json ] && [ -f /app/Data/Configuration/appsettings.example.json ]; then \
-    echo "No appsettings.json found, copying from example"; \
-    cp /app/Data/Configuration/appsettings.example.json /app/Data/Configuration/appsettings.json; \
-    fi
+# Ensure Data directory structure exists
+# Messages folder is copied from build, other folders are for runtime data (volume mounted)
+RUN mkdir -p /app/Data/Logs /app/Data/Database /app/Data/Sessions /app/Data/Plugins
 
 # Set environment variables
-# Database defaults to SQLite at /app/Data/Database/amiquin.db
-ENV AMQ_Database__Mode=1
+# Database defaults to MySQL (Mode=0) when running in Docker
+ENV AMQ_Database__Mode=0
 ENV PATH="${PATH}:/home/amiquin/.local/bin"
 
 # Health check for console application - just check if process is running

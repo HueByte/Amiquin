@@ -84,16 +84,13 @@ Log.CloseAndFlush();
 async Task RunAsync(string[] args)
 {
     var basePath = AppContext.BaseDirectory;
-    var configPath = Path.Combine(basePath, "Data", "Configuration");
-    var appSettingsPath = Path.Combine(configPath, "appsettings.json");
-    var exampleSettingsPath = Path.Combine(configPath, "appsettings.example.json");
+    var appSettingsPath = Path.Combine(basePath, "appsettings.json");
 
-    // If appsettings.json doesn't exist but example does, copy it
-    if (!File.Exists(appSettingsPath) && File.Exists(exampleSettingsPath))
+    if (!File.Exists(appSettingsPath))
     {
-        Directory.CreateDirectory(configPath);
-        File.Copy(exampleSettingsPath, appSettingsPath);
-        Console.WriteLine($"Created appsettings.json from example. Please configure your Discord token and API keys.");
+        Console.WriteLine($"Error: appsettings.json not found at {appSettingsPath}");
+        Console.WriteLine("Please ensure appsettings.json exists. Copy from appsettings.example.json and configure your settings.");
+        throw new FileNotFoundException("appsettings.json not found", appSettingsPath);
     }
 
     var configurationManager = new ConfigurationManager()
@@ -111,9 +108,16 @@ async Task RunAsync(string[] args)
 
     var hostBuilder = Host.CreateDefaultBuilder(args);
     var host = hostBuilder
-        .ConfigureHostConfiguration(host =>
+        .ConfigureAppConfiguration((hostContext, config) =>
         {
-            host.AddConfiguration(configurationManager.Build());
+            // Clear default sources and use our custom configuration
+            // This ensures environment variables with AMQ_ prefix properly override appsettings.json
+            config.Sources.Clear();
+            config.SetBasePath(basePath)
+                  .AddJsonFile(appSettingsPath, optional: false, reloadOnChange: false)
+                  .AddEnvironmentVariables()
+                  .AddEnvironmentVariables(prefix: "AMQ_")
+                  .AddCommandLine(args);
         })
         .ConfigureServices((hostContext, services) =>
         {
