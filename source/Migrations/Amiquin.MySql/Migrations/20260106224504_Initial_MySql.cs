@@ -1,3 +1,4 @@
+﻿using System;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
 
@@ -6,7 +7,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Amiquin.MySql.Migrations
 {
     /// <inheritdoc />
-    public partial class Init_MySql : Migration
+    public partial class Initial_MySql : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -47,6 +48,55 @@ namespace Amiquin.MySql.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
 
             migrationBuilder.CreateTable(
+                name: "GlobalToggles",
+                columns: table => new
+                {
+                    Id = table.Column<string>(type: "varchar(255)", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Name = table.Column<string>(type: "varchar(255)", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    IsEnabled = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    Description = table.Column<string>(type: "longtext", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    LastUpdatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    AllowServerOverride = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    Category = table.Column<string>(type: "varchar(255)", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4")
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_GlobalToggles", x => x.Id);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "PaginationSessions",
+                columns: table => new
+                {
+                    Id = table.Column<string>(type: "varchar(255)", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    UserId = table.Column<ulong>(type: "bigint unsigned", nullable: false),
+                    CurrentPage = table.Column<int>(type: "int", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    ExpiresAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    GuildId = table.Column<ulong>(type: "bigint unsigned", nullable: true),
+                    ChannelId = table.Column<ulong>(type: "bigint unsigned", nullable: false),
+                    MessageId = table.Column<ulong>(type: "bigint unsigned", nullable: false),
+                    EmbedData = table.Column<string>(type: "longtext", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    TotalPages = table.Column<int>(type: "int", nullable: false),
+                    ContentType = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_PaginationSessions", x => x.Id);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
                 name: "ServerMetas",
                 columns: table => new
                 {
@@ -58,11 +108,36 @@ namespace Amiquin.MySql.Migrations
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     CreatedAt = table.Column<DateTime>(type: "datetime(6)", nullable: false),
                     LastUpdated = table.Column<DateTime>(type: "datetime(6)", nullable: false),
-                    IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false)
+                    IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    PrimaryChannelId = table.Column<ulong>(type: "bigint unsigned", nullable: true),
+                    PreferredProvider = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    PreferredModel = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    NsfwChannelId = table.Column<ulong>(type: "bigint unsigned", nullable: true)
                 },
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_ServerMetas", x => x.Id);
+                })
+                .Annotation("MySql:CharSet", "utf8mb4");
+
+            migrationBuilder.CreateTable(
+                name: "user_stats",
+                columns: table => new
+                {
+                    id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
+                    user_id = table.Column<ulong>(type: "bigint unsigned", nullable: false),
+                    server_id = table.Column<ulong>(type: "bigint unsigned", nullable: false),
+                    fun_stats = table.Column<string>(type: "TEXT", nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    created_at = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    updated_at = table.Column<DateTime>(type: "datetime(6)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_user_stats", x => x.id);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
@@ -80,6 +155,8 @@ namespace Amiquin.MySql.Migrations
                     Model = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Provider = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: false)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Name = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     IsActive = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     Scope = table.Column<int>(type: "int", nullable: false),
@@ -117,7 +194,7 @@ namespace Amiquin.MySql.Migrations
                     IsSuccess = table.Column<bool>(type: "tinyint(1)", nullable: false),
                     ErrorMessage = table.Column<string>(type: "longtext", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
-                    ServerId = table.Column<ulong>(type: "bigint unsigned", nullable: false)
+                    ServerId = table.Column<ulong>(type: "bigint unsigned", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -127,7 +204,7 @@ namespace Amiquin.MySql.Migrations
                         column: x => x.ServerId,
                         principalTable: "ServerMetas",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
+                        onDelete: ReferentialAction.SetNull);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
@@ -168,7 +245,7 @@ namespace Amiquin.MySql.Migrations
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     UserId = table.Column<ulong>(type: "bigint unsigned", nullable: false),
                     NachoReceivedDate = table.Column<DateTime>(type: "datetime(6)", nullable: false),
-                    ServerId = table.Column<ulong>(type: "bigint unsigned", nullable: false)
+                    ServerId = table.Column<ulong>(type: "bigint unsigned", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -178,7 +255,7 @@ namespace Amiquin.MySql.Migrations
                         column: x => x.ServerId,
                         principalTable: "ServerMetas",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
+                        onDelete: ReferentialAction.SetNull);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
@@ -266,6 +343,17 @@ namespace Amiquin.MySql.Migrations
                 column: "ServerId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_GlobalToggles_Category",
+                table: "GlobalToggles",
+                column: "Category");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_GlobalToggles_Name",
+                table: "GlobalToggles",
+                column: "Name",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Messages_ServerId",
                 table: "Messages",
                 column: "ServerId");
@@ -274,6 +362,21 @@ namespace Amiquin.MySql.Migrations
                 name: "IX_NachoPacks_ServerId",
                 table: "NachoPacks",
                 column: "ServerId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PaginationSessions_ExpiresAt",
+                table: "PaginationSessions",
+                column: "ExpiresAt");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PaginationSessions_MessageId",
+                table: "PaginationSessions",
+                column: "MessageId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_PaginationSessions_UserActive",
+                table: "PaginationSessions",
+                columns: new[] { "UserId", "IsActive" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_SessionMessages_ChatSessionId",
@@ -294,6 +397,12 @@ namespace Amiquin.MySql.Migrations
                 name: "IX_Toggles_ServerId",
                 table: "Toggles",
                 column: "ServerId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_user_stats_user_id_server_id",
+                table: "user_stats",
+                columns: new[] { "user_id", "server_id" },
+                unique: true);
         }
 
         /// <inheritdoc />
@@ -306,16 +415,25 @@ namespace Amiquin.MySql.Migrations
                 name: "CommandLogs");
 
             migrationBuilder.DropTable(
+                name: "GlobalToggles");
+
+            migrationBuilder.DropTable(
                 name: "Messages");
 
             migrationBuilder.DropTable(
                 name: "NachoPacks");
 
             migrationBuilder.DropTable(
+                name: "PaginationSessions");
+
+            migrationBuilder.DropTable(
                 name: "SessionMessages");
 
             migrationBuilder.DropTable(
                 name: "Toggles");
+
+            migrationBuilder.DropTable(
+                name: "user_stats");
 
             migrationBuilder.DropTable(
                 name: "ChatSessions");

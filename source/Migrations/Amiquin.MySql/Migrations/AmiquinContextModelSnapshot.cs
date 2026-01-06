@@ -17,7 +17,7 @@ namespace Amiquin.MySql.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.1")
+                .HasAnnotation("ProductVersion", "9.0.8")
                 .HasAnnotation("Relational:MaxIdentifierLength", 64);
 
             MySqlModelBuilderExtensions.AutoIncrementColumns(modelBuilder);
@@ -192,63 +192,6 @@ namespace Amiquin.MySql.Migrations
                     b.HasIndex("ServerId");
 
                     b.ToTable("CommandLogs");
-                });
-
-            modelBuilder.Entity("Amiquin.Core.Models.ConversationMemory", b =>
-                {
-                    b.Property<string>("Id")
-                        .HasColumnType("varchar(255)");
-
-                    b.Property<int>("AccessCount")
-                        .HasColumnType("int");
-
-                    b.Property<string>("ChatSessionId")
-                        .IsRequired()
-                        .HasColumnType("varchar(255)");
-
-                    b.Property<string>("Content")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<string>("Embedding")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
-                    b.Property<int>("EstimatedTokens")
-                        .HasColumnType("int");
-
-                    b.Property<float>("ImportanceScore")
-                        .HasColumnType("float");
-
-                    b.Property<DateTime>("LastAccessedAt")
-                        .HasColumnType("datetime(6)");
-
-                    b.Property<string>("MemoryType")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("varchar(50)");
-
-                    b.Property<string>("Metadata")
-                        .HasColumnType("longtext");
-
-                    b.Property<ulong?>("UserId")
-                        .HasColumnType("bigint unsigned");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CreatedAt")
-                        .HasDatabaseName("IX_ConversationMemories_Created");
-
-                    b.HasIndex("ImportanceScore")
-                        .HasDatabaseName("IX_ConversationMemories_Importance");
-
-                    b.HasIndex("ChatSessionId", "MemoryType")
-                        .HasDatabaseName("IX_ConversationMemories_SessionType");
-
-                    b.ToTable("ConversationMemories");
                 });
 
             modelBuilder.Entity("Amiquin.Core.Models.GlobalToggle", b =>
@@ -428,6 +371,9 @@ namespace Amiquin.MySql.Migrations
                         .IsRequired()
                         .HasColumnType("longtext");
 
+                    b.Property<string>("PreferredModel")
+                        .HasColumnType("longtext");
+
                     b.Property<string>("PreferredProvider")
                         .HasColumnType("longtext");
 
@@ -572,17 +518,6 @@ namespace Amiquin.MySql.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("Server");
-                });
-
-            modelBuilder.Entity("Amiquin.Core.Models.ConversationMemory", b =>
-                {
-                    b.HasOne("Amiquin.Core.Models.ChatSession", "ChatSession")
-                        .WithMany()
-                        .HasForeignKey("ChatSessionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("ChatSession");
                 });
 
             modelBuilder.Entity("Amiquin.Core.Models.Message", b =>
