@@ -30,4 +30,11 @@ public interface IModelProviderMappingService
     /// </summary>
     /// <returns>List of model names</returns>
     List<string> GetAvailableModels();
+
+    /// <summary>
+    /// Gets models for a specific provider
+    /// </summary>
+    /// <param name="provider">The provider name (OpenAI, Anthropic, Gemini, Grok)</param>
+    /// <returns>List of tuples with model ID and display name</returns>
+    List<(string ModelId, string DisplayName)> GetModelsForProvider(string provider);
 }

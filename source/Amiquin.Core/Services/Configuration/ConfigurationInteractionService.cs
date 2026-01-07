@@ -3,6 +3,7 @@ using Amiquin.Core.Services.ComponentHandler;
 using Amiquin.Core.Services.ErrorHandling;
 using Amiquin.Core.Services.Meta;
 using Amiquin.Core.Services.Modal;
+using Amiquin.Core.Services.ModelProvider;
 using Amiquin.Core.Services.Pagination;
 using Amiquin.Core.Services.Toggle;
 using Amiquin.Core.Utilities;
@@ -26,6 +27,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
     private readonly IPaginationService _paginationService;
     private readonly IModalService _modalService;
     private readonly IInteractionErrorHandlerService _errorHandlerService;
+    private readonly IModelProviderMappingService _modelProviderService;
     private readonly LLMOptions _llmOptions;
 
     // Component prefixes
@@ -44,6 +46,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         IPaginationService paginationService,
         IModalService modalService,
         IInteractionErrorHandlerService errorHandlerService,
+        IModelProviderMappingService modelProviderService,
         IOptions<LLMOptions> llmOptions)
     {
         _logger = logger;
@@ -53,6 +56,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
         _paginationService = paginationService;
         _modalService = modalService;
         _errorHandlerService = errorHandlerService;
+        _modelProviderService = modelProviderService;
         _llmOptions = llmOptions.Value;
     }
 
@@ -163,9 +167,13 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
             // AI Provider Section
             var providerText = !string.IsNullOrWhiteSpace(serverMeta?.PreferredProvider)
                 ? serverMeta.PreferredProvider
-                : "*Using default (OpenAI)*";
+                : $"*Using default ({_llmOptions.DefaultProvider})*";
 
-            var providerContent = $"**🤖 AI Provider**\n{providerText}";
+            var modelText = !string.IsNullOrWhiteSpace(serverMeta?.PreferredModel)
+                ? serverMeta.PreferredModel
+                : "*Default*";
+
+            var providerContent = $"**🤖 AI Provider**\n**Provider:** {providerText}\n**Model:** {modelText}";
 
             container.AddComponent(new SectionBuilder()
                 .AddComponent(new TextDisplayBuilder()
@@ -1081,44 +1089,22 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
 
     private List<SelectMenuOptionBuilder> GetModelsForProvider(string provider, string? currentModel)
     {
-        var models = provider.ToLower() switch
-        {
-            "openai" => new[]
-            {
-                ("gpt-4o", "GPT-4o - Fast & capable"),
-                ("gpt-4o-mini", "GPT-4o Mini - Budget friendly"),
-                ("gpt-4.1", "GPT-4.1 - Latest GPT-4"),
-                ("gpt-4.1-mini", "GPT-4.1 Mini - Compact"),
-                ("o3", "o3 - Advanced reasoning"),
-                ("o3-mini", "o3-mini - Fast reasoning"),
-                ("o4-mini", "o4-mini - Latest reasoning"),
-            },
-            "anthropic" => new[]
-            {
-                ("claude-3-5-sonnet-latest", "Claude 3.5 Sonnet - Balanced"),
-                ("claude-3-5-haiku-latest", "Claude 3.5 Haiku - Fast"),
-                ("claude-3-opus-latest", "Claude 3 Opus - Most capable"),
-            },
-            "gemini" => new[]
-            {
-                ("gemini-2.0-flash-exp", "Gemini 2.0 Flash - Latest"),
-                ("gemini-1.5-pro", "Gemini 1.5 Pro - Capable"),
-                ("gemini-1.5-flash", "Gemini 1.5 Flash - Fast"),
-            },
-            "grok" => new[]
-            {
-                ("grok-3", "Grok-3 - Latest"),
-                ("grok-3-mini", "Grok-3 Mini - Fast"),
-                ("grok-2", "Grok-2 - Stable"),
-            },
-            _ => new[] { ("default", "Use provider default") }
-        };
+        var models = _modelProviderService.GetModelsForProvider(provider);
 
-        return models.Select(m => new SelectMenuOptionBuilder(
-            m.Item1,
-            m.Item1,
-            m.Item2,
-            isDefault: m.Item1.Equals(currentModel, StringComparison.OrdinalIgnoreCase)
+        if (models.Count == 0)
+        {
+            return new List<SelectMenuOptionBuilder>
+            {
+                new SelectMenuOptionBuilder("default", "default", "Use provider default")
+            };
+        }
+
+        // Discord select menus have a max of 25 options
+        return models.Take(25).Select(m => new SelectMenuOptionBuilder(
+            m.ModelId,
+            m.ModelId,
+            m.DisplayName,
+            isDefault: m.ModelId.Equals(currentModel, StringComparison.OrdinalIgnoreCase)
         )).ToList();
     }
 
