@@ -377,11 +377,11 @@ public class ServerMetaService : IServerMetaService, IDisposable
                     foundMeta.ServerName = serverMeta.ServerName ?? foundMeta.ServerName;
                     foundMeta.Persona = serverMeta.Persona ?? foundMeta.Persona;
 
-                    // Only update PreferredProvider if it's explicitly provided (not null)
-                    if (serverMeta.PreferredProvider != null)
-                    {
-                        foundMeta.PreferredProvider = serverMeta.PreferredProvider;
-                    }
+                    // Update PreferredProvider (nullable field, so allow null to be set for clearing)
+                    foundMeta.PreferredProvider = serverMeta.PreferredProvider;
+
+                    // Update PreferredModel (nullable field, so allow null to be set for clearing)
+                    foundMeta.PreferredModel = serverMeta.PreferredModel;
 
                     // Update PrimaryChannelId (nullable field, so allow null to be set)
                     foundMeta.PrimaryChannelId = serverMeta.PrimaryChannelId;
