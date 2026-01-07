@@ -294,10 +294,12 @@ public class ServerMetaService : IServerMetaService, IDisposable
                     return serverMeta;
                 }
 
-                // Query database
+                // Query database with toggles included to avoid recreating them
                 var queryStopwatch = Stopwatch.StartNew();
                 serverMeta = await ExecuteWithRepositoryAsync(async repo =>
-                    await repo.AsQueryable().FirstOrDefaultAsync(x => x.Id == serverId, cancellationToken));
+                    await repo.AsQueryable()
+                        .Include(x => x.Toggles)
+                        .FirstOrDefaultAsync(x => x.Id == serverId, cancellationToken));
                 queryStopwatch.Stop();
                 RecordMetric(DatabaseQueryMetric, queryStopwatch.ElapsedMilliseconds);
 

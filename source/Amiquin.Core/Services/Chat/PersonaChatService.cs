@@ -879,22 +879,25 @@ public class PersonaChatService : IPersonaChatService
         _logger.LogInformation("ServerMeta for {InstanceId}: PreferredProvider={Provider}, PreferredModel={Model}",
             instanceId, serverMeta?.PreferredProvider ?? "(null)", serverMeta?.PreferredModel ?? "(null)");
 
-        // Try to get model from the active session first
-        var activeSession = await _sessionManager.GetActiveSessionAsync(instanceId);
-        var model = activeSession?.Model;
+        // Priority: ServerMeta.PreferredModel > Session.Model
+        // ServerMeta is the user's explicit choice from server-manager, so it should take priority
+        string? model = null;
 
-        // Fallback to ServerMeta.PreferredModel if session doesn't have a model
-        if (string.IsNullOrWhiteSpace(model))
+        // First priority: Server's preferred model (set via server-manager)
+        if (!string.IsNullOrWhiteSpace(serverMeta?.PreferredModel))
         {
-            model = serverMeta?.PreferredModel;
-            if (!string.IsNullOrWhiteSpace(model))
-            {
-                _logger.LogDebug("Using server preferred model: {Model} for instance {InstanceId}", model, instanceId);
-            }
+            model = serverMeta.PreferredModel;
+            _logger.LogDebug("Using server preferred model: {Model} for instance {InstanceId}", model, instanceId);
         }
         else
         {
-            _logger.LogDebug("Using session model: {Model} for instance {InstanceId}", model, instanceId);
+            // Second priority: Session's model (if explicitly set, not default)
+            var activeSession = await _sessionManager.GetActiveSessionAsync(instanceId);
+            if (activeSession != null && !string.IsNullOrWhiteSpace(activeSession.Model) && activeSession.Model != "gpt-4o-mini")
+            {
+                model = activeSession.Model;
+                _logger.LogDebug("Using session model: {Model} for instance {InstanceId}", model, instanceId);
+            }
         }
 
         return (provider, model);
