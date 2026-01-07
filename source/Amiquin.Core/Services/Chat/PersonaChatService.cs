@@ -876,6 +876,9 @@ public class PersonaChatService : IPersonaChatService
         var serverMeta = await _serverMetaService.GetServerMetaAsync(instanceId);
         var provider = serverMeta?.PreferredProvider;
 
+        _logger.LogInformation("ServerMeta for {InstanceId}: PreferredProvider={Provider}, PreferredModel={Model}",
+            instanceId, serverMeta?.PreferredProvider ?? "(null)", serverMeta?.PreferredModel ?? "(null)");
+
         // Try to get model from the active session first
         var activeSession = await _sessionManager.GetActiveSessionAsync(instanceId);
         var model = activeSession?.Model;

@@ -1345,6 +1345,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
             serverMeta.PreferredModel = null;
             await _serverMetaService.UpdateServerMetaAsync(serverMeta);
 
+            _logger.LogInformation("Set provider to {Provider} for server {ServerId}", normalizedProvider, guildId);
             await DiscordUtilities.SendSuccessMessageAsync(component, $"AI provider set to **{normalizedProvider}**");
 
             // Refresh the interface after a short delay
@@ -1361,6 +1362,7 @@ public class ConfigurationInteractionService : IConfigurationInteractionService
             serverMeta.PreferredModel = model;
             await _serverMetaService.UpdateServerMetaAsync(serverMeta);
 
+            _logger.LogInformation("Set model to {Model} for server {ServerId}", model, guildId);
             await DiscordUtilities.SendSuccessMessageAsync(component, $"AI model set to **{model}**");
 
             // Refresh the interface after a short delay

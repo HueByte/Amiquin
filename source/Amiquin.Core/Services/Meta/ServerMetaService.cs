@@ -383,6 +383,9 @@ public class ServerMetaService : IServerMetaService, IDisposable
                     // Update PreferredModel (nullable field, so allow null to be set for clearing)
                     foundMeta.PreferredModel = serverMeta.PreferredModel;
 
+                    _logger.LogInformation("Setting PreferredProvider={Provider}, PreferredModel={Model} for server {ServerId}",
+                        serverMeta.PreferredProvider ?? "(null)", serverMeta.PreferredModel ?? "(null)", serverMeta.Id);
+
                     // Update PrimaryChannelId (nullable field, so allow null to be set)
                     foundMeta.PrimaryChannelId = serverMeta.PrimaryChannelId;
 
